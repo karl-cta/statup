@@ -1,0 +1,25 @@
+{# Status selector, inline dropdown to override service status. Expects `service`, `csrf_token`, `all_statuses` in scope. #}
+<form
+    id="status-selector-{{ service.id }}"
+    class="inline-flex"
+    hx-post="/services/{{ service.id }}/status"
+    hx-target="#status-selector-{{ service.id }}"
+    hx-swap="outerHTML settle:0.2s"
+    hx-trigger="change from:find select"
+>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <select
+        name="status"
+        class="status-label cursor-pointer appearance-none border-0 bg-transparent py-0.5 pl-0 pr-4
+               transition-colors duration-200
+               focus:outline-none
+               {{ service.status.css_class() }}"
+        aria-label="Changer le statut de {{ service.name }}"
+    >
+        <option value="operational" {% if service.status == crate::models::ServiceStatus::Operational %}selected{% endif %}>{{ i18n.t("status.service.operational") }}</option>
+        <option value="degraded" {% if service.status == crate::models::ServiceStatus::Degraded %}selected{% endif %}>{{ i18n.t("status.service.degraded") }}</option>
+        <option value="partial_outage" {% if service.status == crate::models::ServiceStatus::PartialOutage %}selected{% endif %}>{{ i18n.t("status.service.partial_outage") }}</option>
+        <option value="major_outage" {% if service.status == crate::models::ServiceStatus::MajorOutage %}selected{% endif %}>{{ i18n.t("status.service.major_outage") }}</option>
+        <option value="maintenance" {% if service.status == crate::models::ServiceStatus::Maintenance %}selected{% endif %}>{{ i18n.t("status.service.maintenance") }}</option>
+    </select>
+</form>

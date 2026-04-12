@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="{{ i18n.locale() }}" class="h-full">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Statup{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="/static/css/style.css?v={{ crate::css_version() }}">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <meta name="htmx-config" content='{"globalViewTransitions":true}'>
+    <script src="/static/js/htmx.min.js"></script>
+    <style>
+        body { font-family: 'Outfit', system-ui, -apple-system, sans-serif; }
+        code, pre, .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    </style>
+    <script>
+    (function(){
+        var t = localStorage.getItem('theme');
+        if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+    })();
+    </script>
+</head>
+<body class="h-full bg-stone-100 dark:bg-neutral-900 text-stone-900 dark:text-neutral-100 antialiased noise">
+    {% block body %}{% endblock %}
+    <script>
+    document.body.addEventListener('htmx:configRequest', function(evt) {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) { evt.detail.headers['X-CSRF-Token'] = meta.content; }
+    });
+    function toggleTheme() {
+        var d = document.documentElement.classList.toggle('dark');
+        localStorage.setItem('theme', d ? 'dark' : 'light');
+    }
+    function switchLang() {
+        var current = document.documentElement.lang || 'fr';
+        var next = current === 'fr' ? 'en' : 'fr';
+        document.cookie = 'lang=' + next + ';path=/;max-age=31536000;SameSite=Lax';
+        location.reload();
+    }
+    // Drawer, bottom sheet
+    function openDrawer(url) {
+        var overlay = document.getElementById('drawer-overlay');
+        var panel = document.getElementById('drawer-panel');
+        var content = document.getElementById('drawer-content');
+        if (!overlay || !panel) return;
+        if (content) content.innerHTML = '<div class="drawer-loader"><div class="drawer-spinner"></div></div>';
+        document.body.style.overflow = 'hidden';
+        overlay.classList.add('active');
+        // Force layout before adding .open so the transition actually plays
+        panel.offsetHeight;
+        panel.classList.add('open');
+        htmx.ajax('GET', url, {target: '#drawer-content', swap: 'innerHTML'});
+    }
+    function closeDrawer() {
+        var overlay = document.getElementById('drawer-overlay');
+        var panel = document.getElementById('drawer-panel');
+        if (!overlay || !panel) return;
+        panel.classList.remove('open');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+        setTimeout(function() {
+            var content = document.getElementById('drawer-content');
+            if (content && !panel.classList.contains('open')) content.innerHTML = '';
+        }, 400);
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeDrawer();
+    });
+
+    // Scroll reveal, IntersectionObserver
+    (function() {
+        if (!('IntersectionObserver' in window)) return;
+        var io = new IntersectionObserver(function(entries) {
+            entries.forEach(function(e) {
+                if (e.isIntersecting) {
+                    e.target.classList.add('is-visible');
+                    io.unobserve(e.target);
+                }
+            });
+        }, { threshold: 0.08, rootMargin: '0px 0px -60px 0px' });
+        function observe() {
+            document.querySelectorAll('.reveal:not(.is-visible)').forEach(function(el) { io.observe(el); });
+        }
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', observe); } else { observe(); }
+        document.body.addEventListener('htmx:afterSwap', observe);
+    })();
+    </script>
+</body>
+</html>

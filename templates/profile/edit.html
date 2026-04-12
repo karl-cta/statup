@@ -1,0 +1,179 @@
+{% extends "_layout.html" %}
+
+{% block title %}{{ i18n.t("profile.title") }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-lg px-4 py-8 sm:px-6 lg:px-8">
+    <div class="animate-in">
+        <a href="/" class="inline-flex items-center gap-1 text-sm font-medium text-teal-700 hover:text-teal-600 dark:text-teal-400 dark:hover:text-teal-300 transition-colors duration-200">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+            {{ i18n.t("profile.back") }}
+        </a>
+        <h1 class="mt-4 text-2xl font-extrabold tracking-tight text-stone-900 dark:text-white">{{ i18n.t("profile.heading") }}</h1>
+        <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">{{ role_label }}</p>
+    </div>
+
+    {% match error %}
+    {% when Some with (msg) %}
+    <div id="profile-error" class="mt-6 rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30" role="alert">
+        <p class="text-sm text-red-700 dark:text-red-400">{{ msg }}</p>
+    </div>
+    {% when None %}
+    {% endmatch %}
+
+    {% match success %}
+    {% when Some with (msg) %}
+    <div class="mt-6 rounded-md border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30" role="status">
+        <p class="text-sm text-emerald-700 dark:text-emerald-400">{{ msg }}</p>
+    </div>
+    {% when None %}
+    {% endmatch %}
+
+    <form
+        method="post"
+        action="/profile"
+        class="mt-8 space-y-5 animate-in delay-1"
+        {% match error %}{% when Some with (_msg) %}aria-describedby="profile-error"{% when None %}{% endmatch %}
+    >
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div>
+            <label for="display_name" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                {{ i18n.t("profile.name") }}
+            </label>
+            <input
+                id="display_name"
+                name="display_name"
+                type="text"
+                required
+                aria-required="true"
+                autocomplete="name"
+                maxlength="100"
+                value="{{ display_name }}"
+                class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
+                       placeholder-stone-400
+                       dark:text-white dark:placeholder-stone-600"
+                placeholder="{{ i18n.t("auth.display_name") }}"
+                aria-label="{{ i18n.t("auth.display_name") }}"
+            >
+        </div>
+
+        <div>
+            <label for="email" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                {{ i18n.t("profile.email") }}
+            </label>
+            <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                aria-required="true"
+                autocomplete="email"
+                value="{{ email }}"
+                class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
+                       placeholder-stone-400
+                       dark:text-white dark:placeholder-stone-600"
+                placeholder="you@example.com"
+                aria-label="{{ i18n.t("profile.email") }}"
+            >
+        </div>
+
+        <button type="submit" class="btn-3d text-sm">
+            <span>{{ i18n.t("common.save") }}</span>
+        </button>
+    </form>
+
+    <div class="mt-10 border-t border-stone-200/60 pt-8 dark:border-stone-700/50 animate-in delay-2">
+        <h2 class="text-xl font-extrabold tracking-tight text-stone-900 dark:text-white">{{ i18n.t("profile.change_password") }}</h2>
+
+        {% match password_error %}
+        {% when Some with (msg) %}
+        <div id="password-form-error" class="mt-4 rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30" role="alert">
+            <p class="text-sm text-red-700 dark:text-red-400">{{ msg }}</p>
+        </div>
+        {% when None %}
+        {% endmatch %}
+
+        {% match password_success %}
+        {% when Some with (msg) %}
+        <div class="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30" role="status">
+            <p class="text-sm text-emerald-700 dark:text-emerald-400">{{ msg }}</p>
+        </div>
+        {% when None %}
+        {% endmatch %}
+
+        <form
+            method="post"
+            action="/profile/password"
+            class="mt-6 space-y-5"
+            {% match password_error %}{% when Some with (_msg) %}aria-describedby="password-form-error"{% when None %}{% endmatch %}
+        >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <div>
+                <label for="current_password" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                    {{ i18n.t("profile.current_password") }}
+                </label>
+                <input
+                    id="current_password"
+                    name="current_password"
+                    type="password"
+                    required
+                    aria-required="true"
+                    autocomplete="current-password"
+                    class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
+                           placeholder-stone-400
+                           dark:text-white dark:placeholder-stone-600"
+                    aria-label="{{ i18n.t("profile.current_password") }}"
+                >
+            </div>
+
+            <div>
+                <label for="new_password" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                    {{ i18n.t("profile.new_password") }}
+                </label>
+                <input
+                    id="new_password"
+                    name="new_password"
+                    type="password"
+                    required
+                    aria-required="true"
+                    autocomplete="new-password"
+                    class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
+                           placeholder-stone-400
+                           dark:text-white dark:placeholder-stone-600"
+                    placeholder="{{ i18n.t("validation.password_min_length") }}"
+                    aria-label="{{ i18n.t("profile.new_password") }}"
+                    aria-describedby="new-password-hint"
+                >
+                <p id="new-password-hint" class="mt-1.5 text-[12px] text-stone-400 dark:text-stone-600">{{ i18n.t("validation.password_min_length") }}</p>
+            </div>
+
+            <div>
+                <label for="new_password_confirm" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                    {{ i18n.t("profile.confirm_password") }}
+                </label>
+                <input
+                    id="new_password_confirm"
+                    name="new_password_confirm"
+                    type="password"
+                    required
+                    aria-required="true"
+                    autocomplete="new-password"
+                    class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
+                           placeholder-stone-400
+                           dark:text-white dark:placeholder-stone-600"
+                    placeholder="{{ i18n.t("profile.confirm_password") }}"
+                    aria-label="{{ i18n.t("profile.confirm_password") }}"
+                >
+            </div>
+
+            <button type="submit" class="btn-3d text-sm">
+                <span>{{ i18n.t("profile.submit_password") }}</span>
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

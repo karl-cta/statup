@@ -1,0 +1,34 @@
+{% extends "_layout.html" %}
+
+{% block title %}{{ i18n.t("events.update_add_title") }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-lg px-4 py-8 sm:px-6 lg:px-8 animate-in">
+    <form method="post" action="/events/{{ event_id }}/updates" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="message" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+            {{ i18n.t("events.update_label") }}
+        </label>
+        <textarea
+            id="message"
+            name="message"
+            rows="4"
+            required
+            aria-required="true"
+            class="block w-full min-h-[120px] resize-y input-raised px-3.5 py-2.5 text-sm
+                   placeholder-stone-400
+                   dark:text-white dark:placeholder-stone-600"
+            placeholder="{{ i18n.t("events.describe_progress") }}"
+            aria-label="{{ i18n.t("events.update_message_aria") }}"
+        ></textarea>
+        <div class="flex justify-end">
+            <button
+                type="submit"
+                class="btn-3d text-sm"
+            >
+                <span>{{ i18n.t("events.publish") }}</span>
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{# Event card, expects `event` (EventSummary) and `last_seen_at` (Option<DateTime>) in scope #}
+<a
+    href="/events/{{ event.id }}"
+    class="group flex py-3 pr-3
+           border-b border-stone-200 dark:border-stone-700 last:border-b-0
+           {{ event.event_type.card_strip_class(event.impact, event.status) }}
+           transition-all hover-row
+           {% match last_seen_at %}{% when Some with (seen) %}{% if event.event_type.as_str() != "info" && event.created_at.gt(seen) %}bg-teal-50/40 dark:bg-teal-950/20{% endif %}{% when None %}{% if event.event_type.as_str() != "info" %}bg-teal-50/40 dark:bg-teal-950/20{% endif %}{% endmatch %}"
+>
+    <div class="min-w-0 flex-1 pl-3">
+        <div class="flex items-center gap-2">
+            <span class="truncate min-w-0 flex-1
+                {% if event.event_type.shows_lifecycle() && event.status.is_active() %}text-[15px] font-bold text-stone-900 dark:text-white{% else %}text-sm font-medium text-stone-600 dark:text-stone-400{% endif %}">{{ event.title }}</span>
+            {% if event.event_type.shows_impact() && event.impact != crate::models::Impact::None %}
+            <span class="flex-shrink-0 font-mono text-[11px] uppercase tracking-wider text-stone-400 dark:text-stone-500">{{ i18n.t(event.impact.i18n_key()) }}</span>
+            {% else %}
+            {% match i18n.format_countdown_opt(event.countdown_parts()) %}
+            {% when Some with (text) %}
+            <span class="flex-shrink-0 font-mono text-[11px] text-stone-400 dark:text-stone-500">{{ text }}</span>
+            {% when None %}
+            {% endmatch %}
+            {% endif %}
+        </div>
+        <div class="mt-0.5 flex items-baseline justify-between gap-3">
+            <span class="truncate text-[12px] text-stone-500 dark:text-stone-400">{% if event.event_type.shows_lifecycle() && event.status.is_active() %}{{ i18n.t(event.status.display_i18n_key()) }}{% else %}{{ i18n.t(event.event_type.i18n_key()) }}{% endif %}{% if !event.services().is_empty() %} · {{ event.services().join(", ") }}{% endif %}</span>
+            <span class="flex-shrink-0 font-mono text-[11px] tabular-nums text-stone-400 dark:text-stone-500 whitespace-nowrap">{{ i18n.format_datetime(event.created_at) }}</span>
+        </div>
+    </div>
+</a>

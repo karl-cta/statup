@@ -1,0 +1,108 @@
+{% extends "_layout.html" %}
+
+{% block title %}{{ i18n.t("events.history_title") }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <h1 class="text-2xl font-extrabold tracking-tight text-stone-900 dark:text-white animate-in">{{ i18n.t("events.history_heading") }}</h1>
+
+    <form id="history-filters" method="get" action="/history"
+          hx-get="/history" hx-target="#history-results" hx-select="#history-results"
+          hx-trigger="change from:find select, change from:find input[type='date']"
+          hx-push-url="true" hx-swap="outerHTML"
+          class="mt-6 animate-in delay-1 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
+        <div class="col-span-2 sm:col-span-1">
+            <label for="event_type" class="block text-[12px] font-medium text-stone-400 dark:text-stone-500">{{ i18n.t("events.type") }}</label>
+            <select
+                id="event_type"
+                name="event_type"
+                class="mt-1 w-full input-raised px-3 py-2 text-sm
+                       sm:w-auto sm:py-1.5
+                       dark:text-white cursor-pointer"
+            >
+                <option value="">{{ i18n.t("common.all") }}</option>
+                <option value="incident" {% if filter_type.as_deref() == Some("incident") %}selected{% endif %}>{{ i18n.t("type.event.incident") }}</option>
+                <option value="maintenance_scheduled" {% if filter_type.as_deref() == Some("maintenance_scheduled") %}selected{% endif %}>{{ i18n.t("type.event.maintenance_scheduled") }}</option>
+                <option value="maintenance_urgent" {% if filter_type.as_deref() == Some("maintenance_urgent") %}selected{% endif %}>{{ i18n.t("type.event.maintenance_urgent") }}</option>
+                <option value="changelog" {% if filter_type.as_deref() == Some("changelog") %}selected{% endif %}>{{ i18n.t("type.event.changelog") }}</option>
+                <option value="info" {% if filter_type.as_deref() == Some("info") %}selected{% endif %}>{{ i18n.t("type.event.info") }}</option>
+            </select>
+        </div>
+        <div class="col-span-2 sm:col-span-1">
+            <label for="service_id" class="block text-[12px] font-medium text-stone-400 dark:text-stone-500">{{ i18n.t("events.service") }}</label>
+            <select
+                id="service_id"
+                name="service_id"
+                class="mt-1 w-full input-raised px-3 py-2 text-sm
+                       sm:w-auto sm:py-1.5
+                       dark:text-white cursor-pointer"
+            >
+                <option value="">{{ i18n.t("common.all") }}</option>
+                {% for svc in services %}
+                <option value="{{ svc.id }}" {% if filter_service.as_deref() == Some(svc.id.to_string().as_str()) %}selected{% endif %}>{{ svc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="from" class="block text-[12px] font-medium text-stone-400 dark:text-stone-500">{{ i18n.t("events.from") }}</label>
+            <input
+                id="from"
+                name="from"
+                type="date"
+                value="{{ filter_from.as_deref().unwrap_or_default() }}"
+                class="mt-1 w-full input-raised px-3 py-2 text-sm
+                       sm:w-auto sm:py-1.5
+                       dark:text-white cursor-pointer"
+            >
+        </div>
+        <div>
+            <label for="to" class="block text-[12px] font-medium text-stone-400 dark:text-stone-500">{{ i18n.t("events.to") }}</label>
+            <input
+                id="to"
+                name="to"
+                type="date"
+                value="{{ filter_to.as_deref().unwrap_or_default() }}"
+                class="mt-1 w-full input-raised px-3 py-2 text-sm
+                       sm:w-auto sm:py-1.5
+                       dark:text-white cursor-pointer"
+            >
+        </div>
+        <noscript>
+            <div class="col-span-2 sm:col-span-1">
+                <button
+                    type="submit"
+                    class="w-full rounded-md bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700
+                           transition-colors duration-150 hover:bg-stone-200
+                           sm:w-auto sm:py-1.5
+                           dark:bg-stone-800/60 dark:text-stone-300 dark:hover:bg-stone-700/60"
+                >
+                    {{ i18n.t("common.filter") }}
+                </button>
+            </div>
+        </noscript>
+    </form>
+
+    <div id="history-results">
+    {% if groups.is_empty() %}
+    <div class="mt-12 text-center animate-in delay-2">
+        <p class="text-sm text-stone-500 dark:text-stone-500">{{ i18n.t("events.no_events") }}</p>
+    </div>
+    {% else %}
+    <div class="mt-8 space-y-10 animate-in delay-2">
+        {% for group in groups %}
+        <section>
+            <h2 class="section-header">{{ group.label }}</h2>
+            <div class="mt-3">
+                {% for event in group.events %}
+                {% include "components/event_line.html" %}
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    </div>
+
+    {% include "components/pagination.html" %}
+    {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{# Service card for dashboard grid, expects `service` (Service) in scope #}
+<div class="group card-raised relative overflow-hidden px-4 py-3.5">
+    <div class="absolute inset-x-0 top-0 h-[2px] {{ service.status.strip_class() }}" style="background: var(--strip-color);"></div>
+    <div class="flex items-center gap-3">
+        {% include "components/status_badge.html" %}
+        {% let icon_size = "h-6 w-6" %}
+        {% include "components/service_icon.html" %}
+        <div class="min-w-0 flex-1">
+            <p class="text-sm font-bold text-stone-900 dark:text-white truncate">{{ service.name }}</p>
+            {% match service.description %}
+            {% when Some with (desc) %}
+            <p class="mt-0.5 text-[12px] leading-relaxed text-stone-500 dark:text-stone-500 truncate">{{ desc }}</p>
+            {% when None %}
+            {% endmatch %}
+        </div>
+    </div>
+</div>

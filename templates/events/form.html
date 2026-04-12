@@ -1,0 +1,321 @@
+{% extends "_layout.html" %}
+
+{% block title %}
+{% match event %}
+{% when Some with (e) %}{{ i18n.t("events.edit_title") }}{% when None %}{{ i18n.t("events.new_title") }}{% endmatch %}
+{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+    <div class="animate-in">
+        <a href="/events" class="inline-flex items-center gap-1 text-sm font-medium text-teal-700 hover:text-teal-600 dark:text-teal-400 dark:hover:text-teal-300 transition-colors duration-200">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+            {{ i18n.t("events.back_to_events") }}
+        </a>
+        <h1 class="mt-4 text-2xl font-extrabold tracking-tight text-stone-900 dark:text-white">
+            {% match event %}
+            {% when Some with (_e) %}{{ i18n.t("events.edit") }}{% when None %}{{ i18n.t("events.new") }}{% endmatch %}
+        </h1>
+    </div>
+
+    {% match error %}
+    {% when Some with (msg) %}
+    <div id="form-error" class="mt-6 rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/30" role="alert">
+        <p class="text-sm text-red-700 dark:text-red-400">{{ msg }}</p>
+    </div>
+    {% when None %}
+    {% endmatch %}
+
+    <form
+        method="post"
+        action="{% match event %}{% when Some with (e) %}/events/{{ e.id }}/edit{% when None %}/events/new{% endmatch %}"
+        class="mt-8 animate-in delay-1"
+        {% match error %}{% when Some with (_msg) %}aria-describedby="form-error"{% when None %}{% endmatch %}
+    >
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
+            {# ── Left column: main form fields ── #}
+            <div class="flex-1 min-w-0 space-y-5">
+                <div class="relative">
+                    <label for="title" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                        {{ i18n.t("events.title_label") }}
+                    </label>
+                    <input
+                        id="title"
+                        name="title"
+                        type="text"
+                        required
+                        aria-required="true"
+                        maxlength="200"
+                        autocomplete="off"
+                        value="{% match event %}{% when Some with (e) %}{{ e.title }}{% when None %}{% endmatch %}"
+                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
+                               placeholder-stone-400
+                               dark:text-white dark:placeholder-stone-600"
+                        placeholder="{{ i18n.t("events.title_placeholder") }}"
+                        aria-label="{{ i18n.t("events.title_label") }}"
+                        hx-get="/events/templates/search"
+                        hx-trigger="keyup changed delay:300ms"
+                        hx-target="#template-suggestions-container"
+                        hx-swap="innerHTML"
+                        hx-params="none"
+                        hx-vals='js:{"q": document.getElementById("title").value}'
+                    >
+                    <div id="template-suggestions-container"></div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="event_type" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                            {{ i18n.t("events.type") }}
+                        </label>
+                        <select
+                            id="event_type"
+                            name="event_type"
+                            required
+                            aria-required="true"
+                            class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
+                                   dark:text-white"
+                            aria-label="{{ i18n.t("events.type_label") }}"
+                        >
+                            <optgroup label="{{ i18n.t("events.group_incidents") }}">
+                                <option value="incident" {% match event %}{% when Some with (e) %}{% if e.event_type.as_str() == "incident" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("type.event.incident") }}</option>
+                            </optgroup>
+                            <optgroup label="{{ i18n.t("events.group_maintenance") }}">
+                                <option value="maintenance_scheduled" {% match event %}{% when Some with (e) %}{% if e.event_type.as_str() == "maintenance_scheduled" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("type.event.maintenance_scheduled") }}</option>
+                                <option value="maintenance_urgent" {% match event %}{% when Some with (e) %}{% if e.event_type.as_str() == "maintenance_urgent" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("type.event.maintenance_urgent") }}</option>
+                            </optgroup>
+                            <optgroup label="{{ i18n.t("events.group_other") }}">
+                                <option value="changelog" {% match event %}{% when Some with (e) %}{% if e.event_type.as_str() == "changelog" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("type.event.changelog") }}</option>
+                                <option value="info" {% match event %}{% when Some with (e) %}{% if e.event_type.as_str() == "info" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("type.event.info") }}</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div id="impact-field">
+                        <label for="impact" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                            {{ i18n.t("events.impact") }}
+                        </label>
+                        <select
+                            id="impact"
+                            name="impact"
+                            required
+                            aria-required="true"
+                            class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
+                                   dark:text-white"
+                            aria-label="{{ i18n.t("events.impact") }}"
+                        >
+                            <option value="none" {% match event %}{% when Some with (e) %}{% if e.impact.as_str() == "none" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("impact.none") }}</option>
+                            <option value="minor" {% match event %}{% when Some with (e) %}{% if e.impact.as_str() == "minor" %}selected{% endif %}{% when None %}selected{% endmatch %}>{{ i18n.t("impact.minor") }}</option>
+                            <option value="major" {% match event %}{% when Some with (e) %}{% if e.impact.as_str() == "major" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("impact.major") }}</option>
+                            <option value="critical" {% match event %}{% when Some with (e) %}{% if e.impact.as_str() == "critical" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("impact.critical") }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="scheduled-dates" class="grid grid-cols-1 gap-4 sm:grid-cols-2" style="display: none;">
+                    <div>
+                        <label for="scheduled_start" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                            {{ i18n.t("events.scheduled_start_short") }}
+                        </label>
+                        <input
+                            id="scheduled_start"
+                            name="scheduled_start"
+                            type="datetime-local"
+                            value="{% match event %}{% when Some with (e) %}{% match e.scheduled_start %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}{% when None %}{% endmatch %}"
+                            class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
+                                   dark:text-white"
+                            aria-label="{{ i18n.t("events.scheduled_start_label") }}"
+                        >
+                    </div>
+                    <div>
+                        <label for="scheduled_end" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                            {{ i18n.t("events.scheduled_end_short") }} <span class="text-stone-400 dark:text-stone-600">{{ i18n.t("events.optional") }}</span>
+                        </label>
+                        <input
+                            id="scheduled_end"
+                            name="scheduled_end"
+                            type="datetime-local"
+                            value="{% match event %}{% when Some with (e) %}{% match e.scheduled_end %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}{% when None %}{% endmatch %}"
+                            class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
+                                   dark:text-white"
+                            aria-label="{{ i18n.t("events.scheduled_end_label") }}"
+                        >
+                    </div>
+                </div>
+
+                <div>
+                    <label for="description" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                        {{ i18n.t("events.description") }} <span class="text-stone-400 dark:text-stone-600">{{ i18n.t("events.markdown_supported") }}</span>
+                    </label>
+                    <textarea
+                        id="description"
+                        name="description"
+                        rows="8"
+                        required
+                        aria-required="true"
+                        class="mt-1.5 block w-full min-h-[200px] resize-y input-raised px-3.5 py-2.5 text-sm
+                               font-mono placeholder-stone-400
+                               dark:text-white dark:placeholder-stone-600"
+                        placeholder="{{ i18n.t("events.description_placeholder") }}"
+                        aria-label="{{ i18n.t("events.description") }}"
+                    >{% match event %}{% when Some with (e) %}{{ e.description }}{% when None %}{% endmatch %}</textarea>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-2">
+                    {% match event %}
+                    {% when None %}
+                    <label class="flex items-center gap-2 cursor-pointer mr-auto">
+                        <input type="checkbox" name="save_as_template" class="checkbox-fancy">
+                        <span class="text-sm font-medium text-stone-500 dark:text-stone-400">{{ i18n.t("events.save_as_template_label") }}</span>
+                    </label>
+                    {% when Some with (_e) %}
+                    {% endmatch %}
+                    <a
+                        href="/events"
+                        class="text-sm font-medium text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-300 transition-colors duration-200"
+                    >
+                        {{ i18n.t("common.cancel") }}
+                    </a>
+                    <button type="submit" class="btn-3d text-sm">
+                        <span>{% match event %}
+                        {% when Some with (_e) %}{{ i18n.t("common.save") }}{% when None %}{{ i18n.t("events.submit_create") }}{% endmatch %}</span>
+                    </button>
+                </div>
+            </div>
+
+            {# ── Right column: services sidebar ── #}
+            <aside class="lg:w-72 lg:flex-shrink-0" aria-label="{{ i18n.t("events.affected_services_sidebar") }}">
+                <div class="lg:sticky lg:top-8 card-raised p-4">
+                    <h2 class="text-sm font-semibold text-stone-900 dark:text-white flex items-center gap-2">
+                        <svg class="h-4 w-4 text-stone-400 dark:text-stone-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 0 1-3-3m3 3a3 3 0 1 0 0 6h13.5a3 3 0 1 0 0-6m-16.5-3a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3m-19.5 0a4.5 4.5 0 0 1 .9-2.7L5.737 5.1a3.375 3.375 0 0 1 2.7-1.35h7.126c1.062 0 2.062.5 2.7 1.35l2.587 3.45a4.5 4.5 0 0 1 .9 2.7m0 0a3 3 0 0 1-3 3m0 3h.008v.008h-.008V18Zm0-6h.008v.008h-.008v-.008Zm-3 6h.008v.008h-.008V18Zm0-6h.008v.008H15v-.008Z" />
+                        </svg>
+                        {{ i18n.t("events.affected_services_sidebar") }}
+                    </h2>
+                    <p class="mt-1 text-[12px] text-stone-400 dark:text-stone-500">{{ i18n.t("events.select_affected_hint") }}</p>
+
+                    {% if services.is_empty() %}
+                    <p class="mt-4 text-sm text-stone-500 dark:text-stone-500">
+                        {{ i18n.t("events.no_services_available") }}
+                        <a href="/services/new" class="text-teal-700 hover:text-teal-600 dark:text-teal-400">{{ i18n.t("events.create_service_link") }}</a>
+                    </p>
+                    {% else %}
+                    <div class="mt-4 space-y-1" role="group" aria-label="{{ i18n.t("events.services_list_aria") }}">
+                        {% for svc in services %}
+                        <label class="flex items-center gap-3 cursor-pointer group rounded px-2.5 py-2 -mx-1 transition-colors duration-150 hover:bg-stone-50 dark:hover:bg-stone-700/40">
+                            <input
+                                type="checkbox"
+                                name="service_ids"
+                                value="{{ svc.id }}"
+                                {% match event %}
+                                {% when Some with (e) %}{% if e.has_service(svc.id) %}checked{% endif %}
+                                {% when None %}
+                                {% endmatch %}
+                                class="checkbox-fancy"
+                            >
+                            <div class="flex-1 min-w-0">
+                                <span class="block text-sm text-stone-700 dark:text-stone-300 group-hover:text-stone-900 dark:group-hover:text-white transition-colors duration-200 truncate">
+                                    {{ svc.name }}
+                                </span>
+                            </div>
+                            <span class="flex items-center gap-1.5 flex-shrink-0" title="{{ i18n.t(svc.status.i18n_key()) }}">
+                                <span class="h-2 w-2 rounded-full {{ svc.status.dot_class() }}" aria-hidden="true"></span>
+                                <span class="text-[12px] {{ svc.status.css_class() }} whitespace-nowrap">{{ i18n.t(svc.status.i18n_key()) }}</span>
+                            </span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div id="impact-hint" class="mt-4 rounded-lg bg-stone-50 p-3 dark:bg-stone-800/80 hidden">
+                        <p class="text-[12px] text-stone-500 dark:text-stone-400">
+                            <span class="font-medium">{{ i18n.t("events.impact_hint_label") }}</span>
+                            <span id="impact-hint-text"></span>
+                        </p>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </form>
+</div>
+
+<script>
+var impactHints = {
+    incident_critical: '{{ i18n.t("impact.hint.incident_critical") }}',
+    incident_major: '{{ i18n.t("impact.hint.incident_major") }}',
+    incident_minor: '{{ i18n.t("impact.hint.incident_minor") }}',
+    incident_none: '{{ i18n.t("impact.hint.incident_none") }}',
+    maintenance_scheduled: '{{ i18n.t("impact.hint.maintenance_scheduled") }}',
+    maintenance_urgent: '{{ i18n.t("impact.hint.maintenance_urgent") }}',
+    no_impact: '{{ i18n.t("impact.hint.no_impact") }}'
+};
+
+function applyTemplate(templateId) {
+    fetch('/events/templates/' + templateId)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            document.getElementById('title').value = data.title;
+            document.getElementById('description').value = data.description;
+            if (data.event_type) {
+                document.getElementById('event_type').value = data.event_type;
+            }
+            if (data.impact) {
+                document.getElementById('impact').value = data.impact;
+            }
+            document.getElementById('template-suggestions-container').innerHTML = '';
+            updateImpactHint();
+        });
+}
+document.addEventListener('click', function(e) {
+    var container = document.getElementById('template-suggestions-container');
+    var title = document.getElementById('title');
+    if (container && !container.contains(e.target) && e.target !== title) {
+        container.innerHTML = '';
+    }
+});
+
+function updateImpactHint() {
+    var type = document.getElementById('event_type').value;
+    var impact = document.getElementById('impact').value;
+    var hint = document.getElementById('impact-hint');
+    var text = document.getElementById('impact-hint-text');
+    var scheduledDates = document.getElementById('scheduled-dates');
+    var impactField = document.getElementById('impact-field');
+    var msg = '';
+
+    scheduledDates.style.display = type === 'maintenance_scheduled' ? '' : 'none';
+
+    var showsImpact = (type === 'incident');
+    impactField.style.display = showsImpact ? '' : 'none';
+    if (!showsImpact) {
+        document.getElementById('impact').value = 'none';
+    } else if (document.getElementById('impact').value === 'none') {
+        document.getElementById('impact').value = 'minor';
+    }
+
+    if (type === 'incident') {
+        if (impact === 'critical') msg = impactHints.incident_critical;
+        else if (impact === 'major') msg = impactHints.incident_major;
+        else if (impact === 'minor') msg = impactHints.incident_minor;
+        else msg = impactHints.incident_none;
+    } else if (type === 'maintenance_scheduled') {
+        msg = impactHints.maintenance_scheduled;
+    } else if (type === 'maintenance_urgent') {
+        msg = impactHints.maintenance_urgent;
+    } else {
+        msg = impactHints.no_impact;
+    }
+
+    text.textContent = msg;
+    hint.classList.toggle('hidden', !msg);
+}
+
+document.getElementById('event_type').addEventListener('change', updateImpactHint);
+document.getElementById('impact').addEventListener('change', updateImpactHint);
+updateImpactHint();
+</script>
+{% endblock %}

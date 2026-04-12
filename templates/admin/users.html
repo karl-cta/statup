@@ -1,0 +1,241 @@
+{% extends "_layout.html" %}
+
+{% block title %}{{ i18n.t("admin.title") }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    {# ── Settings: Public mode toggle ── #}
+    <div class="mb-8 animate-in">
+        <h2 class="section-header mb-3">{{ i18n.t("admin.settings") }}</h2>
+        <div class="flex items-center justify-between gap-4 py-3 border-b border-stone-200 dark:border-stone-700">
+            <div class="min-w-0">
+                <div class="text-sm font-bold text-stone-900 dark:text-white">{{ i18n.t("admin.public_mode") }}</div>
+                <p class="mt-0.5 text-[12px] text-stone-500 dark:text-stone-400">
+                    {% if public_mode %}
+                    {{ i18n.t("admin.public_mode_on") }}
+                    {% else %}
+                    {{ i18n.t("admin.public_mode_off") }}
+                    {% endif %}
+                </p>
+            </div>
+            <form method="post" action="/admin/settings/public-mode"
+                  hx-post="/admin/settings/public-mode"
+                  hx-target="body" hx-swap="outerHTML">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit"
+                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-stone-900
+                               {% if public_mode %}bg-teal-600 dark:bg-teal-500{% else %}bg-stone-200 dark:bg-stone-700{% endif %}"
+                        role="switch"
+                        aria-checked="{{ public_mode }}"
+                        aria-label="{{ i18n.t("admin.enable_public") }}">
+                    <span class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200
+                                 {% if public_mode %}translate-x-5{% else %}translate-x-0{% endif %}"
+                          aria-hidden="true"></span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <h1 class="text-2xl font-extrabold tracking-tight text-stone-900 dark:text-white animate-in delay-1">{{ i18n.t("admin.users") }}</h1>
+
+    {% if users.is_empty() %}
+    <div class="mt-12 text-center animate-in delay-2">
+        <p class="text-sm text-stone-500 dark:text-stone-500">{{ i18n.t("admin.no_users") }}</p>
+    </div>
+    {% else %}
+    {# ── Mobile: filet layout ── #}
+    <div class="mt-6 sm:hidden animate-in delay-2">
+        {% for u in users %}
+        <div class="py-3 border-b border-stone-200 dark:border-stone-700 last:border-b-0">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0 flex-1">
+                    <div class="truncate text-sm font-bold text-stone-900 dark:text-white">{{ u.display_name }}</div>
+                    <div class="mt-0.5 truncate text-[12px] text-stone-400 dark:text-stone-500">{{ u.email }}</div>
+                </div>
+                {% if u.is_active %}
+                <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-700 dark:text-emerald-400">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 glow-dot" aria-hidden="true"></span>
+                    {{ i18n.t("admin.active") }}
+                </span>
+                {% else %}
+                <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-stone-500 dark:text-stone-500">
+                    <span class="h-1.5 w-1.5 rounded-full bg-stone-400" aria-hidden="true"></span>
+                    {{ i18n.t("admin.disabled") }}
+                </span>
+                {% endif %}
+            </div>
+            <div class="mt-2 flex flex-wrap items-center gap-2">
+                {% if u.id == current_user_id %}
+                {% match u.role %}
+                {% when crate::models::Role::Admin %}
+                <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[12px] font-mono font-medium text-purple-700 border border-purple-300 dark:text-purple-300 dark:border-purple-600">{{ i18n.t("role.admin") }}</span>
+                {% when crate::models::Role::Publisher %}
+                <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[12px] font-mono font-medium text-blue-700 border border-blue-300 dark:text-blue-300 dark:border-blue-600">{{ i18n.t("role.publisher") }}</span>
+                {% when crate::models::Role::Reader %}
+                <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[12px] font-mono font-medium text-stone-600 border border-stone-300 dark:text-stone-400 dark:border-stone-600">{{ i18n.t("role.reader") }}</span>
+                {% endmatch %}
+                <span class="text-[11px] text-stone-400 dark:text-stone-600">{{ i18n.t("admin.you") }}</span>
+                {% else %}
+                <form
+                    method="post"
+                    action="/admin/users/{{ u.id }}/role"
+                    hx-post="/admin/users/{{ u.id }}/role"
+                    hx-target="body"
+                    hx-swap="outerHTML"
+                    class="inline"
+                >
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <select
+                        name="role"
+                        aria-label="{{ i18n.t("profile.role") }} {{ u.display_name }}"
+                        class="rounded border border-stone-200 bg-white px-2 py-1.5 text-[12px] font-medium text-stone-700
+                               transition-colors duration-200
+                               focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20
+                               dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300
+                               dark:focus:border-teal-400 dark:focus:ring-teal-400/20"
+                        onchange="this.form.requestSubmit()"
+                    >
+                        <option value="reader"{% match u.role %}{% when crate::models::Role::Reader %} selected{% when crate::models::Role::Publisher %}{% when crate::models::Role::Admin %}{% endmatch %}>{{ i18n.t("role.reader") }}</option>
+                        <option value="publisher"{% match u.role %}{% when crate::models::Role::Publisher %} selected{% when crate::models::Role::Reader %}{% when crate::models::Role::Admin %}{% endmatch %}>{{ i18n.t("role.publisher") }}</option>
+                        <option value="admin"{% match u.role %}{% when crate::models::Role::Admin %} selected{% when crate::models::Role::Reader %}{% when crate::models::Role::Publisher %}{% endmatch %}>{{ i18n.t("role.admin") }}</option>
+                    </select>
+                </form>
+                {% endif %}
+                {% if u.id != current_user_id %}
+                <form
+                    method="post"
+                    action="/admin/users/{{ u.id }}/disable"
+                    hx-post="/admin/users/{{ u.id }}/disable"
+                    hx-target="body"
+                    hx-swap="outerHTML"
+                    {% if u.is_active %}hx-confirm="{{ i18n.t("admin.disable") }} {{ u.display_name }} ?"{% endif %}
+                    class="inline"
+                >
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    {% if u.is_active %}
+                    <button type="submit" class="text-[12px] font-medium text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 transition-colors duration-200" aria-label="{{ i18n.t("admin.disable") }} {{ u.display_name }}">{{ i18n.t("admin.disable") }}</button>
+                    {% else %}
+                    <button type="submit" class="text-[12px] font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors duration-200" aria-label="{{ i18n.t("admin.enable") }} {{ u.display_name }}">{{ i18n.t("admin.enable") }}</button>
+                    {% endif %}
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {# ── Desktop: flat table with filets ── #}
+    <div class="mt-6 hidden sm:block animate-in delay-2">
+        <table class="min-w-full">
+            <thead>
+                <tr class="border-b-2 border-stone-200 dark:border-stone-700">
+                    <th scope="col" class="pb-2 text-left text-[11px] font-bold tracking-[0.1em] uppercase text-stone-500/80 dark:text-stone-500/60">{{ i18n.t("admin.users") }}</th>
+                    <th scope="col" class="pb-2 text-left text-[11px] font-bold tracking-[0.1em] uppercase text-stone-500/80 dark:text-stone-500/60">{{ i18n.t("profile.role") }}</th>
+                    <th scope="col" class="pb-2 text-left text-[11px] font-bold tracking-[0.1em] uppercase text-stone-500/80 dark:text-stone-500/60">Statut</th>
+                    <th scope="col" class="pb-2 text-right text-[11px] font-bold tracking-[0.1em] uppercase text-stone-500/80 dark:text-stone-500/60">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr class="border-b border-stone-100 dark:border-stone-800 last:border-b-0 transition-colors duration-200 hover:bg-stone-50/40 dark:hover:bg-stone-800/20">
+                    <td class="py-3.5 pr-4">
+                        <div class="text-sm font-bold text-stone-900 dark:text-white">{{ u.display_name }}</div>
+                        <div class="text-[12px] text-stone-400 dark:text-stone-500 mt-0.5">{{ u.email }}</div>
+                    </td>
+                    <td class="py-3.5 pr-4">
+                        {% if u.id == current_user_id %}
+                        {% match u.role %}
+                        {% when crate::models::Role::Admin %}
+                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[12px] font-mono font-medium text-purple-700 border border-purple-300 dark:text-purple-300 dark:border-purple-600">
+                            {{ i18n.t("role.admin") }}
+                        </span>
+                        {% when crate::models::Role::Publisher %}
+                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[12px] font-mono font-medium text-blue-700 border border-blue-300 dark:text-blue-300 dark:border-blue-600">
+                            {{ i18n.t("role.publisher") }}
+                        </span>
+                        {% when crate::models::Role::Reader %}
+                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[12px] font-mono font-medium text-stone-600 border border-stone-300 dark:text-stone-400 dark:border-stone-600">
+                            {{ i18n.t("role.reader") }}
+                        </span>
+                        {% endmatch %}
+                        <span class="ml-1 text-[11px] text-stone-400 dark:text-stone-600">{{ i18n.t("admin.you") }}</span>
+                        {% else %}
+                        <form
+                            method="post"
+                            action="/admin/users/{{ u.id }}/role"
+                            hx-post="/admin/users/{{ u.id }}/role"
+                            hx-target="body"
+                            hx-swap="outerHTML"
+                            class="inline"
+                        >
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <select
+                                name="role"
+                                aria-label="{{ i18n.t("profile.role") }} {{ u.display_name }}"
+                                class="rounded border border-stone-200 bg-white px-2 py-1 text-[12px] font-medium text-stone-700
+                                       transition-colors duration-200
+                                       focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20
+                                       dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300
+                                       dark:focus:border-teal-400 dark:focus:ring-teal-400/20"
+                                onchange="this.form.requestSubmit()"
+                            >
+                                <option value="reader"{% match u.role %}{% when crate::models::Role::Reader %} selected{% when crate::models::Role::Publisher %}{% when crate::models::Role::Admin %}{% endmatch %}>{{ i18n.t("role.reader") }}</option>
+                                <option value="publisher"{% match u.role %}{% when crate::models::Role::Publisher %} selected{% when crate::models::Role::Reader %}{% when crate::models::Role::Admin %}{% endmatch %}>{{ i18n.t("role.publisher") }}</option>
+                                <option value="admin"{% match u.role %}{% when crate::models::Role::Admin %} selected{% when crate::models::Role::Reader %}{% when crate::models::Role::Publisher %}{% endmatch %}>{{ i18n.t("role.admin") }}</option>
+                            </select>
+                        </form>
+                        {% endif %}
+                    </td>
+                    <td class="py-3.5 pr-4">
+                        {% if u.is_active %}
+                        <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-700 dark:text-emerald-400">
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 glow-dot" aria-hidden="true"></span>
+                            {{ i18n.t("admin.active") }}
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-stone-500 dark:text-stone-500">
+                            <span class="h-1.5 w-1.5 rounded-full bg-stone-400" aria-hidden="true"></span>
+                            {{ i18n.t("admin.disabled") }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="py-3.5 text-right">
+                        {% if u.id != current_user_id %}
+                        <form
+                            method="post"
+                            action="/admin/users/{{ u.id }}/disable"
+                            hx-post="/admin/users/{{ u.id }}/disable"
+                            hx-target="body"
+                            hx-swap="outerHTML"
+                            {% if u.is_active %}hx-confirm="{{ i18n.t("admin.disable") }} {{ u.display_name }} ?"{% endif %}
+                            class="inline"
+                        >
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            {% if u.is_active %}
+                            <button
+                                type="submit"
+                                class="text-[12px] font-medium text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 transition-colors duration-200"
+                                aria-label="{{ i18n.t("admin.disable") }} {{ u.display_name }}"
+                            >
+                                {{ i18n.t("admin.disable") }}
+                            </button>
+                            {% else %}
+                            <button
+                                type="submit"
+                                class="text-[12px] font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors duration-200"
+                                aria-label="{{ i18n.t("admin.enable") }} {{ u.display_name }}"
+                            >
+                                {{ i18n.t("admin.enable") }}
+                            </button>
+                            {% endif %}
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p class="mt-3 text-[12px] text-stone-400 dark:text-stone-600">{{ users.len() }} utilisateur{% if users.len() > 1 %}s{% endif %}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

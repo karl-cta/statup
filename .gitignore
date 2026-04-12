@@ -1,0 +1,42 @@
+# Build
+/target
+/dist
+
+# Environment
+.env
+
+# Database
+*.db
+*.db-wal
+*.db-shm
+
+# Tailwind
+/tailwindcss
+/static/css/style.css
+
+# OS
+**/.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude
+.claude/
+CLAUDE.md
+
+# Docs (internal notes)
+docs/
+
+# Design artifacts
+statup-proposals*.html
+statup-refined.html
+
+# Coverage
+coverage/
+
+# Cargo
+.cargo/

@@ -1,0 +1,206 @@
+{% extends "_layout.html" %}
+
+{% block title %}{{ event.event.title }} | Statup{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <a href="/events" class="inline-flex items-center gap-1 text-sm font-semibold text-teal-700 hover:text-teal-600 dark:text-teal-400 dark:hover:text-teal-300 transition-colors duration-200 animate-in">
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
+        {{ i18n.t("events.back_to_events") }}
+    </a>
+
+    {# ── 2-column grid: main + sidebar ─────────────────────────── #}
+    <div class="mt-5 grid grid-cols-1 lg:grid-cols-[1fr_280px] lg:gap-10">
+
+        {# ── Sidebar (mobile: first, desktop: right) ──────────── #}
+        <aside class="order-first lg:order-last animate-in delay-1">
+            <div class="card-raised p-5 lg:sticky lg:top-6 space-y-6">
+                {# ── Status (only for lifecycle types) ────────── #}
+                {% if event.event.event_type.shows_lifecycle() %}
+                <div>
+                    <span data-status="{{ event.event.status.as_str() }}" class="badge badge-{{ event.event.status.as_str() }}">{{ i18n.t(event.event.status.display_i18n_key()) }}</span>
+                    {% if can_edit %}
+                    {% if !allowed_transitions.is_empty() %}
+                    <form id="status-form" method="post" action="/events/{{ event.event.id }}/status" class="mt-3 flex items-center gap-1.5">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <select id="status-select" name="status"
+                                class="input-raised px-2 py-1 text-[13px] dark:text-white cursor-pointer flex-1 min-w-0">
+                            {% for status in allowed_transitions %}
+                            <option value="{{ status.as_str() }}">{{ i18n.t(status.i18n_key()) }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" id="status-apply-btn" class="btn-3d-ghost text-[13px] !px-3 !py-1 flex-shrink-0">
+                            {{ i18n.t("events.apply_status") }}
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if can_revert %}
+                    {% match previous_status_label %}
+                    {% when Some with (label) %}
+                    <form method="post" action="/events/{{ event.event.id }}/revert-status" class="mt-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="text-[12px] font-medium text-teal-700 dark:text-teal-400 hover:underline transition-colors"
+                                aria-label="{{ i18n.t("events.revert_to") }} {{ label }}">
+                            <svg class="inline h-3 w-3 opacity-40 mr-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+                            </svg>
+                            {{ i18n.t("events.revert_to") }} « {{ label }} »
+                        </button>
+                    </form>
+                    {% when None %}
+                    {% endmatch %}
+                    {% endif %}
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {# ── Resolution form (hidden) ── #}
+                {% if can_edit && event.event.event_type.shows_lifecycle() %}
+                <form id="resolve-form" method="post" action="/events/{{ event.event.id }}/status"
+                      class="hidden space-y-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="status" value="resolved">
+                    <label for="resolution_comment" class="block text-sm font-semibold text-stone-700 dark:text-stone-300">
+                        {{ i18n.t("events.resolution_comment") }} <span class="text-red-500" aria-hidden="true">*</span>
+                    </label>
+                    <textarea id="resolution_comment" name="resolution_comment" rows="3" required aria-required="true"
+                              class="block w-full min-h-[80px] resize-y input-raised px-3 py-2 text-sm placeholder-stone-400 dark:text-white dark:placeholder-stone-600"
+                              placeholder="{{ i18n.t("events.resolution_placeholder") }}"
+                              aria-label="{{ i18n.t("events.resolution_comment") }}"></textarea>
+                    <div class="flex items-center justify-end gap-2">
+                        <button type="button" onclick="document.getElementById('resolve-form').classList.add('hidden')"
+                                class="btn-3d-ghost text-[13px] !px-3 !py-1">{{ i18n.t("common.cancel") }}</button>
+                        <button type="submit" class="btn-3d-success text-[13px] !px-3 !py-1.5">{{ i18n.t("events.resolve_action") }}</button>
+                    </div>
+                </form>
+                <script>
+                (function() {
+                    var form = document.getElementById('status-form');
+                    var select = document.getElementById('status-select');
+                    if (form && select) {
+                        form.addEventListener('submit', function(e) {
+                            if (select.value === 'resolved') {
+                                e.preventDefault();
+                                document.getElementById('resolve-form').classList.remove('hidden');
+                            }
+                        });
+                    }
+                })();
+                </script>
+                {% endif %}
+
+                {# ── Details ─────────────────────────────────── #}
+                <dl class="space-y-2 text-[13px]">
+                    <div class="flex items-center justify-between py-1">
+                        <dt class="text-stone-400 dark:text-stone-500">{{ i18n.t("events.type_label") }}</dt>
+                        <dd class="font-medium text-stone-700 dark:text-stone-300">{{ i18n.t(event.event.event_type.i18n_key()) }}</dd>
+                    </div>
+                    {% if event.event.event_type.shows_impact() && event.event.impact != crate::models::Impact::None %}
+                    <div class="flex items-center justify-between py-1">
+                        <dt class="text-stone-400 dark:text-stone-500">{{ i18n.t("events.impact_label") }}</dt>
+                        <dd class="font-mono text-[12px] uppercase tracking-wider text-stone-500 dark:text-stone-400">{{ i18n.t(event.event.impact.i18n_key()) }}</dd>
+                    </div>
+                    {% endif %}
+                    <div class="flex items-center justify-between py-1">
+                        <dt class="text-stone-400 dark:text-stone-500">{{ i18n.t("events.created_label") }}</dt>
+                        <dd class="font-mono text-[12px] tabular-nums text-stone-600 dark:text-stone-400">{{ i18n.format_datetime(event.event.created_at) }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between py-1">
+                        <dt class="text-stone-400 dark:text-stone-500">{{ i18n.t("events.author_label") }}</dt>
+                        <dd class="font-semibold text-stone-600 dark:text-stone-300">{{ author_name }}</dd>
+                    </div>
+                </dl>
+
+                {# ── Services ────────────────────────────────── #}
+                {% if !event.services.is_empty() %}
+                <div class="flex flex-wrap gap-2" role="list" aria-label="{{ i18n.t("events.affected_services_sidebar") }}">
+                    {% for svc in event.services %}
+                    <span role="listitem" class="rounded-full bg-stone-100 px-2.5 py-0.5 text-[12px] font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-400">{{ svc.name }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {# ── Actions ─────────────────────────────────── #}
+                {% if can_edit %}
+                <div class="flex items-center gap-3 text-[13px]">
+                    <a href="/events/{{ event.event.id }}/edit"
+                       class="font-medium text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300 transition-colors">
+                        {{ i18n.t("common.edit") }}
+                    </a>
+                    <span class="text-stone-200 dark:text-stone-700">·</span>
+                    <form method="post" action="/events/{{ event.event.id }}/delete" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" onclick="return confirm('{{ i18n.t("events.confirm_delete_text") }}')"
+                                class="font-medium text-red-400/70 hover:text-red-500 dark:text-red-400/50 dark:hover:text-red-400 transition-colors"
+                                aria-label="{{ i18n.t("events.confirm_delete") }}">
+                            {{ i18n.t("common.delete") }}
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </aside>
+
+        {# ── Main content (left) ──────────────────────────────── #}
+        <div class="order-last lg:order-first mt-6 lg:mt-0">
+            {# ── Header ────────────────────────────────────────── #}
+            <div class="animate-in delay-1">
+                <p class="text-[11px] font-semibold uppercase tracking-widest text-stone-400 dark:text-stone-500">
+                    {{ i18n.t(event.event.event_type.i18n_key()) }}{% if event.event.event_type.shows_impact() && event.event.impact != crate::models::Impact::None %} · {{ i18n.t(event.event.impact.i18n_key()) }}{% endif %}
+                </p>
+                <h1 class="mt-1.5 text-2xl font-extrabold tracking-tight text-stone-900 dark:text-white leading-tight">{{ event.event.title }}</h1>
+                <p class="mt-2 text-[13px] text-stone-400 dark:text-stone-500">
+                    {{ author_name }} · {{ i18n.format_datetime(event.event.created_at) }}
+                </p>
+            </div>
+
+            {# ── Description ─────────────────────────────────── #}
+            <div class="mt-6 animate-in delay-2">
+                <div class="prose prose-sm max-w-none prose-stone dark:prose-invert prose-p:leading-relaxed">
+                    {{ description_html|safe }}
+                </div>
+            </div>
+
+            {# ── Updates timeline ────────────────────────────── #}
+            <section aria-label="{{ i18n.t("events.updates") }}" class="mt-8 reveal">
+                <h2 class="text-[11px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500">{{ i18n.t("events.updates") }}</h2>
+
+                {% if updates.is_empty() %}
+                <p class="mt-4 text-sm text-stone-500 dark:text-stone-500">{{ i18n.t("events.no_updates") }}</p>
+                {% else %}
+                <div class="mt-4 space-y-4">
+                    {% for update in updates %}
+                    <div class="pl-4 border-l-2 border-stone-200 dark:border-stone-700">
+                        <div class="flex items-baseline justify-between gap-2">
+                            <span class="text-[13px] font-semibold text-stone-700 dark:text-stone-300">{{ update.author_name }}</span>
+                            <span class="font-mono text-[11px] tabular-nums text-stone-400 dark:text-stone-600">{{ i18n.format_datetime(update.created_at) }}</span>
+                        </div>
+                        <div class="mt-1 prose prose-sm max-w-none prose-stone dark:prose-invert prose-p:leading-relaxed">
+                            {{ update.message|safe }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {# ── Add update form ─────────────────────────── #}
+                {% if can_edit %}
+                <form method="post" action="/events/{{ event.event.id }}/updates" class="mt-6 space-y-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <textarea id="message" name="message" rows="2" required aria-required="true"
+                              class="block w-full resize-y input-raised px-3.5 py-2.5 text-sm placeholder-stone-400 dark:text-white dark:placeholder-stone-600"
+                              placeholder="{{ i18n.t("events.describe_progress") }}"
+                              aria-label="{{ i18n.t("events.update_message_aria") }}"></textarea>
+                    <div class="flex justify-end">
+                        <button type="submit" class="btn-3d text-sm"><span>{{ i18n.t("events.publish") }}</span></button>
+                    </div>
+                </form>
+                {% endif %}
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}

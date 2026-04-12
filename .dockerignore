@@ -1,0 +1,16 @@
+target/
+.env
+*.db
+*.db-wal
+*.db-shm
+.git/
+.gitignore
+.cargo/
+.claude/
+.DS_Store
+.idea/
+docs/
+Projet.md
+CLAUDE.md
+README.md
+tailwindcss

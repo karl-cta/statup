@@ -1,0 +1,12 @@
+# rust-analyzer configuration
+
+# Enable all features for analysis
+cargo.features = "all"
+
+# Show clippy warnings in-editor
+check.command = "clippy"
+check.extraArgs = ["--", "-D", "warnings"]
+
+# Inline type hints
+inlayHints.closureReturnTypeHints.enable = "with_block"
+inlayHints.lifetimeElisionHints.enable = "skip_trivial"

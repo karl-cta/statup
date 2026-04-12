@@ -1,0 +1,19 @@
+{# Renders a service icon (built-in SVG, uploaded image, or default fallback).
+   Expects `service` (Service) and `icon_size` (e.g. "h-6 w-6" or "h-4 w-4") in scope. #}
+{% match service.builtin_icon_paths() %}
+{% when Some with (paths) %}
+<svg class="{{ icon_size }} shrink-0 text-stone-500 dark:text-stone-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+    {% for path in paths.split("|||") %}
+    <path stroke-linecap="round" stroke-linejoin="round" d="{{ path }}" />
+    {% endfor %}
+</svg>
+{% when None %}
+{% match service.icon_url() %}
+{% when Some with (url) %}
+<img src="{{ url }}" alt="" class="{{ icon_size }} shrink-0 rounded object-cover" loading="lazy">
+{% when None %}
+<svg class="{{ icon_size }} shrink-0 text-stone-300 dark:text-stone-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 17.25v-.228a4.5 4.5 0 0 0-.12-1.03l-2.268-9.64a3.375 3.375 0 0 0-3.285-2.602H7.923a3.375 3.375 0 0 0-3.285 2.602l-2.268 9.64a4.5 4.5 0 0 0-.12 1.03v.228m19.5 0a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3m19.5 0a3 3 0 0 0-3-3H5.25a3 3 0 0 0-3 3m16.5 0h.008v.008h-.008v-.008Zm-3 0h.008v.008h-.008v-.008Z" />
+</svg>
+{% endmatch %}
+{% endmatch %}
