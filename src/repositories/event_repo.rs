@@ -1,4 +1,4 @@
-//! Event repository - database queries for events and updates.
+//! Event repository, requêtes SQL sur les événements et leurs updates.
 
 use std::collections::HashMap;
 
@@ -6,32 +6,32 @@ use chrono::{DateTime, NaiveDate, Utc};
 
 use crate::db::DbPool;
 use crate::models::{
-    CreateEventInput, Event, EventFilters, EventStatus, EventSummary, EventUpdate,
-    EventUpdateWithAuthor, EventWithServices, Impact, Service,
+    CreateEventInput, Event, EventFilters, EventSummary, EventUpdate, EventUpdateWithAuthor,
+    EventWithServices, Lifecycle, Service,
 };
 
-/// Encapsulates all event-related database queries.
 pub struct EventRepository;
 
 impl EventRepository {
-    /// Create a new event with its service associations (in a transaction).
     pub async fn create(pool: &DbPool, input: CreateEventInput) -> Result<Event, sqlx::Error> {
         let mut tx = pool.begin().await?;
 
         let event = sqlx::query_as::<_, Event>(
-            "INSERT INTO events (event_type, status, title, description, impact, \
-             scheduled_start, scheduled_end, actual_start, icon_id, author_id) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+            "INSERT INTO events (kind, severity, planned, lifecycle, category, title, description, \
+             planned_start, planned_end, started_at, icon_id, author_id) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
              RETURNING *",
         )
-        .bind(input.event_type)
-        .bind(input.initial_status())
+        .bind(input.kind)
+        .bind(input.severity)
+        .bind(input.planned)
+        .bind(input.initial_lifecycle())
+        .bind(input.category)
         .bind(&input.title)
         .bind(&input.description)
-        .bind(input.impact)
-        .bind(input.scheduled_start)
-        .bind(input.scheduled_end)
-        .bind(input.actual_start())
+        .bind(input.planned_start)
+        .bind(input.planned_end)
+        .bind(input.initial_started_at())
         .bind(input.icon_id)
         .bind(input.author_id)
         .fetch_one(&mut *tx)
@@ -49,7 +49,6 @@ impl EventRepository {
         Ok(event)
     }
 
-    /// Find a single event by ID.
     pub async fn find_by_id(pool: &DbPool, id: i64) -> Result<Option<Event>, sqlx::Error> {
         sqlx::query_as::<_, Event>("SELECT * FROM events WHERE id = ?")
             .bind(id)
@@ -57,7 +56,6 @@ impl EventRepository {
             .await
     }
 
-    /// Find an event by ID together with its associated services.
     pub async fn find_by_id_with_services(
         pool: &DbPool,
         id: i64,
@@ -79,15 +77,14 @@ impl EventRepository {
         Ok(Some(EventWithServices { event, services }))
     }
 
-    /// List recent events ordered by creation date (newest first).
     pub async fn list_recent(
         pool: &DbPool,
         limit: i64,
         offset: i64,
     ) -> Result<Vec<EventSummary>, sqlx::Error> {
         sqlx::query_as::<_, EventSummary>(
-            "SELECT e.id, e.event_type, e.status, e.title, e.description, \
-             e.impact, e.created_at, e.updated_at, e.author_id, \
+            "SELECT e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
+             e.title, e.description, e.created_at, e.updated_at, e.author_id, \
              COALESCE(GROUP_CONCAT(s.name, ', '), '') as service_names, \
              ic.filename AS icon_filename \
              FROM events e \
@@ -104,16 +101,13 @@ impl EventRepository {
         .await
     }
 
-    /// List events matching the given filters.
-    ///
-    /// Builds the WHERE clause dynamically based on which filters are set.
     pub async fn list_by_filters(
         pool: &DbPool,
         filters: EventFilters,
     ) -> Result<Vec<EventSummary>, sqlx::Error> {
         let mut sql = String::from(
-            "SELECT e.id, e.event_type, e.status, e.title, e.impact, \
-             e.created_at, e.updated_at, e.author_id, \
+            "SELECT e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
+             e.title, e.description, e.created_at, e.updated_at, e.author_id, \
              COALESCE(GROUP_CONCAT(sv.name, ', '), '') as service_names, \
              ic.filename AS icon_filename \
              FROM events e \
@@ -124,19 +118,17 @@ impl EventRepository {
         let mut conditions: Vec<String> = Vec::new();
 
         if filters.service_id.is_some() {
-            // Additional filter join, we keep the LEFT JOINs for service_names
-            // and add a WHERE on a subquery or on esv.service_id.
             conditions.push(
                 "e.id IN (SELECT es2.event_id FROM event_services es2 WHERE es2.service_id = ?)"
                     .to_string(),
             );
         }
 
-        if filters.event_type.is_some() {
-            conditions.push("e.event_type = ?".to_string());
+        if filters.kind.is_some() {
+            conditions.push("e.kind = ?".to_string());
         }
-        if filters.status.is_some() {
-            conditions.push("e.status = ?".to_string());
+        if filters.lifecycle.is_some() {
+            conditions.push("e.lifecycle = ?".to_string());
         }
         if filters.from.is_some() {
             conditions.push("e.created_at >= ?".to_string());
@@ -152,17 +144,16 @@ impl EventRepository {
 
         sql.push_str(" GROUP BY e.id ORDER BY e.created_at DESC LIMIT ? OFFSET ?");
 
-        // Bind in the exact order the placeholders appear.
         let mut query = sqlx::query_as::<_, EventSummary>(&sql);
 
         if let Some(sid) = filters.service_id {
             query = query.bind(sid);
         }
-        if let Some(et) = filters.event_type {
-            query = query.bind(et);
+        if let Some(k) = filters.kind {
+            query = query.bind(k);
         }
-        if let Some(st) = filters.status {
-            query = query.bind(st);
+        if let Some(l) = filters.lifecycle {
+            query = query.bind(l);
         }
         if let Some(from) = filters.from {
             query = query.bind(from);
@@ -176,22 +167,22 @@ impl EventRepository {
         query.fetch_all(pool).await
     }
 
-    /// List recent activity (everything except maintenances).
+    /// Activité récente, tout sauf les maintenances (incidents + publications).
     pub async fn list_recent_activity(
         pool: &DbPool,
         limit: i64,
         offset: i64,
     ) -> Result<Vec<EventSummary>, sqlx::Error> {
         sqlx::query_as::<_, EventSummary>(
-            "SELECT e.id, e.event_type, e.status, e.title, e.description, \
-             e.impact, e.created_at, e.updated_at, e.author_id, \
+            "SELECT e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
+             e.title, e.description, e.created_at, e.updated_at, e.author_id, \
              COALESCE(GROUP_CONCAT(s.name, ', '), '') as service_names, \
              ic.filename AS icon_filename \
              FROM events e \
              LEFT JOIN event_services es ON es.event_id = e.id \
              LEFT JOIN services s ON s.id = es.service_id \
              LEFT JOIN icons ic ON ic.id = e.icon_id \
-             WHERE e.event_type NOT IN ('maintenance_scheduled', 'maintenance_urgent') \
+             WHERE e.kind != 'maintenance' \
              GROUP BY e.id \
              ORDER BY e.created_at DESC \
              LIMIT ? OFFSET ?",
@@ -202,43 +193,43 @@ impl EventRepository {
         .await
     }
 
-    /// List active maintenance events (scheduled or urgent, non-terminal).
+    /// Maintenances en cours ou planifiées (lifecycle non terminal).
     pub async fn list_active_maintenance(pool: &DbPool) -> Result<Vec<EventSummary>, sqlx::Error> {
         sqlx::query_as::<_, EventSummary>(
-            "SELECT e.id, e.event_type, e.status, e.title, e.impact, \
-             e.created_at, e.updated_at, e.author_id, \
+            "SELECT e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
+             e.title, e.description, e.created_at, e.updated_at, e.author_id, \
              COALESCE(GROUP_CONCAT(s.name, ', '), '') as service_names, \
              ic.filename AS icon_filename, \
-             e.scheduled_start \
+             e.planned_start \
              FROM events e \
              LEFT JOIN event_services es ON es.event_id = e.id \
              LEFT JOIN services s ON s.id = es.service_id \
              LEFT JOIN icons ic ON ic.id = e.icon_id \
-             WHERE e.event_type IN ('maintenance_scheduled', 'maintenance_urgent') \
-               AND e.status NOT IN ('resolved', 'cancelled') \
+             WHERE e.kind = 'maintenance' \
+               AND e.lifecycle NOT IN ('completed', 'cancelled') \
              GROUP BY e.id \
-             ORDER BY COALESCE(e.scheduled_start, e.created_at) ASC",
+             ORDER BY COALESCE(e.planned_start, e.created_at) ASC",
         )
         .fetch_all(pool)
         .await
     }
 
-    /// List recently resolved/cancelled maintenance events.
+    /// Maintenances récemment terminées ou annulées.
     pub async fn list_recent_resolved_maintenance(
         pool: &DbPool,
         limit: i64,
     ) -> Result<Vec<EventSummary>, sqlx::Error> {
         sqlx::query_as::<_, EventSummary>(
-            "SELECT e.id, e.event_type, e.status, e.title, e.impact, \
-             e.created_at, e.updated_at, e.author_id, \
+            "SELECT e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
+             e.title, e.description, e.created_at, e.updated_at, e.author_id, \
              COALESCE(GROUP_CONCAT(s.name, ', '), '') as service_names, \
              ic.filename AS icon_filename \
              FROM events e \
              LEFT JOIN event_services es ON es.event_id = e.id \
              LEFT JOIN services s ON s.id = es.service_id \
              LEFT JOIN icons ic ON ic.id = e.icon_id \
-             WHERE e.event_type IN ('maintenance_scheduled', 'maintenance_urgent') \
-               AND e.status IN ('resolved', 'cancelled') \
+             WHERE e.kind = 'maintenance' \
+               AND e.lifecycle IN ('completed', 'cancelled') \
              GROUP BY e.id \
              ORDER BY e.updated_at DESC \
              LIMIT ?",
@@ -248,43 +239,45 @@ impl EventRepository {
         .await
     }
 
-    /// List scheduled maintenance events in the future.
+    /// Maintenances planifiées à venir.
     pub async fn list_upcoming_maintenance(
         pool: &DbPool,
     ) -> Result<Vec<EventSummary>, sqlx::Error> {
         sqlx::query_as::<_, EventSummary>(
-            "SELECT e.id, e.event_type, e.status, e.title, e.impact, \
-             e.created_at, e.updated_at, e.author_id, \
+            "SELECT e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
+             e.title, e.description, e.created_at, e.updated_at, e.author_id, \
              COALESCE(GROUP_CONCAT(s.name, ', '), '') as service_names, \
              ic.filename AS icon_filename, \
-             e.scheduled_start \
+             e.planned_start \
              FROM events e \
              LEFT JOIN event_services es ON es.event_id = e.id \
              LEFT JOIN services s ON s.id = es.service_id \
              LEFT JOIN icons ic ON ic.id = e.icon_id \
-             WHERE e.event_type = 'maintenance_scheduled' \
-               AND e.status = 'scheduled' \
-               AND (e.scheduled_start IS NULL OR e.scheduled_start > datetime('now')) \
+             WHERE e.kind = 'maintenance' \
+               AND e.planned = 1 \
+               AND e.lifecycle = 'scheduled' \
+               AND (e.planned_start IS NULL OR e.planned_start > datetime('now')) \
              GROUP BY e.id \
-             ORDER BY COALESCE(e.scheduled_start, e.created_at) ASC",
+             ORDER BY COALESCE(e.planned_start, e.created_at) ASC",
         )
         .fetch_all(pool)
         .await
     }
 
-    /// List active incidents (non-terminal, non-maintenance, non-info events).
+    /// Événements actifs "perturbants" pour la page publique : incidents +
+    /// maintenances non planifiées en cours.
     pub async fn list_active_incidents(pool: &DbPool) -> Result<Vec<EventSummary>, sqlx::Error> {
         sqlx::query_as::<_, EventSummary>(
-            "SELECT e.id, e.event_type, e.status, e.title, e.impact, \
-             e.created_at, e.updated_at, e.author_id, \
+            "SELECT e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
+             e.title, e.description, e.created_at, e.updated_at, e.author_id, \
              COALESCE(GROUP_CONCAT(s.name, ', '), '') as service_names, \
              ic.filename AS icon_filename \
              FROM events e \
              LEFT JOIN event_services es ON es.event_id = e.id \
              LEFT JOIN services s ON s.id = es.service_id \
              LEFT JOIN icons ic ON ic.id = e.icon_id \
-             WHERE e.status NOT IN ('resolved', 'cancelled') \
-               AND e.event_type IN ('incident', 'maintenance_urgent') \
+             WHERE e.lifecycle NOT IN ('resolved', 'completed', 'cancelled') \
+               AND (e.kind = 'incident' OR (e.kind = 'maintenance' AND e.planned = 0)) \
              GROUP BY e.id \
              ORDER BY e.created_at DESC",
         )
@@ -292,10 +285,8 @@ impl EventRepository {
         .await
     }
 
-    /// List active (non-terminal) events for a given service.
-    ///
-    /// Scheduled maintenances with a future `scheduled_start` are excluded
-    /// so they don't impact service status before the planned date.
+    /// Événements actifs pour un service donné. Les maintenances planifiées
+    /// dans le futur sont exclues pour ne pas dégrader le statut avant la date.
     pub async fn list_active_for_service(
         pool: &DbPool,
         service_id: i64,
@@ -304,10 +295,11 @@ impl EventRepository {
             "SELECT e.* FROM events e \
              INNER JOIN event_services es ON es.event_id = e.id \
              WHERE es.service_id = ? \
-               AND e.status NOT IN ('resolved', 'cancelled') \
-               AND NOT (e.event_type = 'maintenance_scheduled' \
-                        AND e.scheduled_start IS NOT NULL \
-                        AND e.scheduled_start > datetime('now')) \
+               AND e.lifecycle NOT IN ('resolved', 'completed', 'cancelled') \
+               AND NOT (e.kind = 'maintenance' \
+                        AND e.planned = 1 \
+                        AND e.planned_start IS NOT NULL \
+                        AND e.planned_start > datetime('now')) \
              ORDER BY e.created_at DESC",
         )
         .bind(service_id)
@@ -315,24 +307,26 @@ impl EventRepository {
         .await
     }
 
-    /// Update the status of an event, saving the current status as `previous_status`.
-    pub async fn update_status(
+    /// Transition du lifecycle, l'ancienne valeur est sauvegardée dans
+    /// `previous_lifecycle` pour permettre un undo à un niveau.
+    pub async fn update_lifecycle(
         pool: &DbPool,
         event_id: i64,
-        new_status: EventStatus,
+        new_lifecycle: Lifecycle,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE events SET previous_status = status, status = ? WHERE id = ?")
-            .bind(new_status)
+        sqlx::query("UPDATE events SET previous_lifecycle = lifecycle, lifecycle = ? WHERE id = ?")
+            .bind(new_lifecycle)
             .bind(event_id)
             .execute(pool)
             .await?;
         Ok(())
     }
 
-    /// Revert an event to its `previous_status`, clearing the saved value.
-    pub async fn revert_status(pool: &DbPool, event_id: i64) -> Result<(), sqlx::Error> {
+    /// Annule la dernière transition de lifecycle. Efface aussi `ended_at` pour
+    /// sortir proprement d'un état terminal.
+    pub async fn revert_lifecycle(pool: &DbPool, event_id: i64) -> Result<(), sqlx::Error> {
         sqlx::query(
-            "UPDATE events SET status = previous_status, previous_status = NULL, actual_end = NULL WHERE id = ? AND previous_status IS NOT NULL",
+            "UPDATE events SET lifecycle = previous_lifecycle, previous_lifecycle = NULL, ended_at = NULL WHERE id = ? AND previous_lifecycle IS NOT NULL",
         )
         .bind(event_id)
         .execute(pool)
@@ -340,10 +334,9 @@ impl EventRepository {
         Ok(())
     }
 
-    /// Replace the service associations for an event (in a transaction).
-    ///
-    /// Returns the list of previously associated service IDs so the caller
-    /// can recalculate their status after the change.
+    /// Remplace les services associés à un événement. Retourne les IDs des
+    /// services précédemment associés pour que l'appelant puisse recalculer
+    /// leur statut.
     pub async fn update_services(
         pool: &DbPool,
         event_id: i64,
@@ -375,9 +368,8 @@ impl EventRepository {
         Ok(old_service_ids)
     }
 
-    /// Delete an event by ID. Returns the IDs of services that were associated.
-    ///
-    /// Relies on `ON DELETE CASCADE` for `event_services` and `event_updates`.
+    /// Supprime un événement. `event_services` et `event_updates` sont
+    /// nettoyées par `ON DELETE CASCADE`.
     pub async fn delete(pool: &DbPool, event_id: i64) -> Result<Vec<i64>, sqlx::Error> {
         let rows: Vec<(i64,)> =
             sqlx::query_as("SELECT service_id FROM event_services WHERE event_id = ?")
@@ -394,13 +386,12 @@ impl EventRepository {
         Ok(service_ids)
     }
 
-    /// Set the `actual_end` timestamp on an event (e.g. when resolved).
-    pub async fn set_actual_end(
+    pub async fn set_ended_at(
         pool: &DbPool,
         event_id: i64,
         at: DateTime<Utc>,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE events SET actual_end = ? WHERE id = ?")
+        sqlx::query("UPDATE events SET ended_at = ? WHERE id = ?")
             .bind(at)
             .bind(event_id)
             .execute(pool)
@@ -408,7 +399,6 @@ impl EventRepository {
         Ok(())
     }
 
-    /// Add a status update message to an event.
     pub async fn add_update(
         pool: &DbPool,
         event_id: i64,
@@ -427,7 +417,6 @@ impl EventRepository {
         .await
     }
 
-    /// List updates for an event, enriched with author names.
     pub async fn list_updates_with_author(
         pool: &DbPool,
         event_id: i64,
@@ -445,10 +434,11 @@ impl EventRepository {
         .await
     }
 
-    /// Count events created since the given timestamp.
+    /// Nombre d'événements "importants" créés depuis `since`, pour le badge
+    /// unread. Les publications sont exclues (ambient, pas d'intervention).
     pub async fn count_since(pool: &DbPool, since: DateTime<Utc>) -> Result<i64, sqlx::Error> {
         let row: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM events WHERE created_at >= ? AND event_type != 'info'",
+            "SELECT COUNT(*) FROM events WHERE created_at >= ? AND kind != 'publication'",
         )
         .bind(since)
         .fetch_one(pool)
@@ -456,11 +446,10 @@ impl EventRepository {
         Ok(row.0)
     }
 
-    /// Fetch per-service daily worst-impact data for sparkline rendering.
-    ///
-    /// Returns a map of `service_id` → `Vec<u8>` with `days` entries (oldest
-    /// first).  Each value is the worst impact level for that day:
-    /// 0 = operational, 1 = minor, 2 = major, 3 = critical.
+    /// Niveau de sévérité journalier par service pour le rendu sparkline.
+    /// Retourne une map `service_id` → `Vec<u8>` de taille `days` (plus ancien
+    /// en premier). Chaque valeur est le niveau max du jour :
+    /// 0 = aucun, 1 = minor, 2 = major, 3 = critical.
     pub async fn sparkline_data(
         pool: &DbPool,
         days: u32,
@@ -468,15 +457,21 @@ impl EventRepository {
         let modifier = format!("-{} days", days.saturating_sub(1));
 
         let rows = sqlx::query_as::<_, SparklineEventRow>(
-            "SELECT es.service_id, e.impact, \
-             DATE(COALESCE(e.actual_start, e.created_at)) AS start_date, \
-             DATE(COALESCE(e.actual_end, datetime('now'))) AS end_date \
+            "SELECT es.service_id, \
+             CASE e.severity \
+                 WHEN 'critical' THEN 3 \
+                 WHEN 'major' THEN 2 \
+                 WHEN 'minor' THEN 1 \
+                 ELSE 0 \
+             END AS severity_level, \
+             DATE(COALESCE(e.started_at, e.created_at)) AS start_date, \
+             DATE(COALESCE(e.ended_at, datetime('now'))) AS end_date \
              FROM events e \
              INNER JOIN event_services es ON es.event_id = e.id \
-             WHERE e.event_type IN ('incident', 'maintenance_urgent', 'maintenance_scheduled') \
-               AND e.status != 'cancelled' \
-               AND DATE(COALESCE(e.actual_start, e.created_at)) <= DATE('now') \
-               AND DATE(COALESCE(e.actual_end, datetime('now'))) >= DATE('now', ?)",
+             WHERE e.kind IN ('incident', 'maintenance') \
+               AND e.lifecycle != 'cancelled' \
+               AND DATE(COALESCE(e.started_at, e.created_at)) <= DATE('now') \
+               AND DATE(COALESCE(e.ended_at, datetime('now'))) >= DATE('now', ?)",
         )
         .bind(&modifier)
         .fetch_all(pool)
@@ -495,7 +490,7 @@ impl EventRepository {
                 continue;
             };
 
-            let level = row.impact.level();
+            let level = u8::try_from(row.severity_level.clamp(0, 3)).unwrap_or(0);
             let entry = result
                 .entry(row.service_id)
                 .or_insert_with(|| vec![0u8; days as usize]);
@@ -518,11 +513,8 @@ impl EventRepository {
         Ok(result)
     }
 
-    /// Full-text search on events using FTS5, optionally combined with SQL
-    /// filters (type, service, date range).
-    ///
-    /// Results are sorted by FTS5 relevance rank first, then by creation date
-    /// descending as a tiebreaker.
+    /// Recherche full-text sur events via FTS5, combinable avec les filtres.
+    /// Résultats triés par pertinence FTS5, puis date de création décroissante.
     pub async fn search(
         pool: &DbPool,
         query: &str,
@@ -534,8 +526,8 @@ impl EventRepository {
         }
 
         let mut sql = String::from(
-            "SELECT e.id, e.event_type, e.status, e.title, e.impact, \
-             e.created_at, e.updated_at, e.author_id, \
+            "SELECT e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
+             e.title, e.description, e.created_at, e.updated_at, e.author_id, \
              COALESCE(GROUP_CONCAT(s.name, ', '), '') as service_names, \
              ic.filename AS icon_filename \
              FROM events_fts fts \
@@ -553,11 +545,11 @@ impl EventRepository {
                     .to_string(),
             );
         }
-        if filters.event_type.is_some() {
-            conditions.push("e.event_type = ?".to_string());
+        if filters.kind.is_some() {
+            conditions.push("e.kind = ?".to_string());
         }
-        if filters.status.is_some() {
-            conditions.push("e.status = ?".to_string());
+        if filters.lifecycle.is_some() {
+            conditions.push("e.lifecycle = ?".to_string());
         }
         if filters.from.is_some() {
             conditions.push("e.created_at >= ?".to_string());
@@ -572,16 +564,15 @@ impl EventRepository {
 
         let mut q = sqlx::query_as::<_, EventSummary>(&sql);
 
-        // Bind in placeholder order.
         q = q.bind(sanitized);
         if let Some(sid) = filters.service_id {
             q = q.bind(sid);
         }
-        if let Some(et) = filters.event_type {
-            q = q.bind(et);
+        if let Some(k) = filters.kind {
+            q = q.bind(k);
         }
-        if let Some(st) = filters.status {
-            q = q.bind(st);
+        if let Some(l) = filters.lifecycle {
+            q = q.bind(l);
         }
         if let Some(from) = filters.from {
             q = q.bind(from);
@@ -594,8 +585,7 @@ impl EventRepository {
         q.fetch_all(pool).await
     }
 
-    /// Get the timestamp of the most recent admin action across events,
-    /// event updates, and services.
+    /// Horodatage de la dernière action admin (events, updates, services).
     pub async fn last_admin_action(pool: &DbPool) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
         let row: Option<(Option<String>,)> = sqlx::query_as(
             "SELECT MAX(ts) FROM ( \
@@ -619,23 +609,19 @@ impl EventRepository {
     }
 }
 
-/// Row returned by the sparkline aggregation query.
 #[derive(sqlx::FromRow)]
 struct SparklineEventRow {
     service_id: i64,
-    impact: Impact,
+    severity_level: i64,
     start_date: String,
     end_date: String,
 }
 
-/// Sanitize a user-supplied search string for FTS5 MATCH.
-///
-/// Strips FTS5 operators and wraps each token with `"…"` so the query is
-/// always treated as a simple term search (implicit AND).
+/// Nettoie une requête FTS5 en retirant les opérateurs spéciaux et en
+/// entourant chaque token de guillemets pour forcer une recherche littérale.
 fn sanitize_fts_query(raw: &str) -> String {
     raw.split_whitespace()
         .map(|token| {
-            // Remove characters that have special meaning in FTS5 queries.
             let clean: String = token
                 .chars()
                 .filter(|c| !matches!(c, '"' | '*' | '+' | '-' | '(' | ')' | ':' | '^'))
@@ -651,7 +637,7 @@ fn sanitize_fts_query(raw: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{CreateEventInput, EventType, Impact, Role};
+    use crate::models::{Category, CreateEventInput, Kind, Role, Severity};
     use crate::repositories::{ServiceRepository, UserRepository};
     use crate::test_helpers::test_pool;
 
@@ -667,12 +653,14 @@ mod tests {
 
     fn incident_input(title: &str, author_id: i64, service_ids: Vec<i64>) -> CreateEventInput {
         CreateEventInput {
-            event_type: EventType::Incident,
+            kind: Kind::Incident,
+            severity: Some(Severity::Major),
+            planned: false,
+            category: None,
             title: title.to_string(),
             description: "Something broke".to_string(),
-            impact: Impact::Major,
-            scheduled_start: None,
-            scheduled_end: None,
+            planned_start: None,
+            planned_end: None,
             service_ids,
             icon_id: None,
             author_id,
@@ -689,8 +677,8 @@ mod tests {
             .unwrap();
 
         assert_eq!(event.title, "DB Down");
-        assert_eq!(event.event_type, EventType::Incident);
-        assert_eq!(event.status, EventStatus::Investigating);
+        assert_eq!(event.kind, Kind::Incident);
+        assert_eq!(event.lifecycle, Some(Lifecycle::Investigating));
 
         let found = EventRepository::find_by_id(&pool, event.id).await.unwrap();
         assert!(found.is_some());
@@ -727,7 +715,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn update_status_and_set_actual_end() {
+    async fn update_lifecycle_and_set_ended_at() {
         let pool = test_pool().await;
         let (uid, sid) = seed_user_and_service(&pool).await;
 
@@ -735,12 +723,12 @@ mod tests {
             .await
             .unwrap();
 
-        EventRepository::update_status(&pool, event.id, EventStatus::Resolved)
+        EventRepository::update_lifecycle(&pool, event.id, Lifecycle::Resolved)
             .await
             .unwrap();
 
         let now = chrono::Utc::now();
-        EventRepository::set_actual_end(&pool, event.id, now)
+        EventRepository::set_ended_at(&pool, event.id, now)
             .await
             .unwrap();
 
@@ -748,8 +736,8 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(updated.status, EventStatus::Resolved);
-        assert!(updated.actual_end.is_some());
+        assert_eq!(updated.lifecycle, Some(Lifecycle::Resolved));
+        assert!(updated.ended_at.is_some());
     }
 
     #[tokio::test]
@@ -800,7 +788,7 @@ mod tests {
             .await
             .unwrap();
 
-        EventRepository::update_status(&pool, e2.id, EventStatus::Resolved)
+        EventRepository::update_lifecycle(&pool, e2.id, Lifecycle::Resolved)
             .await
             .unwrap();
 
@@ -812,7 +800,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn count_since_excludes_info_events() {
+    async fn count_since_excludes_publications() {
         let pool = test_pool().await;
         let (uid, sid) = seed_user_and_service(&pool).await;
 
@@ -824,12 +812,14 @@ mod tests {
         EventRepository::create(
             &pool,
             CreateEventInput {
-                event_type: EventType::Info,
+                kind: Kind::Publication,
+                severity: None,
+                planned: false,
+                category: Some(Category::Info),
                 title: "Info".to_string(),
                 description: "FYI".to_string(),
-                impact: Impact::None,
-                scheduled_start: None,
-                scheduled_end: None,
+                planned_start: None,
+                planned_end: None,
                 service_ids: vec![sid],
                 icon_id: None,
                 author_id: uid,

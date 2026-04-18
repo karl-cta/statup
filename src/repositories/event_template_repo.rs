@@ -1,38 +1,43 @@
-//! Event template repository - database queries for event templates.
+//! Event template repository, requêtes SQL sur les presets d'événements.
 
 use crate::db::DbPool;
-use crate::models::{EventTemplate, EventType, Impact};
+use crate::models::{Category, EventTemplate, Kind, Severity};
 
-/// Encapsulates all event template database queries.
 pub struct EventTemplateRepository;
 
+pub struct CreateTemplateInput<'a> {
+    pub title: &'a str,
+    pub description: &'a str,
+    pub kind: Kind,
+    pub severity: Option<Severity>,
+    pub planned: bool,
+    pub category: Option<Category>,
+    pub icon_id: Option<i64>,
+    pub created_by: i64,
+}
+
 impl EventTemplateRepository {
-    /// Create a new event template.
     pub async fn create(
         pool: &DbPool,
-        title: &str,
-        description: &str,
-        event_type: EventType,
-        impact: Impact,
-        icon_id: Option<i64>,
-        created_by: i64,
+        input: CreateTemplateInput<'_>,
     ) -> Result<EventTemplate, sqlx::Error> {
         sqlx::query_as::<_, EventTemplate>(
-            "INSERT INTO event_templates (title, description, event_type, impact, icon_id, created_by) \
-             VALUES (?, ?, ?, ?, ?, ?) \
+            "INSERT INTO event_templates (title, description, kind, severity, planned, category, icon_id, created_by) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?) \
              RETURNING *",
         )
-        .bind(title)
-        .bind(description)
-        .bind(event_type)
-        .bind(impact)
-        .bind(icon_id)
-        .bind(created_by)
+        .bind(input.title)
+        .bind(input.description)
+        .bind(input.kind)
+        .bind(input.severity)
+        .bind(input.planned)
+        .bind(input.category)
+        .bind(input.icon_id)
+        .bind(input.created_by)
         .fetch_one(pool)
         .await
     }
 
-    /// Find a template by ID.
     pub async fn find_by_id(pool: &DbPool, id: i64) -> Result<Option<EventTemplate>, sqlx::Error> {
         sqlx::query_as::<_, EventTemplate>("SELECT * FROM event_templates WHERE id = ?")
             .bind(id)
@@ -40,7 +45,6 @@ impl EventTemplateRepository {
             .await
     }
 
-    /// List all templates ordered by usage count (most used first).
     pub async fn list_all(pool: &DbPool) -> Result<Vec<EventTemplate>, sqlx::Error> {
         sqlx::query_as::<_, EventTemplate>(
             "SELECT * FROM event_templates ORDER BY usage_count DESC, created_at DESC",
@@ -49,7 +53,6 @@ impl EventTemplateRepository {
         .await
     }
 
-    /// Search templates by title prefix (for autocomplete).
     pub async fn search_by_title(
         pool: &DbPool,
         query: &str,
@@ -68,7 +71,6 @@ impl EventTemplateRepository {
         .await
     }
 
-    /// Increment usage count and update `last_used_at`.
     pub async fn increment_usage(pool: &DbPool, id: i64) -> Result<(), sqlx::Error> {
         sqlx::query(
             "UPDATE event_templates SET usage_count = usage_count + 1, \
@@ -80,7 +82,6 @@ impl EventTemplateRepository {
         Ok(())
     }
 
-    /// Delete a template by ID.
     pub async fn delete(pool: &DbPool, id: i64) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM event_templates WHERE id = ?")
             .bind(id)
@@ -111,18 +112,23 @@ mod tests {
 
         let tpl = EventTemplateRepository::create(
             &pool,
-            "Mise à jour ERP",
-            "Mise à jour du logiciel ERP",
-            EventType::MaintenanceScheduled,
-            Impact::Minor,
-            None,
-            uid,
+            CreateTemplateInput {
+                title: "Mise à jour ERP",
+                description: "Mise à jour du logiciel ERP",
+                kind: Kind::Maintenance,
+                severity: Some(Severity::Minor),
+                planned: true,
+                category: None,
+                icon_id: None,
+                created_by: uid,
+            },
         )
         .await
         .unwrap();
 
         assert_eq!(tpl.title, "Mise à jour ERP");
         assert_eq!(tpl.usage_count, 0);
+        assert!(tpl.planned);
 
         let found = EventTemplateRepository::find_by_id(&pool, tpl.id)
             .await
@@ -137,24 +143,32 @@ mod tests {
 
         EventTemplateRepository::create(
             &pool,
-            "Mise à jour ERP",
-            "desc",
-            EventType::MaintenanceScheduled,
-            Impact::Minor,
-            None,
-            uid,
+            CreateTemplateInput {
+                title: "Mise à jour ERP",
+                description: "desc",
+                kind: Kind::Maintenance,
+                severity: Some(Severity::Minor),
+                planned: true,
+                category: None,
+                icon_id: None,
+                created_by: uid,
+            },
         )
         .await
         .unwrap();
 
         EventTemplateRepository::create(
             &pool,
-            "Incident réseau",
-            "desc",
-            EventType::Incident,
-            Impact::Major,
-            None,
-            uid,
+            CreateTemplateInput {
+                title: "Incident réseau",
+                description: "desc",
+                kind: Kind::Incident,
+                severity: Some(Severity::Major),
+                planned: false,
+                category: None,
+                icon_id: None,
+                created_by: uid,
+            },
         )
         .await
         .unwrap();
@@ -173,12 +187,16 @@ mod tests {
 
         let tpl = EventTemplateRepository::create(
             &pool,
-            "Test",
-            "desc",
-            EventType::Incident,
-            Impact::Minor,
-            None,
-            uid,
+            CreateTemplateInput {
+                title: "Test",
+                description: "desc",
+                kind: Kind::Incident,
+                severity: Some(Severity::Minor),
+                planned: false,
+                category: None,
+                icon_id: None,
+                created_by: uid,
+            },
         )
         .await
         .unwrap();
@@ -202,12 +220,16 @@ mod tests {
 
         let tpl = EventTemplateRepository::create(
             &pool,
-            "Del",
-            "desc",
-            EventType::Info,
-            Impact::None,
-            None,
-            uid,
+            CreateTemplateInput {
+                title: "Del",
+                description: "desc",
+                kind: Kind::Publication,
+                severity: None,
+                planned: false,
+                category: Some(Category::Info),
+                icon_id: None,
+                created_by: uid,
+            },
         )
         .await
         .unwrap();

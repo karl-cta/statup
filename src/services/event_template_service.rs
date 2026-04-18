@@ -1,25 +1,29 @@
-//! Event template service - business logic for event presets.
+//! Event template service, logique métier des presets d'événements.
 
 use crate::db::DbPool;
 use crate::error::AppError;
-use crate::models::{EventTemplate, EventType, Impact};
-use crate::repositories::EventTemplateRepository;
+use crate::models::{Category, EventTemplate, Kind, Severity};
+use crate::repositories::{CreateTemplateInput, EventTemplateRepository};
 
-/// Business logic for event templates.
 pub struct EventTemplateService;
 
+pub struct CreateTemplateParams<'a> {
+    pub title: &'a str,
+    pub description: &'a str,
+    pub kind: Kind,
+    pub severity: Option<Severity>,
+    pub planned: bool,
+    pub category: Option<Category>,
+    pub icon_id: Option<i64>,
+    pub created_by: i64,
+}
+
 impl EventTemplateService {
-    /// Create a new event template.
     pub async fn create(
         pool: &DbPool,
-        title: &str,
-        description: &str,
-        event_type: EventType,
-        impact: Impact,
-        icon_id: Option<i64>,
-        created_by: i64,
+        params: CreateTemplateParams<'_>,
     ) -> Result<EventTemplate, AppError> {
-        let title = title.trim();
+        let title = params.title.trim();
         if title.is_empty() {
             return Err(AppError::Validation(
                 "validation.template_title_required".to_string(),
@@ -33,25 +37,27 @@ impl EventTemplateService {
 
         let tpl = EventTemplateRepository::create(
             pool,
-            title,
-            description.trim(),
-            event_type,
-            impact,
-            icon_id,
-            created_by,
+            CreateTemplateInput {
+                title,
+                description: params.description.trim(),
+                kind: params.kind,
+                severity: params.severity,
+                planned: params.planned,
+                category: params.category,
+                icon_id: params.icon_id,
+                created_by: params.created_by,
+            },
         )
         .await?;
 
         Ok(tpl)
     }
 
-    /// Record usage of a template (increment counter).
     pub async fn record_usage(pool: &DbPool, template_id: i64) -> Result<(), AppError> {
         EventTemplateRepository::increment_usage(pool, template_id).await?;
         Ok(())
     }
 
-    /// Delete a template.
     pub async fn delete(pool: &DbPool, id: i64) -> Result<(), AppError> {
         EventTemplateRepository::find_by_id(pool, id)
             .await?

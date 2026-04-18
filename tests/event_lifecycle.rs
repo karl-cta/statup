@@ -1,7 +1,7 @@
-//! Integration tests for the event lifecycle.
+//! Tests d'intégration du cycle de vie des événements.
 //!
-//! Tests the full HTTP cycle: Create → Update → Add updates → Resolve.
-//! Also tests service status recalculation.
+//! Valide le flux HTTP complet : création, transitions, updates, clôture.
+//! Teste aussi le recalcul du statut des services.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -20,10 +20,6 @@ use statup::repositories::{ServiceRepository, UserRepository};
 use statup::routes::create_router;
 use statup::services::{AuthService, LoginRateLimiter};
 use statup::state::AppState;
-
-// ---------------------------------------------------------------------------
-// Test application helper
-// ---------------------------------------------------------------------------
 
 struct TestApp {
     addr: SocketAddr,
@@ -133,14 +129,13 @@ impl TestApp {
         (status, body, location)
     }
 
-    /// POST a form using the X-CSRF-Token header (for endpoints that don't
-    /// consume the csrf_token form field but still go through CSRF middleware).
+    /// POST via header X-CSRF-Token, pour les endpoints qui ne consomment pas
+    /// le champ csrf_token du form mais passent quand même par le middleware CSRF.
     async fn post_form_with_header_csrf(
         &self,
         path: &str,
         fields: &[(&str, &str)],
     ) -> (StatusCode, String, Option<String>) {
-        // Get a page to ensure we have a session with a CSRF token
         let (_, body) = self.get("/").await;
         let csrf = extract_csrf_token(&body);
 
@@ -163,7 +158,6 @@ impl TestApp {
         (status, body, location)
     }
 
-    /// Create a publisher user and log in.
     async fn setup_publisher(&self) {
         AuthService::register(
             &self.pool,
@@ -195,7 +189,6 @@ impl TestApp {
         assert_eq!(status, StatusCode::SEE_OTHER, "login should redirect");
     }
 
-    /// Create a service directly in DB for testing.
     async fn create_service(&self, name: &str) -> i64 {
         let slug = name.to_lowercase().replace(' ', "-");
         let service = ServiceRepository::create(&self.pool, name, &slug, None)
@@ -204,28 +197,18 @@ impl TestApp {
         service.id
     }
 
-    /// Create an event via HTTP and return the event detail URL path.
-    async fn create_event(
+    async fn submit_create_event(
         &self,
-        title: &str,
-        description: &str,
-        event_type: &str,
-        impact: &str,
+        base_fields: Vec<(&str, String)>,
         service_ids: &[i64],
     ) -> String {
         let (_, body) = self.get("/events/new").await;
         let csrf = extract_csrf_token(&body);
 
-        let mut fields: Vec<(&str, String)> = vec![
-            ("title", title.to_string()),
-            ("description", description.to_string()),
-            ("event_type", event_type.to_string()),
-            ("impact", impact.to_string()),
-        ];
+        let mut fields = base_fields;
         for id in service_ids {
             fields.push(("service_ids", id.to_string()));
         }
-
         let fields_ref: Vec<(&str, &str)> = fields.iter().map(|(k, v)| (*k, v.as_str())).collect();
 
         let (status, _body, location) = self.post_form("/events/new", &csrf, &fields_ref).await;
@@ -235,6 +218,64 @@ impl TestApp {
             "event creation should redirect"
         );
         location.expect("should have Location header")
+    }
+
+    async fn create_incident(
+        &self,
+        title: &str,
+        description: &str,
+        severity: &str,
+        service_ids: &[i64],
+    ) -> String {
+        self.submit_create_event(
+            vec![
+                ("title", title.to_string()),
+                ("description", description.to_string()),
+                ("kind", "incident".to_string()),
+                ("severity", severity.to_string()),
+            ],
+            service_ids,
+        )
+        .await
+    }
+
+    async fn create_planned_maintenance(
+        &self,
+        title: &str,
+        description: &str,
+        severity: &str,
+        service_ids: &[i64],
+    ) -> String {
+        self.submit_create_event(
+            vec![
+                ("title", title.to_string()),
+                ("description", description.to_string()),
+                ("kind", "maintenance".to_string()),
+                ("severity", severity.to_string()),
+                ("planned", "on".to_string()),
+            ],
+            service_ids,
+        )
+        .await
+    }
+
+    async fn create_publication(
+        &self,
+        title: &str,
+        description: &str,
+        category: &str,
+        service_ids: &[i64],
+    ) -> String {
+        self.submit_create_event(
+            vec![
+                ("title", title.to_string()),
+                ("description", description.to_string()),
+                ("kind", "publication".to_string()),
+                ("category", category.to_string()),
+            ],
+            service_ids,
+        )
+        .await
     }
 }
 
@@ -251,7 +292,6 @@ fn extract_csrf_token(html: &str) -> String {
     html[start..end].to_string()
 }
 
-/// Extract the event ID from a redirect path like "/events/42".
 fn event_id_from_path(path: &str) -> i64 {
     path.rsplit('/')
         .next()
@@ -259,32 +299,26 @@ fn event_id_from_path(path: &str) -> i64 {
         .unwrap_or_else(|| panic!("could not parse event ID from path: {path}"))
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 #[tokio::test]
 async fn create_incident_and_verify_detail() {
     let app = TestApp::spawn().await;
     app.setup_publisher().await;
 
     let path = app
-        .create_event(
+        .create_incident(
             "Database outage",
             "The primary database is down",
-            "incident",
             "critical",
             &[],
         )
         .await;
 
-    // Verify event detail page
     let (status, body) = app.get(&path).await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("Database outage"), "should show event title");
     assert!(
-        body.contains("Investigating") || body.contains("investigating"),
-        "incident should start in Investigating status"
+        body.contains("Investigation") || body.contains("investigating"),
+        "incident should start in Investigating lifecycle"
     );
 }
 
@@ -293,29 +327,24 @@ async fn full_incident_lifecycle_with_service_status() {
     let app = TestApp::spawn().await;
     app.setup_publisher().await;
 
-    // Create a service
     let service_id = app.create_service("API Gateway").await;
 
-    // Verify service starts operational
     let svc = ServiceRepository::find_by_id(&app.pool, service_id)
         .await
         .expect("db error")
         .expect("service not found");
     assert_eq!(svc.status, ServiceStatus::Operational);
 
-    // Create a critical incident affecting this service
     let path = app
-        .create_event(
+        .create_incident(
             "API Gateway down",
             "The API gateway is not responding",
-            "incident",
             "critical",
             &[service_id],
         )
         .await;
     let event_id = event_id_from_path(&path);
 
-    // Service status should now be MajorOutage
     let svc = ServiceRepository::find_by_id(&app.pool, service_id)
         .await
         .expect("db error")
@@ -326,16 +355,14 @@ async fn full_incident_lifecycle_with_service_status() {
         "critical incident should cause MajorOutage"
     );
 
-    // Transition: Investigating → Identified
     let (status, _, _) = app
         .post_form_with_header_csrf(
-            &format!("/events/{event_id}/status"),
-            &[("status", "identified")],
+            &format!("/events/{event_id}/lifecycle"),
+            &[("lifecycle", "in_progress")],
         )
         .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
 
-    // Add an update
     let (_, detail_body) = app.get(&path).await;
     let csrf = extract_csrf_token(&detail_body);
     let (status, _, _) = app
@@ -347,42 +374,37 @@ async fn full_incident_lifecycle_with_service_status() {
         .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
 
-    // Verify update appears on detail page
     let (_, body) = app.get(&path).await;
     assert!(
         body.contains("Root cause identified") || body.contains("disk full"),
         "update should appear on event detail"
     );
 
-    // Transition: Identified → InProgress
     let (status, _, _) = app
         .post_form_with_header_csrf(
-            &format!("/events/{event_id}/status"),
-            &[("status", "in_progress")],
+            &format!("/events/{event_id}/lifecycle"),
+            &[("lifecycle", "monitoring")],
         )
         .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
 
-    // Transition: InProgress → Resolved
     let (status, _, _) = app
         .post_form_with_header_csrf(
-            &format!("/events/{event_id}/status"),
+            &format!("/events/{event_id}/lifecycle"),
             &[
-                ("status", "resolved"),
+                ("lifecycle", "resolved"),
                 ("resolution_comment", "Problème résolu"),
             ],
         )
         .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
 
-    // Verify event is resolved
     let (_, body) = app.get(&path).await;
     assert!(
         body.contains("Resolved") || body.contains("resolved") || body.contains("Résolu"),
         "event should be resolved"
     );
 
-    // Service status should return to Operational
     let svc = ServiceRepository::find_by_id(&app.pool, service_id)
         .await
         .expect("db error")
@@ -401,19 +423,16 @@ async fn scheduled_maintenance_lifecycle() {
 
     let service_id = app.create_service("Auth Service").await;
 
-    // Create scheduled maintenance
     let path = app
-        .create_event(
+        .create_planned_maintenance(
             "Planned DB migration",
             "Migrating to new schema",
-            "maintenance_scheduled",
             "major",
             &[service_id],
         )
         .await;
     let event_id = event_id_from_path(&path);
 
-    // Service should be in Maintenance
     let svc = ServiceRepository::find_by_id(&app.pool, service_id)
         .await
         .expect("db error")
@@ -421,38 +440,34 @@ async fn scheduled_maintenance_lifecycle() {
     assert_eq!(
         svc.status,
         ServiceStatus::Maintenance,
-        "scheduled maintenance should put service in Maintenance"
+        "planned maintenance should put service in Maintenance"
     );
 
-    // Verify initial status is Scheduled
     let (_, body) = app.get(&path).await;
     assert!(
         body.contains("Scheduled") || body.contains("scheduled") || body.contains("Planifié"),
-        "scheduled maintenance should start in Scheduled status"
+        "planned maintenance should start in Scheduled lifecycle"
     );
 
-    // Transition: Scheduled → InProgress
     let (status, _, _) = app
         .post_form_with_header_csrf(
-            &format!("/events/{event_id}/status"),
-            &[("status", "in_progress")],
+            &format!("/events/{event_id}/lifecycle"),
+            &[("lifecycle", "in_progress")],
         )
         .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
 
-    // Transition: InProgress → Resolved
     let (status, _, _) = app
         .post_form_with_header_csrf(
-            &format!("/events/{event_id}/status"),
+            &format!("/events/{event_id}/lifecycle"),
             &[
-                ("status", "resolved"),
-                ("resolution_comment", "Problème résolu"),
+                ("lifecycle", "completed"),
+                ("resolution_comment", "Maintenance terminée"),
             ],
         )
         .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
 
-    // Service should be Operational again
     let svc = ServiceRepository::find_by_id(&app.pool, service_id)
         .await
         .expect("db error")
@@ -461,33 +476,29 @@ async fn scheduled_maintenance_lifecycle() {
 }
 
 #[tokio::test]
-async fn invalid_status_transition_is_rejected() {
+async fn invalid_lifecycle_transition_is_rejected() {
     let app = TestApp::spawn().await;
     app.setup_publisher().await;
 
-    // Create incident (starts as Investigating)
     let path = app
-        .create_event(
+        .create_incident(
             "Test transition",
             "Testing invalid transitions",
-            "incident",
             "minor",
             &[],
         )
         .await;
     let event_id = event_id_from_path(&path);
 
-    // Try invalid transition: Investigating → Scheduled (not allowed)
     let (status, body, _) = app
         .post_form_with_header_csrf(
-            &format!("/events/{event_id}/status"),
-            &[("status", "scheduled")],
+            &format!("/events/{event_id}/lifecycle"),
+            &[("lifecycle", "scheduled")],
         )
         .await;
 
-    // Should get a validation error (400 or re-rendered with error)
     assert!(
-        status == StatusCode::BAD_REQUEST || body.contains("non autorisée"),
+        status == StatusCode::BAD_REQUEST || body.contains("autorisée"),
         "invalid transition should be rejected, got status {status}"
     );
 }
@@ -496,7 +507,6 @@ async fn invalid_status_transition_is_rejected() {
 async fn reader_cannot_create_events() {
     let app = TestApp::spawn().await;
 
-    // Register and login as reader (default role)
     AuthService::register(
         &app.pool,
         "reader@example.com",
@@ -507,7 +517,6 @@ async fn reader_cannot_create_events() {
     .expect("failed to create user");
     app.login("reader@example.com", "reader_pass_1234").await;
 
-    // Should be denied access to create event form
     let (status, _) = app.get("/events/new").await;
     assert!(
         status == StatusCode::FORBIDDEN || status == StatusCode::UNAUTHORIZED,
@@ -522,35 +531,29 @@ async fn multiple_events_worst_status_wins() {
 
     let service_id = app.create_service("Payment Service").await;
 
-    // Create a minor incident
     let minor_path = app
-        .create_event(
+        .create_incident(
             "Slow payments",
             "Payment processing is slow",
-            "incident",
             "minor",
             &[service_id],
         )
         .await;
 
-    // Service should be Degraded (minor incident)
     let svc = ServiceRepository::find_by_id(&app.pool, service_id)
         .await
         .expect("db error")
         .expect("service not found");
     assert_eq!(svc.status, ServiceStatus::Degraded);
 
-    // Create a critical incident on the same service
-    app.create_event(
+    app.create_incident(
         "Payment gateway down",
         "Gateway unreachable",
-        "incident",
         "critical",
         &[service_id],
     )
     .await;
 
-    // Service should now be MajorOutage (worst of Degraded and MajorOutage)
     let svc = ServiceRepository::find_by_id(&app.pool, service_id)
         .await
         .expect("db error")
@@ -561,21 +564,18 @@ async fn multiple_events_worst_status_wins() {
         "worst status should win"
     );
 
-    // Resolve only the minor incident
     let minor_id = event_id_from_path(&minor_path);
-    // Investigating → Resolved (allowed)
     let (status, _, _) = app
         .post_form_with_header_csrf(
-            &format!("/events/{minor_id}/status"),
+            &format!("/events/{minor_id}/lifecycle"),
             &[
-                ("status", "resolved"),
+                ("lifecycle", "resolved"),
                 ("resolution_comment", "Problème résolu"),
             ],
         )
         .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
 
-    // Service should still be MajorOutage (critical incident still active)
     let svc = ServiceRepository::find_by_id(&app.pool, service_id)
         .await
         .expect("db error")
@@ -588,23 +588,20 @@ async fn multiple_events_worst_status_wins() {
 }
 
 #[tokio::test]
-async fn changelog_does_not_affect_service_status() {
+async fn publication_does_not_affect_service_status() {
     let app = TestApp::spawn().await;
     app.setup_publisher().await;
 
-    let service_id = app.create_service("Changelog Service").await;
+    let service_id = app.create_service("Publication Service").await;
 
-    // Create a changelog event on the service
-    app.create_event(
+    app.create_publication(
         "New feature shipped",
         "We shipped dark mode",
         "changelog",
-        "none",
         &[service_id],
     )
     .await;
 
-    // Service should remain Operational
     let svc = ServiceRepository::find_by_id(&app.pool, service_id)
         .await
         .expect("db error")
@@ -612,6 +609,6 @@ async fn changelog_does_not_affect_service_status() {
     assert_eq!(
         svc.status,
         ServiceStatus::Operational,
-        "changelog should not affect service status"
+        "publication should not affect service status"
     );
 }

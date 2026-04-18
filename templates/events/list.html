@@ -21,20 +21,18 @@
           hx-trigger="change from:find select, change from:find input[type='date']" hx-push-url="true" hx-swap="outerHTML"
           class="mt-6 animate-in delay-1 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
         <div>
-            <label for="event_type" class="block text-[12px] font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500">{{ i18n.t("events.type") }}</label>
+            <label for="kind" class="block text-[12px] font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500">{{ i18n.t("events.kind") }}</label>
             <select
-                id="event_type"
-                name="event_type"
+                id="kind"
+                name="kind"
                 class="mt-1 w-full input-raised px-3 py-2 text-sm
                        sm:w-auto sm:py-1.5
                        dark:text-white cursor-pointer"
             >
                 <option value="">{{ i18n.t("common.all") }}</option>
-                <option value="incident" {% if filter_type.as_deref() == Some("incident") %}selected{% endif %}>{{ i18n.t("type.event.incident") }}</option>
-                <option value="maintenance_scheduled" {% if filter_type.as_deref() == Some("maintenance_scheduled") %}selected{% endif %}>{{ i18n.t("type.event.maintenance_scheduled") }}</option>
-                <option value="maintenance_urgent" {% if filter_type.as_deref() == Some("maintenance_urgent") %}selected{% endif %}>{{ i18n.t("type.event.maintenance_urgent") }}</option>
-                <option value="changelog" {% if filter_type.as_deref() == Some("changelog") %}selected{% endif %}>{{ i18n.t("type.event.changelog") }}</option>
-                <option value="info" {% if filter_type.as_deref() == Some("info") %}selected{% endif %}>{{ i18n.t("type.event.info") }}</option>
+                <option value="incident" {% if filter_kind.as_deref() == Some("incident") %}selected{% endif %}>{{ i18n.t("kind.incident") }}</option>
+                <option value="maintenance" {% if filter_kind.as_deref() == Some("maintenance") %}selected{% endif %}>{{ i18n.t("kind.maintenance") }}</option>
+                <option value="publication" {% if filter_kind.as_deref() == Some("publication") %}selected{% endif %}>{{ i18n.t("kind.publication") }}</option>
             </select>
         </div>
         <div>

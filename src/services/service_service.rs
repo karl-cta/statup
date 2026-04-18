@@ -1,15 +1,13 @@
-//! Service management - CRUD operations, status recalculation.
+//! Service management, CRUD et recalcul du statut à partir des événements actifs.
 
 use crate::db::DbPool;
 use crate::error::AppError;
-use crate::models::{self, EventType, Impact, Service, ServiceStatus};
+use crate::models::{self, Kind, Service, ServiceStatus, Severity};
 use crate::repositories::{EventRepository, ServiceRepository};
 
-/// Business logic for service CRUD and status computation.
 pub struct ServiceService;
 
 impl ServiceService {
-    /// Create a new service with a unique slug.
     pub async fn create(
         pool: &DbPool,
         name: &str,
@@ -40,7 +38,6 @@ impl ServiceService {
         Ok(service)
     }
 
-    /// Update an existing service's name, description, and icon.
     pub async fn update(
         pool: &DbPool,
         id: i64,
@@ -72,7 +69,6 @@ impl ServiceService {
         Ok(())
     }
 
-    /// Delete a service, refusing if it has associated events.
     pub async fn delete(pool: &DbPool, id: i64) -> Result<(), AppError> {
         ServiceRepository::find_by_id(pool, id)
             .await?
@@ -88,11 +84,9 @@ impl ServiceService {
         Ok(())
     }
 
-    /// Recalculate a service's status from its active events.
-    ///
-    /// Determines the worst status by mapping each active event's impact
-    /// and type to a `ServiceStatus`, then keeping the one with the highest
-    /// priority. If no active events remain, the service becomes Operational.
+    /// Recalcule le statut d'un service à partir de ses événements actifs. On
+    /// prend le pire statut projeté (priorité max). Sans événement actif, le
+    /// service redevient opérationnel.
     pub async fn recalculate_status(
         pool: &DbPool,
         service_id: i64,
@@ -101,7 +95,7 @@ impl ServiceService {
 
         let worst = active_events
             .iter()
-            .filter_map(|event| derive_service_status(event.event_type, event.impact))
+            .filter_map(|event| derive_service_status(event.kind, event.severity))
             .max_by_key(|s| s.priority())
             .unwrap_or(ServiceStatus::Operational);
 
@@ -111,22 +105,19 @@ impl ServiceService {
     }
 }
 
-/// Map an event type + impact to the corresponding service status.
-///
-/// Returns `None` for event types that don't affect service status
-/// (changelog, info).
-fn derive_service_status(event_type: EventType, impact: Impact) -> Option<ServiceStatus> {
-    match event_type {
-        EventType::Incident => match impact {
-            Impact::Critical => Some(ServiceStatus::MajorOutage),
-            Impact::Major => Some(ServiceStatus::PartialOutage),
-            Impact::Minor => Some(ServiceStatus::Degraded),
-            Impact::None => None,
-        },
-        EventType::MaintenanceScheduled | EventType::MaintenanceUrgent => {
-            Some(ServiceStatus::Maintenance)
-        }
-        EventType::Changelog | EventType::Info => None,
+/// Projette un événement actif sur un statut de service. Les publications
+/// n'affectent pas le statut. Une maintenance (planifiée ou subie) force
+/// `Maintenance`. Un incident est projeté selon sa sévérité, ou ignoré si
+/// aucune n'est renseignée.
+fn derive_service_status(kind: Kind, severity: Option<Severity>) -> Option<ServiceStatus> {
+    match kind {
+        Kind::Incident => severity.map(|s| match s {
+            Severity::Critical => ServiceStatus::MajorOutage,
+            Severity::Major => ServiceStatus::PartialOutage,
+            Severity::Minor => ServiceStatus::Degraded,
+        }),
+        Kind::Maintenance => Some(ServiceStatus::Maintenance),
+        Kind::Publication => None,
     }
 }
 
@@ -137,7 +128,7 @@ mod tests {
     #[test]
     fn critical_incident_maps_to_major_outage() {
         assert_eq!(
-            derive_service_status(EventType::Incident, Impact::Critical),
+            derive_service_status(Kind::Incident, Some(Severity::Critical)),
             Some(ServiceStatus::MajorOutage)
         );
     }
@@ -145,7 +136,7 @@ mod tests {
     #[test]
     fn major_incident_maps_to_partial_outage() {
         assert_eq!(
-            derive_service_status(EventType::Incident, Impact::Major),
+            derive_service_status(Kind::Incident, Some(Severity::Major)),
             Some(ServiceStatus::PartialOutage)
         );
     }
@@ -153,45 +144,34 @@ mod tests {
     #[test]
     fn minor_incident_maps_to_degraded() {
         assert_eq!(
-            derive_service_status(EventType::Incident, Impact::Minor),
+            derive_service_status(Kind::Incident, Some(Severity::Minor)),
             Some(ServiceStatus::Degraded)
         );
     }
 
     #[test]
-    fn no_impact_incident_returns_none() {
-        assert_eq!(
-            derive_service_status(EventType::Incident, Impact::None),
-            None
-        );
+    fn incident_without_severity_returns_none() {
+        assert_eq!(derive_service_status(Kind::Incident, None), None);
     }
 
     #[test]
-    fn scheduled_maintenance_maps_to_maintenance() {
+    fn maintenance_maps_to_maintenance_status() {
         assert_eq!(
-            derive_service_status(EventType::MaintenanceScheduled, Impact::None),
+            derive_service_status(Kind::Maintenance, None),
+            Some(ServiceStatus::Maintenance)
+        );
+        assert_eq!(
+            derive_service_status(Kind::Maintenance, Some(Severity::Critical)),
             Some(ServiceStatus::Maintenance)
         );
     }
 
     #[test]
-    fn urgent_maintenance_maps_to_maintenance() {
+    fn publication_does_not_affect_status() {
         assert_eq!(
-            derive_service_status(EventType::MaintenanceUrgent, Impact::Critical),
-            Some(ServiceStatus::Maintenance)
-        );
-    }
-
-    #[test]
-    fn changelog_does_not_affect_status() {
-        assert_eq!(
-            derive_service_status(EventType::Changelog, Impact::Major),
+            derive_service_status(Kind::Publication, Some(Severity::Major)),
             None
         );
-    }
-
-    #[test]
-    fn info_does_not_affect_status() {
-        assert_eq!(derive_service_status(EventType::Info, Impact::Minor), None);
+        assert_eq!(derive_service_status(Kind::Publication, None), None);
     }
 }

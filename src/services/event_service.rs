@@ -1,27 +1,22 @@
-//! Event service - event creation, status transitions, updates, markdown sanitization.
+//! Event service, logique métier du cycle de vie, des updates et du markdown.
 
 use chrono::{DateTime, Utc};
 
 use crate::db::DbPool;
 use crate::error::AppError;
-use crate::models::{CreateEventInput, Event, EventStatus, EventUpdate, EventWithServices, Role};
+use crate::models::{CreateEventInput, Event, EventUpdate, EventWithServices, Lifecycle, Role};
 use crate::repositories::EventRepository;
 use crate::services::ServiceService;
 
-/// Business logic for event lifecycle management.
 pub struct EventService;
 
 impl EventService {
-    /// Create a new event, validate inputs, sanitize markdown, and
-    /// recalculate affected service statuses.
     pub async fn create(pool: &DbPool, input: CreateEventInput) -> Result<Event, AppError> {
         validate_event_input(&input)?;
 
         let event = EventRepository::create(pool, input).await?;
 
-        // Recalculate status for all affected services
-        let ews = EventRepository::find_by_id_with_services(pool, event.id).await?;
-        if let Some(ews) = ews {
+        if let Some(ews) = EventRepository::find_by_id_with_services(pool, event.id).await? {
             for svc in &ews.services {
                 ServiceService::recalculate_status(pool, svc.id).await?;
             }
@@ -30,13 +25,13 @@ impl EventService {
         Ok(event)
     }
 
-    /// Transition an event's status, enforcing allowed transitions.
-    ///
-    /// Sets `actual_end` when resolved. Recalculates affected service statuses.
-    pub async fn update_status(
+    /// Transition du lifecycle. Une publication n'a pas de lifecycle, la
+    /// transition est refusée. `ended_at` est posé automatiquement à la
+    /// résolution ou à la complétion (pas à l'annulation).
+    pub async fn update_lifecycle(
         pool: &DbPool,
         event_id: i64,
-        new_status: EventStatus,
+        new_lifecycle: Lifecycle,
         user_role: Role,
     ) -> Result<Event, AppError> {
         let event = EventRepository::find_by_id(pool, event_id)
@@ -45,19 +40,22 @@ impl EventService {
 
         check_modification_allowed(&event, user_role)?;
 
-        if !event.status.can_transition_to(new_status) {
+        let current = event.lifecycle.ok_or(AppError::Validation(
+            "validation.event_has_no_lifecycle".to_string(),
+        ))?;
+
+        if !event.kind.can_transition(current, new_lifecycle) {
             return Err(AppError::Validation(
                 "validation.invalid_transition".to_string(),
             ));
         }
 
-        EventRepository::update_status(pool, event_id, new_status).await?;
+        EventRepository::update_lifecycle(pool, event_id, new_lifecycle).await?;
 
-        if new_status == EventStatus::Resolved {
-            EventRepository::set_actual_end(pool, event_id, Utc::now()).await?;
+        if matches!(new_lifecycle, Lifecycle::Resolved | Lifecycle::Completed) {
+            EventRepository::set_ended_at(pool, event_id, Utc::now()).await?;
         }
 
-        // Recalculate service statuses
         let ews = EventRepository::find_by_id_with_services(pool, event_id).await?;
         if let Some(ews) = &ews {
             for svc in &ews.services {
@@ -65,11 +63,9 @@ impl EventService {
             }
         }
 
-        let updated = ews.map(|e| e.event).ok_or(AppError::NotFound)?;
-        Ok(updated)
+        ews.map(|e| e.event).ok_or(AppError::NotFound)
     }
 
-    /// Add a status update message to an event.
     pub async fn add_update(
         pool: &DbPool,
         event_id: i64,
@@ -96,11 +92,9 @@ impl EventService {
         Ok(update)
     }
 
-    /// Revert an event to its previous status (one-level undo).
-    ///
-    /// Only allowed when `previous_status` is set. Recalculates affected
-    /// service statuses after reverting.
-    pub async fn revert_status(
+    /// Revert au lifecycle précédent (undo à un niveau). Autorisé uniquement
+    /// si `previous_lifecycle` est renseigné.
+    pub async fn revert_lifecycle(
         pool: &DbPool,
         event_id: i64,
         user_role: Role,
@@ -111,13 +105,13 @@ impl EventService {
 
         check_modification_allowed(&event, user_role)?;
 
-        if event.previous_status.is_none() {
+        if event.previous_lifecycle.is_none() {
             return Err(AppError::Validation(
-                "validation.no_previous_status".to_string(),
+                "validation.no_previous_lifecycle".to_string(),
             ));
         }
 
-        EventRepository::revert_status(pool, event_id).await?;
+        EventRepository::revert_lifecycle(pool, event_id).await?;
 
         let ews = EventRepository::find_by_id_with_services(pool, event_id).await?;
         if let Some(ews) = &ews {
@@ -126,19 +120,17 @@ impl EventService {
             }
         }
 
-        let updated = ews.map(|e| e.event).ok_or(AppError::NotFound)?;
-        Ok(updated)
+        ews.map(|e| e.event).ok_or(AppError::NotFound)
     }
 
-    /// Delete an event. Only admins can delete resolved/cancelled events.
-    ///
-    /// Recalculates the status of all previously associated services.
+    /// Supprime un événement. Les événements clos (terminal) ne peuvent être
+    /// supprimés que par un admin.
     pub async fn delete(pool: &DbPool, event_id: i64, user_role: Role) -> Result<(), AppError> {
         let event = EventRepository::find_by_id(pool, event_id)
             .await?
             .ok_or(AppError::NotFound)?;
 
-        if !event.status.is_active() && !user_role.can_admin() {
+        if !is_modifiable(&event) && !user_role.can_admin() {
             return Err(AppError::Validation(
                 "validation.event_closed_admin_only".to_string(),
             ));
@@ -153,10 +145,7 @@ impl EventService {
         Ok(())
     }
 
-    /// Count events the user hasn't seen yet.
-    ///
-    /// If `last_seen_at` is `None` (user never visited the dashboard), all
-    /// non-info events are considered unread (capped via `count_since` epoch).
+    /// Nombre d'événements non vus, `last_seen_at` à None = tous depuis epoch.
     pub async fn unread_count(
         pool: &DbPool,
         last_seen_at: Option<DateTime<Utc>>,
@@ -166,7 +155,6 @@ impl EventService {
         Ok(count)
     }
 
-    /// Find an event by ID with its services, or return `NotFound`.
     pub async fn find_with_services(
         pool: &DbPool,
         event_id: i64,
@@ -191,17 +179,17 @@ fn validate_event_input(input: &CreateEventInput) -> Result<(), AppError> {
             "validation.description_required".to_string(),
         ));
     }
-    // service_ids is optional, events like changelogs or info
-    // may not be tied to a specific service.
-
     Ok(())
 }
 
-/// Check that an event can still be modified.
-///
-/// Resolved/cancelled events can only be modified by admins.
+/// Un événement est modifiable tant qu'il n'est pas dans un état terminal.
+/// Une publication (sans lifecycle) est toujours modifiable par son auteur.
+fn is_modifiable(event: &Event) -> bool {
+    event.lifecycle.is_none_or(Lifecycle::is_active)
+}
+
 fn check_modification_allowed(event: &Event, user_role: Role) -> Result<(), AppError> {
-    if !event.status.is_active() && !user_role.can_admin() {
+    if !is_modifiable(event) && !user_role.can_admin() {
         return Err(AppError::Validation(
             "validation.event_closed_admin_only".to_string(),
         ));
@@ -209,10 +197,8 @@ fn check_modification_allowed(event: &Event, user_role: Role) -> Result<(), AppE
     Ok(())
 }
 
-/// Render markdown to HTML and sanitize the output via ammonia.
-///
-/// Allows a safe subset of HTML tags (paragraphs, lists, code blocks, links,
-/// emphasis) while stripping anything dangerous (scripts, iframes, etc.).
+/// Rend du markdown en HTML puis passe la sortie par ammonia pour n'autoriser
+/// qu'un sous-ensemble sûr (paragraphes, listes, liens, code, emphases).
 pub fn sanitize_markdown(raw: &str) -> String {
     use ammonia::Builder;
     use pulldown_cmark::{Options, Parser, html};
@@ -230,16 +216,18 @@ pub fn sanitize_markdown(raw: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{EventType, Impact};
+    use crate::models::{Kind, Severity};
 
     fn make_input(title: &str, description: &str, service_ids: Vec<i64>) -> CreateEventInput {
         CreateEventInput {
-            event_type: EventType::Incident,
+            kind: Kind::Incident,
+            severity: Some(Severity::Major),
+            planned: false,
+            category: None,
             title: title.to_string(),
             description: description.to_string(),
-            impact: Impact::Major,
-            scheduled_start: None,
-            scheduled_end: None,
+            planned_start: None,
+            planned_end: None,
             service_ids,
             icon_id: None,
             author_id: 1,
@@ -248,90 +236,86 @@ mod tests {
 
     #[test]
     fn validate_rejects_empty_title() {
-        let input = make_input("", "desc", vec![1]);
-        assert!(validate_event_input(&input).is_err());
+        assert!(validate_event_input(&make_input("", "desc", vec![1])).is_err());
     }
 
     #[test]
     fn validate_rejects_whitespace_only_title() {
-        let input = make_input("   ", "desc", vec![1]);
-        assert!(validate_event_input(&input).is_err());
+        assert!(validate_event_input(&make_input("   ", "desc", vec![1])).is_err());
     }
 
     #[test]
     fn validate_rejects_title_over_200_chars() {
         let long_title = "a".repeat(201);
-        let input = make_input(&long_title, "desc", vec![1]);
-        assert!(validate_event_input(&input).is_err());
+        assert!(validate_event_input(&make_input(&long_title, "desc", vec![1])).is_err());
     }
 
     #[test]
     fn validate_accepts_title_at_200_chars() {
         let title = "a".repeat(200);
-        let input = make_input(&title, "desc", vec![1]);
-        assert!(validate_event_input(&input).is_ok());
+        assert!(validate_event_input(&make_input(&title, "desc", vec![1])).is_ok());
     }
 
     #[test]
     fn validate_rejects_empty_description() {
-        let input = make_input("title", "", vec![1]);
-        assert!(validate_event_input(&input).is_err());
+        assert!(validate_event_input(&make_input("title", "", vec![1])).is_err());
     }
 
     #[test]
     fn validate_accepts_empty_service_ids() {
-        let input = make_input("title", "desc", vec![]);
-        assert!(validate_event_input(&input).is_ok());
+        assert!(validate_event_input(&make_input("title", "desc", vec![])).is_ok());
     }
 
-    #[test]
-    fn validate_accepts_valid_input() {
-        let input = make_input("Incident DB", "La base est down", vec![1, 2]);
-        assert!(validate_event_input(&input).is_ok());
-    }
-
-    fn make_event(status: EventStatus) -> Event {
+    fn make_event(lifecycle: Option<Lifecycle>, kind: Kind) -> Event {
         Event {
             id: 1,
-            event_type: EventType::Incident,
-            status,
+            kind,
+            severity: Some(Severity::Major),
+            planned: false,
+            lifecycle,
+            category: None,
             title: "test".to_string(),
             description: "test".to_string(),
-            impact: Impact::Major,
-            scheduled_start: None,
-            scheduled_end: None,
-            actual_start: None,
-            actual_end: None,
+            planned_start: None,
+            planned_end: None,
+            started_at: None,
+            ended_at: None,
             icon_id: None,
             author_id: 1,
+            previous_lifecycle: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
-            previous_status: None,
         }
     }
 
     #[test]
-    fn active_event_can_be_modified_by_publisher() {
-        let event = make_event(EventStatus::Investigating);
+    fn active_incident_can_be_modified_by_publisher() {
+        let event = make_event(Some(Lifecycle::Investigating), Kind::Incident);
         assert!(check_modification_allowed(&event, Role::Publisher).is_ok());
     }
 
     #[test]
-    fn resolved_event_cannot_be_modified_by_publisher() {
-        let event = make_event(EventStatus::Resolved);
+    fn resolved_incident_cannot_be_modified_by_publisher() {
+        let event = make_event(Some(Lifecycle::Resolved), Kind::Incident);
         assert!(check_modification_allowed(&event, Role::Publisher).is_err());
     }
 
     #[test]
-    fn cancelled_event_cannot_be_modified_by_publisher() {
-        let event = make_event(EventStatus::Cancelled);
+    fn completed_maintenance_cannot_be_modified_by_publisher() {
+        let event = make_event(Some(Lifecycle::Completed), Kind::Maintenance);
         assert!(check_modification_allowed(&event, Role::Publisher).is_err());
     }
 
     #[test]
     fn resolved_event_can_be_modified_by_admin() {
-        let event = make_event(EventStatus::Resolved);
+        let event = make_event(Some(Lifecycle::Resolved), Kind::Incident);
         assert!(check_modification_allowed(&event, Role::Admin).is_ok());
+    }
+
+    #[test]
+    fn publication_is_always_modifiable() {
+        let event = make_event(None, Kind::Publication);
+        assert!(check_modification_allowed(&event, Role::Publisher).is_ok());
     }
 
     #[test]

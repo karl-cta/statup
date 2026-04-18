@@ -1,18 +1,19 @@
-//! Event template model - reusable presets for recurring events.
+//! Event template, preset réutilisable pour la création rapide d'événements.
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::{EventType, Impact};
+use super::{Category, Kind, Severity};
 
-/// A saved event template for quick event creation.
 #[derive(Debug, Clone, sqlx::FromRow, Serialize)]
 pub struct EventTemplate {
     pub id: i64,
     pub title: String,
     pub description: String,
-    pub event_type: EventType,
-    pub impact: Impact,
+    pub kind: Kind,
+    pub severity: Option<Severity>,
+    pub planned: bool,
+    pub category: Option<Category>,
     pub icon_id: Option<i64>,
     pub created_by: i64,
     pub usage_count: i64,

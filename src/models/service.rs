@@ -166,6 +166,34 @@ impl Service {
     }
 }
 
+/// Génère un slug URL-safe unique. Si la base est déjà prise, suffixe `-2`,
+/// `-3`, etc. jusqu'à trouver une valeur libre.
+///
+/// # Errors
+///
+/// Renvoie `sqlx::Error` si une requête échoue.
+pub async fn generate_unique_slug(pool: &DbPool, name: &str) -> Result<String, sqlx::Error> {
+    let base = slug::slugify(name);
+    if ServiceRepository::find_by_slug(pool, &base)
+        .await?
+        .is_none()
+    {
+        return Ok(base);
+    }
+
+    let mut suffix = 2u32;
+    loop {
+        let candidate = format!("{base}-{suffix}");
+        if ServiceRepository::find_by_slug(pool, &candidate)
+            .await?
+            .is_none()
+        {
+            return Ok(candidate);
+        }
+        suffix += 1;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -212,36 +240,5 @@ mod tests {
             assert!(!s.css_class().is_empty());
             assert!(!s.icon().is_empty());
         }
-    }
-}
-
-/// Generate a unique slug from a service name.
-///
-/// Uses the `slug` crate to create a URL-friendly string, then checks
-/// the database for uniqueness. If the slug already exists, appends
-/// `-2`, `-3`, etc. until a unique value is found.
-///
-/// # Errors
-///
-/// Returns `sqlx::Error` if a database query fails.
-pub async fn generate_unique_slug(pool: &DbPool, name: &str) -> Result<String, sqlx::Error> {
-    let base = slug::slugify(name);
-    if ServiceRepository::find_by_slug(pool, &base)
-        .await?
-        .is_none()
-    {
-        return Ok(base);
-    }
-
-    let mut suffix = 2u32;
-    loop {
-        let candidate = format!("{base}-{suffix}");
-        if ServiceRepository::find_by_slug(pool, &candidate)
-            .await?
-            .is_none()
-        {
-            return Ok(candidate);
-        }
-        suffix += 1;
     }
 }

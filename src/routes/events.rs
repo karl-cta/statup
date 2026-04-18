@@ -1,4 +1,4 @@
-//! Event routes - list, create, update, detail, status transitions.
+//! Event routes : listing, création, mise à jour, détail, transitions de lifecycle.
 
 use askama::Template;
 use axum::Form;
@@ -13,13 +13,15 @@ use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, OptionalUser, RequirePublisher, ValidatedForm};
 use crate::models::{
-    CreateEventInput, EventStatus, EventSummary, EventType, EventUpdateWithAuthor,
-    EventWithServices, Impact, Service, User,
+    Category, CreateEventInput, EventSummary, EventUpdateWithAuthor, EventWithServices, Kind,
+    Lifecycle, Service, Severity, User,
 };
 use crate::repositories::{
     EventRepository, EventTemplateRepository, IconRepository, ServiceRepository,
 };
-use crate::services::{EventService, EventTemplateService, sanitize_markdown};
+use crate::services::{
+    CreateTemplateParams, EventService, EventTemplateService, sanitize_markdown,
+};
 use crate::state::AppState;
 
 #[derive(Template)]
@@ -34,7 +36,7 @@ struct EventListTemplate {
     events: Vec<EventSummary>,
     page: i64,
     has_next: bool,
-    filter_type: Option<String>,
+    filter_kind: Option<String>,
     filter_service: Option<String>,
     filter_from: Option<String>,
     filter_to: Option<String>,
@@ -58,9 +60,9 @@ struct EventDetailTemplate {
     updates: Vec<EventUpdateWithAuthor>,
     author_name: String,
     can_edit: bool,
-    allowed_transitions: Vec<EventStatus>,
+    allowed_transitions: Vec<Lifecycle>,
     can_revert: bool,
-    previous_status_label: Option<String>,
+    previous_lifecycle_label: Option<String>,
     i18n: I18n,
 }
 
@@ -74,9 +76,9 @@ struct EventDetailPanelTemplate {
     updates: Vec<EventUpdateWithAuthor>,
     author_name: String,
     can_edit: bool,
-    allowed_transitions: Vec<EventStatus>,
+    allowed_transitions: Vec<Lifecycle>,
     can_revert: bool,
-    previous_status_label: Option<String>,
+    previous_lifecycle_label: Option<String>,
     i18n: I18n,
 }
 
@@ -99,11 +101,13 @@ struct EventFormData {
     id: i64,
     title: String,
     description: String,
-    event_type: EventType,
-    impact: Impact,
+    kind: Kind,
+    severity: Option<Severity>,
+    planned: bool,
+    category: Option<Category>,
     service_ids: Vec<i64>,
-    scheduled_start: Option<String>,
-    scheduled_end: Option<String>,
+    planned_start: Option<String>,
+    planned_end: Option<String>,
 }
 
 impl EventFormData {
@@ -119,22 +123,45 @@ pub struct EventInput {
     title: String,
     #[validate(length(min = 1, message = "validation.description_required"))]
     description: String,
-    event_type: EventType,
-    impact: Impact,
+    kind: Kind,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    severity: Option<Severity>,
+    #[serde(default)]
+    planned: Option<String>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    category: Option<Category>,
     #[serde(default)]
     service_ids: Vec<i64>,
     icon_id: Option<i64>,
     #[serde(default)]
     save_as_template: Option<String>,
     #[serde(default)]
-    scheduled_start: Option<String>,
+    planned_start: Option<String>,
     #[serde(default)]
-    scheduled_end: Option<String>,
+    planned_end: Option<String>,
+}
+
+impl EventInput {
+    fn is_planned(&self) -> bool {
+        self.planned.as_deref() == Some("on")
+    }
+
+    /// Normalise les dimensions selon le kind pour respecter les invariants SQL :
+    /// - publication : pas de severity, pas de `planned`, category requise
+    /// - incident : pas de category, planned = false
+    /// - maintenance : pas de category, planned selon la case cochée
+    fn normalized(&self) -> (Option<Severity>, bool, Option<Category>) {
+        match self.kind {
+            Kind::Publication => (None, false, self.category),
+            Kind::Incident => (self.severity, false, None),
+            Kind::Maintenance => (self.severity, self.is_planned(), None),
+        }
+    }
 }
 
 #[derive(Deserialize)]
-pub struct StatusInput {
-    status: EventStatus,
+pub struct LifecycleInput {
+    lifecycle: Lifecycle,
     #[serde(default)]
     resolution_comment: Option<String>,
 }
@@ -162,7 +189,7 @@ where
 pub struct ListQuery {
     page: Option<i64>,
     #[serde(default, deserialize_with = "empty_string_as_none")]
-    event_type: Option<EventType>,
+    kind: Option<Kind>,
     #[serde(default, deserialize_with = "empty_string_as_none")]
     service_id: Option<i64>,
     from: Option<String>,
@@ -173,7 +200,7 @@ pub struct ListQuery {
 pub struct HistoryQuery {
     page: Option<i64>,
     #[serde(default, deserialize_with = "empty_string_as_none")]
-    event_type: Option<EventType>,
+    kind: Option<Kind>,
     #[serde(default, deserialize_with = "empty_string_as_none")]
     service_id: Option<i64>,
     from: Option<String>,
@@ -185,12 +212,12 @@ pub struct SearchQuery {
     q: Option<String>,
     page: Option<i64>,
     #[serde(default, deserialize_with = "empty_string_as_none")]
-    event_type: Option<EventType>,
+    kind: Option<Kind>,
     #[serde(default, deserialize_with = "empty_string_as_none")]
     service_id: Option<i64>,
 }
 
-/// A group of events sharing the same date label (e.g. "Aujourd'hui").
+/// Regroupe des événements partageant la même étiquette de date (ex: "Aujourd'hui").
 pub struct DateGroup {
     pub label: String,
     pub events: Vec<EventSummary>,
@@ -208,7 +235,7 @@ struct HistoryTemplate {
     groups: Vec<DateGroup>,
     page: i64,
     has_next: bool,
-    filter_type: Option<String>,
+    filter_kind: Option<String>,
     filter_service: Option<String>,
     filter_from: Option<String>,
     filter_to: Option<String>,
@@ -217,7 +244,7 @@ struct HistoryTemplate {
     i18n: I18n,
 }
 
-/// A search result with highlighted title.
+/// Résultat de recherche enrichi du titre avec mise en évidence des termes.
 pub struct SearchResult {
     pub event: EventSummary,
     pub highlighted_title: String,
@@ -236,7 +263,7 @@ struct SearchTemplate {
     results: Vec<SearchResult>,
     page: i64,
     has_next: bool,
-    filter_type: Option<String>,
+    filter_kind: Option<String>,
     filter_service: Option<String>,
     services: Vec<Service>,
     base_url: String,
@@ -296,7 +323,6 @@ fn parse_icon_id(input: Option<i64>) -> Option<i64> {
     input.filter(|&id| id > 0)
 }
 
-/// Parse a `datetime-local` HTML input value (e.g. `"2025-03-15T14:30"`) into a UTC datetime.
 fn parse_datetime_local(s: &str) -> Option<DateTime<Utc>> {
     let trimmed = s.trim();
     if trimmed.is_empty() {
@@ -307,9 +333,14 @@ fn parse_datetime_local(s: &str) -> Option<DateTime<Utc>> {
         .map(|dt| dt.and_utc())
 }
 
-/// Format a UTC datetime as a `datetime-local` value for HTML inputs.
 fn format_datetime_local(dt: &DateTime<Utc>) -> String {
     dt.format("%Y-%m-%dT%H:%M").to_string()
+}
+
+/// Un lifecycle est "terminal de clôture normale" quand il nécessite un
+/// commentaire de résolution. Cancelled ne force pas ce prompt.
+fn requires_resolution_comment(lifecycle: Lifecycle) -> bool {
+    matches!(lifecycle, Lifecycle::Resolved | Lifecycle::Completed)
 }
 
 const PAGE_SIZE: i64 = 20;
@@ -329,19 +360,14 @@ pub async fn list(
     let offset = (page - 1) * PAGE_SIZE;
 
     let from = params.from.as_deref().and_then(parse_date);
-    let to = params.to.as_deref().and_then(|s| {
-        chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d")
-            .ok()
-            .and_then(|d| d.and_hms_opt(23, 59, 59))
-            .map(|dt| dt.and_utc())
-    });
+    let to = params.to.as_deref().and_then(parse_date_end_of_day);
 
     let filters = crate::models::EventFilters {
-        event_type: params.event_type,
+        kind: params.kind,
         service_id: params.service_id,
         from,
         to,
-        limit: PAGE_SIZE + 1, // fetch one extra to detect next page
+        limit: PAGE_SIZE + 1,
         offset,
         ..Default::default()
     };
@@ -356,14 +382,14 @@ pub async fn list(
     let (user_display_name, is_admin, is_authenticated) = layout_fields(user.as_ref());
     let unread_count = unread(&state.pool, user.as_ref()).await?;
 
-    let filter_type = params.event_type.map(|t| t.as_str().to_string());
+    let filter_kind = params.kind.map(|k| k.as_str().to_string());
     let filter_service = params.service_id.map(|id| id.to_string());
 
     let mut base_url = String::from("/events?");
     {
         use std::fmt::Write;
-        if let Some(ref t) = filter_type {
-            let _ = write!(base_url, "event_type={t}&");
+        if let Some(ref t) = filter_kind {
+            let _ = write!(base_url, "kind={t}&");
         }
         if let Some(ref s) = filter_service {
             let _ = write!(base_url, "service_id={s}&");
@@ -387,7 +413,7 @@ pub async fn list(
         events,
         page,
         has_next,
-        filter_type,
+        filter_kind,
         filter_service,
         filter_from: params.from,
         filter_to: params.to,
@@ -420,9 +446,13 @@ pub async fn detail(
         );
 
     let can_edit = user.as_ref().is_some_and(|u| u.role.can_publish());
-    let allowed_transitions = ews.event.status.allowed_transitions().to_vec();
-    let can_revert = can_edit && ews.event.previous_status.is_some();
-    let previous_status_label = ews.event.previous_status.map(|s| s.label().to_string());
+    let allowed_transitions = ews
+        .event
+        .lifecycle
+        .map(|l| ews.event.kind.allowed_transitions(l).to_vec())
+        .unwrap_or_default();
+    let can_revert = can_edit && ews.event.previous_lifecycle.is_some();
+    let previous_lifecycle_label = ews.event.previous_lifecycle.map(|l| l.label().to_string());
     let (user_display_name, is_admin, is_authenticated) = layout_fields(user.as_ref());
     let unread_count = unread(&state.pool, user.as_ref()).await?;
 
@@ -442,7 +472,7 @@ pub async fn detail(
         can_edit,
         allowed_transitions,
         can_revert,
-        previous_status_label,
+        previous_lifecycle_label,
         i18n,
     };
     render(&tpl)
@@ -470,9 +500,13 @@ pub async fn detail_panel(
         );
 
     let can_edit = user.as_ref().is_some_and(|u| u.role.can_publish());
-    let allowed_transitions = ews.event.status.allowed_transitions().to_vec();
-    let can_revert = can_edit && ews.event.previous_status.is_some();
-    let previous_status_label = ews.event.previous_status.map(|s| s.label().to_string());
+    let allowed_transitions = ews
+        .event
+        .lifecycle
+        .map(|l| ews.event.kind.allowed_transitions(l).to_vec())
+        .unwrap_or_default();
+    let can_revert = can_edit && ews.event.previous_lifecycle.is_some();
+    let previous_lifecycle_label = ews.event.previous_lifecycle.map(|l| l.label().to_string());
     let description_html = sanitize_markdown(&ews.event.description);
     let tpl = EventDetailPanelTemplate {
         csrf_token: csrf_token.0,
@@ -483,7 +517,7 @@ pub async fn detail_panel(
         can_edit,
         allowed_transitions,
         can_revert,
-        previous_status_label,
+        previous_lifecycle_label,
         i18n,
     };
     render(&tpl)
@@ -522,21 +556,22 @@ pub async fn create(
     ValidatedForm(input): ValidatedForm<EventInput>,
 ) -> Result<Response, AppError> {
     let icon_id = parse_icon_id(input.icon_id);
-    let scheduled_start = input
-        .scheduled_start
+    let planned_start = input
+        .planned_start
         .as_deref()
         .and_then(parse_datetime_local);
-    let scheduled_end = input
-        .scheduled_end
-        .as_deref()
-        .and_then(parse_datetime_local);
+    let planned_end = input.planned_end.as_deref().and_then(parse_datetime_local);
+    let (severity, planned, category) = input.normalized();
+
     let create_input = CreateEventInput {
-        event_type: input.event_type,
+        kind: input.kind,
+        severity,
+        planned,
+        category,
         title: input.title.clone(),
         description: input.description.clone(),
-        impact: input.impact,
-        scheduled_start,
-        scheduled_end,
+        planned_start,
+        planned_end,
         service_ids: input.service_ids.clone(),
         icon_id,
         author_id: user.id,
@@ -546,21 +581,23 @@ pub async fn create(
 
     match EventService::create(&state.pool, create_input).await {
         Ok(event) => {
-            if should_save_template {
-                // Best-effort: don't fail event creation if template save fails
-                if let Err(e) = EventTemplateService::create(
+            if should_save_template
+                && let Err(e) = EventTemplateService::create(
                     &state.pool,
-                    &input.title,
-                    &input.description,
-                    input.event_type,
-                    input.impact,
-                    icon_id,
-                    user.id,
+                    CreateTemplateParams {
+                        title: &input.title,
+                        description: &input.description,
+                        kind: input.kind,
+                        severity,
+                        planned,
+                        category,
+                        icon_id,
+                        created_by: user.id,
+                    },
                 )
                 .await
-                {
-                    tracing::warn!(error = %e, "Failed to save event template");
-                }
+            {
+                tracing::warn!(error = %e, "Failed to save event template");
             }
             Ok(Redirect::to(&format!("/events/{}", event.id)).into_response())
         }
@@ -615,15 +652,13 @@ pub async fn edit_form(
             id: ews.event.id,
             title: ews.event.title,
             description: ews.event.description,
-            event_type: ews.event.event_type,
-            impact: ews.event.impact,
+            kind: ews.event.kind,
+            severity: ews.event.severity,
+            planned: ews.event.planned,
+            category: ews.event.category,
             service_ids,
-            scheduled_start: ews
-                .event
-                .scheduled_start
-                .as_ref()
-                .map(format_datetime_local),
-            scheduled_end: ews.event.scheduled_end.as_ref().map(format_datetime_local),
+            planned_start: ews.event.planned_start.as_ref().map(format_datetime_local),
+            planned_end: ews.event.planned_end.as_ref().map(format_datetime_local),
         }),
         i18n,
     };
@@ -642,13 +677,15 @@ pub async fn update(
         .await?
         .ok_or(AppError::NotFound)?;
 
-    if !event.status.is_active() && !user.role.can_admin() {
+    let is_active = event.lifecycle.is_none_or(Lifecycle::is_active);
+    if !is_active && !user.role.can_admin() {
         return Err(AppError::Validation(
             i18n.t("validation.event_closed_admin_only").to_string(),
         ));
     }
 
     let icon_id = parse_icon_id(input.icon_id);
+    let (severity, planned, category) = input.normalized();
 
     if input.title.trim().is_empty() {
         let services = ServiceRepository::list_all(&state.pool).await?;
@@ -668,46 +705,45 @@ pub async fn update(
                 id,
                 title: input.title,
                 description: input.description,
-                event_type: input.event_type,
-                impact: input.impact,
+                kind: input.kind,
+                severity,
+                planned,
+                category,
                 service_ids: input.service_ids,
-                scheduled_start: input.scheduled_start,
-                scheduled_end: input.scheduled_end,
+                planned_start: input.planned_start,
+                planned_end: input.planned_end,
             }),
             i18n,
         };
         return render(&tpl);
     }
 
-    // Update basic event fields
-    let scheduled_start = input
-        .scheduled_start
+    let planned_start = input
+        .planned_start
         .as_deref()
         .and_then(parse_datetime_local);
-    let scheduled_end = input
-        .scheduled_end
-        .as_deref()
-        .and_then(parse_datetime_local);
+    let planned_end = input.planned_end.as_deref().and_then(parse_datetime_local);
+
     sqlx::query(
-        "UPDATE events SET title = ?, description = ?, impact = ?, event_type = ?, icon_id = ?, \
-         scheduled_start = ?, scheduled_end = ? WHERE id = ?",
+        "UPDATE events SET title = ?, description = ?, kind = ?, severity = ?, planned = ?, \
+         category = ?, icon_id = ?, planned_start = ?, planned_end = ? WHERE id = ?",
     )
     .bind(&input.title)
     .bind(&input.description)
-    .bind(input.impact)
-    .bind(input.event_type)
+    .bind(input.kind)
+    .bind(severity)
+    .bind(planned)
+    .bind(category)
     .bind(icon_id)
-    .bind(scheduled_start)
-    .bind(scheduled_end)
+    .bind(planned_start)
+    .bind(planned_end)
     .bind(id)
     .execute(&state.pool)
     .await?;
 
-    // Update service associations and recalculate statuses
     let old_service_ids =
         EventRepository::update_services(&state.pool, id, &input.service_ids).await?;
 
-    // Recalculate status for all affected services (old + new)
     let mut all_service_ids = old_service_ids;
     for &sid in &input.service_ids {
         if !all_service_ids.contains(&sid) {
@@ -721,14 +757,14 @@ pub async fn update(
     Ok(Redirect::to(&format!("/events/{id}")).into_response())
 }
 
-pub async fn update_status(
+pub async fn update_lifecycle(
     RequirePublisher(user): RequirePublisher,
     State(state): State<AppState>,
     Path(id): Path<i64>,
     Locale(i18n): Locale,
-    Form(input): Form<StatusInput>,
+    Form(input): Form<LifecycleInput>,
 ) -> Result<Response, AppError> {
-    if input.status == EventStatus::Resolved {
+    if requires_resolution_comment(input.lifecycle) {
         let comment = input.resolution_comment.as_deref().unwrap_or("").trim();
         if comment.is_empty() {
             return Err(AppError::Validation(
@@ -737,16 +773,15 @@ pub async fn update_status(
         }
     }
 
-    EventService::update_status(&state.pool, id, input.status, user.role).await?;
+    EventService::update_lifecycle(&state.pool, id, input.lifecycle, user.role).await?;
 
-    if input.status == EventStatus::Resolved
+    if requires_resolution_comment(input.lifecycle)
         && let Some(ref comment) = input.resolution_comment
     {
         let trimmed = comment.trim();
         if !trimmed.is_empty() {
             let sanitized = sanitize_markdown(trimmed);
-            crate::repositories::EventRepository::add_update(&state.pool, id, &sanitized, user.id)
-                .await?;
+            EventRepository::add_update(&state.pool, id, &sanitized, user.id).await?;
         }
     }
 
@@ -763,13 +798,13 @@ pub async fn delete(
     Ok(Redirect::to("/events").into_response())
 }
 
-pub async fn revert_status(
+pub async fn revert_lifecycle(
     RequirePublisher(user): RequirePublisher,
     State(state): State<AppState>,
     Path(id): Path<i64>,
     Locale(_i18n): Locale,
 ) -> Result<Response, AppError> {
-    EventService::revert_status(&state.pool, id, user.role).await?;
+    EventService::revert_lifecycle(&state.pool, id, user.role).await?;
     Ok(Redirect::to(&format!("/events/{id}")).into_response())
 }
 
@@ -784,7 +819,6 @@ pub async fn add_update(
     Ok(Redirect::to(&format!("/events/{id}")).into_response())
 }
 
-/// Parse a `YYYY-MM-DD` string into a UTC datetime at midnight.
 fn parse_date(s: &str) -> Option<chrono::DateTime<Utc>> {
     chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d")
         .ok()
@@ -792,12 +826,18 @@ fn parse_date(s: &str) -> Option<chrono::DateTime<Utc>> {
         .map(|dt| dt.and_utc())
 }
 
-/// Compute a human-readable date label relative to today.
+/// Parse une date `YYYY-MM-DD` et retourne le `DateTime` UTC à 23h59m59s.
+fn parse_date_end_of_day(s: &str) -> Option<chrono::DateTime<Utc>> {
+    chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        .ok()
+        .and_then(|d| d.and_hms_opt(23, 59, 59))
+        .map(|dt| dt.and_utc())
+}
+
 fn date_label(date: chrono::NaiveDate, i18n: &I18n) -> String {
     i18n.date_label(&date)
 }
 
-/// Group events by their creation date.
 fn group_by_date(events: Vec<EventSummary>, i18n: &I18n) -> Vec<DateGroup> {
     let mut groups: Vec<DateGroup> = Vec::new();
 
@@ -835,16 +875,10 @@ pub async fn history(
     let offset = (page - 1) * PAGE_SIZE;
 
     let from = params.from.as_deref().and_then(parse_date);
-    let to = params.to.as_deref().and_then(|s| {
-        // End of the selected day (23:59:59).
-        chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d")
-            .ok()
-            .and_then(|d| d.and_hms_opt(23, 59, 59))
-            .map(|dt| dt.and_utc())
-    });
+    let to = params.to.as_deref().and_then(parse_date_end_of_day);
 
     let filters = crate::models::EventFilters {
-        event_type: params.event_type,
+        kind: params.kind,
         service_id: params.service_id,
         from,
         to,
@@ -864,14 +898,14 @@ pub async fn history(
     let (user_display_name, is_admin, is_authenticated) = layout_fields(user.as_ref());
     let unread_count = unread(&state.pool, user.as_ref()).await?;
 
-    let filter_type = params.event_type.map(|t| t.as_str().to_string());
+    let filter_kind = params.kind.map(|k| k.as_str().to_string());
     let filter_service = params.service_id.map(|id| id.to_string());
 
     let mut base_url = String::from("/history?");
     {
         use std::fmt::Write;
-        if let Some(ref t) = filter_type {
-            let _ = write!(base_url, "event_type={t}&");
+        if let Some(ref t) = filter_kind {
+            let _ = write!(base_url, "kind={t}&");
         }
         if let Some(ref s) = filter_service {
             let _ = write!(base_url, "service_id={s}&");
@@ -895,7 +929,7 @@ pub async fn history(
         groups,
         page,
         has_next,
-        filter_type,
+        filter_kind,
         filter_service,
         filter_from: params.from,
         filter_to: params.to,
@@ -906,7 +940,6 @@ pub async fn history(
     render(&tpl)
 }
 
-/// Escape a character for safe HTML output.
 fn html_escape_char(ch: char, out: &mut String) {
     match ch {
         '&' => out.push_str("&amp;"),
@@ -918,7 +951,6 @@ fn html_escape_char(ch: char, out: &mut String) {
     }
 }
 
-/// Escape a string for safe HTML output.
 fn html_escape(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for ch in s.chars() {
@@ -927,9 +959,8 @@ fn html_escape(s: &str) -> String {
     out
 }
 
-/// Wrap occurrences of each search term in `<mark>` tags for highlighting.
-///
-/// All text is HTML-escaped; the template must render with `|safe`.
+/// Entoure chaque occurrence d'un terme de recherche par `<mark>`. Le texte
+/// est échappé HTML au passage, le template rend avec `|safe`.
 fn highlight_terms(title: &str, query: &str) -> String {
     let title_lower = title.to_lowercase();
     let terms: Vec<String> = query
@@ -975,7 +1006,6 @@ fn highlight_terms(title: &str, query: &str) -> String {
     result
 }
 
-/// Percent-encode a string for use in URL query parameters.
 fn url_encode(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for byte in s.bytes() {
@@ -1009,7 +1039,7 @@ pub async fn search(
     let offset = (page - 1) * PAGE_SIZE;
 
     let filters = crate::models::EventFilters {
-        event_type: params.event_type,
+        kind: params.kind,
         service_id: params.service_id,
         limit: PAGE_SIZE + 1,
         offset,
@@ -1042,7 +1072,7 @@ pub async fn search(
     let (user_display_name, is_admin, is_authenticated) = layout_fields(user.as_ref());
     let unread_count = unread(&state.pool, user.as_ref()).await?;
 
-    let filter_type = params.event_type.map(|t| t.as_str().to_string());
+    let filter_kind = params.kind.map(|k| k.as_str().to_string());
     let filter_service = params.service_id.map(|id| id.to_string());
 
     let mut base_url = String::from("/search?");
@@ -1052,8 +1082,8 @@ pub async fn search(
             let encoded = url_encode(&query);
             let _ = write!(base_url, "q={encoded}&");
         }
-        if let Some(ref t) = filter_type {
-            let _ = write!(base_url, "event_type={t}&");
+        if let Some(ref t) = filter_kind {
+            let _ = write!(base_url, "kind={t}&");
         }
         if let Some(ref s) = filter_service {
             let _ = write!(base_url, "service_id={s}&");
@@ -1072,7 +1102,7 @@ pub async fn search(
         results,
         page,
         has_next,
-        filter_type,
+        filter_kind,
         filter_service,
         services,
         base_url,
@@ -1122,7 +1152,6 @@ pub async fn template_detail(
         .await?
         .ok_or(AppError::NotFound)?;
 
-    // Increment usage count
     if let Err(e) = EventTemplateService::record_usage(&state.pool, id).await {
         tracing::warn!(error = %e, "Failed to increment template usage");
     }
@@ -1132,8 +1161,10 @@ pub async fn template_detail(
     let body = serde_json::json!({
         "title": tpl.title,
         "description": tpl.description,
-        "event_type": tpl.event_type.as_str(),
-        "impact": tpl.impact.as_str(),
+        "kind": tpl.kind.as_str(),
+        "severity": tpl.severity.map(Severity::as_str),
+        "planned": tpl.planned,
+        "category": tpl.category.map(Category::as_str),
         "icon_id": tpl.icon_id,
         "icon_url": icon_url,
     });

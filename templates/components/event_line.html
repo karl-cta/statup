@@ -4,14 +4,14 @@
    class="group flex items-center gap-3 py-2.5 px-2 -mx-2
           border-b border-stone-100 dark:border-stone-800 last:border-b-0
           transition-colors hover-row cursor-pointer">
-    <span class="flex-shrink-0 h-2 w-2 rounded-full {% if event.event_type.shows_impact() && event.impact != crate::models::Impact::None %}{{ event.impact.dot_class() }}{% else %}{{ event.event_type.dot_class() }}{% endif %}"
+    <span class="flex-shrink-0 h-2 w-2 rounded-full {% if let Some(sev) = event.severity %}{{ sev.dot_class() }}{% else %}{{ event.kind.dot_class() }}{% endif %}"
           aria-hidden="true"></span>
     <span class="flex-shrink-0 font-mono text-[11px] tabular-nums text-stone-400 dark:text-stone-500">
         {{ i18n.format_time(event.created_at) }}
     </span>
     <span class="truncate min-w-0 flex-1 text-sm
-        {% if event.event_type.shows_lifecycle() && event.status.is_active() %}font-semibold text-stone-900 dark:text-white{% else %}text-stone-600 dark:text-stone-400{% endif %}">{{ event.title }}</span>
+        {% if let Some(lc) = event.lifecycle %}{% if lc.is_active() %}font-semibold text-stone-900 dark:text-white{% else %}text-stone-600 dark:text-stone-400{% endif %}{% else %}text-stone-600 dark:text-stone-400{% endif %}">{{ event.title }}</span>
     <span class="flex-shrink-0 text-[11px] text-stone-400 dark:text-stone-500 whitespace-nowrap">
-        {{ i18n.t(event.event_type.i18n_key()) }}
+        {{ i18n.t(event.kind.i18n_key()) }}
     </span>
 </a>

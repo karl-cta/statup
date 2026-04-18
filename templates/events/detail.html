@@ -11,36 +11,34 @@
         {{ i18n.t("events.back_to_events") }}
     </a>
 
-    {# ── 2-column grid: main + sidebar ─────────────────────────── #}
     <div class="mt-5 grid grid-cols-1 lg:grid-cols-[1fr_280px] lg:gap-10">
 
-        {# ── Sidebar (mobile: first, desktop: right) ──────────── #}
         <aside class="order-first lg:order-last animate-in delay-1">
             <div class="card-raised p-5 lg:sticky lg:top-6 space-y-6">
-                {# ── Status (only for lifecycle types) ────────── #}
-                {% if event.event.event_type.shows_lifecycle() %}
+                {% if event.event.kind.has_lifecycle() %}
+                {% if let Some(lc) = event.event.lifecycle %}
                 <div>
-                    <span data-status="{{ event.event.status.as_str() }}" class="badge badge-{{ event.event.status.as_str() }}">{{ i18n.t(event.event.status.display_i18n_key()) }}</span>
+                    <span data-lifecycle="{{ lc.as_str() }}" class="badge badge-{{ lc.as_str() }}">{{ i18n.t(lc.i18n_key()) }}</span>
                     {% if can_edit %}
                     {% if !allowed_transitions.is_empty() %}
-                    <form id="status-form" method="post" action="/events/{{ event.event.id }}/status" class="mt-3 flex items-center gap-1.5">
+                    <form id="lifecycle-form" method="post" action="/events/{{ event.event.id }}/lifecycle" class="mt-3 flex items-center gap-1.5">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <select id="status-select" name="status"
+                        <select id="lifecycle-select" name="lifecycle"
                                 class="input-raised px-2 py-1 text-[13px] dark:text-white cursor-pointer flex-1 min-w-0">
-                            {% for status in allowed_transitions %}
-                            <option value="{{ status.as_str() }}">{{ i18n.t(status.i18n_key()) }}</option>
+                            {% for next in allowed_transitions %}
+                            <option value="{{ next.as_str() }}">{{ i18n.t(next.i18n_key()) }}</option>
                             {% endfor %}
                         </select>
-                        <button type="submit" id="status-apply-btn" class="btn-3d-ghost text-[13px] !px-3 !py-1 flex-shrink-0">
-                            {{ i18n.t("events.apply_status") }}
+                        <button type="submit" id="lifecycle-apply-btn" class="btn-3d-ghost text-[13px] !px-3 !py-1 flex-shrink-0">
+                            {{ i18n.t("events.apply_lifecycle") }}
                         </button>
                     </form>
                     {% endif %}
 
                     {% if can_revert %}
-                    {% match previous_status_label %}
+                    {% match previous_lifecycle_label %}
                     {% when Some with (label) %}
-                    <form method="post" action="/events/{{ event.event.id }}/revert-status" class="mt-2">
+                    <form method="post" action="/events/{{ event.event.id }}/revert-lifecycle" class="mt-2">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="text-[12px] font-medium text-teal-700 dark:text-teal-400 hover:underline transition-colors"
                                 aria-label="{{ i18n.t("events.revert_to") }} {{ label }}">
@@ -56,13 +54,13 @@
                     {% endif %}
                 </div>
                 {% endif %}
+                {% endif %}
 
-                {# ── Resolution form (hidden) ── #}
-                {% if can_edit && event.event.event_type.shows_lifecycle() %}
-                <form id="resolve-form" method="post" action="/events/{{ event.event.id }}/status"
+                {% if can_edit && event.event.kind.has_lifecycle() %}
+                <form id="resolve-form" method="post" action="/events/{{ event.event.id }}/lifecycle"
                       class="hidden space-y-3">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <input type="hidden" name="status" value="resolved">
+                    <input type="hidden" id="resolve-lifecycle" name="lifecycle" value="resolved">
                     <label for="resolution_comment" class="block text-sm font-semibold text-stone-700 dark:text-stone-300">
                         {{ i18n.t("events.resolution_comment") }} <span class="text-red-500" aria-hidden="true">*</span>
                     </label>
@@ -78,12 +76,14 @@
                 </form>
                 <script>
                 (function() {
-                    var form = document.getElementById('status-form');
-                    var select = document.getElementById('status-select');
-                    if (form && select) {
+                    var form = document.getElementById('lifecycle-form');
+                    var select = document.getElementById('lifecycle-select');
+                    var hidden = document.getElementById('resolve-lifecycle');
+                    if (form && select && hidden) {
                         form.addEventListener('submit', function(e) {
-                            if (select.value === 'resolved') {
+                            if (select.value === 'resolved' || select.value === 'completed') {
                                 e.preventDefault();
+                                hidden.value = select.value;
                                 document.getElementById('resolve-form').classList.remove('hidden');
                             }
                         });
@@ -92,16 +92,21 @@
                 </script>
                 {% endif %}
 
-                {# ── Details ─────────────────────────────────── #}
                 <dl class="space-y-2 text-[13px]">
                     <div class="flex items-center justify-between py-1">
-                        <dt class="text-stone-400 dark:text-stone-500">{{ i18n.t("events.type_label") }}</dt>
-                        <dd class="font-medium text-stone-700 dark:text-stone-300">{{ i18n.t(event.event.event_type.i18n_key()) }}</dd>
+                        <dt class="text-stone-400 dark:text-stone-500">{{ i18n.t("events.kind") }}</dt>
+                        <dd class="font-medium text-stone-700 dark:text-stone-300">{{ i18n.t(event.event.kind.i18n_key()) }}</dd>
                     </div>
-                    {% if event.event.event_type.shows_impact() && event.event.impact != crate::models::Impact::None %}
+                    {% if let Some(sev) = event.event.severity %}
                     <div class="flex items-center justify-between py-1">
-                        <dt class="text-stone-400 dark:text-stone-500">{{ i18n.t("events.impact_label") }}</dt>
-                        <dd class="font-mono text-[12px] uppercase tracking-wider text-stone-500 dark:text-stone-400">{{ i18n.t(event.event.impact.i18n_key()) }}</dd>
+                        <dt class="text-stone-400 dark:text-stone-500">{{ i18n.t("events.severity") }}</dt>
+                        <dd class="font-mono text-[12px] uppercase tracking-wider text-stone-500 dark:text-stone-400">{{ i18n.t(sev.i18n_key()) }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if let Some(cat) = event.event.category %}
+                    <div class="flex items-center justify-between py-1">
+                        <dt class="text-stone-400 dark:text-stone-500">{{ i18n.t("events.category") }}</dt>
+                        <dd class="font-medium text-stone-700 dark:text-stone-300">{{ i18n.t(cat.i18n_key()) }}</dd>
                     </div>
                     {% endif %}
                     <div class="flex items-center justify-between py-1">
@@ -114,7 +119,6 @@
                     </div>
                 </dl>
 
-                {# ── Services ────────────────────────────────── #}
                 {% if !event.services.is_empty() %}
                 <div class="flex flex-wrap gap-2" role="list" aria-label="{{ i18n.t("events.affected_services_sidebar") }}">
                     {% for svc in event.services %}
@@ -123,7 +127,6 @@
                 </div>
                 {% endif %}
 
-                {# ── Actions ─────────────────────────────────── #}
                 {% if can_edit %}
                 <div class="flex items-center gap-3 text-[13px]">
                     <a href="/events/{{ event.event.id }}/edit"
@@ -144,12 +147,10 @@
             </div>
         </aside>
 
-        {# ── Main content (left) ──────────────────────────────── #}
         <div class="order-last lg:order-first mt-6 lg:mt-0">
-            {# ── Header ────────────────────────────────────────── #}
             <div class="animate-in delay-1">
                 <p class="text-[11px] font-semibold uppercase tracking-widest text-stone-400 dark:text-stone-500">
-                    {{ i18n.t(event.event.event_type.i18n_key()) }}{% if event.event.event_type.shows_impact() && event.event.impact != crate::models::Impact::None %} · {{ i18n.t(event.event.impact.i18n_key()) }}{% endif %}
+                    {{ i18n.t(event.event.kind.i18n_key()) }}{% if let Some(sev) = event.event.severity %} · {{ i18n.t(sev.i18n_key()) }}{% endif %}{% if let Some(cat) = event.event.category %} · {{ i18n.t(cat.i18n_key()) }}{% endif %}
                 </p>
                 <h1 class="mt-1.5 text-2xl font-extrabold tracking-tight text-stone-900 dark:text-white leading-tight">{{ event.event.title }}</h1>
                 <p class="mt-2 text-[13px] text-stone-400 dark:text-stone-500">
@@ -157,14 +158,12 @@
                 </p>
             </div>
 
-            {# ── Description ─────────────────────────────────── #}
             <div class="mt-6 animate-in delay-2">
                 <div class="prose prose-sm max-w-none prose-stone dark:prose-invert prose-p:leading-relaxed">
                     {{ description_html|safe }}
                 </div>
             </div>
 
-            {# ── Updates timeline ────────────────────────────── #}
             <section aria-label="{{ i18n.t("events.updates") }}" class="mt-8 reveal">
                 <h2 class="text-[11px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500">{{ i18n.t("events.updates") }}</h2>
 
@@ -186,7 +185,6 @@
                 </div>
                 {% endif %}
 
-                {# ── Add update form ─────────────────────────── #}
                 {% if can_edit %}
                 <form method="post" action="/events/{{ event.event.id }}/updates" class="mt-6 space-y-3">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

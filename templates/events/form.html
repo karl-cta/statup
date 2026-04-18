@@ -37,7 +37,6 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
         <div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
-            {# ── Left column: main form fields ── #}
             <div class="flex-1 min-w-0 space-y-5">
                 <div class="relative">
                     <label for="title" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
@@ -69,80 +68,95 @@
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                        <label for="event_type" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
-                            {{ i18n.t("events.type") }}
+                        <label for="kind" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                            {{ i18n.t("events.kind") }}
                         </label>
                         <select
-                            id="event_type"
-                            name="event_type"
+                            id="kind"
+                            name="kind"
                             required
                             aria-required="true"
                             class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
                                    dark:text-white"
-                            aria-label="{{ i18n.t("events.type_label") }}"
+                            aria-label="{{ i18n.t("events.kind_label") }}"
                         >
-                            <optgroup label="{{ i18n.t("events.group_incidents") }}">
-                                <option value="incident" {% match event %}{% when Some with (e) %}{% if e.event_type.as_str() == "incident" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("type.event.incident") }}</option>
-                            </optgroup>
-                            <optgroup label="{{ i18n.t("events.group_maintenance") }}">
-                                <option value="maintenance_scheduled" {% match event %}{% when Some with (e) %}{% if e.event_type.as_str() == "maintenance_scheduled" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("type.event.maintenance_scheduled") }}</option>
-                                <option value="maintenance_urgent" {% match event %}{% when Some with (e) %}{% if e.event_type.as_str() == "maintenance_urgent" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("type.event.maintenance_urgent") }}</option>
-                            </optgroup>
-                            <optgroup label="{{ i18n.t("events.group_other") }}">
-                                <option value="changelog" {% match event %}{% when Some with (e) %}{% if e.event_type.as_str() == "changelog" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("type.event.changelog") }}</option>
-                                <option value="info" {% match event %}{% when Some with (e) %}{% if e.event_type.as_str() == "info" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("type.event.info") }}</option>
-                            </optgroup>
+                            <option value="incident" {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "incident" %}selected{% endif %}{% when None %}selected{% endmatch %}>{{ i18n.t("kind.incident") }}</option>
+                            <option value="maintenance" {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "maintenance" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("kind.maintenance") }}</option>
+                            <option value="publication" {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "publication" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("kind.publication") }}</option>
                         </select>
                     </div>
 
-                    <div id="impact-field">
-                        <label for="impact" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
-                            {{ i18n.t("events.impact") }}
+                    <div id="severity-field">
+                        <label for="severity" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                            {{ i18n.t("events.severity") }} <span class="text-stone-400 dark:text-stone-600">{{ i18n.t("events.optional") }}</span>
                         </label>
                         <select
-                            id="impact"
-                            name="impact"
-                            required
-                            aria-required="true"
+                            id="severity"
+                            name="severity"
                             class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
                                    dark:text-white"
-                            aria-label="{{ i18n.t("events.impact") }}"
+                            aria-label="{{ i18n.t("events.severity") }}"
                         >
-                            <option value="none" {% match event %}{% when Some with (e) %}{% if e.impact.as_str() == "none" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("impact.none") }}</option>
-                            <option value="minor" {% match event %}{% when Some with (e) %}{% if e.impact.as_str() == "minor" %}selected{% endif %}{% when None %}selected{% endmatch %}>{{ i18n.t("impact.minor") }}</option>
-                            <option value="major" {% match event %}{% when Some with (e) %}{% if e.impact.as_str() == "major" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("impact.major") }}</option>
-                            <option value="critical" {% match event %}{% when Some with (e) %}{% if e.impact.as_str() == "critical" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("impact.critical") }}</option>
+                            <option value="">{{ i18n.t("common.all") }}</option>
+                            <option value="minor" {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (s) %}{% if s.as_str() == "minor" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}selected{% endmatch %}>{{ i18n.t("severity.minor") }}</option>
+                            <option value="major" {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (s) %}{% if s.as_str() == "major" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>{{ i18n.t("severity.major") }}</option>
+                            <option value="critical" {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (s) %}{% if s.as_str() == "critical" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>{{ i18n.t("severity.critical") }}</option>
                         </select>
                     </div>
                 </div>
 
-                <div id="scheduled-dates" class="grid grid-cols-1 gap-4 sm:grid-cols-2" style="display: none;">
+                <div id="planned-field" style="display: none;">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="planned" name="planned" value="on" class="checkbox-fancy"
+                               {% match event %}{% when Some with (e) %}{% if e.planned %}checked{% endif %}{% when None %}{% endmatch %}>
+                        <span class="text-sm font-medium text-stone-700 dark:text-stone-300">{{ i18n.t("events.planned_label") }}</span>
+                    </label>
+                    <p class="mt-1 text-[12px] text-stone-400 dark:text-stone-500">{{ i18n.t("events.planned_hint") }}</p>
+                </div>
+
+                <div id="category-field" style="display: none;">
+                    <label for="category" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                        {{ i18n.t("events.category") }}
+                    </label>
+                    <select
+                        id="category"
+                        name="category"
+                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
+                               dark:text-white"
+                        aria-label="{{ i18n.t("events.category_label") }}"
+                    >
+                        <option value="changelog" {% match event %}{% when Some with (e) %}{% match e.category %}{% when Some with (c) %}{% if c.as_str() == "changelog" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}selected{% endmatch %}>{{ i18n.t("category.changelog") }}</option>
+                        <option value="info" {% match event %}{% when Some with (e) %}{% match e.category %}{% when Some with (c) %}{% if c.as_str() == "info" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>{{ i18n.t("category.info") }}</option>
+                    </select>
+                </div>
+
+                <div id="planned-dates" class="grid grid-cols-1 gap-4 sm:grid-cols-2" style="display: none;">
                     <div>
-                        <label for="scheduled_start" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
-                            {{ i18n.t("events.scheduled_start_short") }}
+                        <label for="planned_start" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                            {{ i18n.t("events.planned_start_short") }}
                         </label>
                         <input
-                            id="scheduled_start"
-                            name="scheduled_start"
+                            id="planned_start"
+                            name="planned_start"
                             type="datetime-local"
-                            value="{% match event %}{% when Some with (e) %}{% match e.scheduled_start %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}{% when None %}{% endmatch %}"
+                            value="{% match event %}{% when Some with (e) %}{% match e.planned_start %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}{% when None %}{% endmatch %}"
                             class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
                                    dark:text-white"
-                            aria-label="{{ i18n.t("events.scheduled_start_label") }}"
+                            aria-label="{{ i18n.t("events.planned_start_label") }}"
                         >
                     </div>
                     <div>
-                        <label for="scheduled_end" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
-                            {{ i18n.t("events.scheduled_end_short") }} <span class="text-stone-400 dark:text-stone-600">{{ i18n.t("events.optional") }}</span>
+                        <label for="planned_end" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                            {{ i18n.t("events.planned_end_short") }} <span class="text-stone-400 dark:text-stone-600">{{ i18n.t("events.optional") }}</span>
                         </label>
                         <input
-                            id="scheduled_end"
-                            name="scheduled_end"
+                            id="planned_end"
+                            name="planned_end"
                             type="datetime-local"
-                            value="{% match event %}{% when Some with (e) %}{% match e.scheduled_end %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}{% when None %}{% endmatch %}"
+                            value="{% match event %}{% when Some with (e) %}{% match e.planned_end %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}{% when None %}{% endmatch %}"
                             class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
                                    dark:text-white"
-                            aria-label="{{ i18n.t("events.scheduled_end_label") }}"
+                            aria-label="{{ i18n.t("events.planned_end_label") }}"
                         >
                     </div>
                 </div>
@@ -187,7 +201,6 @@
                 </div>
             </div>
 
-            {# ── Right column: services sidebar ── #}
             <aside class="lg:w-72 lg:flex-shrink-0" aria-label="{{ i18n.t("events.affected_services_sidebar") }}">
                 <div class="lg:sticky lg:top-8 card-raised p-4">
                     <h2 class="text-sm font-semibold text-stone-900 dark:text-white flex items-center gap-2">
@@ -231,10 +244,10 @@
                     </div>
                     {% endif %}
 
-                    <div id="impact-hint" class="mt-4 rounded-lg bg-stone-50 p-3 dark:bg-stone-800/80 hidden">
+                    <div id="severity-hint" class="mt-4 rounded-lg bg-stone-50 p-3 dark:bg-stone-800/80 hidden">
                         <p class="text-[12px] text-stone-500 dark:text-stone-400">
-                            <span class="font-medium">{{ i18n.t("events.impact_hint_label") }}</span>
-                            <span id="impact-hint-text"></span>
+                            <span class="font-medium">{{ i18n.t("events.severity_hint_label") }}</span>
+                            <span id="severity-hint-text"></span>
                         </p>
                     </div>
                 </div>
@@ -244,14 +257,13 @@
 </div>
 
 <script>
-var impactHints = {
-    incident_critical: '{{ i18n.t("impact.hint.incident_critical") }}',
-    incident_major: '{{ i18n.t("impact.hint.incident_major") }}',
-    incident_minor: '{{ i18n.t("impact.hint.incident_minor") }}',
-    incident_none: '{{ i18n.t("impact.hint.incident_none") }}',
-    maintenance_scheduled: '{{ i18n.t("impact.hint.maintenance_scheduled") }}',
-    maintenance_urgent: '{{ i18n.t("impact.hint.maintenance_urgent") }}',
-    no_impact: '{{ i18n.t("impact.hint.no_impact") }}'
+var severityHints = {
+    incident_critical: '{{ i18n.t("hint.incident_critical") }}',
+    incident_major: '{{ i18n.t("hint.incident_major") }}',
+    incident_minor: '{{ i18n.t("hint.incident_minor") }}',
+    incident_no_severity: '{{ i18n.t("hint.incident_no_severity") }}',
+    maintenance: '{{ i18n.t("hint.maintenance") }}',
+    publication: '{{ i18n.t("hint.publication") }}'
 };
 
 function applyTemplate(templateId) {
@@ -260,14 +272,16 @@ function applyTemplate(templateId) {
         .then(function(data) {
             document.getElementById('title').value = data.title;
             document.getElementById('description').value = data.description;
-            if (data.event_type) {
-                document.getElementById('event_type').value = data.event_type;
+            if (data.kind) {
+                document.getElementById('kind').value = data.kind;
             }
-            if (data.impact) {
-                document.getElementById('impact').value = data.impact;
+            document.getElementById('severity').value = data.severity || '';
+            document.getElementById('planned').checked = !!data.planned;
+            if (data.category) {
+                document.getElementById('category').value = data.category;
             }
             document.getElementById('template-suggestions-container').innerHTML = '';
-            updateImpactHint();
+            updateVisibilityAndHint();
         });
 }
 document.addEventListener('click', function(e) {
@@ -278,44 +292,41 @@ document.addEventListener('click', function(e) {
     }
 });
 
-function updateImpactHint() {
-    var type = document.getElementById('event_type').value;
-    var impact = document.getElementById('impact').value;
-    var hint = document.getElementById('impact-hint');
-    var text = document.getElementById('impact-hint-text');
-    var scheduledDates = document.getElementById('scheduled-dates');
-    var impactField = document.getElementById('impact-field');
+function updateVisibilityAndHint() {
+    var kind = document.getElementById('kind').value;
+    var severity = document.getElementById('severity').value;
+    var planned = document.getElementById('planned').checked;
+    var severityField = document.getElementById('severity-field');
+    var plannedField = document.getElementById('planned-field');
+    var plannedDates = document.getElementById('planned-dates');
+    var categoryField = document.getElementById('category-field');
+    var hint = document.getElementById('severity-hint');
+    var hintText = document.getElementById('severity-hint-text');
     var msg = '';
 
-    scheduledDates.style.display = type === 'maintenance_scheduled' ? '' : 'none';
+    severityField.style.display = (kind === 'publication') ? 'none' : '';
+    plannedField.style.display = (kind === 'maintenance') ? '' : 'none';
+    plannedDates.style.display = (kind === 'maintenance' && planned) ? '' : 'none';
+    categoryField.style.display = (kind === 'publication') ? '' : 'none';
 
-    var showsImpact = (type === 'incident');
-    impactField.style.display = showsImpact ? '' : 'none';
-    if (!showsImpact) {
-        document.getElementById('impact').value = 'none';
-    } else if (document.getElementById('impact').value === 'none') {
-        document.getElementById('impact').value = 'minor';
-    }
-
-    if (type === 'incident') {
-        if (impact === 'critical') msg = impactHints.incident_critical;
-        else if (impact === 'major') msg = impactHints.incident_major;
-        else if (impact === 'minor') msg = impactHints.incident_minor;
-        else msg = impactHints.incident_none;
-    } else if (type === 'maintenance_scheduled') {
-        msg = impactHints.maintenance_scheduled;
-    } else if (type === 'maintenance_urgent') {
-        msg = impactHints.maintenance_urgent;
+    if (kind === 'incident') {
+        if (severity === 'critical') msg = severityHints.incident_critical;
+        else if (severity === 'major') msg = severityHints.incident_major;
+        else if (severity === 'minor') msg = severityHints.incident_minor;
+        else msg = severityHints.incident_no_severity;
+    } else if (kind === 'maintenance') {
+        msg = severityHints.maintenance;
     } else {
-        msg = impactHints.no_impact;
+        msg = severityHints.publication;
     }
 
-    text.textContent = msg;
+    hintText.textContent = msg;
     hint.classList.toggle('hidden', !msg);
 }
 
-document.getElementById('event_type').addEventListener('change', updateImpactHint);
-document.getElementById('impact').addEventListener('change', updateImpactHint);
-updateImpactHint();
+document.getElementById('kind').addEventListener('change', updateVisibilityAndHint);
+document.getElementById('severity').addEventListener('change', updateVisibilityAndHint);
+document.getElementById('planned').addEventListener('change', updateVisibilityAndHint);
+updateVisibilityAndHint();
 </script>
 {% endblock %}

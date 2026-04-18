@@ -13,7 +13,7 @@
         <div class="min-w-0 flex-1">
             <div class="font-medium text-stone-900 dark:text-white truncate">{{ tpl.title }}</div>
             <div class="mt-0.5 text-[12px] text-stone-400 dark:text-stone-500">
-                {{ i18n.t(tpl.event_type.i18n_key()) }} &middot; {{ i18n.t(tpl.impact.i18n_key()) }}
+                {{ i18n.t(tpl.kind.i18n_key()) }}{% if let Some(sev) = tpl.severity %} &middot; {{ i18n.t(sev.i18n_key()) }}{% endif %}{% if let Some(cat) = tpl.category %} &middot; {{ i18n.t(cat.i18n_key()) }}{% endif %}
                 {% if tpl.usage_count > 0 %}&middot; {{ tpl.usage_count }}x{% endif %}
             </div>
         </div>
