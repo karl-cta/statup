@@ -27,13 +27,13 @@ Thumbs.db
 # Claude
 .claude/
 CLAUDE.md
+skills-lock.json
+
+# Impeccable design context (internal)
+.impeccable.md
 
 # Docs (internal notes)
 docs/
-
-# Design artifacts
-statup-proposals*.html
-statup-refined.html
 
 # Coverage
 coverage/

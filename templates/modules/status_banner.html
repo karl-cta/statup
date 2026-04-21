@@ -1,30 +1,43 @@
-{# Status banner, sober statement. Expects: active_incidents, i18n #}
-<section class="animate-in">
-    <p class="eyebrow mb-3">{{ i18n.t("dashboard.status_eyebrow") }}</p>
-    {% if active_incidents.is_empty() %}
-    <div class="flex items-center gap-3">
+{# Status banner, Magazine hero. Expects: active_incidents, i18n #}
+{% if active_incidents.is_empty() %}
+{# All good, sober statement #}
+<div class="flex items-baseline gap-4">
+    <p class="eyebrow">{{ i18n.t("dashboard.status_eyebrow") }}</p>
+    <span class="inline-flex items-center gap-2">
         <span class="h-2 w-2 flex-shrink-0 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-soft-pulse" aria-hidden="true"></span>
-        <h1 class="text-[19px] sm:text-xl font-medium text-ink dark:text-sand-light tracking-tight">
-            {{ i18n.t("dashboard.all_operational") }}
-        </h1>
+        <span class="font-mono text-[11px] uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">{{ i18n.t("dashboard.status_ok_mono") }}</span>
+    </span>
+</div>
+<h1 class="mt-2 text-[28px] sm:text-[32px] font-medium text-ink dark:text-sand-light tracking-tight leading-tight">
+    {{ i18n.t("dashboard.all_operational") }}
+</h1>
+{% else %}
+{# Incidents active, impactful Magazine statement without AI-reflex stripe #}
+<div class="rounded-sm bg-red-50/70 dark:bg-red-950/25 border border-red-200/60 dark:border-red-900/40 px-5 py-5 sm:px-6 sm:py-6">
+    <div class="flex items-baseline gap-4">
+        <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-red-700 dark:text-red-400">{{ i18n.t("dashboard.status_eyebrow") }}</p>
+        <span class="inline-flex items-center gap-2">
+            <span class="h-2 w-2 flex-shrink-0 rounded-full bg-red-500 animate-soft-pulse" aria-hidden="true"></span>
+            <span class="font-mono text-[11px] uppercase tracking-[0.14em] text-red-700 dark:text-red-400">{{ i18n.t("dashboard.status_incident_mono") }}</span>
+        </span>
     </div>
-    {% else %}
-    <div class="flex items-center gap-3">
-        <span class="h-2 w-2 flex-shrink-0 rounded-full bg-red-500 animate-soft-pulse" aria-hidden="true"></span>
-        <h1 class="text-[19px] sm:text-xl font-medium text-ink dark:text-sand-light tracking-tight">
-            {{ active_incidents.len() }} {{ i18n.t("dashboard.active_incidents") }}
-        </h1>
-    </div>
-    <ul class="mt-4 ml-5 flex flex-wrap gap-x-6 gap-y-2">
+    <h1 class="mt-2 text-[28px] sm:text-[32px] font-bold text-ink dark:text-sand-light tracking-tight leading-[1.1]">
+        {{ active_incidents.len() }} {{ i18n.t("dashboard.active_incidents") }}
+    </h1>
+    <ul class="mt-4 grid gap-2 sm:grid-cols-2">
         {% for incident in active_incidents %}
         <li>
             <a onclick="openDrawer('/events/{{ incident.id }}/panel'); return false;"
                href="/events/{{ incident.id }}"
-               class="group inline-flex items-center gap-2 text-[14px] text-ink dark:text-sand-light">
-                <span class="underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 group-hover:decoration-ink dark:group-hover:decoration-sand-light transition-colors">{{ incident.title }}</span>
+               class="group flex items-baseline gap-3 py-1.5 border-b border-red-200/50 dark:border-red-900/30 last:border-b-0">
+                <span class="flex-shrink-0 h-1.5 w-1.5 rounded-full bg-red-500 mt-1.5" aria-hidden="true"></span>
+                <span class="min-w-0 flex-1 text-[14px] font-semibold text-ink dark:text-sand-light underline underline-offset-4 decoration-red-300/60 dark:decoration-red-700/60 group-hover:decoration-red-500 dark:group-hover:decoration-red-400 transition-colors">{{ incident.title }}</span>
+                {% if !incident.service_names.is_empty() %}
+                <span class="flex-shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-ink/55 dark:text-sand-light/45 truncate max-w-[140px]">{{ incident.service_names }}</span>
+                {% endif %}
             </a>
         </li>
         {% endfor %}
     </ul>
-    {% endif %}
-</section>
+</div>
+{% endif %}

@@ -24,7 +24,11 @@ struct DashboardTemplate {
     unread_count: i64,
     last_admin_action: Option<String>,
     context_label: &'static str,
-    rendered_modules: Vec<RenderedModule>,
+    banner_html: Option<String>,
+    services_html: Option<String>,
+    activity_html: Option<String>,
+    maintenances_html: Option<String>,
+    extra_modules: Vec<RenderedModule>,
     i18n: I18n,
 }
 
@@ -76,7 +80,12 @@ pub async fn index(
     let registry = ModuleRegistry::builtin();
     let resolved = DashboardLayoutService::resolve(&state.pool, &registry, context).await?;
 
-    let mut rendered_modules = Vec::with_capacity(resolved.len());
+    let mut banner_html = None;
+    let mut services_html = None;
+    let mut activity_html = None;
+    let mut maintenances_html = None;
+    let mut extra_modules = Vec::new();
+
     for item in resolved {
         if !item.enabled {
             continue;
@@ -88,11 +97,18 @@ pub async fn index(
             context,
             config: &item.config,
         };
+        let id = item.module.id();
         let html = item.module.render(&render_ctx).await?;
-        rendered_modules.push(RenderedModule {
-            id: item.module.id().to_string(),
-            html,
-        });
+        match id {
+            "status_banner" => banner_html = Some(html),
+            "services" => services_html = Some(html),
+            "recent_activity" => activity_html = Some(html),
+            "scheduled_maintenances" => maintenances_html = Some(html),
+            _ => extra_modules.push(RenderedModule {
+                id: id.to_string(),
+                html,
+            }),
+        }
     }
 
     let (user_display_name, is_admin, is_authenticated) = layout_fields(user.as_ref());
@@ -108,7 +124,11 @@ pub async fn index(
         unread_count,
         last_admin_action,
         context_label: context.as_str(),
-        rendered_modules,
+        banner_html,
+        services_html,
+        activity_html,
+        maintenances_html,
+        extra_modules,
         i18n,
     };
     render(&tpl)

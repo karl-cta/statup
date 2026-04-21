@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 use askama::Template;
 use async_trait::async_trait;
+use chrono::{Duration, Utc};
 
 use crate::error::AppError;
 use crate::i18n::I18n;
@@ -19,6 +20,11 @@ const SPARKLINE_DAYS: u32 = 30;
 
 pub struct ServicesModule;
 
+pub struct SparklineDay {
+    pub class: &'static str,
+    pub tooltip: String,
+}
+
 #[derive(Template)]
 #[template(path = "modules/services.html")]
 struct ServicesTemplate {
@@ -29,16 +35,32 @@ struct ServicesTemplate {
 
 impl ServicesTemplate {
     #[allow(clippy::trivially_copy_pass_by_ref)]
-    fn sparkline_classes(&self, service_id: &i64) -> Vec<&'static str> {
+    fn sparkline_days(&self, service_id: &i64) -> Vec<SparklineDay> {
         let empty = vec![0u8; SPARKLINE_DAYS as usize];
         let points = self.sparkline_map.get(service_id).unwrap_or(&empty);
+        let today = Utc::now().date_naive();
+        let count = points.len();
         points
             .iter()
-            .map(|&level| match level {
-                0 => "bg-emerald-400/70 dark:bg-emerald-500/50",
-                1 => "bg-yellow-400 dark:bg-yellow-400/80",
-                2 => "bg-orange-400 dark:bg-orange-400/80",
-                _ => "bg-red-400 dark:bg-red-400/80",
+            .enumerate()
+            .map(|(idx, &level)| {
+                let offset =
+                    i64::try_from(count.saturating_sub(1).saturating_sub(idx)).unwrap_or(0);
+                let date = today - Duration::days(offset);
+                let label_key = match level {
+                    0 => "dashboard.sparkline_legend_ok",
+                    1 => "dashboard.sparkline_legend_minor",
+                    2 => "dashboard.sparkline_legend_major",
+                    _ => "dashboard.sparkline_legend_critical",
+                };
+                let class = match level {
+                    0 => "bg-emerald-400/70 dark:bg-emerald-500/50",
+                    1 => "bg-yellow-400 dark:bg-yellow-400/80",
+                    2 => "bg-orange-400 dark:bg-orange-400/80",
+                    _ => "bg-red-400 dark:bg-red-400/80",
+                };
+                let tooltip = format!("{} — {}", date.format("%Y-%m-%d"), self.i18n.t(label_key));
+                SparklineDay { class, tooltip }
             })
             .collect()
     }

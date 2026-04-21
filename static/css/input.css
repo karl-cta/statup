@@ -7,50 +7,37 @@
 
 /* =========================================================================
    Self-hosted brand typefaces
-   IBM Plex Sans, IBM Plex Mono, Instrument Serif. Latin only.
+   Switzer by Indian Type Foundry (SIL OFL), JetBrains Mono (SIL OFL).
+   Two families only, Latin subset.
    ========================================================================= */
 
 @font-face {
-    font-family: 'IBM Plex Sans';
+    font-family: 'Switzer';
     font-style: normal;
     font-weight: 400;
     font-display: swap;
-    src: url('/static/fonts/ibm-plex-sans-400.woff2') format('woff2');
+    src: url('/static/fonts/switzer-400.woff2') format('woff2');
 }
 @font-face {
-    font-family: 'IBM Plex Sans';
+    font-family: 'Switzer';
     font-style: normal;
     font-weight: 500;
     font-display: swap;
-    src: url('/static/fonts/ibm-plex-sans-500.woff2') format('woff2');
+    src: url('/static/fonts/switzer-500.woff2') format('woff2');
 }
 @font-face {
-    font-family: 'IBM Plex Mono';
+    font-family: 'Switzer';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/static/fonts/switzer-700.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
     font-style: normal;
     font-weight: 400;
     font-display: swap;
-    src: url('/static/fonts/ibm-plex-mono-400.woff2') format('woff2');
-}
-@font-face {
-    font-family: 'IBM Plex Mono';
-    font-style: normal;
-    font-weight: 500;
-    font-display: swap;
-    src: url('/static/fonts/ibm-plex-mono-500.woff2') format('woff2');
-}
-@font-face {
-    font-family: 'Instrument Serif';
-    font-style: normal;
-    font-weight: 400;
-    font-display: swap;
-    src: url('/static/fonts/instrument-serif-400.woff2') format('woff2');
-}
-@font-face {
-    font-family: 'Instrument Serif';
-    font-style: italic;
-    font-weight: 400;
-    font-display: swap;
-    src: url('/static/fonts/instrument-serif-400-italic.woff2') format('woff2');
+    src: url('/static/fonts/jetbrains-mono-400.woff2') format('woff2');
 }
 
 /* =========================================================================
@@ -71,9 +58,8 @@
     --color-muted-dark: #9C9689;
 
     /* ---- Typography ---- */
-    --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-    --font-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+    --font-sans: 'Switzer', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
     /* ---- Stone family remap, warm neutral ramp ---- */
     --color-stone-50: #FAF8F2;
@@ -174,7 +160,7 @@
     }
 
     body {
-        font-feature-settings: "cv05", "cv11", "ss02";
+        font-family: var(--font-sans);
     }
 
     code, pre, kbd, samp {
@@ -205,8 +191,15 @@
     }
 
     a, button, [role="button"], select, summary,
-    input[type="submit"], input[type="button"], input[type="reset"],
-    [hx-get], [hx-post], [hx-put], [hx-delete], [hx-patch] {
+    input[type="submit"], input[type="button"], input[type="reset"] {
+        cursor: pointer;
+    }
+
+    [hx-get]:not(input):not(textarea),
+    [hx-post]:not(input):not(textarea),
+    [hx-put]:not(input):not(textarea),
+    [hx-delete]:not(input):not(textarea),
+    [hx-patch]:not(input):not(textarea) {
         cursor: pointer;
     }
 

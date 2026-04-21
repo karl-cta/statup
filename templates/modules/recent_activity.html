@@ -1,12 +1,13 @@
-{# Recent activity module, Magazine sober. Expects: events, i18n #}
-<section class="animate-in delay-3">
+{# Recent activity, Magazine timeline. Expects: events, i18n #}
+<div>
     <div class="flex items-baseline justify-between mb-4">
         <p class="eyebrow">{{ i18n.t("dashboard.activity") }}</p>
         <a href="/events"
-           class="text-[13px] font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors">
+           class="font-mono text-[11px] uppercase tracking-[0.08em] font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors">
             {{ i18n.t("dashboard.view_all") }}
         </a>
     </div>
+
     {% if events.is_empty() %}
     <p class="py-6 text-sm text-ink/50 dark:text-sand-light/45">{{ i18n.t("dashboard.no_events") }}</p>
     {% else %}
@@ -16,4 +17,4 @@
         {% endfor %}
     </div>
     {% endif %}
-</section>
+</div>

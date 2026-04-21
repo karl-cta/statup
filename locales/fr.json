@@ -48,6 +48,13 @@
   "dashboard.no_maintenance_at_all": "Aucune maintenance",
   "dashboard.availability_30d": "Disponibilité sur 30 jours",
   "dashboard.availability_title": "Disponibilité, 30 derniers jours",
+  "dashboard.status_ok_mono": "Opérationnel",
+  "dashboard.status_incident_mono": "Incident",
+  "dashboard.sparkline_legend_title": "Disponibilité, 30 derniers jours",
+  "dashboard.sparkline_legend_ok": "Opérationnel",
+  "dashboard.sparkline_legend_minor": "Incident mineur",
+  "dashboard.sparkline_legend_major": "Incident majeur",
+  "dashboard.sparkline_legend_critical": "Panne critique",
   "dashboard.no_modules": "Aucun module activé sur ce tableau de bord.",
 
   "modules.status_banner.name": "Bandeau de statut",

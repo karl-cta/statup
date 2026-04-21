@@ -1,17 +1,26 @@
-{# One-line event, expects `event` (EventSummary) and `i18n` (I18n) in scope #}
+{# One-line event with description excerpt. Expects `event` (EventSummary) and `i18n` (I18n) in scope #}
 <a onclick="openDrawer('/events/{{ event.id }}/panel'); return false;"
    href="/events/{{ event.id }}"
-   class="group flex items-center gap-3 py-2.5 px-2 -mx-2
+   class="group grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-0.5 py-3 px-2 -mx-2
           border-b border-ink/10 dark:border-sand-light/10 last:border-b-0
           transition-colors hover-row cursor-pointer">
-    <span class="flex-shrink-0 h-2 w-2 rounded-full {% if let Some(sev) = event.severity %}{{ sev.dot_class() }}{% else %}{{ event.kind.dot_class() }}{% endif %}"
+    <span class="flex-shrink-0 h-2 w-2 mt-1.5 rounded-full row-start-1 col-start-1
+        {% if let Some(sev) = event.severity %}{{ sev.dot_class() }}{% else %}{{ event.kind.dot_class() }}{% endif %}"
           aria-hidden="true"></span>
-    <span class="flex-shrink-0 font-mono text-[11px] tabular-nums text-ink/45 dark:text-sand-light/40">
+    <span class="flex-shrink-0 font-mono text-[11px] tabular-nums text-ink/45 dark:text-sand-light/40 mt-0.5 row-start-1 col-start-2">
         {{ i18n.format_time(event.created_at) }}
     </span>
-    <span class="truncate min-w-0 flex-1 text-sm
-        {% if let Some(lc) = event.lifecycle %}{% if lc.is_active() %}font-medium text-ink dark:text-sand-light{% else %}text-ink/70 dark:text-sand-light/60{% endif %}{% else %}text-ink/70 dark:text-sand-light/60{% endif %}">{{ event.title }}</span>
-    <span class="flex-shrink-0 text-[11px] text-ink/45 dark:text-sand-light/40 whitespace-nowrap">
+    <span class="min-w-0 text-sm row-start-1 col-start-3
+        {% if let Some(lc) = event.lifecycle %}{% if lc.is_active() %}font-semibold text-ink dark:text-sand-light{% else %}font-medium text-ink/85 dark:text-sand-light/80{% endif %}{% else %}font-medium text-ink/85 dark:text-sand-light/80{% endif %}">
+        {{ event.title }}
+    </span>
+    <span class="flex-shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-ink/45 dark:text-sand-light/40 whitespace-nowrap mt-1 row-start-1 col-start-4">
         {{ i18n.t(event.kind.i18n_key()) }}
     </span>
+    {% let excerpt = event.description_excerpt(120) %}
+    {% if !excerpt.is_empty() %}
+    <span class="col-start-3 row-start-2 text-[12px] text-ink/55 dark:text-sand-light/45 line-clamp-2 leading-snug">
+        {{ excerpt }}
+    </span>
+    {% endif %}
 </a>

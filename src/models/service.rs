@@ -97,6 +97,40 @@ impl ServiceStatus {
         }
     }
 
+    /// Tailwind classes for a subtle row background matching the status.
+    /// Operational returns an empty string so the row stays neutral.
+    pub fn row_bg_class(self) -> &'static str {
+        match self {
+            Self::Operational => "",
+            Self::Degraded => "bg-yellow-100/40 dark:bg-yellow-950/25",
+            Self::PartialOutage => "bg-orange-100/50 dark:bg-orange-950/25",
+            Self::MajorOutage => "bg-red-100/50 dark:bg-red-950/25",
+            Self::Maintenance => "bg-blue-100/40 dark:bg-blue-950/25",
+        }
+    }
+
+    /// Short mono label, used in Magazine-style list items (OK, DEG, KO, etc).
+    pub fn mono_label(self) -> &'static str {
+        match self {
+            Self::Operational => "OK",
+            Self::Degraded => "DEG",
+            Self::PartialOutage => "PART",
+            Self::MajorOutage => "KO",
+            Self::Maintenance => "MNT",
+        }
+    }
+
+    /// Mono label text color class.
+    pub fn mono_color_class(self) -> &'static str {
+        match self {
+            Self::Operational => "text-emerald-700 dark:text-emerald-400",
+            Self::Degraded => "text-yellow-700 dark:text-yellow-400",
+            Self::PartialOutage => "text-orange-700 dark:text-orange-400",
+            Self::MajorOutage => "text-red-700 dark:text-red-400",
+            Self::Maintenance => "text-blue-700 dark:text-blue-400",
+        }
+    }
+
     /// CSS class for the left-side status strip on cards.
     pub fn strip_class(self) -> &'static str {
         match self {
