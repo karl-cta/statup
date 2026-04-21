@@ -1,23 +1,20 @@
 {# HTMX fragment, autocomplete suggestions for event templates #}
 {% if !templates.is_empty() %}
-<div class="absolute z-20 mt-1 w-full card-raised shadow-lg"
-     id="template-suggestions">
+<div class="absolute z-20 mt-1 w-full card-raised shadow-lg" id="template-suggestions">
     {% for tpl in templates %}
-    <button
-        type="button"
-        class="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm transition-colors duration-200
-               first:rounded-t-xl last:rounded-b-xl
-               hover:bg-stone-50 dark:hover:bg-stone-700/50"
-        onclick="applyTemplate({{ tpl.id }})"
-    >
+    <button type="button"
+            class="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm transition-colors
+                   first:rounded-t-sm last:rounded-b-sm
+                   hover-row"
+            onclick="applyTemplate({{ tpl.id }})">
         <div class="min-w-0 flex-1">
-            <div class="font-medium text-stone-900 dark:text-white truncate">{{ tpl.title }}</div>
-            <div class="mt-0.5 text-[12px] text-stone-400 dark:text-stone-500">
+            <div class="font-medium text-ink dark:text-sand-light truncate">{{ tpl.title }}</div>
+            <div class="mt-0.5 text-[12px] text-ink/45 dark:text-sand-light/40">
                 {{ i18n.t(tpl.kind.i18n_key()) }}{% if let Some(sev) = tpl.severity %} &middot; {{ i18n.t(sev.i18n_key()) }}{% endif %}{% if let Some(cat) = tpl.category %} &middot; {{ i18n.t(cat.i18n_key()) }}{% endif %}
                 {% if tpl.usage_count > 0 %}&middot; {{ tpl.usage_count }}x{% endif %}
             </div>
         </div>
-        <svg class="h-3.5 w-3.5 flex-shrink-0 text-stone-300 dark:text-stone-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+        <svg class="h-3.5 w-3.5 flex-shrink-0 text-ink/25 dark:text-sand-light/20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
         </svg>
     </button>

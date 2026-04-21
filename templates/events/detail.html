@@ -3,8 +3,8 @@
 {% block title %}{{ event.event.title }} | Statup{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-    <a href="/events" class="inline-flex items-center gap-1 text-sm font-semibold text-teal-700 hover:text-teal-600 dark:text-teal-400 dark:hover:text-teal-300 transition-colors duration-200 animate-in">
+<div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+    <a href="/events" class="inline-flex items-center gap-1 text-sm font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors animate-in">
         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
         </svg>
@@ -24,7 +24,7 @@
                     <form id="lifecycle-form" method="post" action="/events/{{ event.event.id }}/lifecycle" class="mt-3 flex items-center gap-1.5">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <select id="lifecycle-select" name="lifecycle"
-                                class="input-raised px-2 py-1 text-[13px] dark:text-white cursor-pointer flex-1 min-w-0">
+                                class="input-raised px-2 py-1 text-[13px] cursor-pointer flex-1 min-w-0">
                             {% for next in allowed_transitions %}
                             <option value="{{ next.as_str() }}">{{ i18n.t(next.i18n_key()) }}</option>
                             {% endfor %}
@@ -40,7 +40,7 @@
                     {% when Some with (label) %}
                     <form method="post" action="/events/{{ event.event.id }}/revert-lifecycle" class="mt-2">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <button type="submit" class="text-[12px] font-medium text-teal-700 dark:text-teal-400 hover:underline transition-colors"
+                        <button type="submit" class="text-[12px] font-medium text-ink/70 dark:text-sand-light/70 underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors"
                                 aria-label="{{ i18n.t("events.revert_to") }} {{ label }}">
                             <svg class="inline h-3 w-3 opacity-40 mr-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
@@ -61,11 +61,11 @@
                       class="hidden space-y-3">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <input type="hidden" id="resolve-lifecycle" name="lifecycle" value="resolved">
-                    <label for="resolution_comment" class="block text-sm font-semibold text-stone-700 dark:text-stone-300">
+                    <label for="resolution_comment" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
                         {{ i18n.t("events.resolution_comment") }} <span class="text-red-500" aria-hidden="true">*</span>
                     </label>
                     <textarea id="resolution_comment" name="resolution_comment" rows="3" required aria-required="true"
-                              class="block w-full min-h-[80px] resize-y input-raised px-3 py-2 text-sm placeholder-stone-400 dark:text-white dark:placeholder-stone-600"
+                              class="block w-full min-h-[80px] resize-y input-raised px-3 py-2 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
                               placeholder="{{ i18n.t("events.resolution_placeholder") }}"
                               aria-label="{{ i18n.t("events.resolution_comment") }}"></textarea>
                     <div class="flex items-center justify-end gap-2">
@@ -94,35 +94,35 @@
 
                 <dl class="space-y-2 text-[13px]">
                     <div class="flex items-center justify-between py-1">
-                        <dt class="text-stone-400 dark:text-stone-500">{{ i18n.t("events.kind") }}</dt>
-                        <dd class="font-medium text-stone-700 dark:text-stone-300">{{ i18n.t(event.event.kind.i18n_key()) }}</dd>
+                        <dt class="text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.kind") }}</dt>
+                        <dd class="font-medium text-ink/85 dark:text-sand-light/85">{{ i18n.t(event.event.kind.i18n_key()) }}</dd>
                     </div>
                     {% if let Some(sev) = event.event.severity %}
                     <div class="flex items-center justify-between py-1">
-                        <dt class="text-stone-400 dark:text-stone-500">{{ i18n.t("events.severity") }}</dt>
-                        <dd class="font-mono text-[12px] uppercase tracking-wider text-stone-500 dark:text-stone-400">{{ i18n.t(sev.i18n_key()) }}</dd>
+                        <dt class="text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.severity") }}</dt>
+                        <dd class="font-mono text-[12px] uppercase tracking-[0.08em] text-ink/70 dark:text-sand-light/70">{{ i18n.t(sev.i18n_key()) }}</dd>
                     </div>
                     {% endif %}
                     {% if let Some(cat) = event.event.category %}
                     <div class="flex items-center justify-between py-1">
-                        <dt class="text-stone-400 dark:text-stone-500">{{ i18n.t("events.category") }}</dt>
-                        <dd class="font-medium text-stone-700 dark:text-stone-300">{{ i18n.t(cat.i18n_key()) }}</dd>
+                        <dt class="text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.category") }}</dt>
+                        <dd class="font-medium text-ink/85 dark:text-sand-light/85">{{ i18n.t(cat.i18n_key()) }}</dd>
                     </div>
                     {% endif %}
                     <div class="flex items-center justify-between py-1">
-                        <dt class="text-stone-400 dark:text-stone-500">{{ i18n.t("events.created_label") }}</dt>
-                        <dd class="font-mono text-[12px] tabular-nums text-stone-600 dark:text-stone-400">{{ i18n.format_datetime(event.event.created_at) }}</dd>
+                        <dt class="text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.created_label") }}</dt>
+                        <dd class="font-mono text-[12px] tabular-nums text-ink/70 dark:text-sand-light/60">{{ i18n.format_datetime(event.event.created_at) }}</dd>
                     </div>
                     <div class="flex items-center justify-between py-1">
-                        <dt class="text-stone-400 dark:text-stone-500">{{ i18n.t("events.author_label") }}</dt>
-                        <dd class="font-semibold text-stone-600 dark:text-stone-300">{{ author_name }}</dd>
+                        <dt class="text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.author_label") }}</dt>
+                        <dd class="font-medium text-ink/70 dark:text-sand-light/80">{{ author_name }}</dd>
                     </div>
                 </dl>
 
                 {% if !event.services.is_empty() %}
                 <div class="flex flex-wrap gap-2" role="list" aria-label="{{ i18n.t("events.affected_services_sidebar") }}">
                     {% for svc in event.services %}
-                    <span role="listitem" class="rounded-full bg-stone-100 px-2.5 py-0.5 text-[12px] font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-400">{{ svc.name }}</span>
+                    <span role="listitem" class="rounded-full bg-sand-warm px-2.5 py-0.5 text-[12px] font-medium text-ink/70 dark:bg-surface-2 dark:text-sand-light/70">{{ svc.name }}</span>
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -130,14 +130,14 @@
                 {% if can_edit %}
                 <div class="flex items-center gap-3 text-[13px]">
                     <a href="/events/{{ event.event.id }}/edit"
-                       class="font-medium text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300 transition-colors">
+                       class="font-medium text-ink/50 hover:text-ink dark:text-sand-light/45 dark:hover:text-sand-light transition-colors">
                         {{ i18n.t("common.edit") }}
                     </a>
-                    <span class="text-stone-200 dark:text-stone-700">·</span>
+                    <span class="text-ink/20 dark:text-sand-light/15">·</span>
                     <form method="post" action="/events/{{ event.event.id }}/delete" class="inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" onclick="return confirm('{{ i18n.t("events.confirm_delete_text") }}')"
-                                class="font-medium text-red-400/70 hover:text-red-500 dark:text-red-400/50 dark:hover:text-red-400 transition-colors"
+                                class="font-medium text-red-600/70 hover:text-red-700 dark:text-red-400/70 dark:hover:text-red-400 transition-colors"
                                 aria-label="{{ i18n.t("events.confirm_delete") }}">
                             {{ i18n.t("common.delete") }}
                         </button>
@@ -149,11 +149,11 @@
 
         <div class="order-last lg:order-first mt-6 lg:mt-0">
             <div class="animate-in delay-1">
-                <p class="text-[11px] font-semibold uppercase tracking-widest text-stone-400 dark:text-stone-500">
+                <p class="eyebrow">
                     {{ i18n.t(event.event.kind.i18n_key()) }}{% if let Some(sev) = event.event.severity %} · {{ i18n.t(sev.i18n_key()) }}{% endif %}{% if let Some(cat) = event.event.category %} · {{ i18n.t(cat.i18n_key()) }}{% endif %}
                 </p>
-                <h1 class="mt-1.5 text-2xl font-extrabold tracking-tight text-stone-900 dark:text-white leading-tight">{{ event.event.title }}</h1>
-                <p class="mt-2 text-[13px] text-stone-400 dark:text-stone-500">
+                <h1 class="mt-2 text-2xl font-medium tracking-tight text-ink dark:text-sand-light leading-tight">{{ event.event.title }}</h1>
+                <p class="mt-2 text-[13px] text-ink/50 dark:text-sand-light/45">
                     {{ author_name }} · {{ i18n.format_datetime(event.event.created_at) }}
                 </p>
             </div>
@@ -165,17 +165,17 @@
             </div>
 
             <section aria-label="{{ i18n.t("events.updates") }}" class="mt-8 reveal">
-                <h2 class="text-[11px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500">{{ i18n.t("events.updates") }}</h2>
+                <p class="eyebrow">{{ i18n.t("events.updates") }}</p>
 
                 {% if updates.is_empty() %}
-                <p class="mt-4 text-sm text-stone-500 dark:text-stone-500">{{ i18n.t("events.no_updates") }}</p>
+                <p class="mt-4 text-sm text-ink/50 dark:text-sand-light/45">{{ i18n.t("events.no_updates") }}</p>
                 {% else %}
                 <div class="mt-4 space-y-4">
                     {% for update in updates %}
-                    <div class="pl-4 border-l-2 border-stone-200 dark:border-stone-700">
+                    <div class="pl-4 border-l-2 border-ink/15 dark:border-sand-light/15">
                         <div class="flex items-baseline justify-between gap-2">
-                            <span class="text-[13px] font-semibold text-stone-700 dark:text-stone-300">{{ update.author_name }}</span>
-                            <span class="font-mono text-[11px] tabular-nums text-stone-400 dark:text-stone-600">{{ i18n.format_datetime(update.created_at) }}</span>
+                            <span class="text-[13px] font-medium text-ink/85 dark:text-sand-light/85">{{ update.author_name }}</span>
+                            <span class="font-mono text-[11px] tabular-nums text-ink/45 dark:text-sand-light/30">{{ i18n.format_datetime(update.created_at) }}</span>
                         </div>
                         <div class="mt-1 prose prose-sm max-w-none prose-stone dark:prose-invert prose-p:leading-relaxed">
                             {{ update.message|safe }}
@@ -189,7 +189,7 @@
                 <form method="post" action="/events/{{ event.event.id }}/updates" class="mt-6 space-y-3">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <textarea id="message" name="message" rows="2" required aria-required="true"
-                              class="block w-full resize-y input-raised px-3.5 py-2.5 text-sm placeholder-stone-400 dark:text-white dark:placeholder-stone-600"
+                              class="block w-full resize-y input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
                               placeholder="{{ i18n.t("events.describe_progress") }}"
                               aria-label="{{ i18n.t("events.update_message_aria") }}"></textarea>
                     <div class="flex justify-end">

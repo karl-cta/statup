@@ -6,15 +6,15 @@
 {% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-lg px-4 py-8 sm:px-6 lg:px-8">
+<div class="mx-auto max-w-lg px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
     <div class="animate-in">
-        <a href="/services" class="inline-flex items-center gap-1 text-sm font-medium text-teal-700 hover:text-teal-600 dark:text-teal-400 dark:hover:text-teal-300 transition-colors duration-200">
+        <a href="/services" class="inline-flex items-center gap-1 text-sm font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors">
             <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
             {{ i18n.t("services.back_to_services") }}
         </a>
-        <h1 class="mt-4 text-2xl font-extrabold tracking-tight text-stone-900 dark:text-white">
+        <h1 class="mt-4 text-2xl font-medium tracking-tight text-ink dark:text-sand-light">
             {% match service %}
             {% when Some with (_s) %}{{ i18n.t("services.edit") }}{% when None %}{{ i18n.t("services.new") }}{% endmatch %}
         </h1>
@@ -22,68 +22,46 @@
 
     {% match error %}
     {% when Some with (msg) %}
-    <div id="form-error" class="mt-6 rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30" role="alert">
+    <div id="form-error" class="mt-6 rounded-sm border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30" role="alert">
         <p class="text-sm text-red-700 dark:text-red-400">{{ msg }}</p>
     </div>
     {% when None %}
     {% endmatch %}
 
-    <form
-        method="post"
-        action="{% match service %}{% when Some with (s) %}/services/{{ s.id }}/edit{% when None %}/services/new{% endmatch %}"
-        class="mt-8 space-y-5 animate-in delay-1"
-        {% match error %}{% when Some with (_msg) %}aria-describedby="form-error"{% when None %}{% endmatch %}
-    >
+    <form method="post"
+          action="{% match service %}{% when Some with (s) %}/services/{{ s.id }}/edit{% when None %}/services/new{% endmatch %}"
+          class="mt-8 space-y-5 animate-in delay-1"
+          {% match error %}{% when Some with (_msg) %}aria-describedby="form-error"{% when None %}{% endmatch %}>
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div>
-            <label for="name" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+            <label for="name" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
                 {{ i18n.t("services.name_label") }}
             </label>
-            <input
-                id="name"
-                name="name"
-                type="text"
-                required
-                aria-required="true"
-                maxlength="100"
-                value="{% match service %}{% when Some with (s) %}{{ s.name }}{% when None %}{% endmatch %}"
-                class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
-                       placeholder-stone-400
-                       dark:text-white dark:placeholder-stone-600"
-                placeholder="ex: API, Base de données, CDN..."
-                aria-label="{{ i18n.t("services.name") }}"
-            >
+            <input id="name" name="name" type="text" required aria-required="true" maxlength="100"
+                   value="{% match service %}{% when Some with (s) %}{{ s.name }}{% when None %}{% endmatch %}"
+                   class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
+                   placeholder="ex: API, Base de données, CDN..."
+                   aria-label="{{ i18n.t("services.name") }}">
         </div>
 
         <div>
-            <label for="description" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
-                {{ i18n.t("services.description") }} <span class="text-stone-400 dark:text-stone-600">(optionnel)</span>
+            <label for="description" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
+                {{ i18n.t("services.description") }} <span class="text-ink/45 dark:text-sand-light/30">(optionnel)</span>
             </label>
-            <textarea
-                id="description"
-                name="description"
-                rows="3"
-                class="mt-1.5 block w-full min-h-[80px] resize-y input-raised px-3.5 py-2.5 text-sm
-                       placeholder-stone-400
-                       dark:text-white dark:placeholder-stone-600"
-                placeholder="Brève description du service..."
-                aria-label="{{ i18n.t("services.description") }}"
-            >{% match service %}{% when Some with (s) %}{{ s.description }}{% when None %}{% endmatch %}</textarea>
+            <textarea id="description" name="description" rows="3"
+                      class="mt-1.5 block w-full min-h-[80px] resize-y input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
+                      placeholder="Brève description du service..."
+                      aria-label="{{ i18n.t("services.description") }}">{% match service %}{% when Some with (s) %}{{ s.description }}{% when None %}{% endmatch %}</textarea>
         </div>
 
         {% include "components/icon_picker.html" %}
 
         <div class="flex items-center justify-end gap-3 pt-2">
-            <a
-                href="/services"
-                class="text-sm font-medium text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-300 transition-colors duration-200"
-            >
+            <a href="/services"
+               class="text-sm font-medium text-ink/55 hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light transition-colors">
                 {{ i18n.t("common.back") }}
             </a>
-            <button
-                type="submit"
-                class="btn-3d text-sm"
-            >
+            <button type="submit" class="btn-3d text-sm">
                 <span>{% match service %}
                 {% when Some with (_s) %}{{ i18n.t("common.save") }}{% when None %}{{ i18n.t("services.submit_create") }}{% endmatch %}</span>
             </button>

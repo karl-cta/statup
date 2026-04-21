@@ -3,50 +3,32 @@
 {% block title %}{{ i18n.t("events.search_title") }}{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-    <h1 class="text-2xl font-extrabold tracking-tight text-stone-900 dark:text-white animate-in">{{ i18n.t("events.search_heading") }}</h1>
+<div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+    <h1 class="text-2xl font-medium tracking-tight text-ink dark:text-sand-light animate-in">{{ i18n.t("events.search_heading") }}</h1>
 
     <form method="get" action="/search" class="mt-6 space-y-4 animate-in delay-1">
         <div class="flex flex-col gap-3 sm:flex-row">
             <div class="flex-1 relative">
                 <label for="q" class="sr-only">{{ i18n.t("events.search_button") }}</label>
-                <svg class="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400 dark:text-stone-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                <svg class="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/45 dark:text-sand-light/40" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                 </svg>
-                <input
-                    id="q"
-                    name="q"
-                    type="search"
-                    value="{{ query }}"
-                    placeholder="{{ i18n.t("events.search_placeholder") }}"
-                    class="block w-full input-raised pl-10 pr-4 py-2.5 text-sm
-                           placeholder-stone-400
-                           dark:text-white dark:placeholder-stone-600"
-                    aria-label="{{ i18n.t("events.search_term_aria") }}"
-                >
+                <input id="q" name="q" type="search" value="{{ query }}"
+                       placeholder="{{ i18n.t("events.search_placeholder") }}"
+                       class="block w-full input-raised pl-10 pr-4 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
+                       aria-label="{{ i18n.t("events.search_term_aria") }}">
             </div>
-            <button
-                type="submit"
-                class="btn-3d text-sm"
-            >
-                <span>{{ i18n.t("events.search_button") }}</span>
-            </button>
+            <button type="submit" class="btn-3d text-sm"><span>{{ i18n.t("events.search_button") }}</span></button>
         </div>
 
         <details class="mt-1"{% if filter_kind.is_some() || filter_service.is_some() %} open{% endif %}>
-            <summary class="cursor-pointer text-[13px] font-medium text-teal-700 hover:text-teal-600 dark:text-teal-400 dark:hover:text-teal-300 transition-colors duration-200">
+            <summary class="cursor-pointer text-[13px] font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors">
                 {{ i18n.t("common.filter") }}
             </summary>
             <div class="mt-3 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
                 <div>
-                    <label for="kind" class="block text-[12px] font-medium text-stone-400 dark:text-stone-500">{{ i18n.t("events.kind") }}</label>
-                    <select
-                        id="kind"
-                        name="kind"
-                        class="mt-1 w-full input-raised px-3 py-2 text-sm
-                               sm:w-auto sm:py-1.5
-                               dark:text-white cursor-pointer"
-                    >
+                    <label for="kind" class="block text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.kind") }}</label>
+                    <select id="kind" name="kind" class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:w-auto sm:py-1.5 cursor-pointer">
                         <option value="">{{ i18n.t("common.all") }}</option>
                         <option value="incident" {% if filter_kind.as_deref() == Some("incident") %}selected{% endif %}>{{ i18n.t("kind.incident") }}</option>
                         <option value="maintenance" {% if filter_kind.as_deref() == Some("maintenance") %}selected{% endif %}>{{ i18n.t("kind.maintenance") }}</option>
@@ -54,14 +36,8 @@
                     </select>
                 </div>
                 <div>
-                    <label for="service_id" class="block text-[12px] font-medium text-stone-400 dark:text-stone-500">{{ i18n.t("events.service") }}</label>
-                    <select
-                        id="service_id"
-                        name="service_id"
-                        class="mt-1 w-full input-raised px-3 py-2 text-sm
-                               sm:w-auto sm:py-1.5
-                               dark:text-white cursor-pointer"
-                    >
+                    <label for="service_id" class="block text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.service") }}</label>
+                    <select id="service_id" name="service_id" class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:w-auto sm:py-1.5 cursor-pointer">
                         <option value="">{{ i18n.t("common.all") }}</option>
                         {% for svc in services %}
                         <option value="{{ svc.id }}" {% if filter_service.as_deref() == Some(svc.id.to_string().as_str()) %}selected{% endif %}>{{ svc.name }}</option>
@@ -75,14 +51,14 @@
     <section aria-live="polite">
     {% if query.is_empty() %}
     <div class="mt-12 text-center animate-in delay-2">
-        <svg class="mx-auto h-12 w-12 text-stone-300 dark:text-stone-700" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" aria-hidden="true">
+        <svg class="mx-auto h-12 w-12 text-ink/25 dark:text-sand-light/15" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
         </svg>
-        <p class="mt-3 text-sm text-stone-500 dark:text-stone-500">{{ i18n.t("events.search_prompt") }}</p>
+        <p class="mt-3 text-sm text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.search_prompt") }}</p>
     </div>
     {% else if results.is_empty() %}
     <div class="mt-12 text-center animate-in delay-2">
-        <p class="text-sm text-stone-500 dark:text-stone-500">{{ i18n.t("events.no_results_for") }} « {{ query }} ».</p>
+        <p class="text-sm text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.no_results_for") }} « {{ query }} ».</p>
     </div>
     {% else %}
     <div class="mt-6 animate-in delay-2">
@@ -90,16 +66,16 @@
         <a onclick="openDrawer('/events/{{ r.event.id }}/panel'); return false;"
            href="/events/{{ r.event.id }}"
            class="group flex items-center gap-3 py-2.5 px-2 -mx-2
-                  border-b border-stone-100 dark:border-stone-800 last:border-b-0
+                  border-b border-ink/10 dark:border-sand-light/10 last:border-b-0
                   transition-colors hover-row cursor-pointer">
             <span class="flex-shrink-0 h-2 w-2 rounded-full {% if let Some(sev) = r.event.severity %}{{ sev.dot_class() }}{% else %}{{ r.event.kind.dot_class() }}{% endif %}"
                   aria-hidden="true"></span>
-            <span class="flex-shrink-0 font-mono text-[11px] tabular-nums text-stone-400 dark:text-stone-500">
+            <span class="flex-shrink-0 font-mono text-[11px] tabular-nums text-ink/45 dark:text-sand-light/40">
                 {{ i18n.format_time(r.event.created_at) }}
             </span>
             <span class="truncate min-w-0 flex-1 text-sm
-                {% if let Some(lc) = r.event.lifecycle %}{% if lc.is_active() %}font-semibold text-stone-900 dark:text-white{% else %}text-stone-600 dark:text-stone-400{% endif %}{% else %}text-stone-600 dark:text-stone-400{% endif %}">{{ r.highlighted_title|safe }}</span>
-            <span class="flex-shrink-0 text-[11px] text-stone-400 dark:text-stone-500 whitespace-nowrap">
+                {% if let Some(lc) = r.event.lifecycle %}{% if lc.is_active() %}font-medium text-ink dark:text-sand-light{% else %}text-ink/70 dark:text-sand-light/60{% endif %}{% else %}text-ink/70 dark:text-sand-light/60{% endif %}">{{ r.highlighted_title|safe }}</span>
+            <span class="flex-shrink-0 text-[11px] text-ink/45 dark:text-sand-light/40 whitespace-nowrap">
                 {{ i18n.t(r.event.kind.i18n_key()) }}
             </span>
         </a>

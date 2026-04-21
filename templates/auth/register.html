@@ -3,20 +3,19 @@
 {% block title %}{{ i18n.t("auth.register_title") }}{% endblock %}
 
 {% block body %}
-<div class="flex min-h-full items-center justify-center px-4 py-12 sm:px-6 lg:px-8 ">
+<div class="flex min-h-full items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
     <div class="w-full max-w-sm animate-in">
-        <div class="rounded-lg border border-stone-200 bg-white px-8 py-10
-                    dark:border-stone-700 dark:bg-stone-800">
+        <div class="rounded-sm border border-ink/10 bg-cream px-8 py-10 dark:border-sand-light/10 dark:bg-surface-1">
             <div class="text-center">
-                {% let logo_size = "mx-auto mb-6 h-14 w-14 transition-transform duration-300 hover:scale-110" %}
+                {% let logo_size = "mx-auto mb-6 h-14 w-14 text-ink dark:text-sand-light" %}
                 {% include "components/logo.html" %}
-                <h1 class="text-2xl font-extrabold tracking-tight text-stone-900 dark:text-white">{{ i18n.t("auth.register_heading") }}</h1>
-                <p class="mt-1.5 text-sm text-stone-500 dark:text-stone-500">{{ i18n.t("auth.register_subtitle") }}</p>
+                <h1 class="text-2xl font-medium tracking-tight text-ink dark:text-sand-light">{{ i18n.t("auth.register_heading") }}</h1>
+                <p class="mt-1.5 text-sm text-ink/55 dark:text-sand-light/45">{{ i18n.t("auth.register_subtitle") }}</p>
             </div>
 
             {% match error %}
             {% when Some with (msg) %}
-            <div id="form-error" class="mt-6 rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30" role="alert">
+            <div id="form-error" class="mt-6 rounded-sm border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30" role="alert">
                 <p class="text-sm text-red-700 dark:text-red-400">{{ msg }}</p>
             </div>
             {% when None %}
@@ -25,83 +24,47 @@
             <form method="post" action="/register" class="mt-8 space-y-5"{% match error %}{% when Some with (_msg) %} aria-describedby="form-error"{% when None %}{% endmatch %}>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div>
-                    <label for="display_name" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                    <label for="display_name" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
                         {{ i18n.t("auth.display_name") }}
                     </label>
-                    <input
-                        id="display_name"
-                        name="display_name"
-                        type="text"
-                        required
-                        aria-required="true"
-                        autocomplete="name"
-                        value="{{ display_name }}"
-                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
-                               placeholder-stone-400
-                               dark:text-white dark:placeholder-stone-600"
-                        placeholder="{{ i18n.t("auth.display_name") }}"
-                        aria-label="{{ i18n.t("auth.display_name") }}"
-                    >
+                    <input id="display_name" name="display_name" type="text" required aria-required="true" autocomplete="name"
+                           value="{{ display_name }}"
+                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
+                           placeholder="{{ i18n.t("auth.display_name") }}"
+                           aria-label="{{ i18n.t("auth.display_name") }}">
                 </div>
 
                 <div>
-                    <label for="email" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                    <label for="email" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
                         {{ i18n.t("auth.email") }}
                     </label>
-                    <input
-                        id="email"
-                        name="email"
-                        type="email"
-                        required
-                        aria-required="true"
-                        autocomplete="email"
-                        value="{{ email }}"
-                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
-                               placeholder-stone-400
-                               dark:text-white dark:placeholder-stone-600"
-                        placeholder="you@example.com"
-                        aria-label="{{ i18n.t("auth.email") }}"
-                    >
+                    <input id="email" name="email" type="email" required aria-required="true" autocomplete="email"
+                           value="{{ email }}"
+                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
+                           placeholder="you@example.com"
+                           aria-label="{{ i18n.t("auth.email") }}">
                 </div>
 
                 <div>
-                    <label for="password" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                    <label for="password" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
                         {{ i18n.t("auth.password") }}
                     </label>
-                    <input
-                        id="password"
-                        name="password"
-                        type="password"
-                        required
-                        aria-required="true"
-                        autocomplete="new-password"
-                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
-                               placeholder-stone-400
-                               dark:text-white dark:placeholder-stone-600"
-                        placeholder="{{ i18n.t("validation.password_min_length") }}"
-                        aria-label="{{ i18n.t("auth.password") }}"
-                        aria-describedby="password-hint"
-                    >
-                    <p id="password-hint" class="mt-1.5 text-[12px] text-stone-400 dark:text-stone-600">{{ i18n.t("validation.password_min_length") }}</p>
+                    <input id="password" name="password" type="password" required aria-required="true" autocomplete="new-password"
+                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
+                           placeholder="{{ i18n.t("validation.password_min_length") }}"
+                           aria-label="{{ i18n.t("auth.password") }}"
+                           aria-describedby="password-hint">
+                    <p id="password-hint" class="mt-1.5 text-[12px] text-ink/45 dark:text-sand-light/35">{{ i18n.t("validation.password_min_length") }}</p>
                 </div>
 
                 <div>
-                    <label for="password_confirm" class="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                    <label for="password_confirm" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
                         {{ i18n.t("auth.password_confirm") }}
                     </label>
-                    <input
-                        id="password_confirm"
-                        name="password_confirm"
-                        type="password"
-                        required
-                        aria-required="true"
-                        autocomplete="new-password"
-                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm
-                               placeholder-stone-400
-                               dark:text-white dark:placeholder-stone-600"
-                        placeholder="{{ i18n.t("auth.password_confirm") }}"
-                        aria-label="{{ i18n.t("auth.password_confirm") }}"
-                    >
+                    <input id="password_confirm" name="password_confirm" type="password" required aria-required="true" autocomplete="new-password"
+                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
+                           placeholder="{{ i18n.t("auth.password_confirm") }}"
+                           aria-label="{{ i18n.t("auth.password_confirm") }}">
                 </div>
 
                 <button type="submit" class="btn-3d w-full text-sm">
@@ -109,9 +72,9 @@
                 </button>
             </form>
 
-            <p class="mt-6 text-center text-sm text-stone-500 dark:text-stone-500">
+            <p class="mt-6 text-center text-sm text-ink/55 dark:text-sand-light/45">
                 {{ i18n.t("auth.no_account") }}
-                <a href="/login" class="font-medium text-teal-700 hover:text-teal-600 dark:text-teal-400 dark:hover:text-teal-300 transition-colors duration-200">
+                <a href="/login" class="font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors">
                     {{ i18n.t("auth.submit_login") }}
                 </a>
             </p>

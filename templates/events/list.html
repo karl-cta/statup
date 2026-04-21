@@ -3,10 +3,10 @@
 {% block title %}{{ i18n.t("events.title") }}{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+<div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
     <div class="flex items-center justify-between animate-in">
-        <h1 class="text-2xl font-extrabold tracking-tight text-stone-900 dark:text-white">{{ i18n.t("events.heading") }}</h1>
-        <a href="/events/new" class="btn-3d text-sm" aria-label="{{ i18n.t("events.create_event_aria") }}">
+        <h1 class="text-2xl font-medium tracking-tight text-ink dark:text-sand-light">{{ i18n.t("events.heading") }}</h1>
+        <a href="/events/new" class="btn-3d text-[13px]" aria-label="{{ i18n.t("events.create_event_aria") }}">
             <span class="inline-flex items-center gap-1.5">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -21,14 +21,8 @@
           hx-trigger="change from:find select, change from:find input[type='date']" hx-push-url="true" hx-swap="outerHTML"
           class="mt-6 animate-in delay-1 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
         <div>
-            <label for="kind" class="block text-[12px] font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500">{{ i18n.t("events.kind") }}</label>
-            <select
-                id="kind"
-                name="kind"
-                class="mt-1 w-full input-raised px-3 py-2 text-sm
-                       sm:w-auto sm:py-1.5
-                       dark:text-white cursor-pointer"
-            >
+            <label for="kind" class="block text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.kind") }}</label>
+            <select id="kind" name="kind" class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:w-auto sm:py-1.5 cursor-pointer">
                 <option value="">{{ i18n.t("common.all") }}</option>
                 <option value="incident" {% if filter_kind.as_deref() == Some("incident") %}selected{% endif %}>{{ i18n.t("kind.incident") }}</option>
                 <option value="maintenance" {% if filter_kind.as_deref() == Some("maintenance") %}selected{% endif %}>{{ i18n.t("kind.maintenance") }}</option>
@@ -36,14 +30,8 @@
             </select>
         </div>
         <div>
-            <label for="service_id" class="block text-[12px] font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500">{{ i18n.t("events.service") }}</label>
-            <select
-                id="service_id"
-                name="service_id"
-                class="mt-1 w-full input-raised px-3 py-2 text-sm
-                       sm:w-auto sm:py-1.5
-                       dark:text-white cursor-pointer"
-            >
+            <label for="service_id" class="block text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.service") }}</label>
+            <select id="service_id" name="service_id" class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:w-auto sm:py-1.5 cursor-pointer">
                 <option value="">{{ i18n.t("common.all") }}</option>
                 {% for svc in services %}
                 <option value="{{ svc.id }}" {% if filter_service.as_deref() == Some(svc.id.to_string().as_str()) %}selected{% endif %}>{{ svc.name }}</option>
@@ -51,28 +39,14 @@
             </select>
         </div>
         <div>
-            <label for="from" class="block text-[12px] font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500">{{ i18n.t("events.from") }}</label>
-            <input
-                id="from"
-                name="from"
-                type="date"
-                value="{{ filter_from.as_deref().unwrap_or_default() }}"
-                class="mt-1 w-full input-raised px-3 py-2 text-sm
-                       sm:w-auto sm:py-1.5
-                       dark:text-white cursor-pointer"
-            >
+            <label for="from" class="block text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.from") }}</label>
+            <input id="from" name="from" type="date" value="{{ filter_from.as_deref().unwrap_or_default() }}"
+                   class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:w-auto sm:py-1.5 cursor-pointer">
         </div>
         <div>
-            <label for="to" class="block text-[12px] font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500">{{ i18n.t("events.to") }}</label>
-            <input
-                id="to"
-                name="to"
-                type="date"
-                value="{{ filter_to.as_deref().unwrap_or_default() }}"
-                class="mt-1 w-full input-raised px-3 py-2 text-sm
-                       sm:w-auto sm:py-1.5
-                       dark:text-white cursor-pointer"
-            >
+            <label for="to" class="block text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.to") }}</label>
+            <input id="to" name="to" type="date" value="{{ filter_to.as_deref().unwrap_or_default() }}"
+                   class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:w-auto sm:py-1.5 cursor-pointer">
         </div>
         <noscript>
             <div class="col-span-2 sm:col-span-1">
@@ -86,7 +60,7 @@
     <div id="events-results">
     {% if events.is_empty() %}
     <div class="mt-12 text-center animate-in delay-2">
-        <p class="text-sm font-medium text-stone-500 dark:text-stone-500">{{ i18n.t("events.no_events") }}</p>
+        <p class="text-sm text-ink/50 dark:text-sand-light/45">{{ i18n.t("events.no_events") }}</p>
     </div>
     {% else %}
     <div class="mt-6 animate-in delay-2">

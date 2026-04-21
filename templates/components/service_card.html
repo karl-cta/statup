@@ -6,10 +6,10 @@
         {% let icon_size = "h-6 w-6" %}
         {% include "components/service_icon.html" %}
         <div class="min-w-0 flex-1">
-            <p class="text-sm font-bold text-stone-900 dark:text-white truncate">{{ service.name }}</p>
+            <p class="text-sm font-medium text-ink dark:text-sand-light truncate">{{ service.name }}</p>
             {% match service.description %}
             {% when Some with (desc) %}
-            <p class="mt-0.5 text-[12px] leading-relaxed text-stone-500 dark:text-stone-500 truncate">{{ desc }}</p>
+            <p class="mt-0.5 text-[12px] leading-relaxed text-ink/55 dark:text-sand-light/45 truncate">{{ desc }}</p>
             {% when None %}
             {% endmatch %}
         </div>

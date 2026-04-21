@@ -3,28 +3,28 @@
 {% block title %}{{ i18n.t("modules.layout_title") }} | Statup{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
     <div class="mb-6 flex items-baseline justify-between gap-4 animate-in">
         <div>
-            <h1 class="text-2xl font-extrabold tracking-tight text-stone-900 dark:text-white">{{ i18n.t("modules.layout_title") }}</h1>
-            <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
+            <h1 class="text-2xl font-medium tracking-tight text-ink dark:text-sand-light">{{ i18n.t("modules.layout_title") }}</h1>
+            <p class="mt-1 text-sm text-ink/55 dark:text-sand-light/50">
                 {{ i18n.t(context_label_key) }} &middot; {{ i18n.t("modules.layout_drag_hint") }}
             </p>
         </div>
         <div class="flex gap-2">
             <a href="/admin/dashboard/public/layout"
-               class="nav-pill {% if context == "public" %}bg-stone-100 dark:bg-stone-800{% endif %}">
+               class="nav-pill {% if context == "public" %}active{% endif %}">
                 {{ i18n.t("modules.layout_context_public") }}
             </a>
             <a href="/admin/dashboard/admin/layout"
-               class="nav-pill {% if context == "admin" %}bg-stone-100 dark:bg-stone-800{% endif %}">
+               class="nav-pill {% if context == "admin" %}active{% endif %}">
                 {{ i18n.t("modules.layout_context_admin") }}
             </a>
         </div>
     </div>
 
     {% if saved_flash %}
-    <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
+    <div class="mb-4 rounded-sm border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
         {{ i18n.t("modules.layout_saved") }}
     </div>
     {% endif %}
@@ -37,36 +37,34 @@
     </form>
 
     {% if rows.is_empty() %}
-    <p class="py-10 text-center text-sm text-stone-500 dark:text-stone-400">{{ i18n.t("dashboard.no_modules") }}</p>
+    <p class="py-10 text-center text-sm text-ink/55 dark:text-sand-light/45">{{ i18n.t("dashboard.no_modules") }}</p>
     {% else %}
     <ul data-modules-list class="space-y-2">
         {% for row in rows %}
         <li data-module-row
             data-module-id="{{ row.module_id }}"
             draggable="true"
-            class="flex items-center gap-4 rounded-lg border border-stone-200 bg-white px-4 py-3 shadow-sm transition-colors cursor-move
-                   dark:border-stone-700 dark:bg-stone-900
+            class="flex items-center gap-4 rounded-sm border border-ink/10 bg-cream px-4 py-3 transition-colors cursor-move
+                   dark:border-sand-light/10 dark:bg-surface-1
                    {% if !row.enabled %}opacity-50{% endif %}">
-            <span class="flex-shrink-0 text-stone-400 dark:text-stone-500" aria-hidden="true">
+            <span class="flex-shrink-0 text-ink/35 dark:text-sand-light/30" aria-hidden="true">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
                 </svg>
             </span>
             <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-bold text-stone-900 dark:text-white">{{ row.name }}</p>
-                <p class="mt-0.5 text-[12px] text-stone-500 dark:text-stone-400">{{ row.description }}</p>
+                <p class="truncate text-sm font-medium text-ink dark:text-sand-light">{{ row.name }}</p>
+                <p class="mt-0.5 text-[12px] text-ink/55 dark:text-sand-light/45">{{ row.description }}</p>
             </div>
             <a href="/admin/modules/{{ row.module_id }}/config"
-               class="text-[12px] font-semibold text-teal-700 hover:text-teal-600 dark:text-teal-400">
+               class="text-[12px] font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors">
                 {{ i18n.t("modules.configure") }}
             </a>
             <form method="post"
                   action="/admin/dashboard/{{ context }}/layout/{{ row.module_id }}/toggle">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="enabled" value="{% if row.enabled %}false{% else %}true{% endif %}">
-                <button type="submit"
-                        class="rounded-md border border-stone-200 px-2.5 py-1 text-[12px] font-semibold text-stone-700 transition-colors hover:bg-stone-50
-                               dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800">
+                <button type="submit" class="btn-3d-ghost text-[12px] !px-2.5 !py-1">
                     {% if row.enabled %}{{ i18n.t("modules.toggle_disable") }}{% else %}{{ i18n.t("modules.toggle_enable") }}{% endif %}
                 </button>
             </form>

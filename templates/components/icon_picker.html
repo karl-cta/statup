@@ -1,10 +1,10 @@
 {# Icon picker component, expects `selected_icon_name` (Option<String>), `selected_icon_id` (Option<i64>),
    `selected_icon_url` (Option<String>), `builtin_icons` (&[BuiltinIcon]), `csrf_token` (String) in scope #}
 <div class="icon-picker-wrapper">
-    <label class="block text-sm font-medium text-stone-700 dark:text-stone-300">
-        {{ i18n.t("services.icon") }} <span class="text-stone-400 dark:text-stone-600">(optionnel)</span>
+    <label class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
+        {{ i18n.t("services.icon") }} <span class="text-ink/45 dark:text-sand-light/30">(optionnel)</span>
     </label>
-    <p class="mt-0.5 text-[12px] text-stone-400 dark:text-stone-500">{{ i18n.t("services.icon_help") }}</p>
+    <p class="mt-0.5 text-[12px] text-ink/45 dark:text-sand-light/40">{{ i18n.t("services.icon_help") }}</p>
 
     <input type="hidden" name="icon_name" id="icon-name-input"
            value="{% match selected_icon_name %}{% when Some with (name) %}{{ name }}{% when None %}{% endmatch %}">
@@ -12,43 +12,37 @@
            value="{% match selected_icon_id %}{% when Some with (id) %}{{ id }}{% when None %}{% endmatch %}">
 
     <div class="mt-2 flex items-center gap-3">
-        <div id="icon-preview" class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border border-dashed border-stone-300 bg-stone-50 dark:border-stone-700 dark:bg-stone-800/60">
+        <div id="icon-preview" class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-sm border border-dashed border-ink/20 bg-cream dark:border-sand-light/20 dark:bg-surface-1">
             {% match selected_icon_url %}
             {% when Some with (url) %}
-            <img src="{{ url }}" alt="Icône" class="h-8 w-8 rounded object-contain">
+            <img src="{{ url }}" alt="Icône" class="h-8 w-8 rounded-sm object-contain">
             {% when None %}
-            <svg class="h-5 w-5 text-stone-300 dark:text-stone-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+            <svg class="h-5 w-5 text-ink/25 dark:text-sand-light/20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
             </svg>
             {% endmatch %}
         </div>
         {% if selected_icon_name.is_some() || selected_icon_id.is_some() %}
-        <button
-            type="button"
-            id="icon-remove-btn"
-            onclick="clearIcon()"
-            class="text-[13px] text-red-500 hover:text-red-400 transition-colors duration-200 cursor-pointer"
-        >
+        <button type="button" id="icon-remove-btn" onclick="clearIcon()"
+                class="text-[13px] font-medium text-red-600/70 hover:text-red-700 dark:text-red-400/70 dark:hover:text-red-400 transition-colors cursor-pointer">
             {{ i18n.t("common.delete") }}
         </button>
         {% endif %}
     </div>
 
     <div class="mt-3">
-        <p class="text-[12px] font-medium text-stone-500 dark:text-stone-400 mb-2">{{ i18n.t("icons.builtin") }}</p>
+        <p class="text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45 mb-2">{{ i18n.t("icons.builtin") }}</p>
         <div class="grid grid-cols-6 gap-1.5 sm:grid-cols-8">
             {% for icon in builtin_icons %}
-            <button
-                type="button"
-                data-icon-name="{{ icon.name }}"
-                data-icon-paths="{{ icon.paths }}"
-                onclick="selectBuiltinIcon(this)"
-                class="icon-btn group flex h-11 w-11 items-center justify-center rounded-lg border transition-colors duration-150 cursor-pointer
-                       {% match selected_icon_name %}{% when Some with (sel) %}{% if sel == icon.name %}border-teal-500 bg-teal-50 dark:border-teal-400 dark:bg-teal-500/10{% else %}border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800/60 dark:hover:border-stone-600 dark:hover:bg-stone-800{% endif %}{% when None %}border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800/60 dark:hover:border-stone-600 dark:hover:bg-stone-800{% endmatch %}"
-                title="{{ i18n.t(icon.i18n_key()) }}"
-                aria-label="{{ i18n.t(icon.i18n_key()) }}"
-            >
-                <svg class="h-5 w-5 text-stone-500 dark:text-stone-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+            <button type="button"
+                    data-icon-name="{{ icon.name }}"
+                    data-icon-paths="{{ icon.paths }}"
+                    onclick="selectBuiltinIcon(this)"
+                    class="icon-btn group flex h-11 w-11 items-center justify-center rounded-sm border transition-colors cursor-pointer
+                           {% match selected_icon_name %}{% when Some with (sel) %}{% if sel == icon.name %}border-ink bg-sand-warm dark:border-sand-light dark:bg-surface-2{% else %}border-ink/10 bg-cream hover:border-ink/25 hover:bg-sand-warm dark:border-sand-light/10 dark:bg-surface-1 dark:hover:border-sand-light/20 dark:hover:bg-surface-2{% endif %}{% when None %}border-ink/10 bg-cream hover:border-ink/25 hover:bg-sand-warm dark:border-sand-light/10 dark:bg-surface-1 dark:hover:border-sand-light/20 dark:hover:bg-surface-2{% endmatch %}"
+                    title="{{ i18n.t(icon.i18n_key()) }}"
+                    aria-label="{{ i18n.t(icon.i18n_key()) }}">
+                <svg class="h-5 w-5 text-ink/70 dark:text-sand-light/60" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                     {% for path in icon.paths.split("|||") %}
                     <path stroke-linecap="round" stroke-linejoin="round" d="{{ path }}" />
                     {% endfor %}
@@ -59,17 +53,15 @@
     </div>
 
     <details class="mt-3">
-        <summary class="text-[12px] font-medium text-stone-400 dark:text-stone-500 cursor-pointer hover:text-stone-600 dark:hover:text-stone-400 transition-colors">
+        <summary class="text-[12px] font-medium text-ink/55 dark:text-sand-light/45 cursor-pointer hover:text-ink dark:hover:text-sand-light transition-colors">
             {{ i18n.t("icons.custom") }}...
         </summary>
         <div class="mt-2">
-            <button
-                type="button"
-                hx-get="/icons/picker"
-                hx-target="#icon-gallery-modal"
-                hx-swap="innerHTML"
-                class="btn-3d-ghost text-[13px] !px-3 !py-1.5"
-            >
+            <button type="button"
+                    hx-get="/icons/picker"
+                    hx-target="#icon-gallery-modal"
+                    hx-swap="innerHTML"
+                    class="btn-3d-ghost text-[13px] !px-3 !py-1.5">
                 {{ i18n.t("icons.heading") }}
             </button>
         </div>
@@ -87,13 +79,13 @@ function selectBuiltinIcon(btn) {
         return '<path stroke-linecap="round" stroke-linejoin="round" d="' + d + '" />';
     }).join('');
     document.getElementById('icon-preview').innerHTML =
-        '<svg class="h-6 w-6 text-stone-500 dark:text-stone-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">' + svgPaths + '</svg>';
+        '<svg class="h-6 w-6 text-ink/70 dark:text-sand-light/60" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">' + svgPaths + '</svg>';
     document.querySelectorAll('.icon-btn').forEach(function(b) {
-        b.classList.remove('border-teal-500', 'bg-teal-50', 'dark:border-teal-400', 'dark:bg-teal-500/10');
-        b.classList.add('border-stone-200', 'bg-white', 'dark:border-stone-700', 'dark:bg-stone-800/60');
+        b.classList.remove('border-ink', 'bg-sand-warm', 'dark:border-sand-light', 'dark:bg-surface-2');
+        b.classList.add('border-ink/10', 'bg-cream', 'dark:border-sand-light/10', 'dark:bg-surface-1');
     });
-    btn.classList.remove('border-stone-200', 'bg-white', 'dark:border-stone-700', 'dark:bg-stone-800/60');
-    btn.classList.add('border-teal-500', 'bg-teal-50', 'dark:border-teal-400', 'dark:bg-teal-500/10');
+    btn.classList.remove('border-ink/10', 'bg-cream', 'dark:border-sand-light/10', 'dark:bg-surface-1');
+    btn.classList.add('border-ink', 'bg-sand-warm', 'dark:border-sand-light', 'dark:bg-surface-2');
     var removeBtn = document.getElementById('icon-remove-btn');
     if (!removeBtn) {
         var container = document.getElementById('icon-preview').parentNode;
@@ -101,7 +93,7 @@ function selectBuiltinIcon(btn) {
         rb.type = 'button';
         rb.id = 'icon-remove-btn';
         rb.onclick = clearIcon;
-        rb.className = 'text-[13px] text-red-500 hover:text-red-400 transition-colors duration-200 cursor-pointer';
+        rb.className = 'text-[13px] font-medium text-red-600/70 hover:text-red-700 dark:text-red-400/70 dark:hover:text-red-400 transition-colors cursor-pointer';
         rb.textContent = '{{ i18n.t("common.delete") }}';
         container.appendChild(rb);
     }
@@ -111,10 +103,10 @@ function clearIcon() {
     document.getElementById('icon-name-input').value = '';
     document.getElementById('icon-id-input').value = '';
     document.getElementById('icon-preview').innerHTML =
-        '<svg class="h-5 w-5 text-stone-300 dark:text-stone-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" /></svg>';
+        '<svg class="h-5 w-5 text-ink/25 dark:text-sand-light/20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" /></svg>';
     document.querySelectorAll('.icon-btn').forEach(function(b) {
-        b.classList.remove('border-teal-500', 'bg-teal-50', 'dark:border-teal-400', 'dark:bg-teal-500/10');
-        b.classList.add('border-stone-200', 'bg-white', 'dark:border-stone-700', 'dark:bg-stone-800/60');
+        b.classList.remove('border-ink', 'bg-sand-warm', 'dark:border-sand-light', 'dark:bg-surface-2');
+        b.classList.add('border-ink/10', 'bg-cream', 'dark:border-sand-light/10', 'dark:bg-surface-1');
     });
     var removeBtn = document.getElementById('icon-remove-btn');
     if (removeBtn) removeBtn.remove();

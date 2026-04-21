@@ -3,19 +3,13 @@
 {% block title %}{{ i18n.t("auth.login_title") }}{% endblock %}
 
 {% block body %}
-<div class="flex min-h-full items-center justify-center px-4 py-12 sm:px-6 lg:px-8 ">
+<div class="flex min-h-full items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
     <div class="w-full max-w-sm animate-in">
-        <div class="relative rounded-lg border border-stone-200 bg-white px-8 py-10 shadow-sm
-                    dark:border-stone-700 dark:bg-stone-800">
+        <div class="relative rounded-sm border border-ink/10 bg-cream px-8 py-10 dark:border-sand-light/10 dark:bg-surface-1">
             <div class="absolute right-3 top-3">
-                <button
-                    type="button"
-                    onclick="toggleTheme()"
-                    class="rounded-lg p-1.5 text-stone-400 transition-colors duration-150
-                           hover:bg-stone-100/80 hover:text-stone-600
-                           dark:text-stone-500 dark:hover:bg-stone-800/60 dark:hover:text-stone-300"
-                    aria-label="{{ i18n.t("nav.toggle_theme") }}"
-                >
+                <button type="button" onclick="toggleTheme()"
+                        class="p-1.5 text-ink/45 transition-colors hover:text-ink dark:text-sand-light/45 dark:hover:text-sand-light"
+                        aria-label="{{ i18n.t("nav.toggle_theme") }}">
                     <svg class="h-4 w-4 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
                     </svg>
@@ -26,15 +20,15 @@
             </div>
 
             <div class="text-center">
-                {% let logo_size = "mx-auto mb-6 h-14 w-14 transition-transform duration-300 hover:scale-110" %}
+                {% let logo_size = "mx-auto mb-6 h-14 w-14 text-ink dark:text-sand-light" %}
                 {% include "components/logo.html" %}
-                <h1 class="text-xl font-semibold tracking-tight text-stone-900 dark:text-white">{{ i18n.t("auth.login_heading") }}</h1>
-                <p class="mt-1.5 text-[13px] text-stone-500 dark:text-stone-500">{{ i18n.t("auth.login_subtitle") }}</p>
+                <h1 class="text-xl font-medium tracking-tight text-ink dark:text-sand-light">{{ i18n.t("auth.login_heading") }}</h1>
+                <p class="mt-1.5 text-[13px] text-ink/55 dark:text-sand-light/45">{{ i18n.t("auth.login_subtitle") }}</p>
             </div>
 
             {% match error %}
             {% when Some with (msg) %}
-            <div id="form-error" class="mt-6 rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30" role="alert">
+            <div id="form-error" class="mt-6 rounded-sm border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30" role="alert">
                 <p class="text-[13px] text-red-700 dark:text-red-400">{{ msg }}</p>
             </div>
             {% when None %}
@@ -43,58 +37,29 @@
             <form method="post" action="/login" class="mt-8 space-y-5"{% match error %}{% when Some with (_msg) %} aria-describedby="form-error"{% when None %}{% endmatch %}>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div>
-                    <label for="email" class="block text-[13px] font-medium text-stone-700 dark:text-stone-300">
+                    <label for="email" class="block text-[13px] font-medium text-ink/85 dark:text-sand-light/85">
                         {{ i18n.t("auth.email") }}
                     </label>
-                    <input
-                        id="email"
-                        name="email"
-                        type="email"
-                        required
-                        aria-required="true"
-                        autocomplete="email"
-                        value="{{ email }}"
-                        class="mt-1.5 block w-full rounded-md border border-stone-200 bg-white px-3.5 py-2.5 text-[13px]
-                               placeholder-stone-400 transition-colors duration-150
-                               focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20
-                               dark:border-stone-700 dark:bg-stone-800 dark:text-white dark:placeholder-stone-600
-                               dark:focus:border-teal-400 dark:focus:ring-teal-400/20"
-                        placeholder="you@example.com"
-                        aria-label="{{ i18n.t("auth.email") }}"
-                    >
+                    <input id="email" name="email" type="email" required aria-required="true" autocomplete="email"
+                           value="{{ email }}"
+                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-[13px] placeholder-ink/35 dark:placeholder-sand-light/30"
+                           placeholder="you@example.com"
+                           aria-label="{{ i18n.t("auth.email") }}">
                 </div>
 
                 <div>
-                    <label for="password" class="block text-[13px] font-medium text-stone-700 dark:text-stone-300">
+                    <label for="password" class="block text-[13px] font-medium text-ink/85 dark:text-sand-light/85">
                         {{ i18n.t("auth.password") }}
                     </label>
-                    <input
-                        id="password"
-                        name="password"
-                        type="password"
-                        required
-                        aria-required="true"
-                        autocomplete="current-password"
-                        class="mt-1.5 block w-full rounded-md border border-stone-200 bg-white px-3.5 py-2.5 text-[13px]
-                               placeholder-stone-400 transition-colors duration-150
-                               focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20
-                               dark:border-stone-700 dark:bg-stone-800 dark:text-white dark:placeholder-stone-600
-                               dark:focus:border-teal-400 dark:focus:ring-teal-400/20"
-                        placeholder="{{ i18n.t("auth.password") }}"
-                        aria-label="{{ i18n.t("auth.password") }}"
-                    >
+                    <input id="password" name="password" type="password" required aria-required="true" autocomplete="current-password"
+                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-[13px] placeholder-ink/35 dark:placeholder-sand-light/30"
+                           placeholder="{{ i18n.t("auth.password") }}"
+                           aria-label="{{ i18n.t("auth.password") }}">
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <input
-                        id="remember_me"
-                        name="remember_me"
-                        type="checkbox"
-                        value="on"
-                        class="h-4 w-4 rounded border-stone-300 text-teal-600 focus:ring-teal-600/20
-                               dark:border-stone-600 dark:bg-stone-700 dark:checked:bg-teal-600 cursor-pointer"
-                    >
-                    <label for="remember_me" class="text-[13px] text-stone-600 dark:text-stone-400 cursor-pointer select-none">
+                    <input id="remember_me" name="remember_me" type="checkbox" value="on" class="checkbox-fancy">
+                    <label for="remember_me" class="text-[13px] text-ink/70 dark:text-sand-light/60 cursor-pointer select-none">
                         {{ i18n.t("auth.remember_me") }}
                     </label>
                 </div>
@@ -104,9 +69,9 @@
                 </button>
             </form>
 
-            <p class="mt-6 text-center text-[13px] text-stone-500 dark:text-stone-500">
+            <p class="mt-6 text-center text-[13px] text-ink/55 dark:text-sand-light/45">
                 {{ i18n.t("auth.no_account") }}
-                <a href="/register" class="font-medium text-teal-700 hover:text-teal-600 dark:text-teal-400 dark:hover:text-teal-300 transition-colors duration-200">
+                <a href="/register" class="font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors">
                     {{ i18n.t("auth.create_account") }}
                 </a>
             </p>
