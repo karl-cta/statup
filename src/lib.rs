@@ -33,6 +33,7 @@ pub mod error;
 pub mod i18n;
 pub mod middleware;
 pub mod models;
+pub mod modules;
 pub mod repositories;
 pub mod routes;
 pub mod services;

@@ -34,6 +34,16 @@
                 </button>
             </form>
         </div>
+        <div class="flex items-center justify-between gap-4 py-3 border-b border-stone-200 dark:border-stone-700">
+            <div class="min-w-0">
+                <div class="text-sm font-bold text-stone-900 dark:text-white">{{ i18n.t("modules.layout_title") }}</div>
+                <p class="mt-0.5 text-[12px] text-stone-500 dark:text-stone-400">{{ i18n.t("modules.layout_drag_hint") }}</p>
+            </div>
+            <div class="flex gap-2">
+                <a href="/admin/dashboard/public/layout" class="nav-pill">{{ i18n.t("modules.layout_context_public") }}</a>
+                <a href="/admin/dashboard/admin/layout" class="nav-pill">{{ i18n.t("modules.layout_context_admin") }}</a>
+            </div>
+        </div>
     </div>
 
     <h1 class="text-2xl font-extrabold tracking-tight text-stone-900 dark:text-white animate-in delay-1">{{ i18n.t("admin.users") }}</h1>

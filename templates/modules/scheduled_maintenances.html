@@ -1,0 +1,57 @@
+{# Scheduled maintenances. Expects: active_maintenance, resolved_maintenance, i18n #}
+<aside class="reveal">
+    <h2 class="section-header mb-4">{{ i18n.t("dashboard.maintenance") }}</h2>
+
+    {% if active_maintenance.is_empty() && resolved_maintenance.is_empty() %}
+    <div class="py-6 text-center">
+        <svg class="mx-auto h-5 w-5 text-stone-300 dark:text-stone-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+        </svg>
+        <p class="mt-2 text-[13px] font-medium text-stone-500 dark:text-stone-500">{{ i18n.t("dashboard.no_maintenance_at_all") }}</p>
+    </div>
+    {% else %}
+
+    {% if !active_maintenance.is_empty() %}
+    <div class="mb-4">
+        <h3 class="text-[10px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500 mb-2">{{ i18n.t("dashboard.maintenance_upcoming") }}</h3>
+        <div class="space-y-2">
+            {% for event in active_maintenance %}
+            <a onclick="openDrawer('/events/{{ event.id }}/panel'); return false;"
+               href="/events/{{ event.id }}"
+               class="block card-raised p-3.5 transition-colors cursor-pointer">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="truncate text-sm font-bold text-stone-900 dark:text-white">{{ event.title }}</p>
+                    {% match i18n.format_countdown_opt(event.countdown_parts()) %}
+                    {% when Some with (text) %}
+                    <span class="flex-shrink-0 font-mono text-[11px] font-semibold text-teal-700 dark:text-teal-400">{{ text }}</span>
+                    {% when None %}
+                    {% endmatch %}
+                </div>
+                <p class="mt-1 text-[12px] text-stone-500 dark:text-stone-400">
+                    {% if !event.services().is_empty() %}{{ event.services().join(", ") }} &middot; {% endif %}{% match event.planned_start %}{% when Some with (start) %}{{ i18n.format_datetime(start) }}{% when None %}{% endmatch %}
+                </p>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if !resolved_maintenance.is_empty() %}
+    <div>
+        <h3 class="text-[10px] font-bold uppercase tracking-widest text-stone-400 dark:text-stone-500 mb-2">{{ i18n.t("dashboard.maintenance_past") }}</h3>
+        <div>
+            {% for event in resolved_maintenance %}
+            <a onclick="openDrawer('/events/{{ event.id }}/panel'); return false;"
+               href="/events/{{ event.id }}"
+               class="flex items-baseline justify-between gap-2 py-2 border-b border-stone-100 dark:border-stone-800 last:border-b-0
+                      transition-colors hover-row cursor-pointer">
+                <span class="truncate text-sm text-stone-600 dark:text-stone-400">{{ event.title }}</span>
+                <span class="flex-shrink-0 font-mono text-[11px] tabular-nums text-stone-400 dark:text-stone-500 whitespace-nowrap">{{ i18n.format_datetime(event.updated_at) }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+</aside>

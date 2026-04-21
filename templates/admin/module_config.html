@@ -1,0 +1,46 @@
+{% extends "_layout.html" %}
+
+{% block title %}{{ module_name }} | {{ i18n.t("modules.config_title") }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+    <div class="mb-6 animate-in">
+        <p class="text-[12px] font-semibold uppercase tracking-widest text-stone-400 dark:text-stone-500">
+            {{ i18n.t("modules.config_title") }}
+        </p>
+        <h1 class="mt-1 text-2xl font-extrabold tracking-tight text-stone-900 dark:text-white">{{ module_name }}</h1>
+        <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">{{ module_description }}</p>
+    </div>
+
+    {% if saved_flash %}
+    <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
+        {{ i18n.t("modules.config_saved") }}
+    </div>
+    {% endif %}
+
+    <form method="post" action="/admin/modules/{{ module_id }}/config" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div>
+            <label for="config"
+                   class="block text-[12px] font-semibold text-stone-600 dark:text-stone-400">
+                JSON
+            </label>
+            <textarea id="config"
+                      name="config"
+                      rows="12"
+                      spellcheck="false"
+                      class="mt-1 w-full rounded-md border border-stone-300 bg-white px-3 py-2 font-mono text-[13px] text-stone-900 shadow-sm transition-colors focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500
+                             dark:border-stone-700 dark:bg-stone-900 dark:text-white">{{ raw_config }}</textarea>
+        </div>
+        <div class="flex items-center gap-4">
+            <a href="/admin/dashboard/admin/layout"
+               class="text-sm font-medium text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-300 transition-colors duration-200">
+                {{ i18n.t("common.cancel") }}
+            </a>
+            <button type="submit" class="btn-3d text-sm">
+                <span>{{ i18n.t("common.save") }}</span>
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

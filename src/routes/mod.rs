@@ -13,6 +13,7 @@
 mod admin;
 mod auth;
 mod dashboard;
+mod dashboard_layout;
 mod events;
 mod health;
 mod icons;
@@ -45,6 +46,7 @@ use crate::state::AppState;
 /// - `AuthUser`, redirects to `/login` if not authenticated
 /// - `RequirePublisher`, returns 403 if user lacks publisher/admin role
 /// - `RequireAdmin`, returns 403 if user lacks admin role
+#[allow(clippy::too_many_lines)]
 pub fn create_router(state: AppState) -> Router {
     let upload_dir = state.upload_dir.clone();
     Router::new()
@@ -89,6 +91,22 @@ pub fn create_router(state: AppState) -> Router {
         .route("/admin/users/:id/role", post(admin::update_role))
         .route("/admin/users/:id/disable", post(admin::toggle_active))
         .route("/admin/settings/public-mode", post(admin::toggle_public_mode))
+        .route(
+            "/admin/dashboard/:context/layout",
+            get(dashboard_layout::layout_editor),
+        )
+        .route(
+            "/admin/dashboard/:context/layout/order",
+            post(dashboard_layout::save_order),
+        )
+        .route(
+            "/admin/dashboard/:context/layout/:module_id/toggle",
+            post(dashboard_layout::toggle_module),
+        )
+        .route(
+            "/admin/modules/:module_id/config",
+            get(dashboard_layout::module_config_form).post(dashboard_layout::module_config_save),
+        )
 
         // Profile routes (authenticated)
         .route("/profile", get(profile::edit_form).post(profile::update_profile))

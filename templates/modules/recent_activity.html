@@ -1,0 +1,21 @@
+{# Recent activity module. Expects: events, i18n #}
+<section class="animate-in delay-3">
+    <div class="flex items-baseline justify-between mb-4">
+        <h2 class="section-header">{{ i18n.t("dashboard.activity") }}</h2>
+        <a href="/events"
+           class="text-[13px] font-semibold text-teal-700 hover:text-teal-600 dark:text-teal-400 transition-colors duration-200">
+            {{ i18n.t("dashboard.view_all") }}
+        </a>
+    </div>
+    {% if events.is_empty() %}
+    <div class="py-8 text-center">
+        <p class="text-sm text-stone-500 dark:text-stone-500">{{ i18n.t("dashboard.no_events") }}</p>
+    </div>
+    {% else %}
+    <div>
+        {% for event in events %}
+        {% include "components/event_line.html" %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>

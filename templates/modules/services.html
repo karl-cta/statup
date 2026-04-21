@@ -1,0 +1,52 @@
+{# Services module. Expects: services, sparkline_map, i18n. Exposes sparkline_classes() #}
+<div class="module-services">
+    {# Mobile strip #}
+    <div class="lg:hidden animate-in delay-2">
+        <h2 class="section-header mb-3">{{ i18n.t("dashboard.services") }}</h2>
+        {% if services.is_empty() %}
+        <p class="text-[13px] text-stone-500 dark:text-stone-500">{{ i18n.t("dashboard.no_services") }}</p>
+        {% else %}
+        <div class="flex gap-0 overflow-x-auto pb-2 scrollbar-thin">
+            {% for service in services %}
+            <div class="flex flex-shrink-0 items-center gap-2 px-3 py-2 border-r border-stone-200 dark:border-stone-700 last:border-r-0">
+                <span class="h-1.5 w-1.5 flex-shrink-0 rounded-full {{ service.status.dot_class() }}"></span>
+                <span class="whitespace-nowrap text-[13px] font-semibold text-stone-900 dark:text-white">{{ service.name }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    {# Desktop list #}
+    <div class="hidden lg:block animate-in delay-2">
+        <h2 class="section-header mb-3">{{ i18n.t("dashboard.services") }}</h2>
+        {% if services.is_empty() %}
+        <p class="text-[13px] text-stone-500 dark:text-stone-500">{{ i18n.t("dashboard.no_services") }}</p>
+        {% else %}
+        <nav aria-label="{{ i18n.t("dashboard.services") }}">
+            {% for service in services %}
+            <div class="flex items-start gap-2 py-2 border-b border-stone-100 dark:border-stone-800 last:border-b-0
+                       transition-colors duration-150 hover:bg-stone-50 dark:hover:bg-stone-800/30 rounded -mx-1 px-1">
+                <span class="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full {{ service.status.dot_class() }}" aria-hidden="true"></span>
+                <div class="min-w-0 flex-1">
+                    <p class="truncate text-[13px] font-semibold text-stone-900 dark:text-white">{{ service.name }}</p>
+                    <div class="flex items-stretch gap-[1px] h-[5px] mt-1.5 rounded-sm overflow-hidden"
+                         aria-label="{{ i18n.t("dashboard.availability_30d") }}" title="{{ i18n.t("dashboard.availability_title") }}">
+                        {% for class in self.sparkline_classes(service.id) %}
+                        <div class="flex-1 sparkline-bar {{ class }}"></div>
+                        {% endfor %}
+                    </div>
+                    {% match service.description %}
+                    {% when Some with (desc) %}
+                    {% if !desc.is_empty() %}
+                    <p class="mt-1 text-[11px] text-stone-400 dark:text-stone-500 truncate">{{ desc }}</p>
+                    {% endif %}
+                    {% when None %}
+                    {% endmatch %}
+                </div>
+            </div>
+            {% endfor %}
+        </nav>
+        {% endif %}
+    </div>
+</div>
