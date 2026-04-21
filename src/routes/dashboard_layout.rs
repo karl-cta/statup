@@ -9,7 +9,7 @@ use serde::Deserialize;
 
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
-use crate::middleware::{CsrfToken, RequireAdmin};
+use crate::middleware::{CsrfToken, HtmlForm, RequireAdmin};
 use crate::models::User;
 use crate::modules::{Module, ModuleContext, ModuleRegistry};
 use crate::repositories::{DashboardLayoutRepository, EventRepository};
@@ -139,7 +139,7 @@ pub async fn save_order(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
     Path(context_raw): Path<String>,
-    Form(form): Form<OrderForm>,
+    HtmlForm(form): HtmlForm<OrderForm>,
 ) -> Result<Response, AppError> {
     let context = parse_context(&context_raw)?;
     DashboardLayoutRepository::save_default_order(&state.pool, context, &form.order).await?;

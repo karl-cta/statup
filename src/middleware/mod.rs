@@ -8,4 +8,4 @@ mod validated_form;
 pub use auth::*;
 pub use csrf::CsrfToken;
 pub use request_id::{RequestId, request_id_middleware};
-pub use validated_form::ValidatedForm;
+pub use validated_form::{HtmlForm, ValidatedForm};
