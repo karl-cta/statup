@@ -4,29 +4,28 @@
 <div class="flex min-h-full flex-col">
 
     <a href="#main-content"
-       class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-teal-700 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2">
+       class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-sm focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-sand-light focus:outline-none focus:ring-2 focus:ring-ink dark:focus:bg-sand-light dark:focus:text-ink dark:focus:ring-sand-light">
         {{ i18n.t("nav.skip_to_content") }}
     </a>
 
     <nav aria-label="{{ i18n.t("nav.main_nav") }}"
-         class="sticky top-0 z-40 border-b-2 border-stone-800 bg-white dark:border-stone-300 dark:bg-neutral-900">
+         class="sticky top-0 z-40 border-b border-ink/10 bg-page/90 backdrop-blur dark:border-sand-light/10 dark:bg-ink/90">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div class="flex h-16 items-center justify-between">
-                <div class="flex items-center gap-6">
+                <div class="flex items-center gap-8">
                     <a href="/" class="flex items-center gap-2.5">
-                        {% let logo_size = "h-8 w-8" %}
+                        {% let logo_size = "h-6 w-6" %}
                         {% include "components/logo.html" %}
-                        <span class="text-xl font-extrabold tracking-tight text-stone-900 dark:text-white" style="letter-spacing:-0.03em">
+                        <span class="text-[15px] font-medium tracking-tight text-ink dark:text-sand-light">
                             Statup
                         </span>
                     </a>
-                    <div class="hidden items-center gap-2 sm:flex">
+                    <div class="hidden items-center gap-1 sm:flex">
                         <a href="/" class="nav-pill">{{ i18n.t("nav.dashboard") }}</a>
                         <a href="/events" class="nav-pill relative">
                             {{ i18n.t("nav.events") }}
                             {% if unread_count > 0 %}
-                            <span class="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold tabular-nums text-white ring-2 ring-white dark:ring-stone-900
-                                         bg-red-600"
+                            <span class="absolute -right-1 -top-1 flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-medium tabular-nums text-sand-light bg-red-600"
                                   aria-label="{{ unread_count }}">
                                 {% if unread_count > 99 %}99+{% else %}{{ unread_count }}{% endif %}
                             </span>
@@ -40,25 +39,17 @@
                         {% endif %}
                     </div>
                 </div>
-                <div class="flex items-center gap-1.5">
+                <div class="flex items-center gap-1">
                     <a href="/search"
-                       class="rounded-lg p-2 text-stone-400 transition-colors duration-150
-                              hover:bg-stone-100/80 hover:text-stone-600
-                              dark:text-stone-500 dark:hover:bg-stone-800/60 dark:hover:text-stone-300"
-                       aria-label="{{ i18n.t("nav.search") }}"
-                    >
+                       class="p-2 text-ink/45 transition-colors hover:text-ink dark:text-sand-light/45 dark:hover:text-sand-light"
+                       aria-label="{{ i18n.t("nav.search") }}">
                         <svg class="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                         </svg>
                     </a>
-                    <button
-                        type="button"
-                        onclick="toggleTheme()"
-                        class="rounded-lg p-2 text-stone-400 transition-colors duration-150
-                               hover:bg-stone-100/80 hover:text-stone-600
-                               dark:text-stone-500 dark:hover:bg-stone-800/60 dark:hover:text-stone-300"
-                        aria-label="{{ i18n.t("nav.toggle_theme") }}"
-                    >
+                    <button type="button" onclick="toggleTheme()"
+                            class="p-2 text-ink/45 transition-colors hover:text-ink dark:text-sand-light/45 dark:hover:text-sand-light"
+                            aria-label="{{ i18n.t("nav.toggle_theme") }}">
                         <svg class="h-[18px] w-[18px] hidden dark:block" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
                         </svg>
@@ -67,34 +58,24 @@
                         </svg>
                     </button>
                     {% if is_authenticated %}
-                    <a href="/profile" class="hidden text-sm font-medium text-stone-400 transition-colors duration-200 hover:text-stone-600 sm:inline dark:text-stone-500 dark:hover:text-stone-300">{{ user_display_name }}</a>
+                    <a href="/profile" class="hidden sm:inline-block ml-2 text-[13px] font-medium text-ink/60 transition-colors hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light">{{ user_display_name }}</a>
                     <form method="post" action="/logout" class="hidden sm:block">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <button
-                            type="submit"
-                            class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-stone-400 transition-colors duration-150
-                                   hover:bg-stone-100/80 hover:text-stone-600
-                                   dark:text-stone-500 dark:hover:bg-stone-800/60 dark:hover:text-stone-300"
-                        >
+                        <button type="submit"
+                                class="px-2.5 py-1.5 text-[13px] font-medium text-ink/45 transition-colors hover:text-ink dark:text-sand-light/45 dark:hover:text-sand-light">
                             {{ i18n.t("nav.logout") }}
                         </button>
                     </form>
                     {% else %}
-                    <a href="/login" class="btn-3d hidden sm:inline-flex text-sm px-4 py-2">
+                    <a href="/login" class="btn-3d hidden sm:inline-flex text-[13px] px-4 py-1.5 ml-2">
                         <span>{{ i18n.t("nav.login") }}</span>
                     </a>
                     {% endif %}
-                    <button
-                        type="button"
-                        onclick="var m=document.getElementById('mobile-menu');m.classList.toggle('hidden');this.setAttribute('aria-expanded',!m.classList.contains('hidden'))"
-                        class="inline-flex items-center justify-center rounded-lg p-2 text-stone-500 transition-colors duration-150
-                               hover:bg-stone-100/80 hover:text-stone-700
-                               dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-white
-                               sm:hidden"
-                        aria-expanded="false"
-                        aria-controls="mobile-menu"
-                        aria-label="{{ i18n.t("nav.main_menu") }}"
-                    >
+                    <button type="button"
+                            onclick="var m=document.getElementById('mobile-menu');m.classList.toggle('hidden');this.setAttribute('aria-expanded',!m.classList.contains('hidden'))"
+                            class="p-2 text-ink/55 transition-colors hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light sm:hidden"
+                            aria-expanded="false" aria-controls="mobile-menu"
+                            aria-label="{{ i18n.t("nav.main_menu") }}">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                         </svg>
@@ -102,56 +83,49 @@
                 </div>
             </div>
         </div>
-        <div id="mobile-menu" role="region" aria-label="{{ i18n.t("nav.mobile_menu") }}" class="hidden border-t border-stone-200 dark:border-stone-700 sm:hidden animate-slide-down">
-            <div class="space-y-0.5 px-4 py-3">
-                <a href="/" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-stone-600 transition-colors duration-150 hover:bg-stone-100/80 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-white">
+        <div id="mobile-menu" role="region" aria-label="{{ i18n.t("nav.mobile_menu") }}" class="hidden border-t border-ink/10 dark:border-sand-light/10 sm:hidden animate-slide-down">
+            <div class="space-y-0 px-4 py-3">
+                <a href="/" class="block py-2.5 text-[14px] font-medium text-ink/75 transition-colors hover:text-ink dark:text-sand-light/75 dark:hover:text-sand-light">
                     {{ i18n.t("nav.dashboard") }}
                 </a>
-                <a href="/events" class="relative block rounded-lg px-3 py-2.5 text-sm font-medium text-stone-600 transition-colors duration-150 hover:bg-stone-100/80 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-white">
+                <a href="/events" class="relative block py-2.5 text-[14px] font-medium text-ink/75 transition-colors hover:text-ink dark:text-sand-light/75 dark:hover:text-sand-light">
                     {{ i18n.t("nav.events") }}
                     {% if unread_count > 0 %}
-                    <span class="ml-2 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold tabular-nums text-white bg-red-600">
+                    <span class="ml-2 inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-medium tabular-nums text-sand-light bg-red-600">
                         {% if unread_count > 99 %}99+{% else %}{{ unread_count }}{% endif %}
                     </span>
                     {% endif %}
                 </a>
                 {% if is_authenticated %}
-                <a href="/services" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-stone-600 transition-colors duration-150 hover:bg-stone-100/80 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-white">
+                <a href="/services" class="block py-2.5 text-[14px] font-medium text-ink/75 transition-colors hover:text-ink dark:text-sand-light/75 dark:hover:text-sand-light">
                     {{ i18n.t("nav.services") }}
                 </a>
                 {% endif %}
-                <a href="/search" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-stone-600 transition-colors duration-150 hover:bg-stone-100/80 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-white">
+                <a href="/search" class="block py-2.5 text-[14px] font-medium text-ink/75 transition-colors hover:text-ink dark:text-sand-light/75 dark:hover:text-sand-light">
                     {{ i18n.t("nav.search") }}
                 </a>
                 {% if is_admin %}
-                <a href="/admin/users" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-stone-600 transition-colors duration-150 hover:bg-stone-100/80 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-white">
+                <a href="/admin/users" class="block py-2.5 text-[14px] font-medium text-ink/75 transition-colors hover:text-ink dark:text-sand-light/75 dark:hover:text-sand-light">
                     {{ i18n.t("nav.admin") }}
                 </a>
                 {% endif %}
-                <button
-                    type="button"
-                    onclick="switchLang()"
-                    class="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-stone-600 transition-colors duration-150 hover:bg-stone-100/80 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-white"
-                >
+                <button type="button" onclick="switchLang()"
+                        class="block w-full py-2.5 text-left text-[14px] font-medium text-ink/75 transition-colors hover:text-ink dark:text-sand-light/75 dark:hover:text-sand-light">
                     {{ i18n.t("lang.switch") }} : {% if i18n.is_fr() %}English{% else %}Français{% endif %}
                 </button>
             </div>
-            <div class="border-t border-stone-200 px-4 py-3 dark:border-stone-700">
+            <div class="border-t border-ink/10 px-4 py-3 dark:border-sand-light/10">
                 {% if is_authenticated %}
-                <a href="/profile" class="block text-sm text-stone-400 transition-colors duration-200 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300">{{ user_display_name }}</a>
+                <a href="/profile" class="block py-1 text-[13px] text-ink/60 transition-colors hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light">{{ user_display_name }}</a>
                 <form method="post" action="/logout" class="mt-2">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <button
-                        type="submit"
-                        class="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-stone-600 transition-colors duration-150
-                               hover:bg-stone-100/80 hover:text-stone-900
-                               dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-white"
-                    >
+                    <button type="submit"
+                            class="w-full py-2 text-left text-[14px] font-medium text-ink/75 transition-colors hover:text-ink dark:text-sand-light/75 dark:hover:text-sand-light">
                         {{ i18n.t("nav.logout") }}
                     </button>
                 </form>
                 {% else %}
-                <a href="/login" class="btn-3d w-full text-center text-sm">
+                <a href="/login" class="btn-3d w-full text-center text-[13px]">
                     <span>{{ i18n.t("nav.login") }}</span>
                 </a>
                 {% endif %}
@@ -170,37 +144,33 @@
     <div id="drawer-overlay" class="drawer-overlay" onclick="closeDrawer()"></div>
     <aside id="drawer-panel" class="drawer-panel" role="dialog" aria-modal="true" aria-label="{{ i18n.t("events.details_label") }}">
         <div class="flex justify-center pt-3 pb-1 cursor-pointer" onclick="closeDrawer()">
-            <div class="w-9 h-1 rounded-full bg-stone-300 dark:bg-stone-600"></div>
+            <div class="w-9 h-1 rounded-full bg-ink/20 dark:bg-sand-light/20"></div>
         </div>
         <div id="drawer-content"></div>
     </aside>
 
-    <footer class="py-8">
-        <div class="divider-gradient mx-auto max-w-xs"></div>
-        <div class="mx-auto mt-5 flex max-w-7xl flex-col items-center gap-1.5 px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center gap-2">
-                {% let logo_size = "h-4 w-4" %}
+    <footer class="mt-8 border-t border-ink/10 py-8 dark:border-sand-light/10">
+        <div class="mx-auto flex max-w-5xl flex-col gap-3 px-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+            <div class="flex items-center gap-3">
+                {% let logo_size = "h-4 w-4 text-ink/55 dark:text-sand-light/45" %}
                 {% include "components/logo.html" %}
-                <span class="text-[12px] font-semibold tracking-wide text-stone-400 dark:text-stone-600">
-                    Statup
+                <span class="text-[13px] font-medium text-ink/70 dark:text-sand-light/60">Statup</span>
+                <span class="text-ink/25 dark:text-sand-light/20" aria-hidden="true">·</span>
+                <span class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink/45 dark:text-sand-light/40">AGPL-3.0</span>
+            </div>
+            <div class="flex items-center gap-4 font-mono text-[10px] uppercase tracking-[0.14em]">
+                {% if let Some(ts) = last_admin_action %}
+                <span class="text-ink/45 dark:text-sand-light/40">
+                    {{ i18n.t("date.last_update") }} · {{ ts }}
                 </span>
-                <span class="text-stone-300 dark:text-stone-700" aria-hidden="true">&middot;</span>
-                <button
-                    type="button"
-                    onclick="switchLang()"
-                    class="text-[12px] font-semibold uppercase tracking-wider text-stone-400 transition-colors duration-150
-                           hover:text-stone-600
-                           dark:text-stone-600 dark:hover:text-stone-400"
-                    aria-label="{{ i18n.t("lang.switch") }}"
-                >
+                <span class="text-ink/20 dark:text-sand-light/15" aria-hidden="true">·</span>
+                {% endif %}
+                <button type="button" onclick="switchLang()"
+                        class="text-ink/55 transition-colors hover:text-ink dark:text-sand-light/50 dark:hover:text-sand-light"
+                        aria-label="{{ i18n.t("lang.switch") }}">
                     {% if i18n.is_fr() %}EN{% else %}FR{% endif %}
                 </button>
             </div>
-            {% if let Some(ts) = last_admin_action %}
-            <p class="text-[11px] text-stone-400 dark:text-stone-600">
-                {{ i18n.t("date.last_update") }} : {{ ts }}
-            </p>
-            {% endif %}
         </div>
     </footer>
 

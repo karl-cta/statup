@@ -3,13 +3,13 @@
 {% block title %}{{ i18n.t("dashboard.title") }}{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8" data-dashboard-context="{{ context_label }}">
+<div class="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16" data-dashboard-context="{{ context_label }}">
     {% if rendered_modules.is_empty() %}
-    <div class="rounded-lg border border-stone-200 bg-stone-50/60 px-5 py-10 text-center dark:border-stone-700 dark:bg-stone-900/30">
-        <p class="text-sm text-stone-500 dark:text-stone-400">{{ i18n.t("dashboard.no_modules") }}</p>
+    <div class="rounded-sm border border-ink/10 bg-cream px-5 py-10 text-center dark:border-sand-light/10 dark:bg-surface-1">
+        <p class="text-sm text-ink/55 dark:text-sand-light/45">{{ i18n.t("dashboard.no_modules") }}</p>
     </div>
     {% else %}
-    <div class="space-y-6" data-modules-stack>
+    <div class="space-y-10 sm:space-y-12" data-modules-stack>
         {% for module in rendered_modules %}
         <section class="module-slot" data-module-id="{{ module.id }}">
             {{ module.html|safe }}

@@ -30,6 +30,7 @@
   "auth.password_confirm": "Confirmer le mot de passe",
 
   "dashboard.title": "Dashboard | Statup",
+  "dashboard.status_eyebrow": "Statut",
   "dashboard.all_operational": "Tous les systèmes opérationnels",
   "dashboard.services_monitored": "service(s) supervisé(s)",
   "dashboard.active_incidents": "incident(s) en cours",
