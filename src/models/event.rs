@@ -1,15 +1,15 @@
 //! Event model and related enums.
 //!
-//! Dimensions :
-//! - `kind`, nature de l'événement (incident, maintenance, publication).
-//! - `severity`, gravité business. Optionnelle pour incident et maintenance,
-//!   absente pour publication.
-//! - `planned`, booléen, distingue une maintenance planifiée d'une intervention
-//!   subie. `false` pour un incident, ignoré pour une publication.
-//! - `lifecycle`, cycle de vie, valeurs valides dépendant du kind. Absent pour
-//!   une publication. La cohérence est garantie côté SQL par des CHECK constraints.
-//! - `category`, sous-catégorie d'une publication (`changelog`, `info`). Absent
-//!   pour incident et maintenance.
+//! Dimensions:
+//! - `kind`, event nature (incident, maintenance, publication).
+//! - `severity`, business severity. Optional for incident and maintenance,
+//!   absent for publication.
+//! - `planned`, boolean, distinguishes a scheduled maintenance from an
+//!   unplanned intervention. `false` for an incident, ignored for publication.
+//! - `lifecycle`, workflow state, valid values depend on `kind`. Absent for
+//!   publication. Consistency is enforced by SQL CHECK constraints.
+//! - `category`, sub-category of a publication (`changelog`, `info`). Absent
+//!   for incident and maintenance.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -42,9 +42,9 @@ pub enum Category {
     Info,
 }
 
-/// État du cycle de vie. Valeurs valides par kind :
-/// - incident    : `investigating`, `in_progress`, `monitoring`, `resolved`, `cancelled`
-/// - maintenance : `scheduled`, `in_progress`, `completed`, `cancelled`
+/// Workflow state. Valid values per kind:
+/// - incident:    `investigating`, `in_progress`, `monitoring`, `resolved`, `cancelled`
+/// - maintenance: `scheduled`, `in_progress`, `completed`, `cancelled`
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Serialize, Deserialize)]
 #[sqlx(type_name = "TEXT", rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
@@ -59,14 +59,6 @@ pub enum Lifecycle {
 }
 
 impl Kind {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Incident => "Incident",
-            Self::Maintenance => "Maintenance",
-            Self::Publication => "Publication",
-        }
-    }
-
     pub fn i18n_key(self) -> &'static str {
         match self {
             Self::Incident => "kind.incident",
@@ -103,9 +95,9 @@ impl Kind {
         }
     }
 
-    /// Classe Tailwind pour la bande verticale de la carte d'événement. Sa
-    /// largeur reflète le "poids" (incident actif = épais, autres = fin ou
-    /// rien), sa couleur reflète le kind et la sévérité.
+    /// Tailwind class for the event card's vertical strip. Width reflects the
+    /// "weight" (active incident = thick, others = thin or none), color
+    /// reflects kind and severity.
     pub fn card_strip_class(
         self,
         severity: Option<Severity>,
@@ -127,8 +119,8 @@ impl Kind {
         }
     }
 
-    /// Transitions autorisées depuis `current` selon le kind. Retourne une liste
-    /// vide pour les états terminaux ou pour un couple (kind, lifecycle) invalide.
+    /// Allowed transitions from `current` for this kind. Returns an empty
+    /// slice for terminal states or for an invalid (kind, lifecycle) pair.
     pub fn allowed_transitions(self, current: Lifecycle) -> &'static [Lifecycle] {
         use Lifecycle as L;
         match (self, current) {
@@ -149,14 +141,6 @@ impl Kind {
 }
 
 impl Severity {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Minor => "Mineure",
-            Self::Major => "Majeure",
-            Self::Critical => "Critique",
-        }
-    }
-
     pub fn i18n_key(self) -> &'static str {
         match self {
             Self::Minor => "severity.minor",
@@ -199,13 +183,6 @@ impl Severity {
 }
 
 impl Category {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Changelog => "Changelog",
-            Self::Info => "Information",
-        }
-    }
-
     pub fn i18n_key(self) -> &'static str {
         match self {
             Self::Changelog => "category.changelog",
@@ -222,18 +199,6 @@ impl Category {
 }
 
 impl Lifecycle {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Investigating => "Investigation",
-            Self::InProgress => "En cours",
-            Self::Monitoring => "Surveillance",
-            Self::Resolved => "Résolu",
-            Self::Cancelled => "Annulé",
-            Self::Scheduled => "Planifié",
-            Self::Completed => "Terminé",
-        }
-    }
-
     pub fn i18n_key(self) -> &'static str {
         match self {
             Self::Investigating => "lifecycle.investigating",
@@ -315,7 +280,7 @@ pub struct EventWithServices {
     pub services: Vec<Service>,
 }
 
-/// Projection légère pour listes et dashboards.
+/// Lightweight projection for lists and dashboards.
 #[derive(Debug, Clone, sqlx::FromRow, Serialize)]
 pub struct EventSummary {
     pub id: i64,
@@ -330,13 +295,13 @@ pub struct EventSummary {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub author_id: i64,
-    /// Liste de noms de services concaténée par `GROUP_CONCAT` côté SQL.
+    /// Service names concatenated via SQL `GROUP_CONCAT`.
     #[sqlx(default)]
     pub service_names: String,
     #[sqlx(default)]
     #[serde(skip)]
     pub icon_filename: Option<String>,
-    /// Uniquement renseigné par les requêtes qui ciblent les maintenances à venir.
+    /// Only populated by queries that target upcoming maintenances.
     #[sqlx(default)]
     pub planned_start: Option<DateTime<Utc>>,
 }
@@ -367,12 +332,12 @@ impl EventSummary {
             .map(|f| format!("/uploads/icons/{f}"))
     }
 
-    /// Décompte humain avant le début planifié (ex: "dans 3j 2h").
+    /// Human countdown until the planned start (e.g. "3d 2h").
     pub fn countdown(&self) -> Option<String> {
         let start = self.planned_start?;
         let now = Utc::now();
         if start <= now {
-            return Some("Maintenant".to_string());
+            return Some("Now".to_string());
         }
         let diff = start - now;
         let days = diff.num_days();
@@ -387,8 +352,8 @@ impl EventSummary {
         }
     }
 
-    /// Décomposition du décompte en (jours, heures, minutes) pour affichage riche.
-    /// `None` s'il n'y a pas de date planifiée, `Some(None)` si l'échéance est passée.
+    /// Breakdown of the countdown into (days, hours, minutes) for rich display.
+    /// `None` if there is no planned date, `Some(None)` if the deadline is past.
     pub fn countdown_parts(&self) -> Option<Option<(i64, i64, i64)>> {
         let start = self.planned_start?;
         let now = Utc::now();
@@ -436,8 +401,8 @@ pub struct CreateEventInput {
 }
 
 impl CreateEventInput {
-    /// Lifecycle à l'ouverture : dépend du kind et de `planned`.
-    /// Publication n'a pas de lifecycle.
+    /// Initial lifecycle at creation, depending on `kind` and `planned`.
+    /// Publications have no lifecycle.
     pub fn initial_lifecycle(&self) -> Option<Lifecycle> {
         match (self.kind, self.planned) {
             (Kind::Incident, _) => Some(Lifecycle::Investigating),
@@ -447,9 +412,9 @@ impl CreateEventInput {
         }
     }
 
-    /// `started_at` à l'ouverture. `None` pour une maintenance planifiée qui
-    /// n'a pas encore commencé, `Some(now)` dans tous les autres cas (incident,
-    /// maintenance urgente, publication).
+    /// Initial `started_at`. `None` for a scheduled maintenance that has not
+    /// started yet, `Some(now)` in every other case (incident, urgent
+    /// maintenance, publication).
     pub fn initial_started_at(&self) -> Option<DateTime<Utc>> {
         match (self.kind, self.planned) {
             (Kind::Maintenance, true) => None,

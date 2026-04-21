@@ -1,38 +1,38 @@
--- Phase 1, refonte modèle événement.
+-- Phase 1, event model refactor.
 --
--- Nouvelles dimensions :
+-- New dimensions:
 --   kind       : incident | maintenance | publication
---   severity   : minor | major | critical (optionnel, NULL pour publication)
---   planned    : booléen (maintenance planifiée vs subie)
---   lifecycle  : workflow par kind (NULL pour publication)
+--   severity   : minor | major | critical (optional, NULL for publication)
+--   planned    : boolean (scheduled vs unplanned maintenance)
+--   lifecycle  : workflow per kind (NULL for publication)
 --                incident    : investigating, in_progress, monitoring, resolved, cancelled
 --                maintenance : scheduled, in_progress, completed, cancelled
---   category   : changelog | info (uniquement pour publication)
+--   category   : changelog | info (publication only)
 --
--- Migration destructive assumée en pré-v1. Les tables events, event_templates,
--- event_services, event_updates et events_fts sont reconstruites. Aucune donnée
--- n'est conservée (validé avec Karl, base locale propre).
+-- Destructive migration accepted in pre-v1. Tables events, event_templates,
+-- event_services, event_updates, and events_fts are rebuilt. No data is
+-- preserved.
 
 PRAGMA foreign_keys = OFF;
 
--- Drop FTS triggers et table virtuelle
+-- Drop FTS triggers and virtual table
 DROP TRIGGER IF EXISTS events_fts_insert;
 DROP TRIGGER IF EXISTS events_fts_update;
 DROP TRIGGER IF EXISTS events_fts_delete;
 DROP TABLE IF EXISTS events_fts;
 
--- Drop trigger updated_at sur events
+-- Drop updated_at trigger on events
 DROP TRIGGER IF EXISTS events_updated_at;
 
--- Drop tables dépendantes (event_updates et event_services référencent events.id)
+-- Drop dependent tables (event_updates and event_services reference events.id)
 DROP TABLE IF EXISTS event_updates;
 DROP TABLE IF EXISTS event_services;
 
--- Drop events et event_templates (remplacés par le nouveau schéma)
+-- Drop events and event_templates (replaced by the new schema)
 DROP TABLE IF EXISTS events;
 DROP TABLE IF EXISTS event_templates;
 
--- Nouvelle table events
+-- New events table
 CREATE TABLE events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     kind TEXT NOT NULL
@@ -56,26 +56,26 @@ CREATE TABLE events (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
 
-    -- Cohérence lifecycle selon le kind. lifecycle IS NOT NULL explicite
-    -- pour que NULL ne laisse pas passer via la sémantique trivaluée du SQL.
+    -- Lifecycle consistency with kind. `lifecycle IS NOT NULL` is explicit so
+    -- that NULL does not slip through SQL's three-valued logic.
     CHECK (
         (kind = 'incident' AND lifecycle IS NOT NULL AND lifecycle IN ('investigating', 'in_progress', 'monitoring', 'resolved', 'cancelled'))
         OR (kind = 'maintenance' AND lifecycle IS NOT NULL AND lifecycle IN ('scheduled', 'in_progress', 'completed', 'cancelled'))
         OR (kind = 'publication' AND lifecycle IS NULL)
     ),
 
-    -- Category uniquement pour publication, obligatoire dans ce cas
+    -- Category only for publication, mandatory in that case
     CHECK (
         (kind = 'publication' AND category IS NOT NULL)
         OR (kind != 'publication' AND category IS NULL)
     ),
 
-    -- Severity absente pour publication
+    -- No severity for publications
     CHECK (
         kind != 'publication' OR severity IS NULL
     ),
 
-    -- previous_lifecycle doit suivre les mêmes valeurs que lifecycle
+    -- previous_lifecycle must use the same value set as lifecycle
     CHECK (
         previous_lifecycle IS NULL
         OR previous_lifecycle IN ('investigating', 'in_progress', 'monitoring', 'resolved', 'cancelled', 'scheduled', 'completed')
@@ -88,12 +88,12 @@ CREATE INDEX idx_events_lifecycle ON events(lifecycle);
 CREATE INDEX idx_events_created_at ON events(created_at DESC);
 CREATE INDEX idx_events_author ON events(author_id);
 
--- Dashboard : maintenances planifiées à venir
+-- Dashboard: upcoming scheduled maintenances
 CREATE INDEX idx_events_upcoming_maintenance
     ON events(kind, lifecycle, planned_start)
     WHERE kind = 'maintenance' AND planned = 1 AND lifecycle = 'scheduled';
 
--- Dashboard : événements actifs (lifecycle non terminal)
+-- Dashboard: active events (non-terminal lifecycle)
 CREATE INDEX idx_events_active
     ON events(lifecycle, kind)
     WHERE lifecycle IS NOT NULL AND lifecycle NOT IN ('resolved', 'completed', 'cancelled');
@@ -128,7 +128,7 @@ CREATE TABLE event_updates (
 
 CREATE INDEX idx_event_updates_event ON event_updates(event_id);
 
--- Nouvelle table event_templates, alignée sur les nouvelles dimensions
+-- New event_templates table aligned on the new dimensions
 CREATE TABLE event_templates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -159,7 +159,7 @@ CREATE TABLE event_templates (
 CREATE INDEX idx_event_templates_title ON event_templates(title);
 CREATE INDEX idx_event_templates_usage ON event_templates(usage_count DESC);
 
--- Recréation FTS sur events (title, description)
+-- Rebuild FTS on events (title, description)
 CREATE VIRTUAL TABLE events_fts USING fts5(
     title,
     description,

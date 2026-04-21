@@ -1,15 +1,15 @@
--- Phase 2, moteur de modules dashboard.
+-- Phase 2, dashboard module engine.
 --
--- Une ligne par (contexte, user, module) décrit la place, l'état
--- activé/désactivé et la config spécifique d'un module dans le dashboard.
+-- One row per (context, user, module) describes the slot, the enabled/disabled
+-- state, and the module-specific config for the dashboard.
 --
---   context  : 'public' ou 'admin'
---   user_id  : NULL pour le layout par défaut (admin-defined),
---              renseigné pour une préférence utilisateur (override).
---   module_id: id stable du module (registre Rust).
---   position : ordre d'affichage au sein du contexte/user.
---   enabled  : 1 si visible, 0 si masqué.
---   config   : JSON textuel, config spécifique au module.
+--   context  : 'public' or 'admin'.
+--   user_id  : NULL for the admin-defined default layout, set for a
+--              per-user preference (override).
+--   module_id: stable module id (from the Rust registry).
+--   position : display order within (context, user).
+--   enabled  : 1 if visible, 0 if hidden.
+--   config   : JSON blob, module-specific config.
 
 CREATE TABLE dashboard_layouts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,16 +22,16 @@ CREATE TABLE dashboard_layouts (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Unicité par layout par défaut (user_id IS NULL).
+-- Uniqueness for the default layout (user_id IS NULL).
 CREATE UNIQUE INDEX idx_dashboard_layouts_default
     ON dashboard_layouts(context, module_id)
     WHERE user_id IS NULL;
 
--- Unicité par layout utilisateur (user_id renseigné).
+-- Uniqueness for per-user layouts (user_id set).
 CREATE UNIQUE INDEX idx_dashboard_layouts_user
     ON dashboard_layouts(context, user_id, module_id)
     WHERE user_id IS NOT NULL;
 
--- Lookup ordonné pour rendu.
+-- Ordered lookup for rendering.
 CREATE INDEX idx_dashboard_layouts_lookup
     ON dashboard_layouts(context, user_id, position);

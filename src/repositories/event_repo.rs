@@ -1,4 +1,4 @@
-//! Event repository, requêtes SQL sur les événements et leurs updates.
+//! Event repository: SQL queries on events and their updates.
 
 use std::collections::HashMap;
 
@@ -167,7 +167,7 @@ impl EventRepository {
         query.fetch_all(pool).await
     }
 
-    /// Activité récente, tout sauf les maintenances (incidents + publications).
+    /// Recent activity, everything except maintenances (incidents + publications).
     pub async fn list_recent_activity(
         pool: &DbPool,
         limit: i64,
@@ -193,7 +193,7 @@ impl EventRepository {
         .await
     }
 
-    /// Maintenances en cours ou planifiées (lifecycle non terminal).
+    /// Maintenances in progress or scheduled (non-terminal lifecycle).
     pub async fn list_active_maintenance(pool: &DbPool) -> Result<Vec<EventSummary>, sqlx::Error> {
         sqlx::query_as::<_, EventSummary>(
             "SELECT e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
@@ -214,7 +214,7 @@ impl EventRepository {
         .await
     }
 
-    /// Maintenances récemment terminées ou annulées.
+    /// Recently completed or cancelled maintenances.
     pub async fn list_recent_resolved_maintenance(
         pool: &DbPool,
         limit: i64,
@@ -239,7 +239,7 @@ impl EventRepository {
         .await
     }
 
-    /// Maintenances planifiées à venir.
+    /// Upcoming scheduled maintenances.
     pub async fn list_upcoming_maintenance(
         pool: &DbPool,
     ) -> Result<Vec<EventSummary>, sqlx::Error> {
@@ -264,8 +264,8 @@ impl EventRepository {
         .await
     }
 
-    /// Événements actifs "perturbants" pour la page publique : incidents +
-    /// maintenances non planifiées en cours.
+    /// Disruptive active events for the public page: incidents + ongoing
+    /// unplanned maintenances.
     pub async fn list_active_incidents(pool: &DbPool) -> Result<Vec<EventSummary>, sqlx::Error> {
         sqlx::query_as::<_, EventSummary>(
             "SELECT e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
@@ -285,8 +285,8 @@ impl EventRepository {
         .await
     }
 
-    /// Événements actifs pour un service donné. Les maintenances planifiées
-    /// dans le futur sont exclues pour ne pas dégrader le statut avant la date.
+    /// Active events for a given service. Future scheduled maintenances are
+    /// excluded so the service status is not degraded before the deadline.
     pub async fn list_active_for_service(
         pool: &DbPool,
         service_id: i64,
@@ -307,8 +307,8 @@ impl EventRepository {
         .await
     }
 
-    /// Transition du lifecycle, l'ancienne valeur est sauvegardée dans
-    /// `previous_lifecycle` pour permettre un undo à un niveau.
+    /// Transition the lifecycle. The previous value is stored in
+    /// `previous_lifecycle` to allow a one-level undo.
     pub async fn update_lifecycle(
         pool: &DbPool,
         event_id: i64,
@@ -322,8 +322,8 @@ impl EventRepository {
         Ok(())
     }
 
-    /// Annule la dernière transition de lifecycle. Efface aussi `ended_at` pour
-    /// sortir proprement d'un état terminal.
+    /// Undo the last lifecycle transition. Also clears `ended_at` so the
+    /// event exits a terminal state cleanly.
     pub async fn revert_lifecycle(pool: &DbPool, event_id: i64) -> Result<(), sqlx::Error> {
         sqlx::query(
             "UPDATE events SET lifecycle = previous_lifecycle, previous_lifecycle = NULL, ended_at = NULL WHERE id = ? AND previous_lifecycle IS NOT NULL",
@@ -334,9 +334,8 @@ impl EventRepository {
         Ok(())
     }
 
-    /// Remplace les services associés à un événement. Retourne les IDs des
-    /// services précédemment associés pour que l'appelant puisse recalculer
-    /// leur statut.
+    /// Replace the services linked to an event. Returns the previously
+    /// linked service IDs so the caller can recompute their status.
     pub async fn update_services(
         pool: &DbPool,
         event_id: i64,
@@ -368,8 +367,8 @@ impl EventRepository {
         Ok(old_service_ids)
     }
 
-    /// Supprime un événement. `event_services` et `event_updates` sont
-    /// nettoyées par `ON DELETE CASCADE`.
+    /// Delete an event. `event_services` and `event_updates` rows are
+    /// cleaned up by `ON DELETE CASCADE`.
     pub async fn delete(pool: &DbPool, event_id: i64) -> Result<Vec<i64>, sqlx::Error> {
         let rows: Vec<(i64,)> =
             sqlx::query_as("SELECT service_id FROM event_services WHERE event_id = ?")
@@ -434,8 +433,8 @@ impl EventRepository {
         .await
     }
 
-    /// Nombre d'événements "importants" créés depuis `since`, pour le badge
-    /// unread. Les publications sont exclues (ambient, pas d'intervention).
+    /// Count of "important" events created since `since`, used for the
+    /// unread badge. Publications are excluded (ambient, not interventions).
     pub async fn count_since(pool: &DbPool, since: DateTime<Utc>) -> Result<i64, sqlx::Error> {
         let row: (i64,) = sqlx::query_as(
             "SELECT COUNT(*) FROM events WHERE created_at >= ? AND kind != 'publication'",
@@ -446,10 +445,10 @@ impl EventRepository {
         Ok(row.0)
     }
 
-    /// Niveau de sévérité journalier par service pour le rendu sparkline.
-    /// Retourne une map `service_id` → `Vec<u8>` de taille `days` (plus ancien
-    /// en premier). Chaque valeur est le niveau max du jour :
-    /// 0 = aucun, 1 = minor, 2 = major, 3 = critical.
+    /// Daily severity level per service for the sparkline rendering.
+    /// Returns a map `service_id` -> `Vec<u8>` of length `days` (oldest
+    /// first). Each value is the worst level for the day:
+    /// 0 = none, 1 = minor, 2 = major, 3 = critical.
     pub async fn sparkline_data(
         pool: &DbPool,
         days: u32,
@@ -513,8 +512,8 @@ impl EventRepository {
         Ok(result)
     }
 
-    /// Recherche full-text sur events via FTS5, combinable avec les filtres.
-    /// Résultats triés par pertinence FTS5, puis date de création décroissante.
+    /// Full-text search on events via FTS5, combinable with filters.
+    /// Results ordered by FTS5 relevance, then by creation date descending.
     pub async fn search(
         pool: &DbPool,
         query: &str,
@@ -585,7 +584,7 @@ impl EventRepository {
         q.fetch_all(pool).await
     }
 
-    /// Horodatage de la dernière action admin (events, updates, services).
+    /// Timestamp of the last admin action (events, updates, services).
     pub async fn last_admin_action(pool: &DbPool) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
         let row: Option<(Option<String>,)> = sqlx::query_as(
             "SELECT MAX(ts) FROM ( \
@@ -617,8 +616,8 @@ struct SparklineEventRow {
     end_date: String,
 }
 
-/// Nettoie une requête FTS5 en retirant les opérateurs spéciaux et en
-/// entourant chaque token de guillemets pour forcer une recherche littérale.
+/// Sanitize an FTS5 query by stripping special operators and quoting each
+/// token to force a literal search.
 fn sanitize_fts_query(raw: &str) -> String {
     raw.split_whitespace()
         .map(|token| {

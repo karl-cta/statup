@@ -1,7 +1,7 @@
-//! Tests d'intégration du cycle de vie des événements.
+//! Integration tests for the event lifecycle.
 //!
-//! Valide le flux HTTP complet : création, transitions, updates, clôture.
-//! Teste aussi le recalcul du statut des services.
+//! Validates the full HTTP flow: creation, transitions, updates, closure.
+//! Also exercises service status recalculation.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -129,8 +129,8 @@ impl TestApp {
         (status, body, location)
     }
 
-    /// POST via header X-CSRF-Token, pour les endpoints qui ne consomment pas
-    /// le champ csrf_token du form mais passent quand même par le middleware CSRF.
+    /// POST via the `X-CSRF-Token` header, for endpoints that do not accept
+    /// a `csrf_token` form field but still go through the CSRF middleware.
     async fn post_form_with_header_csrf(
         &self,
         path: &str,

@@ -1,4 +1,4 @@
-//! Event template service, logique métier des presets d'événements.
+//! Event template service: business logic for event presets.
 
 use crate::db::DbPool;
 use crate::error::AppError;

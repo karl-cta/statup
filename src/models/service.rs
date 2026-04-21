@@ -75,17 +75,6 @@ impl ServiceStatus {
         }
     }
 
-    /// Human-readable label.
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Operational => "Opérationnel",
-            Self::Degraded => "Dégradé",
-            Self::PartialOutage => "Panne partielle",
-            Self::MajorOutage => "Panne majeure",
-            Self::Maintenance => "Maintenance",
-        }
-    }
-
     /// Translation key for i18n.
     pub fn i18n_key(self) -> &'static str {
         match self {
@@ -166,12 +155,12 @@ impl Service {
     }
 }
 
-/// Génère un slug URL-safe unique. Si la base est déjà prise, suffixe `-2`,
-/// `-3`, etc. jusqu'à trouver une valeur libre.
+/// Generate a unique URL-safe slug. If the base slug is taken, appends `-2`,
+/// `-3`, ... until a free value is found.
 ///
 /// # Errors
 ///
-/// Renvoie `sqlx::Error` si une requête échoue.
+/// Returns `sqlx::Error` if a query fails.
 pub async fn generate_unique_slug(pool: &DbPool, name: &str) -> Result<String, sqlx::Error> {
     let base = slug::slugify(name);
     if ServiceRepository::find_by_slug(pool, &base)
@@ -227,7 +216,7 @@ mod tests {
     }
 
     #[test]
-    fn all_statuses_have_non_empty_labels() {
+    fn all_statuses_have_visual_classes() {
         let statuses = [
             ServiceStatus::Operational,
             ServiceStatus::Degraded,
@@ -236,9 +225,9 @@ mod tests {
             ServiceStatus::Maintenance,
         ];
         for s in statuses {
-            assert!(!s.label().is_empty());
             assert!(!s.css_class().is_empty());
             assert!(!s.icon().is_empty());
+            assert!(!s.i18n_key().is_empty());
         }
     }
 }

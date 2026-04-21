@@ -1,4 +1,4 @@
-//! Service management, CRUD et recalcul du statut à partir des événements actifs.
+//! Service management: CRUD and status recalculation from active events.
 
 use crate::db::DbPool;
 use crate::error::AppError;
@@ -84,9 +84,9 @@ impl ServiceService {
         Ok(())
     }
 
-    /// Recalcule le statut d'un service à partir de ses événements actifs. On
-    /// prend le pire statut projeté (priorité max). Sans événement actif, le
-    /// service redevient opérationnel.
+    /// Recalculate a service's status from its active events. Picks the worst
+    /// projected status (highest priority). Falls back to `Operational` when
+    /// no active event remains.
     pub async fn recalculate_status(
         pool: &DbPool,
         service_id: i64,
@@ -105,10 +105,9 @@ impl ServiceService {
     }
 }
 
-/// Projette un événement actif sur un statut de service. Les publications
-/// n'affectent pas le statut. Une maintenance (planifiée ou subie) force
-/// `Maintenance`. Un incident est projeté selon sa sévérité, ou ignoré si
-/// aucune n'est renseignée.
+/// Project an active event onto a service status. Publications do not affect
+/// the status. Any maintenance (planned or unplanned) forces `Maintenance`.
+/// Incidents are projected by severity, or ignored when severity is missing.
 fn derive_service_status(kind: Kind, severity: Option<Severity>) -> Option<ServiceStatus> {
     match kind {
         Kind::Incident => severity.map(|s| match s {

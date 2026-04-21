@@ -1,4 +1,4 @@
-//! Event routes : listing, création, mise à jour, détail, transitions de lifecycle.
+//! Event routes: listing, creation, update, detail, lifecycle transitions.
 
 use askama::Template;
 use axum::Form;
@@ -146,10 +146,10 @@ impl EventInput {
         self.planned.as_deref() == Some("on")
     }
 
-    /// Normalise les dimensions selon le kind pour respecter les invariants SQL :
-    /// - publication : pas de severity, pas de `planned`, category requise
-    /// - incident : pas de category, planned = false
-    /// - maintenance : pas de category, planned selon la case cochée
+    /// Normalize dimensions according to `kind` so SQL invariants hold:
+    /// - publication: no severity, no `planned`, category required
+    /// - incident: no category, planned = false
+    /// - maintenance: no category, planned follows the checkbox
     fn normalized(&self) -> (Option<Severity>, bool, Option<Category>) {
         match self.kind {
             Kind::Publication => (None, false, self.category),
@@ -217,7 +217,7 @@ pub struct SearchQuery {
     service_id: Option<i64>,
 }
 
-/// Regroupe des événements partageant la même étiquette de date (ex: "Aujourd'hui").
+/// Groups events sharing the same date label (e.g. "Today").
 pub struct DateGroup {
     pub label: String,
     pub events: Vec<EventSummary>,
@@ -244,7 +244,7 @@ struct HistoryTemplate {
     i18n: I18n,
 }
 
-/// Résultat de recherche enrichi du titre avec mise en évidence des termes.
+/// Search result enriched with a title highlighted on the matching terms.
 pub struct SearchResult {
     pub event: EventSummary,
     pub highlighted_title: String,
@@ -337,8 +337,8 @@ fn format_datetime_local(dt: &DateTime<Utc>) -> String {
     dt.format("%Y-%m-%dT%H:%M").to_string()
 }
 
-/// Un lifecycle est "terminal de clôture normale" quand il nécessite un
-/// commentaire de résolution. Cancelled ne force pas ce prompt.
+/// A lifecycle is a "normal closure" when it requires a resolution comment.
+/// Cancelled does not trigger that prompt.
 fn requires_resolution_comment(lifecycle: Lifecycle) -> bool {
     matches!(lifecycle, Lifecycle::Resolved | Lifecycle::Completed)
 }
@@ -452,7 +452,10 @@ pub async fn detail(
         .map(|l| ews.event.kind.allowed_transitions(l).to_vec())
         .unwrap_or_default();
     let can_revert = can_edit && ews.event.previous_lifecycle.is_some();
-    let previous_lifecycle_label = ews.event.previous_lifecycle.map(|l| l.label().to_string());
+    let previous_lifecycle_label = ews
+        .event
+        .previous_lifecycle
+        .map(|l| i18n.t(l.i18n_key()).to_string());
     let (user_display_name, is_admin, is_authenticated) = layout_fields(user.as_ref());
     let unread_count = unread(&state.pool, user.as_ref()).await?;
 
@@ -506,7 +509,10 @@ pub async fn detail_panel(
         .map(|l| ews.event.kind.allowed_transitions(l).to_vec())
         .unwrap_or_default();
     let can_revert = can_edit && ews.event.previous_lifecycle.is_some();
-    let previous_lifecycle_label = ews.event.previous_lifecycle.map(|l| l.label().to_string());
+    let previous_lifecycle_label = ews
+        .event
+        .previous_lifecycle
+        .map(|l| i18n.t(l.i18n_key()).to_string());
     let description_html = sanitize_markdown(&ews.event.description);
     let tpl = EventDetailPanelTemplate {
         csrf_token: csrf_token.0,
@@ -826,7 +832,7 @@ fn parse_date(s: &str) -> Option<chrono::DateTime<Utc>> {
         .map(|dt| dt.and_utc())
 }
 
-/// Parse une date `YYYY-MM-DD` et retourne le `DateTime` UTC à 23h59m59s.
+/// Parse a `YYYY-MM-DD` date and return the UTC `DateTime` at 23:59:59.
 fn parse_date_end_of_day(s: &str) -> Option<chrono::DateTime<Utc>> {
     chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d")
         .ok()
@@ -959,8 +965,8 @@ fn html_escape(s: &str) -> String {
     out
 }
 
-/// Entoure chaque occurrence d'un terme de recherche par `<mark>`. Le texte
-/// est échappé HTML au passage, le template rend avec `|safe`.
+/// Wrap each occurrence of a search term in `<mark>`. The text is
+/// HTML-escaped in the process; the template renders with `|safe`.
 fn highlight_terms(title: &str, query: &str) -> String {
     let title_lower = title.to_lowercase();
     let terms: Vec<String> = query

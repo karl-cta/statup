@@ -47,8 +47,7 @@ pub mod test_helpers {
     /// Create an in-memory `SQLite` pool with all migrations applied.
     ///
     /// # Panics
-    /// Panics si la création du pool ou l'application des migrations échoue.
-    /// Réservé aux tests.
+    /// Panics if pool creation or migration application fails. Test-only.
     pub async fn test_pool() -> DbPool {
         let pool = crate::db::create_pool("sqlite::memory:", 1)
             .await

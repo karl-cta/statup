@@ -1,4 +1,4 @@
-//! Event template, preset réutilisable pour la création rapide d'événements.
+//! Event template: reusable preset for quick event creation.
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;

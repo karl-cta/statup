@@ -1,4 +1,4 @@
-//! Event template repository, requêtes SQL sur les presets d'événements.
+//! Event template repository: SQL queries on event presets.
 
 use crate::db::DbPool;
 use crate::models::{Category, EventTemplate, Kind, Severity};

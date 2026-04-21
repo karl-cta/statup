@@ -1,4 +1,4 @@
-//! Event service, logique métier du cycle de vie, des updates et du markdown.
+//! Event service: lifecycle transitions, updates, and markdown handling.
 
 use chrono::{DateTime, Utc};
 
@@ -25,9 +25,9 @@ impl EventService {
         Ok(event)
     }
 
-    /// Transition du lifecycle. Une publication n'a pas de lifecycle, la
-    /// transition est refusée. `ended_at` est posé automatiquement à la
-    /// résolution ou à la complétion (pas à l'annulation).
+    /// Transition the lifecycle. Publications have no lifecycle and the call
+    /// is rejected. `ended_at` is set automatically on resolution or
+    /// completion (not on cancellation).
     pub async fn update_lifecycle(
         pool: &DbPool,
         event_id: i64,
@@ -92,8 +92,8 @@ impl EventService {
         Ok(update)
     }
 
-    /// Revert au lifecycle précédent (undo à un niveau). Autorisé uniquement
-    /// si `previous_lifecycle` est renseigné.
+    /// Revert to the previous lifecycle (one-level undo). Only allowed when
+    /// `previous_lifecycle` is set.
     pub async fn revert_lifecycle(
         pool: &DbPool,
         event_id: i64,
@@ -123,8 +123,8 @@ impl EventService {
         ews.map(|e| e.event).ok_or(AppError::NotFound)
     }
 
-    /// Supprime un événement. Les événements clos (terminal) ne peuvent être
-    /// supprimés que par un admin.
+    /// Delete an event. Closed (terminal) events can only be deleted by an
+    /// admin.
     pub async fn delete(pool: &DbPool, event_id: i64, user_role: Role) -> Result<(), AppError> {
         let event = EventRepository::find_by_id(pool, event_id)
             .await?
@@ -145,7 +145,7 @@ impl EventService {
         Ok(())
     }
 
-    /// Nombre d'événements non vus, `last_seen_at` à None = tous depuis epoch.
+    /// Count of unseen events. `last_seen_at = None` means since the epoch.
     pub async fn unread_count(
         pool: &DbPool,
         last_seen_at: Option<DateTime<Utc>>,
@@ -182,8 +182,8 @@ fn validate_event_input(input: &CreateEventInput) -> Result<(), AppError> {
     Ok(())
 }
 
-/// Un événement est modifiable tant qu'il n'est pas dans un état terminal.
-/// Une publication (sans lifecycle) est toujours modifiable par son auteur.
+/// An event is modifiable as long as it is not in a terminal state.
+/// Publications (no lifecycle) remain modifiable by their author.
 fn is_modifiable(event: &Event) -> bool {
     event.lifecycle.is_none_or(Lifecycle::is_active)
 }
@@ -197,8 +197,8 @@ fn check_modification_allowed(event: &Event, user_role: Role) -> Result<(), AppE
     Ok(())
 }
 
-/// Rend du markdown en HTML puis passe la sortie par ammonia pour n'autoriser
-/// qu'un sous-ensemble sûr (paragraphes, listes, liens, code, emphases).
+/// Render markdown to HTML and pass the output through ammonia to allow only
+/// a safe subset (paragraphs, lists, links, code, emphasis).
 pub fn sanitize_markdown(raw: &str) -> String {
     use ammonia::Builder;
     use pulldown_cmark::{Options, Parser, html};
