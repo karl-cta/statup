@@ -151,7 +151,7 @@ pub async fn save_order(
         "Dashboard layout order saved"
     );
 
-    Ok(Redirect::to(&format!("/admin/dashboard/{context}/layout?saved=1")).into_response())
+    Ok(Redirect::to(&format!("/admin/dashboard/{context}/layout?saved=true")).into_response())
 }
 
 #[derive(Deserialize)]
@@ -184,7 +184,7 @@ pub async fn toggle_module(
         "Dashboard module toggled"
     );
 
-    Ok(Redirect::to(&format!("/admin/dashboard/{context}/layout?saved=1")).into_response())
+    Ok(Redirect::to(&format!("/admin/dashboard/{context}/layout?saved=true")).into_response())
 }
 
 pub async fn module_config_form(
@@ -254,7 +254,7 @@ pub async fn module_config_save(
         "Dashboard module config saved"
     );
 
-    Ok(Redirect::to(&format!("/admin/modules/{module_id}/config?saved=1")).into_response())
+    Ok(Redirect::to(&format!("/admin/modules/{module_id}/config?saved=true")).into_response())
 }
 
 async fn read_admin_config(
