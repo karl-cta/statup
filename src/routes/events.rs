@@ -67,6 +67,16 @@ struct EventDetailTemplate {
 }
 
 #[derive(Template)]
+#[template(path = "events/drawer_content.html")]
+struct DrawerContentTemplate {
+    event: EventWithServices,
+    description_html: String,
+    updates: Vec<EventUpdateWithAuthor>,
+    author_name: String,
+    i18n: I18n,
+}
+
+#[derive(Template)]
 #[template(path = "events/form.html")]
 struct EventFormTemplate {
     csrf_token: String,
@@ -460,6 +470,36 @@ pub async fn detail(
         allowed_transitions,
         can_revert,
         previous_lifecycle_label,
+        i18n,
+    };
+    render(&tpl)
+}
+
+pub async fn drawer_content(
+    OptionalUser(user): OptionalUser,
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    Locale(i18n): Locale,
+) -> Result<Response, AppError> {
+    if user.is_none() && !state.is_public_mode() {
+        return Ok(Redirect::to("/login").into_response());
+    }
+
+    let ews = EventService::find_with_services(&state.pool, id).await?;
+    let updates = EventRepository::list_updates_with_author(&state.pool, id).await?;
+    let author_name = crate::repositories::UserRepository::find_by_id(&state.pool, ews.event.author_id)
+        .await?
+        .map_or_else(
+            || i18n.t("date.unknown_author").to_string(),
+            |u| u.display_name,
+        );
+    let description_html = sanitize_markdown(&ews.event.description);
+
+    let tpl = DrawerContentTemplate {
+        event: ews,
+        description_html,
+        updates,
+        author_name,
         i18n,
     };
     render(&tpl)

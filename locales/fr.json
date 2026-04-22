@@ -143,6 +143,7 @@
   "events.services_list_aria": "Liste des services",
 
   "common.cancel": "Annuler",
+  "common.close": "Fermer",
 
   "events.history_title": "Historique | Statup",
   "events.history_heading": "Historique",
@@ -367,6 +368,10 @@
 
   "events.panel_close": "Fermer",
   "events.details_label": "Détails",
+  "events.created_at": "Créé le",
+  "events.lifecycle_label": "Statut",
+  "events.services_label": "Services",
+  "events.open_full_page": "Voir la page complète",
   "events.created_label": "Créé le",
   "events.author_label": "Auteur",
   "events.apply_lifecycle": "Appliquer",

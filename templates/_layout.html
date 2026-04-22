@@ -143,6 +143,11 @@
         {% block content %}{% endblock %}
     </main>
 
+    <div id="drawer-overlay" class="drawer-overlay" onclick="closeDrawer()" aria-hidden="true"></div>
+    <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-label="{{ i18n.t("events.details_label") }}">
+        <div id="drawer-content"></div>
+    </aside>
+
     <footer class="mt-8 border-t border-ink/10 py-8 dark:border-sand-light/10">
         <div class="mx-auto flex max-w-[1320px] flex-col gap-3 px-6 sm:flex-row sm:items-center sm:justify-between">
             <div class="flex items-center gap-3">

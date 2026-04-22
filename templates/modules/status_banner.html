@@ -35,7 +35,7 @@
     <ul class="hero-list">
         {% for inc in active_incidents %}
         <li>
-            <a href="/events/{{ inc.id }}" class="hero-list-item">
+            <a href="/events/{{ inc.id }}" data-drawer="/events/{{ inc.id }}/drawer" class="hero-list-item">
                 <span class="hero-dot-sm hero-dot-crit" aria-hidden="true"></span>
                 <span class="hero-list-title">{{ inc.title }}</span>
                 {% if !inc.service_names.is_empty() %}

@@ -20,7 +20,7 @@
         <span>{{ active_maintenance.len() }}</span>
     </div>
     {% for event in active_maintenance %}
-    <a href="/events/{{ event.id }}" class="mnt">
+    <a href="/events/{{ event.id }}" data-drawer="/events/{{ event.id }}/drawer" class="mnt">
         <div class="mnt-top">
             <span class="mnt-tag {% if event.is_soon() %}mnt-tag-soon{% else %}mnt-tag-scheduled{% endif %}">
                 <span class="mnt-tag-dot" aria-hidden="true"></span>
@@ -59,7 +59,7 @@
         <span>{{ resolved_maintenance.len() }}</span>
     </div>
     {% for event in resolved_maintenance %}
-    <a href="/events/{{ event.id }}" class="mnt-past">
+    <a href="/events/{{ event.id }}" data-drawer="/events/{{ event.id }}/drawer" class="mnt-past">
         <span class="mnt-past-title">{{ event.title }}</span>
         <span class="mnt-past-meta">{{ i18n.format_time(event.updated_at) }}</span>
     </a>

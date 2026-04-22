@@ -70,6 +70,53 @@
         if (best) best.classList.add('active');
     })();
 
+    // Drawer, right-side detail pane. Solid panel, transform-only animation.
+    // Fetch runs in parallel with the open animation; the swap happens as soon
+    // as the response is ready. The drawer is isolated via `contain: layout
+    // paint style`, so the swap does not cascade into a dashboard repaint.
+    var _drawerReq = 0;
+    function openDrawer(url) {
+        var overlay = document.getElementById('drawer-overlay');
+        var panel = document.getElementById('drawer');
+        var content = document.getElementById('drawer-content');
+        if (!overlay || !panel || !content) return;
+        var reqId = ++_drawerReq;
+        content.innerHTML = '<div class="drawer-loader"><div class="drawer-spinner"></div></div>';
+        overlay.classList.add('open');
+        panel.classList.add('open');
+        fetch(url, { headers: { 'HX-Request': 'true' } })
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                if (reqId !== _drawerReq) return;
+                content.innerHTML = html;
+                if (window.htmx) htmx.process(content);
+            })
+            .catch(function() {
+                if (reqId !== _drawerReq) return;
+                content.innerHTML = '';
+            });
+    }
+    function closeDrawer() {
+        var overlay = document.getElementById('drawer-overlay');
+        var panel = document.getElementById('drawer');
+        if (!overlay || !panel) return;
+        _drawerReq++;
+        panel.classList.remove('open');
+        overlay.classList.remove('open');
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeDrawer();
+    });
+    // Delegate: any [data-drawer] click opens the drawer with that URL,
+    // falling back to the href navigation if JS is disabled.
+    document.addEventListener('click', function(e) {
+        var el = e.target.closest('[data-drawer]');
+        if (!el) return;
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+        e.preventDefault();
+        openDrawer(el.getAttribute('data-drawer'));
+    });
+
     // Relative time, elements with data-relative-from="<ISO string>" get
     // their textContent updated every minute ("5 min ago", "hace 2 h", etc.)
     (function() {
@@ -100,7 +147,7 @@
         document.body.addEventListener('htmx:afterSwap', updateRelatives);
     })();
 
-    // Scroll reveal, IntersectionObserver
+    // Scroll reveal, IntersectionObserver. Skips swaps targeted at the drawer.
     (function() {
         if (!('IntersectionObserver' in window)) return;
         var io = new IntersectionObserver(function(entries) {
@@ -115,7 +162,10 @@
             document.querySelectorAll('.reveal:not(.is-visible)').forEach(function(el) { io.observe(el); });
         }
         if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', observe); } else { observe(); }
-        document.body.addEventListener('htmx:afterSwap', observe);
+        document.body.addEventListener('htmx:afterSwap', function(e) {
+            if (e.target && e.target.closest && e.target.closest('#drawer')) return;
+            observe();
+        });
     })();
     </script>
 </body>

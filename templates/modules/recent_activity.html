@@ -20,7 +20,7 @@
         <span>{{ group.label }}</span>
     </div>
     {% for event in group.events %}
-    <a href="/events/{{ event.id }}" class="log-row{% if let Some(lc) = event.lifecycle %}{% if lc.is_active() %} log-row-live{% endif %}{% endif %}">
+    <a href="/events/{{ event.id }}" data-drawer="/events/{{ event.id }}/drawer" class="log-row{% if let Some(lc) = event.lifecycle %}{% if lc.is_active() %} log-row-live{% endif %}{% endif %}">
         <span class="log-time">{{ i18n.format_time(event.created_at) }}</span>
         <div class="log-body">
             <span class="{{ event.chip_class() }}">{{ i18n.t(event.kind.i18n_key()) }}</span>
