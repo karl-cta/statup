@@ -35,36 +35,6 @@
         document.cookie = 'lang=' + next + ';path=/;max-age=31536000;SameSite=Lax';
         location.reload();
     }
-    // Drawer, bottom sheet
-    function openDrawer(url) {
-        var overlay = document.getElementById('drawer-overlay');
-        var panel = document.getElementById('drawer-panel');
-        var content = document.getElementById('drawer-content');
-        if (!overlay || !panel) return;
-        if (content) content.innerHTML = '<div class="drawer-loader"><div class="drawer-spinner"></div></div>';
-        document.body.style.overflow = 'hidden';
-        overlay.classList.add('active');
-        // Force layout before adding .open so the transition actually plays
-        panel.offsetHeight;
-        panel.classList.add('open');
-        htmx.ajax('GET', url, {target: '#drawer-content', swap: 'innerHTML'});
-    }
-    function closeDrawer() {
-        var overlay = document.getElementById('drawer-overlay');
-        var panel = document.getElementById('drawer-panel');
-        if (!overlay || !panel) return;
-        panel.classList.remove('open');
-        overlay.classList.remove('active');
-        document.body.style.overflow = '';
-        setTimeout(function() {
-            var content = document.getElementById('drawer-content');
-            if (content && !panel.classList.contains('open')) content.innerHTML = '';
-        }, 400);
-    }
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeDrawer();
-    });
-
     // Scroll reveal, IntersectionObserver
     (function() {
         if (!('IntersectionObserver' in window)) return;

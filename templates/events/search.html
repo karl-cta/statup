@@ -63,8 +63,7 @@
     {% else %}
     <div class="mt-6 animate-in delay-2">
         {% for r in results %}
-        <a onclick="openDrawer('/events/{{ r.event.id }}/panel'); return false;"
-           href="/events/{{ r.event.id }}"
+        <a href="/events/{{ r.event.id }}"
            class="group flex items-center gap-3 py-2.5 px-2 -mx-2
                   border-b border-ink/10 dark:border-sand-light/10 last:border-b-0
                   transition-colors hover-row cursor-pointer">

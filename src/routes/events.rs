@@ -67,22 +67,6 @@ struct EventDetailTemplate {
 }
 
 #[derive(Template)]
-#[template(path = "events/detail_panel.html")]
-#[allow(clippy::struct_excessive_bools)]
-struct EventDetailPanelTemplate {
-    csrf_token: String,
-    event: EventWithServices,
-    description_html: String,
-    updates: Vec<EventUpdateWithAuthor>,
-    author_name: String,
-    can_edit: bool,
-    allowed_transitions: Vec<Lifecycle>,
-    can_revert: bool,
-    previous_lifecycle_label: Option<String>,
-    i18n: I18n,
-}
-
-#[derive(Template)]
 #[template(path = "events/form.html")]
 struct EventFormTemplate {
     csrf_token: String,
@@ -468,54 +452,6 @@ pub async fn detail(
         is_authenticated,
         unread_count,
         last_admin_action,
-        event: ews,
-        description_html,
-        updates,
-        author_name: author,
-        can_edit,
-        allowed_transitions,
-        can_revert,
-        previous_lifecycle_label,
-        i18n,
-    };
-    render(&tpl)
-}
-
-pub async fn detail_panel(
-    OptionalUser(user): OptionalUser,
-    State(state): State<AppState>,
-    Path(id): Path<i64>,
-    csrf_token: CsrfToken,
-    Locale(i18n): Locale,
-) -> Result<Response, AppError> {
-    if user.is_none() && !state.is_public_mode() {
-        return Ok(Redirect::to("/login").into_response());
-    }
-
-    let ews = EventService::find_with_services(&state.pool, id).await?;
-    let updates = EventRepository::list_updates_with_author(&state.pool, id).await?;
-
-    let author = crate::repositories::UserRepository::find_by_id(&state.pool, ews.event.author_id)
-        .await?
-        .map_or_else(
-            || i18n.t("date.unknown_author").to_string(),
-            |u| u.display_name,
-        );
-
-    let can_edit = user.as_ref().is_some_and(|u| u.role.can_publish());
-    let allowed_transitions = ews
-        .event
-        .lifecycle
-        .map(|l| ews.event.kind.allowed_transitions(l).to_vec())
-        .unwrap_or_default();
-    let can_revert = can_edit && ews.event.previous_lifecycle.is_some();
-    let previous_lifecycle_label = ews
-        .event
-        .previous_lifecycle
-        .map(|l| i18n.t(l.i18n_key()).to_string());
-    let description_html = sanitize_markdown(&ews.event.description);
-    let tpl = EventDetailPanelTemplate {
-        csrf_token: csrf_token.0,
         event: ews,
         description_html,
         updates,

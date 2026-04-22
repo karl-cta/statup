@@ -59,7 +59,6 @@ pub fn create_router(state: AppState) -> Router {
         .route("/", get(dashboard::index))
         .route("/events", get(events::list))
         .route("/events/:id", get(events::detail))
-        .route("/events/:id/panel", get(events::detail_panel))
         .route("/history", get(events::history))
         .route("/search", get(events::search))
 

@@ -141,14 +141,6 @@
         {% block content %}{% endblock %}
     </main>
 
-    <div id="drawer-overlay" class="drawer-overlay" onclick="closeDrawer()"></div>
-    <aside id="drawer-panel" class="drawer-panel" role="dialog" aria-modal="true" aria-label="{{ i18n.t("events.details_label") }}">
-        <div class="flex justify-center pt-3 pb-1 cursor-pointer" onclick="closeDrawer()">
-            <div class="w-9 h-1 rounded-full bg-ink/20 dark:bg-sand-light/20"></div>
-        </div>
-        <div id="drawer-content"></div>
-    </aside>
-
     <footer class="mt-8 border-t border-ink/10 py-8 dark:border-sand-light/10">
         <div class="mx-auto flex max-w-5xl flex-col gap-3 px-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
             <div class="flex items-center gap-3">

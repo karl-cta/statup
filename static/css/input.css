@@ -156,6 +156,7 @@
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         scroll-behavior: smooth;
+        scrollbar-gutter: stable;
         font-family: var(--font-sans);
     }
 
@@ -902,85 +903,6 @@
         border-color: rgb(244 241 235 / 0.22);
     }
 
-    /* Drawer, bottom sheet */
-    .drawer-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 40;
-        background: rgb(15 19 16 / 0);
-        backdrop-filter: blur(0px);
-        -webkit-backdrop-filter: blur(0px);
-        pointer-events: none;
-        transition: background 0.3s ease, backdrop-filter 0.3s ease, -webkit-backdrop-filter 0.3s ease;
-    }
-
-    .drawer-overlay.active {
-        background: rgb(15 19 16 / 0.18);
-        backdrop-filter: blur(2px);
-        -webkit-backdrop-filter: blur(2px);
-        pointer-events: auto;
-    }
-
-    .drawer-panel {
-        position: fixed;
-        left: 50%;
-        bottom: 0;
-        width: 560px;
-        max-width: 100%;
-        max-height: 85vh;
-        z-index: 50;
-        transform: translate(-50%, 100%);
-        transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
-        overflow-y: auto;
-        overscroll-behavior: contain;
-        background: var(--color-cream);
-        border-top-left-radius: 20px;
-        border-top-right-radius: 20px;
-        box-shadow: 0 -8px 40px rgb(15 19 16 / 0.08), 0 -1px 3px rgb(15 19 16 / 0.04);
-    }
-
-    .drawer-panel.open {
-        transform: translate(-50%, 0);
-    }
-
-    :is(.dark *) .drawer-panel {
-        background: #242823;
-        box-shadow: 0 -8px 40px rgb(0 0 0 / 0.45), 0 -1px 3px rgb(0 0 0 / 0.2);
-    }
-
-    .drawer-loader {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 60px 0;
-    }
-
-    .drawer-spinner {
-        width: 18px;
-        height: 18px;
-        border: 2px solid var(--color-sand-warm);
-        border-top-color: var(--color-ink);
-        border-radius: 50%;
-        animation: drawer-spin 0.6s linear infinite;
-    }
-
-    :is(.dark *) .drawer-spinner {
-        border-color: rgb(244 241 235 / 0.2);
-        border-top-color: var(--color-sand);
-    }
-
-    @keyframes drawer-spin {
-        to { transform: rotate(360deg); }
-    }
-
-    @media (max-width: 640px) {
-        .drawer-panel {
-            width: 100%;
-            max-height: 92vh;
-            border-top-left-radius: 16px;
-            border-top-right-radius: 16px;
-        }
-    }
 }
 
 /* =========================================================================

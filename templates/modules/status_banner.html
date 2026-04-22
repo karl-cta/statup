@@ -27,8 +27,7 @@
     <ul class="mt-4 grid gap-2 sm:grid-cols-2">
         {% for incident in active_incidents %}
         <li>
-            <a onclick="openDrawer('/events/{{ incident.id }}/panel'); return false;"
-               href="/events/{{ incident.id }}"
+            <a href="/events/{{ incident.id }}"
                class="group flex items-baseline gap-3 py-1.5 border-b border-red-200/50 dark:border-red-900/30 last:border-b-0">
                 <span class="flex-shrink-0 h-1.5 w-1.5 rounded-full bg-red-500 mt-1.5" aria-hidden="true"></span>
                 <span class="min-w-0 flex-1 text-[14px] font-semibold text-ink dark:text-sand-light underline underline-offset-4 decoration-red-300/60 dark:decoration-red-700/60 group-hover:decoration-red-500 dark:group-hover:decoration-red-400 transition-colors">{{ incident.title }}</span>

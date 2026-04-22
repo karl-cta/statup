@@ -11,8 +11,7 @@
         <p class="font-mono text-[10px] uppercase tracking-[0.12em] text-ink/45 dark:text-sand-light/35 mb-2">{{ i18n.t("dashboard.maintenance_upcoming") }}</p>
         <div class="space-y-2">
             {% for event in active_maintenance %}
-            <a onclick="openDrawer('/events/{{ event.id }}/panel'); return false;"
-               href="/events/{{ event.id }}"
+            <a href="/events/{{ event.id }}"
                class="block rounded-sm border border-ink/10 dark:border-sand-light/10 bg-sand-light dark:bg-surface-1 px-3 py-3 transition-colors hover:border-ink/25 dark:hover:border-sand-light/20 cursor-pointer">
                 <div class="flex items-baseline justify-between gap-2">
                     <p class="truncate text-[13px] font-semibold text-ink dark:text-sand-light">{{ event.title }}</p>
@@ -41,8 +40,7 @@
         <p class="font-mono text-[10px] uppercase tracking-[0.12em] text-ink/45 dark:text-sand-light/35 mb-2">{{ i18n.t("dashboard.maintenance_past") }}</p>
         <div>
             {% for event in resolved_maintenance %}
-            <a onclick="openDrawer('/events/{{ event.id }}/panel'); return false;"
-               href="/events/{{ event.id }}"
+            <a href="/events/{{ event.id }}"
                class="flex items-baseline justify-between gap-2 py-2 border-b border-ink/10 dark:border-sand-light/10 last:border-b-0 transition-colors hover-row cursor-pointer">
                 <span class="truncate text-[12px] text-ink/65 dark:text-sand-light/55">{{ event.title }}</span>
                 <span class="flex-shrink-0 font-mono text-[10px] tabular-nums text-ink/45 dark:text-sand-light/35 whitespace-nowrap">{{ i18n.format_time(event.updated_at) }}</span>
