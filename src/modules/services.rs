@@ -72,8 +72,8 @@ impl ServicesTemplate {
             _ => return "100.00%".to_string(),
         };
         let total = u32::try_from(points.len()).unwrap_or(u32::MAX);
-        let ok_days = u32::try_from(points.iter().filter(|&&level| level == 0).count())
-            .unwrap_or(u32::MAX);
+        let ok_days =
+            u32::try_from(points.iter().filter(|&&level| level == 0).count()).unwrap_or(u32::MAX);
         let pct = if total > 0 {
             f64::from(ok_days) / f64::from(total) * 100.0
         } else {

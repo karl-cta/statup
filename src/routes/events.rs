@@ -488,12 +488,13 @@ pub async fn drawer_content(
 
     let ews = EventService::find_with_services(&state.pool, id).await?;
     let updates = EventRepository::list_updates_with_author(&state.pool, id).await?;
-    let author_name = crate::repositories::UserRepository::find_by_id(&state.pool, ews.event.author_id)
-        .await?
-        .map_or_else(
-            || i18n.t("date.unknown_author").to_string(),
-            |u| u.display_name,
-        );
+    let author_name =
+        crate::repositories::UserRepository::find_by_id(&state.pool, ews.event.author_id)
+            .await?
+            .map_or_else(
+                || i18n.t("date.unknown_author").to_string(),
+                |u| u.display_name,
+            );
     let description_html = sanitize_markdown(&ews.event.description);
     let can_edit = user.as_ref().is_some_and(|u| u.role.can_publish());
 
