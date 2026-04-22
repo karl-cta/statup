@@ -54,15 +54,32 @@ impl ServicesTemplate {
                     _ => "dashboard.sparkline_legend_critical",
                 };
                 let class = match level {
-                    0 => "bg-emerald-400/70 dark:bg-emerald-500/50",
-                    1 => "bg-yellow-400 dark:bg-yellow-400/80",
-                    2 => "bg-orange-400 dark:bg-orange-400/80",
-                    _ => "bg-red-400 dark:bg-red-400/80",
+                    0 => "bar",
+                    1 => "bar bar-minor",
+                    2 => "bar bar-major",
+                    _ => "bar bar-crit",
                 };
-                let tooltip = format!("{} — {}", date.format("%Y-%m-%d"), self.i18n.t(label_key));
+                let tooltip = format!("{} · {}", date.format("%Y-%m-%d"), self.i18n.t(label_key));
                 SparklineDay { class, tooltip }
             })
             .collect()
+    }
+
+    #[allow(clippy::trivially_copy_pass_by_ref, clippy::naive_bytecount)]
+    fn uptime_pct(&self, service_id: &i64) -> String {
+        let points = match self.sparkline_map.get(service_id) {
+            Some(p) if !p.is_empty() => p,
+            _ => return "100.00%".to_string(),
+        };
+        let total = u32::try_from(points.len()).unwrap_or(u32::MAX);
+        let ok_days = u32::try_from(points.iter().filter(|&&level| level == 0).count())
+            .unwrap_or(u32::MAX);
+        let pct = if total > 0 {
+            f64::from(ok_days) / f64::from(total) * 100.0
+        } else {
+            100.0
+        };
+        format!("{pct:.2}%")
     }
 }
 

@@ -8,82 +8,84 @@
         {{ i18n.t("nav.skip_to_content") }}
     </a>
 
-    <nav aria-label="{{ i18n.t("nav.main_nav") }}"
-         class="sticky top-0 z-40 border-b border-ink/10 bg-page/90 backdrop-blur dark:border-sand-light/10 dark:bg-ink/90">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div class="flex h-16 items-center justify-between">
-                <div class="flex items-center gap-8">
-                    <a href="/" class="flex items-center gap-2.5">
-                        {% let logo_size = "h-6 w-6" %}
-                        {% include "components/logo.html" %}
-                        <span class="text-[15px] font-medium tracking-tight text-ink dark:text-sand-light">
-                            Statup
-                        </span>
-                    </a>
-                    <div class="hidden items-center gap-1 sm:flex">
-                        <a href="/" class="nav-pill">{{ i18n.t("nav.dashboard") }}</a>
-                        <a href="/events" class="nav-pill relative">
-                            {{ i18n.t("nav.events") }}
-                            {% if unread_count > 0 %}
-                            <span class="absolute -right-1 -top-1 flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-medium tabular-nums text-sand-light bg-red-600"
-                                  aria-label="{{ unread_count }}">
-                                {% if unread_count > 99 %}99+{% else %}{{ unread_count }}{% endif %}
-                            </span>
-                            {% endif %}
-                        </a>
-                        {% if is_authenticated %}
-                        <a href="/services" class="nav-pill">{{ i18n.t("nav.services") }}</a>
-                        {% endif %}
-                        {% if is_admin %}
-                        <a href="/admin/users" class="nav-pill">{{ i18n.t("nav.admin") }}</a>
-                        {% endif %}
+    <header class="mast" aria-label="{{ i18n.t("nav.main_nav") }}">
+        <div class="mast-inner">
+            <div class="mast-title-cell">
+                <a href="/" class="mast-title">
+                    {% let logo_size = "mast-mark" %}
+                    {% include "components/logo.html" %}
+                    <span>Statup</span>
+                </a>
+            </div>
+            <div class="mast-rows">
+                <div class="mast-top">
+                    <div class="mast-top-left">
+                        <span id="mast-date"></span>
+                        <span class="sep"></span>
+                        <span id="mast-clock">UTC</span>
+                    </div>
+                    <div class="mast-top-right">
+                        <button type="button" onclick="switchLang()"
+                                class="transition-colors"
+                                aria-label="{{ i18n.t("lang.switch") }}">
+                            {% if i18n.is_fr() %}EN{% else %}FR{% endif %}
+                        </button>
                     </div>
                 </div>
-                <div class="flex items-center gap-1">
-                    <a href="/search"
-                       class="p-2 text-ink/45 transition-colors hover:text-ink dark:text-sand-light/45 dark:hover:text-sand-light"
-                       aria-label="{{ i18n.t("nav.search") }}">
-                        <svg class="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                        </svg>
+                <nav class="mast-nav-inner" aria-label="{{ i18n.t("nav.main_nav") }}">
+                    <a class="mnav" data-nav="/" href="/">{{ i18n.t("nav.dashboard") }}</a>
+                    <a class="mnav" data-nav="/events" href="/events">
+                        {{ i18n.t("nav.events") }}
+                        {% if unread_count > 0 %}
+                        <span class="mnav-badge" aria-label="{{ unread_count }}">
+                            {% if unread_count > 99 %}99+{% else %}{{ unread_count }}{% endif %}
+                        </span>
+                        {% endif %}
                     </a>
-                    <button type="button" onclick="toggleTheme()"
-                            class="p-2 text-ink/45 transition-colors hover:text-ink dark:text-sand-light/45 dark:hover:text-sand-light"
-                            aria-label="{{ i18n.t("nav.toggle_theme") }}">
-                        <svg class="h-[18px] w-[18px] hidden dark:block" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                        </svg>
-                        <svg class="h-[18px] w-[18px] block dark:hidden" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                        </svg>
-                    </button>
                     {% if is_authenticated %}
-                    <a href="/profile" class="hidden sm:inline-block ml-2 text-[13px] font-medium text-ink/60 transition-colors hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light">{{ user_display_name }}</a>
-                    <form method="post" action="/logout" class="hidden sm:block">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <button type="submit"
-                                class="px-2.5 py-1.5 text-[13px] font-medium text-ink/45 transition-colors hover:text-ink dark:text-sand-light/45 dark:hover:text-sand-light">
-                            {{ i18n.t("nav.logout") }}
-                        </button>
-                    </form>
-                    {% else %}
-                    <a href="/login" class="btn-3d hidden sm:inline-flex text-[13px] px-4 py-1.5 ml-2">
-                        <span>{{ i18n.t("nav.login") }}</span>
-                    </a>
+                    <a class="mnav" data-nav="/services" href="/services">{{ i18n.t("nav.services") }}</a>
                     {% endif %}
-                    <button type="button"
-                            onclick="var m=document.getElementById('mobile-menu');m.classList.toggle('hidden');this.setAttribute('aria-expanded',!m.classList.contains('hidden'))"
-                            class="p-2 text-ink/55 transition-colors hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light sm:hidden"
-                            aria-expanded="false" aria-controls="mobile-menu"
-                            aria-label="{{ i18n.t("nav.main_menu") }}">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                        </svg>
-                    </button>
-                </div>
+                    {% if is_admin %}
+                    <a class="mnav" data-nav="/admin" href="/admin/users">{{ i18n.t("nav.admin") }}</a>
+                    {% endif %}
+                    <div class="mnav-spacer"></div>
+                    <div class="mnav-tools">
+                        <a class="mnav-tool" href="/search" aria-label="{{ i18n.t("nav.search") }}">
+                            <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+                            </svg>
+                            <span>{{ i18n.t("nav.search") }}</span>
+                        </a>
+                        <button type="button" class="mnav-tool" onclick="toggleTheme()" aria-label="{{ i18n.t("nav.toggle_theme") }}">
+                            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                            </svg>
+                            <span>{{ i18n.t("nav.theme") }}</span>
+                        </button>
+                        {% if is_authenticated %}
+                        <span class="mnav-user">
+                            <a href="/profile">{{ user_display_name }}</a>
+                            <form method="post" action="/logout">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit">{{ i18n.t("nav.logout") }}</button>
+                            </form>
+                        </span>
+                        {% else %}
+                        <a class="mnav-tool" href="/login">{{ i18n.t("nav.login") }}</a>
+                        {% endif %}
+                    </div>
+                </nav>
+                <button type="button" class="mast-burger"
+                        onclick="var m=document.getElementById('mobile-menu');m.classList.toggle('hidden');this.setAttribute('aria-expanded',!m.classList.contains('hidden'))"
+                        aria-expanded="false" aria-controls="mobile-menu"
+                        aria-label="{{ i18n.t("nav.main_menu") }}">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                    </svg>
+                </button>
             </div>
         </div>
-        <div id="mobile-menu" role="region" aria-label="{{ i18n.t("nav.mobile_menu") }}" class="hidden border-t border-ink/10 dark:border-sand-light/10 sm:hidden animate-slide-down">
+        <div id="mobile-menu" role="region" aria-label="{{ i18n.t("nav.mobile_menu") }}" class="hidden border-t border-ink/10 dark:border-sand-light/10 sm:hidden">
             <div class="space-y-0 px-4 py-3">
                 <a href="/" class="block py-2.5 text-[14px] font-medium text-ink/75 transition-colors hover:text-ink dark:text-sand-light/75 dark:hover:text-sand-light">
                     {{ i18n.t("nav.dashboard") }}
@@ -131,7 +133,7 @@
                 {% endif %}
             </div>
         </div>
-    </nav>
+    </header>
 
     <div aria-live="polite" aria-atomic="true">
         {% block flash %}{% endblock %}
@@ -142,7 +144,7 @@
     </main>
 
     <footer class="mt-8 border-t border-ink/10 py-8 dark:border-sand-light/10">
-        <div class="mx-auto flex max-w-5xl flex-col gap-3 px-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+        <div class="mx-auto flex max-w-[1320px] flex-col gap-3 px-6 sm:flex-row sm:items-center sm:justify-between">
             <div class="flex items-center gap-3">
                 {% let logo_size = "h-4 w-4 text-ink/55 dark:text-sand-light/45" %}
                 {% include "components/logo.html" %}

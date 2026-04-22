@@ -35,6 +35,71 @@
         document.cookie = 'lang=' + next + ';path=/;max-age=31536000;SameSite=Lax';
         location.reload();
     }
+    // Masthead live clock and active nav marker
+    (function() {
+        var lang = document.documentElement.lang || 'fr';
+        var dateEl = document.getElementById('mast-date');
+        var clockEl = document.getElementById('mast-clock');
+        if (dateEl) {
+            try {
+                dateEl.textContent = new Date().toLocaleDateString(lang, {
+                    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                });
+            } catch(e) { dateEl.textContent = new Date().toDateString(); }
+        }
+        function tickClock() {
+            if (!clockEl) return;
+            var d = new Date();
+            var hh = String(d.getUTCHours()).padStart(2, '0');
+            var mm = String(d.getUTCMinutes()).padStart(2, '0');
+            clockEl.textContent = hh + ':' + mm + ' UTC';
+        }
+        tickClock();
+        setInterval(tickClock, 30000);
+
+        var path = window.location.pathname;
+        var best = null, bestLen = -1;
+        document.querySelectorAll('.mnav[data-nav]').forEach(function(a) {
+            var p = a.getAttribute('data-nav');
+            if (p === '/' && path === '/') {
+                if (bestLen < 1) { best = a; bestLen = 1; }
+            } else if (p !== '/' && path.indexOf(p) === 0 && p.length > bestLen) {
+                best = a; bestLen = p.length;
+            }
+        });
+        if (best) best.classList.add('active');
+    })();
+
+    // Relative time, elements with data-relative-from="<ISO string>" get
+    // their textContent updated every minute ("5 min ago", "hace 2 h", etc.)
+    (function() {
+        function fmtRelative(iso) {
+            var then = Date.parse(iso);
+            if (isNaN(then)) return '';
+            var lang = document.documentElement.lang || 'fr';
+            var rtf;
+            try { rtf = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' }); }
+            catch (e) { return ''; }
+            var diffSec = Math.max(0, Math.round((Date.now() - then) / 1000));
+            if (diffSec < 60) return rtf.format(-diffSec, 'second');
+            var diffMin = Math.round(diffSec / 60);
+            if (diffMin < 60) return rtf.format(-diffMin, 'minute');
+            var diffH = Math.round(diffSec / 3600);
+            if (diffH < 24) return rtf.format(-diffH, 'hour');
+            var diffD = Math.round(diffSec / 86400);
+            return rtf.format(-diffD, 'day');
+        }
+        function updateRelatives() {
+            document.querySelectorAll('[data-relative-from]').forEach(function(el) {
+                var iso = el.getAttribute('data-relative-from');
+                el.textContent = fmtRelative(iso);
+            });
+        }
+        updateRelatives();
+        setInterval(updateRelatives, 60000);
+        document.body.addEventListener('htmx:afterSwap', updateRelatives);
+    })();
+
     // Scroll reveal, IntersectionObserver
     (function() {
         if (!('IntersectionObserver' in window)) return;

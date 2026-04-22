@@ -1,81 +1,50 @@
-{# Services module, Magazine left column. Expects: services, sparkline_map, i18n #}
-<div class="module-services">
-    <div class="flex items-baseline justify-between mb-4">
-        <p class="eyebrow">{{ i18n.t("dashboard.services") }}</p>
+{# Services module, dashboard left card. Expects: services, sparkline_map, i18n #}
+<section class="card">
+    <header class="card-head">
+        <h2>
+            <span>{{ i18n.t("dashboard.services") }}</span>
+            {% if !services.is_empty() %}
+            <span class="card-head-cnt">{{ services.len() }}</span>
+            {% endif %}
+        </h2>
         {% if !services.is_empty() %}
-        <p class="font-mono text-[10px] uppercase tracking-[0.08em] text-ink/45 dark:text-sand-light/35">{{ services.len() }}</p>
+        <a href="/services" class="card-action">{{ i18n.t("dashboard.view_all") }}</a>
         {% endif %}
-    </div>
+    </header>
 
     {% if services.is_empty() %}
-    <p class="text-[13px] text-ink/50 dark:text-sand-light/45">{{ i18n.t("dashboard.no_services") }}</p>
+    <p class="card-empty">{{ i18n.t("dashboard.no_services") }}</p>
     {% else %}
-
-    {# Mobile, horizontal pill strip #}
-    <div class="lg:hidden -mx-4 px-4">
-        <div class="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
-            {% for service in services %}
-            <div class="flex flex-shrink-0 items-center gap-2 rounded-sm px-2.5 py-1.5 {{ service.status.row_bg_class() }}">
-                <span class="h-2 w-2 flex-shrink-0 rounded-full {{ service.status.dot_class() }}" aria-hidden="true"></span>
-                <span class="whitespace-nowrap text-[13px] font-medium text-ink dark:text-sand-light">{{ service.name }}</span>
-                <span class="font-mono text-[10px] font-medium uppercase tracking-[0.08em] {{ service.status.mono_color_class() }}">{{ service.status.mono_label() }}</span>
+    {% for service in services %}
+    <article class="svc">
+        <div class="svc-top">
+            <div class="svc-left">
+                <span class="svc-dot svc-dot-{{ service.status.as_str() }}" aria-hidden="true"></span>
+                <span class="svc-name">{{ service.name }}</span>
             </div>
+            <span class="svc-pct {{ service.status.mono_color_class() }}">{{ self.uptime_pct(service.id) }}</span>
+        </div>
+        <div class="svc-bars"
+             role="img"
+             aria-label="{{ i18n.t("dashboard.availability_30d") }}">
+            {% for day in self.sparkline_days(service.id) %}
+            <span class="{{ day.class }}" data-day-label="{{ day.tooltip }}"></span>
             {% endfor %}
         </div>
-    </div>
-
-    {# Desktop, vertical list with sparklines #}
-    <nav aria-label="{{ i18n.t("dashboard.services") }}" class="hidden lg:block -mx-2">
-        {% for service in services %}
-        <div class="flex items-start gap-2.5 px-2 py-2.5 rounded-sm border-b border-ink/8 dark:border-sand-light/8 last:border-b-0 {{ service.status.row_bg_class() }}">
-            <span class="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full {{ service.status.dot_class() }}" aria-hidden="true"></span>
-            <div class="min-w-0 flex-1">
-                <div class="flex items-baseline justify-between gap-2">
-                    <p class="truncate text-[13px] font-medium text-ink dark:text-sand-light">{{ service.name }}</p>
-                    <span class="flex-shrink-0 font-mono text-[10px] font-medium uppercase tracking-[0.08em] {{ service.status.mono_color_class() }}">{{ service.status.mono_label() }}</span>
-                </div>
-                <div class="flex items-stretch gap-[1px] h-[5px] mt-2 rounded-sm overflow-hidden"
-                     role="img"
-                     aria-label="{{ i18n.t("dashboard.availability_30d") }}">
-                    {% for day in self.sparkline_days(service.id) %}
-                    <div class="flex-1 sparkline-bar {{ day.class }}"
-                         title="{{ day.tooltip }}"></div>
-                    {% endfor %}
-                </div>
-                {% match service.description %}
-                {% when Some with (desc) %}
-                {% if !desc.is_empty() %}
-                <p class="mt-1.5 text-[11px] text-ink/50 dark:text-sand-light/45 line-clamp-1">{{ desc }}</p>
-                {% endif %}
-                {% when None %}
-                {% endmatch %}
-            </div>
+        <div class="svc-foot">
+            {% match service.description %}
+            {% when Some with (desc) %}
+            {% if !desc.is_empty() %}
+            <span class="svc-foot-desc">{{ desc }}</span>
+            {% else %}
+            <span></span>
+            {% endif %}
+            {% when None %}
+            <span></span>
+            {% endmatch %}
+            <span class="svc-foot-period">30{{ i18n.t("dashboard.days_short") }}</span>
         </div>
-        {% endfor %}
-
-        {# Legend, what the sparkline bars mean #}
-        <div class="mt-4 pt-3 border-t border-ink/10 dark:border-sand-light/10 px-2">
-            <p class="font-mono text-[9px] uppercase tracking-[0.14em] text-ink/45 dark:text-sand-light/35 mb-2">{{ i18n.t("dashboard.sparkline_legend_title") }}</p>
-            <ul class="flex flex-wrap gap-x-3 gap-y-1.5">
-                <li class="flex items-center gap-1.5">
-                    <span class="h-1.5 w-3 rounded-[1px] bg-emerald-400/70 dark:bg-emerald-500/50" aria-hidden="true"></span>
-                    <span class="text-[10px] text-ink/55 dark:text-sand-light/45">{{ i18n.t("dashboard.sparkline_legend_ok") }}</span>
-                </li>
-                <li class="flex items-center gap-1.5">
-                    <span class="h-1.5 w-3 rounded-[1px] bg-yellow-400" aria-hidden="true"></span>
-                    <span class="text-[10px] text-ink/55 dark:text-sand-light/45">{{ i18n.t("dashboard.sparkline_legend_minor") }}</span>
-                </li>
-                <li class="flex items-center gap-1.5">
-                    <span class="h-1.5 w-3 rounded-[1px] bg-orange-400" aria-hidden="true"></span>
-                    <span class="text-[10px] text-ink/55 dark:text-sand-light/45">{{ i18n.t("dashboard.sparkline_legend_major") }}</span>
-                </li>
-                <li class="flex items-center gap-1.5">
-                    <span class="h-1.5 w-3 rounded-[1px] bg-red-400" aria-hidden="true"></span>
-                    <span class="text-[10px] text-ink/55 dark:text-sand-light/45">{{ i18n.t("dashboard.sparkline_legend_critical") }}</span>
-                </li>
-            </ul>
-        </div>
-    </nav>
-
+    </article>
+    {% endfor %}
     {% endif %}
-</div>
+</section>

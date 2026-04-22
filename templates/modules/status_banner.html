@@ -1,42 +1,50 @@
-{# Status banner, Magazine hero. Expects: active_incidents, i18n #}
+{# Status banner, magazine hero. Expects: active_incidents (Vec<EventSummary>), i18n #}
 {% if active_incidents.is_empty() %}
-{# All good, sober statement #}
-<div class="flex items-baseline gap-4">
-    <p class="eyebrow">{{ i18n.t("dashboard.status_eyebrow") }}</p>
-    <span class="inline-flex items-center gap-2">
-        <span class="h-2 w-2 flex-shrink-0 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-soft-pulse" aria-hidden="true"></span>
-        <span class="font-mono text-[11px] uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">{{ i18n.t("dashboard.status_ok_mono") }}</span>
-    </span>
-</div>
-<h1 class="mt-2 text-[28px] sm:text-[32px] font-medium text-ink dark:text-sand-light tracking-tight leading-tight">
-    {{ i18n.t("dashboard.all_operational") }}
-</h1>
+<section class="hero hero-ok">
+    <p class="hero-kicker">
+        <span class="hero-dot hero-dot-ok" aria-hidden="true"></span>
+        <span>{{ i18n.t("dashboard.status_ok_mono") }}</span>
+    </p>
+    <h1 class="hero-title">{{ i18n.t("dashboard.all_operational") }}</h1>
+</section>
 {% else %}
-{# Incidents active, impactful Magazine statement without AI-reflex stripe #}
-<div class="rounded-sm bg-red-50/70 dark:bg-red-950/25 border border-red-200/60 dark:border-red-900/40 px-5 py-5 sm:px-6 sm:py-6">
-    <div class="flex items-baseline gap-4">
-        <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-red-700 dark:text-red-400">{{ i18n.t("dashboard.status_eyebrow") }}</p>
-        <span class="inline-flex items-center gap-2">
-            <span class="h-2 w-2 flex-shrink-0 rounded-full bg-red-500 animate-soft-pulse" aria-hidden="true"></span>
-            <span class="font-mono text-[11px] uppercase tracking-[0.14em] text-red-700 dark:text-red-400">{{ i18n.t("dashboard.status_incident_mono") }}</span>
-        </span>
-    </div>
-    <h1 class="mt-2 text-[28px] sm:text-[32px] font-bold text-ink dark:text-sand-light tracking-tight leading-[1.1]">
+<section class="hero hero-incident">
+    <p class="hero-kicker">
+        <span class="hero-dot hero-dot-crit" aria-hidden="true"></span>
+        <span>{{ i18n.t("dashboard.status_incident_mono") }}</span>
+    </p>
+    {% match active_incidents.first() %}
+    {% when Some with (first) %}
+    <h1 class="hero-title">
+        {% if active_incidents.len() == 1 %}
+        {{ first.title }}
+        {% else %}
         {{ active_incidents.len() }} {{ i18n.t("dashboard.active_incidents") }}
+        {% endif %}
     </h1>
-    <ul class="mt-4 grid gap-2 sm:grid-cols-2">
-        {% for incident in active_incidents %}
+    <p class="hero-meta">
+        {% if !first.service_names.is_empty() %}
+        <b>{{ first.service_names }}</b>
+        <span class="hero-meta-sep" aria-hidden="true">·</span>
+        {% endif %}
+        <span data-relative-from="{{ first.created_at.to_rfc3339() }}"></span>
+    </p>
+    {% when None %}
+    {% endmatch %}
+    {% if active_incidents.len() > 1 %}
+    <ul class="hero-list">
+        {% for inc in active_incidents %}
         <li>
-            <a href="/events/{{ incident.id }}"
-               class="group flex items-baseline gap-3 py-1.5 border-b border-red-200/50 dark:border-red-900/30 last:border-b-0">
-                <span class="flex-shrink-0 h-1.5 w-1.5 rounded-full bg-red-500 mt-1.5" aria-hidden="true"></span>
-                <span class="min-w-0 flex-1 text-[14px] font-semibold text-ink dark:text-sand-light underline underline-offset-4 decoration-red-300/60 dark:decoration-red-700/60 group-hover:decoration-red-500 dark:group-hover:decoration-red-400 transition-colors">{{ incident.title }}</span>
-                {% if !incident.service_names.is_empty() %}
-                <span class="flex-shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-ink/55 dark:text-sand-light/45 truncate max-w-[140px]">{{ incident.service_names }}</span>
+            <a href="/events/{{ inc.id }}" class="hero-list-item">
+                <span class="hero-dot-sm hero-dot-crit" aria-hidden="true"></span>
+                <span class="hero-list-title">{{ inc.title }}</span>
+                {% if !inc.service_names.is_empty() %}
+                <span class="hero-list-svc">{{ inc.service_names }}</span>
                 {% endif %}
             </a>
         </li>
         {% endfor %}
     </ul>
-</div>
+    {% endif %}
+</section>
 {% endif %}
