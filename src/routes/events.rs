@@ -73,6 +73,7 @@ struct DrawerContentTemplate {
     description_html: String,
     updates: Vec<EventUpdateWithAuthor>,
     author_name: String,
+    can_edit: bool,
     i18n: I18n,
 }
 
@@ -494,12 +495,14 @@ pub async fn drawer_content(
             |u| u.display_name,
         );
     let description_html = sanitize_markdown(&ews.event.description);
+    let can_edit = user.as_ref().is_some_and(|u| u.role.can_publish());
 
     let tpl = DrawerContentTemplate {
         event: ews,
         description_html,
         updates,
         author_name,
+        can_edit,
         i18n,
     };
     render(&tpl)

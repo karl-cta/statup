@@ -74,5 +74,8 @@
 
     <div class="drawer-foot">
         <a href="/events/{{ event.event.id }}">{{ i18n.t("events.open_full_page") }}</a>
+        {% if can_edit %}
+        <a href="/events/{{ event.event.id }}/edit">{{ i18n.t("common.edit") }}</a>
+        {% endif %}
     </div>
 </div>

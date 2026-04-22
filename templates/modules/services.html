@@ -28,7 +28,7 @@
              role="img"
              aria-label="{{ i18n.t("dashboard.availability_30d") }}">
             {% for day in self.sparkline_days(service.id) %}
-            <span class="{{ day.class }}" data-day-label="{{ day.tooltip }}"></span>
+            <span class="{{ day.class }}" data-day-label="{{ day.tooltip }}" tabindex="0" role="img" aria-label="{{ day.tooltip }}"></span>
             {% endfor %}
         </div>
         <div class="svc-foot">

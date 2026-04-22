@@ -33,7 +33,7 @@
     --color-sand-light: #FAF8F2;
     --color-cream: #FAF8F2;
     --color-page: #F4F1EB;
-    --color-muted-light: #6E6A5E;
+    --color-muted-light: #5F5C52;
     --color-muted-dark: #9C9689;
 
     /* ---- Typography ----
@@ -133,6 +133,64 @@
    ========================================================================= */
 
 @layer base {
+    /* ---- Semantic status tokens. Single source of truth for statuses across
+       hero, chips, dots, bars, tags. Overridden by .dark for dark mode. ---- */
+    :root {
+        --sem-ok: #10B981;
+        --sem-ok-text: #047857;
+        --sem-ok-ring: rgb(16 185 129 / 0.18);
+        --sem-ok-soft: rgb(16 185 129 / 0.1);
+
+        --sem-minor: #EAB308;
+        --sem-minor-text: #A16207;
+        --sem-minor-ring: rgb(234 179 8 / 0.2);
+        --sem-minor-soft: rgb(234 179 8 / 0.12);
+
+        --sem-major: #F97316;
+        --sem-major-text: #C2410C;
+        --sem-major-ring: rgb(249 115 22 / 0.2);
+        --sem-major-soft: rgb(249 115 22 / 0.1);
+
+        --sem-crit: #DC2626;
+        --sem-crit-text: #B91C1C;
+        --sem-crit-ring: rgb(220 38 38 / 0.2);
+        --sem-crit-soft: rgb(220 38 38 / 0.08);
+        --sem-crit-border: rgb(220 38 38 / 0.24);
+
+        --sem-info: #2563EB;
+        --sem-info-text: #1D4ED8;
+        --sem-info-ring: rgb(37 99 235 / 0.2);
+        --sem-info-soft: rgb(37 99 235 / 0.1);
+    }
+
+    .dark {
+        --sem-ok: #34D399;
+        --sem-ok-text: #34D399;
+        --sem-ok-ring: rgb(52 211 153 / 0.2);
+        --sem-ok-soft: rgb(52 211 153 / 0.12);
+
+        --sem-minor: #FACC15;
+        --sem-minor-text: #FACC15;
+        --sem-minor-ring: rgb(250 204 21 / 0.2);
+        --sem-minor-soft: rgb(250 204 21 / 0.14);
+
+        --sem-major: #FB923C;
+        --sem-major-text: #FB923C;
+        --sem-major-ring: rgb(251 146 60 / 0.22);
+        --sem-major-soft: rgb(251 146 60 / 0.12);
+
+        --sem-crit: #F87171;
+        --sem-crit-text: #F87171;
+        --sem-crit-ring: rgb(248 113 113 / 0.22);
+        --sem-crit-soft: rgb(215 106 74 / 0.08);
+        --sem-crit-border: rgb(215 106 74 / 0.28);
+
+        --sem-info: #60A5FA;
+        --sem-info-text: #60A5FA;
+        --sem-info-ring: rgb(96 165 250 / 0.22);
+        --sem-info-soft: rgb(96 165 250 / 0.12);
+    }
+
     html {
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
@@ -842,7 +900,7 @@
         height: 16px;
         padding: 0 4px;
         border-radius: 999px;
-        background: #B84524;
+        background: var(--sem-crit);
         color: var(--color-sand-light);
         font-size: 10px;
         font-weight: 600;
@@ -942,7 +1000,7 @@
     }
 
     .mnav-user button:hover {
-        color: #B84524;
+        color: var(--sem-crit-text);
     }
 
     /* Mobile burger, shown below 720px */
@@ -1008,13 +1066,8 @@
     }
 
     .hero-incident {
-        background: rgb(184 69 36 / 0.05);
-        border-color: rgb(184 69 36 / 0.22);
-    }
-
-    :is(.dark *) .hero-incident {
-        background: rgb(215 106 74 / 0.06);
-        border-color: rgb(215 106 74 / 0.24);
+        background: var(--sem-crit-soft);
+        border-color: var(--sem-crit-border);
     }
 
     .hero-kicker {
@@ -1036,19 +1089,11 @@
     }
 
     .hero-ok .hero-kicker {
-        color: #047857;
-    }
-
-    :is(.dark *) .hero-ok .hero-kicker {
-        color: #34D399;
+        color: var(--sem-ok-text);
     }
 
     .hero-incident .hero-kicker {
-        color: #B91C1C;
-    }
-
-    :is(.dark *) .hero-incident .hero-kicker {
-        color: #F87171;
+        color: var(--sem-crit-text);
     }
 
     .hero-dot {
@@ -1060,23 +1105,13 @@
     }
 
     .hero-dot-ok {
-        background: #10B981;
-        box-shadow: 0 0 0 3px rgb(16 185 129 / 0.18);
-    }
-
-    :is(.dark *) .hero-dot-ok {
-        background: #34D399;
-        box-shadow: 0 0 0 3px rgb(52 211 153 / 0.2);
+        background: var(--sem-ok);
+        box-shadow: 0 0 0 3px var(--sem-ok-ring);
     }
 
     .hero-dot-crit {
-        background: #DC2626;
-        box-shadow: 0 0 0 3px rgb(220 38 38 / 0.2);
-    }
-
-    :is(.dark *) .hero-dot-crit {
-        background: #F87171;
-        box-shadow: 0 0 0 3px rgb(248 113 113 / 0.22);
+        background: var(--sem-crit);
+        box-shadow: 0 0 0 3px var(--sem-crit-ring);
     }
 
     .hero-title {
@@ -1129,11 +1164,7 @@
     }
 
     .hero-list li {
-        border-top: 1px solid rgb(184 69 36 / 0.14);
-    }
-
-    :is(.dark *) .hero-list li {
-        border-top-color: rgb(215 106 74 / 0.18);
+        border-top: 1px solid var(--sem-crit-border);
     }
 
     .hero-list-item {
@@ -1336,53 +1367,28 @@
     }
 
     .svc-dot-operational {
-        background: #10B981;
-        box-shadow: 0 0 0 3px rgb(16 185 129 / 0.18);
-    }
-
-    :is(.dark *) .svc-dot-operational {
-        background: #34D399;
-        box-shadow: 0 0 0 3px rgb(52 211 153 / 0.2);
+        background: var(--sem-ok);
+        box-shadow: 0 0 0 3px var(--sem-ok-ring);
     }
 
     .svc-dot-degraded {
-        background: #EAB308;
-        box-shadow: 0 0 0 3px rgb(234 179 8 / 0.2);
-    }
-
-    :is(.dark *) .svc-dot-degraded {
-        background: #FACC15;
-        box-shadow: 0 0 0 3px rgb(250 204 21 / 0.2);
+        background: var(--sem-minor);
+        box-shadow: 0 0 0 3px var(--sem-minor-ring);
     }
 
     .svc-dot-partial_outage {
-        background: #F97316;
-        box-shadow: 0 0 0 3px rgb(249 115 22 / 0.2);
-    }
-
-    :is(.dark *) .svc-dot-partial_outage {
-        background: #FB923C;
-        box-shadow: 0 0 0 3px rgb(251 146 60 / 0.22);
+        background: var(--sem-major);
+        box-shadow: 0 0 0 3px var(--sem-major-ring);
     }
 
     .svc-dot-major_outage {
-        background: #DC2626;
-        box-shadow: 0 0 0 3px rgb(220 38 38 / 0.2);
-    }
-
-    :is(.dark *) .svc-dot-major_outage {
-        background: #F87171;
-        box-shadow: 0 0 0 3px rgb(248 113 113 / 0.22);
+        background: var(--sem-crit);
+        box-shadow: 0 0 0 3px var(--sem-crit-ring);
     }
 
     .svc-dot-maintenance {
-        background: #2563EB;
-        box-shadow: 0 0 0 3px rgb(37 99 235 / 0.2);
-    }
-
-    :is(.dark *) .svc-dot-maintenance {
-        background: #60A5FA;
-        box-shadow: 0 0 0 3px rgb(96 165 250 / 0.22);
+        background: var(--sem-info);
+        box-shadow: 0 0 0 3px var(--sem-info-ring);
     }
 
     .svc-name {
@@ -1420,15 +1426,25 @@
     .svc-bars .bar {
         flex: 1 1 0;
         min-width: 0;
-        background: #10B981;
+        background: var(--sem-ok);
         border-radius: 1.5px;
         opacity: 0.55;
         transition: opacity 0.12s;
         position: relative;
     }
 
-    .svc-bars .bar:hover {
+    .svc-bars .bar:hover,
+    .svc-bars .bar:focus-visible {
         opacity: 1;
+    }
+
+    .svc-bars .bar:focus-visible {
+        outline: 2px solid var(--color-ink);
+        outline-offset: 2px;
+    }
+
+    :is(.dark *) .svc-bars .bar:focus-visible {
+        outline-color: var(--color-sand-light);
     }
 
     .svc-bars .bar::after {
@@ -1453,7 +1469,8 @@
         box-shadow: 0 2px 8px rgb(28 27 24 / 0.18);
     }
 
-    .svc-bars .bar:hover::after {
+    .svc-bars .bar:hover::after,
+    .svc-bars .bar:focus-visible::after {
         opacity: 1;
     }
 
@@ -1464,39 +1481,27 @@
     }
 
     :is(.dark *) .svc-bars .bar {
-        background: #34D399;
         opacity: 0.4;
     }
 
-    :is(.dark *) .svc-bars .bar:hover {
+    :is(.dark *) .svc-bars .bar:hover,
+    :is(.dark *) .svc-bars .bar:focus-visible {
         opacity: 0.85;
     }
 
     .svc-bars .bar-minor {
-        background: #EAB308;
+        background: var(--sem-minor);
         opacity: 0.85;
     }
 
     .svc-bars .bar-major {
-        background: #F97316;
+        background: var(--sem-major);
         opacity: 0.9;
     }
 
     .svc-bars .bar-crit {
-        background: #DC2626;
+        background: var(--sem-crit);
         opacity: 0.95;
-    }
-
-    :is(.dark *) .svc-bars .bar-minor {
-        background: #FACC15;
-    }
-
-    :is(.dark *) .svc-bars .bar-major {
-        background: #FB923C;
-    }
-
-    :is(.dark *) .svc-bars .bar-crit {
-        background: #F87171;
     }
 
     .svc-foot {
@@ -1638,8 +1643,6 @@
         font-weight: 500;
         padding: 2px 7px;
         border-radius: 3px;
-        background: rgb(28 27 24 / 0.06);
-        color: var(--color-muted-light);
         letter-spacing: 0.02em;
         text-transform: uppercase;
         white-space: nowrap;
@@ -1647,59 +1650,29 @@
         font-feature-settings: 'tnum' 1;
     }
 
-    :is(.dark *) .log-chip {
-        background: rgb(244 241 235 / 0.06);
-        color: var(--color-muted-dark);
-    }
-
     .log-chip-crit {
-        background: rgb(220 38 38 / 0.1);
-        color: #B91C1C;
-    }
-
-    :is(.dark *) .log-chip-crit {
-        background: rgb(248 113 113 / 0.12);
-        color: #F87171;
+        background: var(--sem-crit-soft);
+        color: var(--sem-crit-text);
     }
 
     .log-chip-major {
-        background: rgb(249 115 22 / 0.1);
-        color: #C2410C;
-    }
-
-    :is(.dark *) .log-chip-major {
-        background: rgb(251 146 60 / 0.12);
-        color: #FB923C;
+        background: var(--sem-major-soft);
+        color: var(--sem-major-text);
     }
 
     .log-chip-minor {
-        background: rgb(234 179 8 / 0.12);
-        color: #A16207;
-    }
-
-    :is(.dark *) .log-chip-minor {
-        background: rgb(250 204 21 / 0.14);
-        color: #FACC15;
+        background: var(--sem-minor-soft);
+        color: var(--sem-minor-text);
     }
 
     .log-chip-info {
-        background: rgb(37 99 235 / 0.1);
-        color: #1D4ED8;
-    }
-
-    :is(.dark *) .log-chip-info {
-        background: rgb(96 165 250 / 0.12);
-        color: #60A5FA;
+        background: var(--sem-info-soft);
+        color: var(--sem-info-text);
     }
 
     .log-chip-pub {
-        background: rgb(16 185 129 / 0.1);
-        color: #047857;
-    }
-
-    :is(.dark *) .log-chip-pub {
-        background: rgb(52 211 153 / 0.12);
-        color: #34D399;
+        background: var(--sem-ok-soft);
+        color: var(--sem-ok-text);
     }
 
     .log-svc {
@@ -1734,12 +1707,7 @@
 
     .log-right-resolved,
     .log-right-completed {
-        color: #047857;
-    }
-
-    :is(.dark *) .log-right-resolved,
-    :is(.dark *) .log-right-completed {
-        color: #34D399;
+        color: var(--sem-ok-text);
     }
 
     @media (max-width: 720px) {
@@ -1836,23 +1804,13 @@
     }
 
     .mnt-tag-soon {
-        background: rgb(234 179 8 / 0.14);
-        color: #A16207;
-    }
-
-    :is(.dark *) .mnt-tag-soon {
-        background: rgb(250 204 21 / 0.14);
-        color: #FACC15;
+        background: var(--sem-minor-soft);
+        color: var(--sem-minor-text);
     }
 
     .mnt-tag-scheduled {
-        background: rgb(37 99 235 / 0.1);
-        color: #1D4ED8;
-    }
-
-    :is(.dark *) .mnt-tag-scheduled {
-        background: rgb(96 165 250 / 0.12);
-        color: #60A5FA;
+        background: var(--sem-info-soft);
+        color: var(--sem-info-text);
     }
 
     .mnt-countdown {
@@ -1868,12 +1826,8 @@
     }
 
     .mnt-countdown-soon {
-        color: #A16207;
+        color: var(--sem-minor-text);
         font-weight: 500;
-    }
-
-    :is(.dark *) .mnt-countdown-soon {
-        color: #FACC15;
     }
 
     .mnt-title {
@@ -2075,8 +2029,8 @@
 
     .drawer-close {
         flex-shrink: 0;
-        width: 28px;
-        height: 28px;
+        width: 36px;
+        height: 36px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
