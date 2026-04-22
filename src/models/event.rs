@@ -352,6 +352,24 @@ impl EventSummary {
         }
     }
 
+    /// True if the planned start is less than 3 days away.
+    pub fn is_soon(&self) -> bool {
+        self.countdown_parts()
+            .and_then(|inner| inner)
+            .is_some_and(|(days, _, _)| days < 3)
+    }
+
+    /// Chip style variant for log-rows, derived from kind + severity.
+    pub fn chip_class(&self) -> &'static str {
+        match (self.kind, self.severity) {
+            (Kind::Incident, Some(Severity::Critical)) => "log-chip log-chip-crit",
+            (Kind::Incident, Some(Severity::Major)) => "log-chip log-chip-major",
+            (Kind::Incident, _) => "log-chip log-chip-minor",
+            (Kind::Maintenance, _) => "log-chip log-chip-info",
+            (Kind::Publication, _) => "log-chip log-chip-pub",
+        }
+    }
+
     /// Breakdown of the countdown into (days, hours, minutes) for rich display.
     /// `None` if there is no planned date, `Some(None)` if the deadline is past.
     pub fn countdown_parts(&self) -> Option<Option<(i64, i64, i64)>> {

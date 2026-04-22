@@ -1,20 +1,43 @@
-{# Recent activity, Magazine timeline. Expects: events, i18n #}
-<div>
-    <div class="flex items-baseline justify-between mb-4">
-        <p class="eyebrow">{{ i18n.t("dashboard.activity") }}</p>
-        <a href="/events"
-           class="font-mono text-[11px] uppercase tracking-[0.08em] font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors">
-            {{ i18n.t("dashboard.view_all") }}
-        </a>
-    </div>
+{# Recent activity, dashboard middle card. Expects: groups (Vec<DayGroup>), total, i18n #}
+<section class="card">
+    <header class="card-head">
+        <h2>
+            <span>{{ i18n.t("dashboard.activity") }}</span>
+            {% if total > 0 %}
+            <span class="card-head-cnt">{{ total }}</span>
+            {% endif %}
+        </h2>
+        {% if total > 0 %}
+        <a href="/events" class="card-action">{{ i18n.t("dashboard.view_all") }}</a>
+        {% endif %}
+    </header>
 
-    {% if events.is_empty() %}
-    <p class="py-6 text-sm text-ink/50 dark:text-sand-light/45">{{ i18n.t("dashboard.no_events") }}</p>
+    {% if groups.is_empty() %}
+    <p class="card-empty">{{ i18n.t("dashboard.no_events") }}</p>
     {% else %}
-    <div>
-        {% for event in events %}
-        {% include "components/event_line.html" %}
-        {% endfor %}
+    {% for group in groups %}
+    <div class="log-day">
+        <span>{{ group.label }}</span>
     </div>
+    {% for event in group.events %}
+    <a href="/events/{{ event.id }}" class="log-row{% if let Some(lc) = event.lifecycle %}{% if lc.is_active() %} log-row-live{% endif %}{% endif %}">
+        <span class="log-time">{{ i18n.format_time(event.created_at) }}</span>
+        <div class="log-body">
+            <span class="{{ event.chip_class() }}">{{ i18n.t(event.kind.i18n_key()) }}</span>
+            <span class="log-title">{{ event.title }}</span>
+            {% if !event.service_names.is_empty() %}
+            <span class="log-svc">{{ event.service_names }}</span>
+            {% endif %}
+        </div>
+        <span class="log-right{% if let Some(lc) = event.lifecycle %} log-right-{{ lc.as_str() }}{% endif %}">
+            {% match event.lifecycle %}
+            {% when Some with (lc) %}
+            {{ i18n.t(lc.i18n_key()) }}
+            {% when None %}
+            {% endmatch %}
+        </span>
+    </a>
+    {% endfor %}
+    {% endfor %}
     {% endif %}
-</div>
+</section>

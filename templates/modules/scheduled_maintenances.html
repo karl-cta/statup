@@ -1,54 +1,70 @@
-{# Scheduled maintenances, Magazine right column. Expects: active_maintenance, resolved_maintenance, i18n #}
-<div>
-    <p class="eyebrow mb-4">{{ i18n.t("dashboard.maintenance") }}</p>
+{# Scheduled maintenances, dashboard right card. Expects: active_maintenance, resolved_maintenance, i18n #}
+<section class="card">
+    <header class="card-head">
+        <h2>
+            <span>{{ i18n.t("dashboard.maintenance") }}</span>
+            {% if !active_maintenance.is_empty() %}
+            <span class="card-head-cnt">{{ active_maintenance.len() }}</span>
+            {% endif %}
+        </h2>
+        <a href="/events" class="card-action">{{ i18n.t("dashboard.view_all") }}</a>
+    </header>
 
     {% if active_maintenance.is_empty() && resolved_maintenance.is_empty() %}
-    <p class="text-[13px] text-ink/50 dark:text-sand-light/45">{{ i18n.t("dashboard.no_maintenance_at_all") }}</p>
+    <p class="card-empty">{{ i18n.t("dashboard.no_maintenance_at_all") }}</p>
     {% else %}
 
     {% if !active_maintenance.is_empty() %}
-    <div class="mb-5">
-        <p class="font-mono text-[10px] uppercase tracking-[0.12em] text-ink/45 dark:text-sand-light/35 mb-2">{{ i18n.t("dashboard.maintenance_upcoming") }}</p>
-        <div class="space-y-2">
-            {% for event in active_maintenance %}
-            <a href="/events/{{ event.id }}"
-               class="block rounded-sm border border-ink/10 dark:border-sand-light/10 bg-sand-light dark:bg-surface-1 px-3 py-3 transition-colors hover:border-ink/25 dark:hover:border-sand-light/20 cursor-pointer">
-                <div class="flex items-baseline justify-between gap-2">
-                    <p class="truncate text-[13px] font-semibold text-ink dark:text-sand-light">{{ event.title }}</p>
-                    {% match i18n.format_countdown_opt(event.countdown_parts()) %}
-                    {% when Some with (text) %}
-                    <span class="flex-shrink-0 font-mono text-[11px] font-medium text-blue-700 dark:text-blue-400 whitespace-nowrap">{{ text }}</span>
-                    {% when None %}
-                    {% endmatch %}
-                </div>
-                <p class="mt-1 text-[11px] text-ink/55 dark:text-sand-light/45 truncate">
-                    {% if !event.services().is_empty() %}{{ event.services().join(", ") }}{% endif %}
-                </p>
-                {% match event.planned_start %}
-                {% when Some with (start) %}
-                <p class="mt-0.5 font-mono text-[10px] tabular-nums uppercase tracking-[0.06em] text-ink/50 dark:text-sand-light/40">{{ i18n.format_datetime(start) }}</p>
-                {% when None %}
-                {% endmatch %}
-            </a>
+    <div class="mnt-group-h">
+        <span>{{ i18n.t("dashboard.maintenance_upcoming") }}</span>
+        <span>{{ active_maintenance.len() }}</span>
+    </div>
+    {% for event in active_maintenance %}
+    <a href="/events/{{ event.id }}" class="mnt">
+        <div class="mnt-top">
+            <span class="mnt-tag {% if event.is_soon() %}mnt-tag-soon{% else %}mnt-tag-scheduled{% endif %}">
+                <span class="mnt-tag-dot" aria-hidden="true"></span>
+                {% if event.is_soon() %}
+                {{ i18n.t("dashboard.maintenance_tag_soon") }}
+                {% else %}
+                {{ i18n.t("dashboard.maintenance_tag_scheduled") }}
+                {% endif %}
+            </span>
+            {% match i18n.format_countdown_opt(event.countdown_parts()) %}
+            {% when Some with (text) %}
+            <span class="mnt-countdown{% if event.is_soon() %} mnt-countdown-soon{% endif %}">{{ text }}</span>
+            {% when None %}
+            {% endmatch %}
+        </div>
+        <div class="mnt-title">{{ event.title }}</div>
+        {% match event.planned_start %}
+        {% when Some with (start) %}
+        <div class="mnt-meta">{{ i18n.format_datetime(start) }}</div>
+        {% when None %}
+        {% endmatch %}
+        {% if !event.services().is_empty() %}
+        <div class="mnt-chips">
+            {% for svc in event.services() %}
+            <span class="mnt-chip">{{ svc }}</span>
             {% endfor %}
         </div>
-    </div>
+        {% endif %}
+    </a>
+    {% endfor %}
     {% endif %}
 
     {% if !resolved_maintenance.is_empty() %}
-    <div>
-        <p class="font-mono text-[10px] uppercase tracking-[0.12em] text-ink/45 dark:text-sand-light/35 mb-2">{{ i18n.t("dashboard.maintenance_past") }}</p>
-        <div>
-            {% for event in resolved_maintenance %}
-            <a href="/events/{{ event.id }}"
-               class="flex items-baseline justify-between gap-2 py-2 border-b border-ink/10 dark:border-sand-light/10 last:border-b-0 transition-colors hover-row cursor-pointer">
-                <span class="truncate text-[12px] text-ink/65 dark:text-sand-light/55">{{ event.title }}</span>
-                <span class="flex-shrink-0 font-mono text-[10px] tabular-nums text-ink/45 dark:text-sand-light/35 whitespace-nowrap">{{ i18n.format_time(event.updated_at) }}</span>
-            </a>
-            {% endfor %}
-        </div>
+    <div class="mnt-group-h">
+        <span>{{ i18n.t("dashboard.maintenance_past") }}</span>
+        <span>{{ resolved_maintenance.len() }}</span>
     </div>
+    {% for event in resolved_maintenance %}
+    <a href="/events/{{ event.id }}" class="mnt-past">
+        <span class="mnt-past-title">{{ event.title }}</span>
+        <span class="mnt-past-meta">{{ i18n.format_time(event.updated_at) }}</span>
+    </a>
+    {% endfor %}
     {% endif %}
 
     {% endif %}
-</div>
+</section>

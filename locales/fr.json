@@ -46,6 +46,8 @@
   "dashboard.activity": "Activité",
   "dashboard.maintenance_upcoming": "Prévues",
   "dashboard.maintenance_past": "Passées",
+  "dashboard.maintenance_tag_soon": "À venir",
+  "dashboard.maintenance_tag_scheduled": "Programmée",
   "dashboard.no_maintenance_at_all": "Aucune maintenance",
   "dashboard.availability_30d": "Disponibilité sur 30 jours",
   "dashboard.days_short": "j",
