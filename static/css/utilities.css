@@ -1,0 +1,117 @@
+@layer utilities {
+    [hx-swap-oob],
+    .htmx-swapping {
+        transition: opacity 0.2s ease-in-out;
+    }
+    .htmx-swapping {
+        opacity: 0;
+    }
+
+    @keyframes blur-in-up {
+        from {
+            opacity: 0;
+            filter: blur(6px);
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            filter: blur(0);
+            transform: translateY(0);
+        }
+    }
+
+    .animate-in {
+        animation: blur-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .delay-1 { animation-delay: 50ms; }
+    .delay-2 { animation-delay: 100ms; }
+    .delay-3 { animation-delay: 150ms; }
+    .delay-4 { animation-delay: 200ms; }
+
+    /* Paper grain overlay, one of the Magazine signatures. */
+    .noise::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        pointer-events: none;
+        opacity: 0.022;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        background-repeat: repeat;
+    }
+
+    :is(.dark *) {
+        .noise::before {
+            opacity: 0.04;
+        }
+    }
+
+    /* Each strip-* class sets --strip-color, consumed inline via style="background: var(--strip-color)". */
+    .strip-operational { --strip-color: oklch(0.508 0.154 163); }
+    .strip-degraded { --strip-color: oklch(0.554 0.135 66); }
+    .strip-partial { --strip-color: oklch(0.553 0.195 38); }
+    .strip-major { --strip-color: oklch(0.577 0.245 27); }
+    .strip-maintenance { --strip-color: oklch(0.546 0.245 262); }
+
+    :is(.dark *) {
+        .strip-operational { --strip-color: oklch(0.765 0.177 163); }
+        .strip-degraded { --strip-color: oklch(0.852 0.199 92); }
+        .strip-partial { --strip-color: oklch(0.750 0.183 56); }
+        .strip-major { --strip-color: oklch(0.704 0.191 22); }
+        .strip-maintenance { --strip-color: oklch(0.707 0.165 254); }
+    }
+
+    .glow-dot {
+        position: relative;
+    }
+
+    .glow-dot::after {
+        content: "";
+        position: absolute;
+        inset: -3px;
+        border-radius: 9999px;
+        background: inherit;
+        opacity: 0.3;
+        filter: blur(4px);
+    }
+
+    /* Observed by the IntersectionObserver registered in base.html. */
+    .reveal {
+        opacity: 0;
+        transform: translateY(16px);
+        filter: blur(4px);
+        transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                    filter 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .reveal.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
+    }
+
+    .hover-row {
+        transition: background-color 0.15s ease;
+    }
+
+    .hover-row:hover {
+        background-color: var(--color-sand-warm);
+    }
+
+    :is(.dark *) .hover-row:hover {
+        background-color: rgb(244 241 235 / 0.04);
+    }
+
+    a.card-raised:hover {
+        transform: translateY(-1px);
+        border-color: var(--color-sand);
+    }
+
+    :is(.dark *) a.card-raised:hover {
+        border-color: rgb(244 241 235 / 0.22);
+    }
+
+}
+

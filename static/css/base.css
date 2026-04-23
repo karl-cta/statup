@@ -1,0 +1,140 @@
+@layer base {
+    /* Single source of truth for status across hero, chips, dots, bars, tags. */
+    :root {
+        --sem-ok: #10B981;
+        --sem-ok-text: #047857;
+        --sem-ok-ring: rgb(16 185 129 / 0.18);
+        --sem-ok-soft: rgb(16 185 129 / 0.1);
+
+        --sem-minor: #EAB308;
+        --sem-minor-text: #A16207;
+        --sem-minor-ring: rgb(234 179 8 / 0.2);
+        --sem-minor-soft: rgb(234 179 8 / 0.12);
+
+        --sem-major: #F97316;
+        --sem-major-text: #C2410C;
+        --sem-major-ring: rgb(249 115 22 / 0.2);
+        --sem-major-soft: rgb(249 115 22 / 0.1);
+
+        --sem-crit: #DC2626;
+        --sem-crit-text: #B91C1C;
+        --sem-crit-ring: rgb(220 38 38 / 0.2);
+        --sem-crit-soft: rgb(220 38 38 / 0.08);
+        --sem-crit-border: rgb(220 38 38 / 0.24);
+
+        --sem-info: #2563EB;
+        --sem-info-text: #1D4ED8;
+        --sem-info-ring: rgb(37 99 235 / 0.2);
+        --sem-info-soft: rgb(37 99 235 / 0.1);
+    }
+
+    .dark {
+        --sem-ok: #34D399;
+        --sem-ok-text: #34D399;
+        --sem-ok-ring: rgb(52 211 153 / 0.2);
+        --sem-ok-soft: rgb(52 211 153 / 0.12);
+
+        --sem-minor: #FACC15;
+        --sem-minor-text: #FACC15;
+        --sem-minor-ring: rgb(250 204 21 / 0.2);
+        --sem-minor-soft: rgb(250 204 21 / 0.14);
+
+        --sem-major: #FB923C;
+        --sem-major-text: #FB923C;
+        --sem-major-ring: rgb(251 146 60 / 0.22);
+        --sem-major-soft: rgb(251 146 60 / 0.12);
+
+        --sem-crit: #F87171;
+        --sem-crit-text: #F87171;
+        --sem-crit-ring: rgb(248 113 113 / 0.22);
+        --sem-crit-soft: rgb(215 106 74 / 0.08);
+        --sem-crit-border: rgb(215 106 74 / 0.28);
+
+        --sem-info: #60A5FA;
+        --sem-info-text: #60A5FA;
+        --sem-info-ring: rgb(96 165 250 / 0.22);
+        --sem-info-soft: rgb(96 165 250 / 0.12);
+    }
+
+    html {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        scroll-behavior: smooth;
+        scrollbar-gutter: stable;
+        font-family: var(--font-sans);
+    }
+
+
+    body {
+        font-family: var(--font-sans);
+    }
+
+    code, pre, kbd, samp, .font-mono {
+        font-family: var(--font-mono);
+        font-feature-settings: 'tnum' 1;
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--color-ink);
+        outline-offset: 2px;
+    }
+
+    :is(.dark *) :focus-visible {
+        outline-color: var(--color-sand);
+    }
+
+    :focus:not(:focus-visible) {
+        outline: none;
+    }
+
+    ::selection {
+        background-color: var(--color-ink);
+        color: var(--color-sand);
+    }
+
+    .dark ::selection {
+        background-color: var(--color-sand);
+        color: var(--color-ink);
+    }
+
+    a, button, [role="button"], select, summary,
+    input[type="submit"], input[type="button"], input[type="reset"] {
+        cursor: pointer;
+    }
+
+    [hx-get]:not(input):not(textarea),
+    [hx-post]:not(input):not(textarea),
+    [hx-put]:not(input):not(textarea),
+    [hx-delete]:not(input):not(textarea),
+    [hx-patch]:not(input):not(textarea) {
+        cursor: pointer;
+    }
+
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgb(27 33 26 / 0.18);
+        border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgb(27 33 26 / 0.32);
+    }
+
+    :is(.dark *) {
+        ::-webkit-scrollbar-thumb {
+            background: rgb(244 241 235 / 0.18);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgb(244 241 235 / 0.34);
+        }
+    }
+}
+

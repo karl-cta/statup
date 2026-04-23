@@ -1,0 +1,124 @@
+/* Hanken Grotesk, SIL OFL, variable weight. Self-hosted Latin subset. */
+@font-face {
+    font-family: 'Hanken Grotesk';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('/static/fonts/hanken-grotesk-variable.woff2') format('woff2');
+}
+
+/* Palette locked on docs/brand.html. Signals come from weight and semantic status, never chromatic accent. */
+@theme {
+    --color-ink: #1C1B18;
+    --color-ink-deep: #141310;
+    --color-sand: #F4F1EB;
+    --color-sand-warm: #E8E3D8;
+    --color-sand-light: #FAF8F2;
+    --color-cream: #FAF8F2;
+    --color-page: #F4F1EB;
+    --color-muted-light: #5F5C52;
+    --color-muted-dark: #9C9689;
+
+    /* Single family, the "mono" look is carried by tabular-nums + letter-spacing + uppercase. */
+    --font-sans: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-mono: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+    /* Tailwind stone/neutral remapped to the warm Ink/Sand ramp. */
+    --color-stone-50: #FAF8F2;
+    --color-stone-100: #F4F1EB;
+    --color-stone-200: #E8E3D8;
+    --color-stone-300: #D5CFBE;
+    --color-stone-400: #A8A193;
+    --color-stone-500: #6E6A5E;
+    --color-stone-600: #4A463E;
+    --color-stone-700: #36332D;
+    --color-stone-800: #262420;
+    --color-stone-900: #1C1B18;
+    --color-stone-950: #141310;
+
+    --color-neutral-50: #FAF8F2;
+    --color-neutral-100: #F4F1EB;
+    --color-neutral-200: #E8E3D8;
+    --color-neutral-300: #D5CFBE;
+    --color-neutral-400: #A8A193;
+    --color-neutral-500: #6E6A5E;
+    --color-neutral-600: #4A463E;
+    --color-neutral-700: #36332D;
+    --color-neutral-800: #262420;
+    --color-neutral-900: #1C1B18;
+    --color-neutral-950: #141310;
+
+    /* Tailwind teal collapsed to the Ink/Sand ramp, text-teal-700 reads as Ink. */
+    --color-teal-50: #FAF8F2;
+    --color-teal-100: #F4F1EB;
+    --color-teal-200: #E8E3D8;
+    --color-teal-300: #D5CFBE;
+    --color-teal-400: #A8A193;
+    --color-teal-500: #6E6A5E;
+    --color-teal-600: #36332D;
+    --color-teal-700: #1C1B18;
+    --color-teal-800: #141310;
+    --color-teal-900: #141310;
+    --color-teal-950: #141310;
+
+    --color-accent: #1C1B18;
+    --color-accent-hover: #36332D;
+
+    /* Service status and impact severity, WCAG AA on sand/cream. */
+    --color-status-operational: oklch(0.508 0.154 163);
+    --color-status-degraded: oklch(0.554 0.135 66);
+    --color-status-partial: oklch(0.553 0.195 38);
+    --color-status-major: oklch(0.577 0.245 27);
+    --color-status-maintenance: oklch(0.546 0.245 262);
+
+    --color-impact-none: oklch(0.446 0.030 264);
+    --color-impact-minor: oklch(0.554 0.135 66);
+    --color-impact-major: oklch(0.553 0.195 38);
+    --color-impact-critical: oklch(0.577 0.245 27);
+
+    --color-surface-0: #F4F1EB;
+    --color-surface-1: #FAF8F2;
+    --color-surface-2: #E8E3D8;
+    --color-surface-3: #D5CFBE;
+}
+
+.dark {
+    --color-status-operational: oklch(0.765 0.177 163);
+    --color-status-degraded: oklch(0.852 0.199 92);
+    --color-status-partial: oklch(0.750 0.183 56);
+    --color-status-major: oklch(0.704 0.191 22);
+    --color-status-maintenance: oklch(0.707 0.165 254);
+
+    --color-impact-none: oklch(0.704 0.015 264);
+    --color-impact-minor: oklch(0.852 0.199 92);
+    --color-impact-major: oklch(0.750 0.183 56);
+    --color-impact-critical: oklch(0.704 0.191 22);
+
+    --color-surface-0: #1C1B18;
+    --color-surface-1: #262420;
+    --color-surface-2: #36332D;
+    --color-surface-3: #4A463E;
+
+    --color-accent: #F4F1EB;
+    --color-accent-hover: #FAF8F2;
+}
+
+/* Mode-aware alpha ramps. Use these instead of hard-coded rgb(ink/sand / a),
+   a rule using var(--hairline) adapts to dark without its own override. */
+:root {
+    --hairline:       rgb(28 27 24 / 0.08);
+    --line:           rgb(28 27 24 / 0.12);
+    --line-strong:    rgb(28 27 24 / 0.18);
+    --surface-hover:  rgb(28 27 24 / 0.04);
+    --surface-subtle: rgb(28 27 24 / 0.06);
+}
+
+:is(.dark *) {
+    --hairline:       rgb(244 241 235 / 0.08);
+    --line:           rgb(244 241 235 / 0.12);
+    --line-strong:    rgb(244 241 235 / 0.18);
+    --surface-hover:  rgb(244 241 235 / 0.04);
+    --surface-subtle: rgb(244 241 235 / 0.06);
+}
+
+
