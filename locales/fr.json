@@ -142,6 +142,7 @@
   "events.search_term_aria": "Terme de recherche",
   "events.services_list_aria": "Liste des services",
   "events.search": "Recherche",
+  "events.preview": "Aperçu",
   "events.state": "État",
   "events.state_active": "Actifs",
   "events.state_closed": "Clos",

@@ -17,7 +17,7 @@ tower-http = { version = "0.5", features = ["compression-gzip", "fs", "trace", "
 sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "chrono"] }
 
 # Templates
-askama = { version = "0.12", features = ["with-axum"] }
+askama = { version = "0.12", features = ["with-axum", "serde-json"] }
 askama_axum = "0.4"
 
 # Authentication

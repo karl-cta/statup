@@ -6,23 +6,24 @@
 {% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-    <div class="animate-in">
-        <a href="/events" class="inline-flex items-center gap-1 text-sm font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors">
-            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+<div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
+
+    <header class="animate-in">
+        <a href="/events" class="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-[0.12em] text-ink/55 dark:text-sand-light/45 hover:text-ink dark:hover:text-sand-light transition-colors">
+            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
             {{ i18n.t("events.back_to_events") }}
         </a>
-        <h1 class="mt-4 text-2xl font-medium tracking-tight text-ink dark:text-sand-light">
+        <h1 class="mt-2 text-[28px] font-semibold tracking-tight text-ink dark:text-sand-light">
             {% match event %}
             {% when Some with (_e) %}{{ i18n.t("events.edit") }}{% when None %}{{ i18n.t("events.new") }}{% endmatch %}
         </h1>
-    </div>
+    </header>
 
     {% match error %}
     {% when Some with (msg) %}
-    <div id="form-error" class="mt-6 rounded-sm border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/30" role="alert">
+    <div id="form-error" class="mt-6 rounded-sm border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/50 dark:bg-red-950/30" role="alert">
         <p class="text-sm text-red-700 dark:text-red-400">{{ msg }}</p>
     </div>
     {% when None %}
@@ -31,60 +32,60 @@
     <form
         method="post"
         action="{% match event %}{% when Some with (e) %}/events/{{ e.id }}/edit{% when None %}/events/new{% endmatch %}"
-        class="mt-8 animate-in delay-1"
+        class="mt-8 animate-in delay-1 grid gap-8 lg:gap-0 lg:grid-cols-[minmax(0,1fr)_280px]"
         {% match error %}{% when Some with (_msg) %}aria-describedby="form-error"{% when None %}{% endmatch %}
     >
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-        <div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
-            <div class="flex-1 min-w-0 space-y-5">
-                <div class="relative">
-                    <label for="title" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-                        {{ i18n.t("events.title_label") }}
+        <div class="min-w-0 lg:pr-10 lg:border-r lg:border-ink/10 lg:dark:border-sand-light/10">
+            <div class="relative">
+                <label for="title" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
+                    {{ i18n.t("events.title_label") }}
+                </label>
+                <input
+                    id="title"
+                    name="title"
+                    type="text"
+                    required
+                    aria-required="true"
+                    maxlength="200"
+                    autocomplete="off"
+                    value="{% match event %}{% when Some with (e) %}{{ e.title }}{% when None %}{% endmatch %}"
+                    class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
+                    placeholder="{{ i18n.t("events.title_placeholder") }}"
+                    aria-label="{{ i18n.t("events.title_label") }}"
+                    hx-get="/events/templates/search"
+                    hx-trigger="keyup changed delay:300ms"
+                    hx-target="#template-suggestions-container"
+                    hx-swap="innerHTML"
+                    hx-params="none"
+                    hx-vals='js:{"q": document.getElementById("title").value}'
+                >
+                <div id="template-suggestions-container"></div>
+            </div>
+
+            <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label for="kind" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
+                        {{ i18n.t("events.kind") }}
                     </label>
-                    <input
-                        id="title"
-                        name="title"
-                        type="text"
+                    <select
+                        id="kind"
+                        name="kind"
+                        data-custom-select
                         required
                         aria-required="true"
-                        maxlength="200"
-                        autocomplete="off"
-                        value="{% match event %}{% when Some with (e) %}{{ e.title }}{% when None %}{% endmatch %}"
-                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
-                        placeholder="{{ i18n.t("events.title_placeholder") }}"
-                        aria-label="{{ i18n.t("events.title_label") }}"
-                        hx-get="/events/templates/search"
-                        hx-trigger="keyup changed delay:300ms"
-                        hx-target="#template-suggestions-container"
-                        hx-swap="innerHTML"
-                        hx-params="none"
-                        hx-vals='js:{"q": document.getElementById("title").value}'
+                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm cursor-pointer"
+                        aria-label="{{ i18n.t("events.kind_label") }}"
                     >
-                    <div id="template-suggestions-container"></div>
+                        <option value="incident" {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "incident" %}selected{% endif %}{% when None %}selected{% endmatch %}>{{ i18n.t("kind.incident") }}</option>
+                        <option value="maintenance" {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "maintenance" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("kind.maintenance") }}</option>
+                        <option value="publication" {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "publication" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("kind.publication") }}</option>
+                    </select>
                 </div>
 
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                        <label for="kind" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-                            {{ i18n.t("events.kind") }}
-                        </label>
-                        <select
-                            id="kind"
-                            name="kind"
-                            data-custom-select
-                            required
-                            aria-required="true"
-                            class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm cursor-pointer"
-                            aria-label="{{ i18n.t("events.kind_label") }}"
-                        >
-                            <option value="incident" {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "incident" %}selected{% endif %}{% when None %}selected{% endmatch %}>{{ i18n.t("kind.incident") }}</option>
-                            <option value="maintenance" {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "maintenance" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("kind.maintenance") }}</option>
-                            <option value="publication" {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "publication" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("kind.publication") }}</option>
-                        </select>
-                    </div>
-
-                    <div id="severity-field">
+                <div class="collapse-row" id="severity-field">
+                    <div class="collapse-inner">
                         <label for="severity" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
                             {{ i18n.t("events.severity") }} <span class="text-ink/45 dark:text-sand-light/30">{{ i18n.t("events.optional") }}</span>
                         </label>
@@ -102,8 +103,22 @@
                         </select>
                     </div>
                 </div>
+            </div>
 
-                <div id="planned-field" style="display: none;">
+            <div class="mt-4">
+                <p class="text-[10.5px] font-mono uppercase tracking-[0.12em] text-ink/50 dark:text-sand-light/40">
+                    {{ i18n.t("events.preview") }}
+                </p>
+                <div class="mt-2 flex items-start gap-3">
+                    <span id="chip-preview" class="log-chip log-chip-minor mt-0.5">INCIDENT</span>
+                    <p id="severity-hint" class="text-[12.5px] text-ink/60 dark:text-sand-light/55 leading-relaxed">
+                        <span id="severity-hint-text"></span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="collapse-row mt-5" id="planned-field">
+                <div class="collapse-inner">
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" id="planned" name="planned" value="on" class="checkbox-fancy"
                                {% match event %}{% when Some with (e) %}{% if e.planned %}checked{% endif %}{% when None %}{% endmatch %}>
@@ -111,8 +126,10 @@
                     </label>
                     <p class="mt-1 text-[12px] text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.planned_hint") }}</p>
                 </div>
+            </div>
 
-                <div id="category-field" style="display: none;">
+            <div class="collapse-row mt-5" id="category-field">
+                <div class="collapse-inner">
                     <label for="category" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
                         {{ i18n.t("events.category") }}
                     </label>
@@ -127,8 +144,10 @@
                         <option value="info" {% match event %}{% when Some with (e) %}{% match e.category %}{% when Some with (c) %}{% if c.as_str() == "info" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>{{ i18n.t("category.info") }}</option>
                     </select>
                 </div>
+            </div>
 
-                <div id="planned-dates" class="grid grid-cols-1 gap-4 sm:grid-cols-2" style="display: none;">
+            <div class="collapse-row mt-5" id="planned-dates">
+                <div class="collapse-inner grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                         <label for="planned_start" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
                             {{ i18n.t("events.planned_start_short") }}
@@ -156,109 +175,112 @@
                         >
                     </div>
                 </div>
-
-                <div>
-                    <label for="description" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-                        {{ i18n.t("events.description") }} <span class="text-ink/45 dark:text-sand-light/30">{{ i18n.t("events.markdown_supported") }}</span>
-                    </label>
-                    <textarea
-                        id="description"
-                        name="description"
-                        rows="8"
-                        required
-                        aria-required="true"
-                        class="mt-1.5 block w-full min-h-[200px] resize-y input-raised px-3.5 py-2.5 text-sm font-mono placeholder-ink/35 dark:placeholder-sand-light/30"
-                        placeholder="{{ i18n.t("events.description_placeholder") }}"
-                        aria-label="{{ i18n.t("events.description") }}"
-                    >{% match event %}{% when Some with (e) %}{{ e.description }}{% when None %}{% endmatch %}</textarea>
-                </div>
-
-                <div class="flex items-center justify-end gap-3 pt-2">
-                    {% match event %}
-                    {% when None %}
-                    <label class="flex items-center gap-2 cursor-pointer mr-auto">
-                        <input type="checkbox" name="save_as_template" class="checkbox-fancy">
-                        <span class="text-sm font-medium text-ink/55 dark:text-sand-light/55">{{ i18n.t("events.save_as_template_label") }}</span>
-                    </label>
-                    {% when Some with (_e) %}
-                    {% endmatch %}
-                    <a
-                        href="/events"
-                        class="text-sm font-medium text-ink/55 hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light transition-colors"
-                    >
-                        {{ i18n.t("common.cancel") }}
-                    </a>
-                    <button type="submit" class="btn-3d text-sm">
-                        <span>{% match event %}
-                        {% when Some with (_e) %}{{ i18n.t("common.save") }}{% when None %}{{ i18n.t("events.submit_create") }}{% endmatch %}</span>
-                    </button>
-                </div>
             </div>
 
-            <aside class="lg:w-72 lg:flex-shrink-0" aria-label="{{ i18n.t("events.affected_services_sidebar") }}">
-                <div class="lg:sticky lg:top-8 card-raised p-4">
-                    <h2 class="text-sm font-medium text-ink dark:text-sand-light flex items-center gap-2">
-                        <svg class="h-4 w-4 text-ink/45 dark:text-sand-light/40" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 0 1-3-3m3 3a3 3 0 1 0 0 6h13.5a3 3 0 1 0 0-6m-16.5-3a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3m-19.5 0a4.5 4.5 0 0 1 .9-2.7L5.737 5.1a3.375 3.375 0 0 1 2.7-1.35h7.126c1.062 0 2.062.5 2.7 1.35l2.587 3.45a4.5 4.5 0 0 1 .9 2.7m0 0a3 3 0 0 1-3 3m0 3h.008v.008h-.008V18Zm0-6h.008v.008h-.008v-.008Zm-3 6h.008v.008h-.008V18Zm0-6h.008v.008H15v-.008Z" />
-                        </svg>
-                        {{ i18n.t("events.affected_services_sidebar") }}
-                    </h2>
-                    <p class="mt-1 text-[12px] text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.select_affected_hint") }}</p>
+            <div class="mt-5">
+                <label for="description" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
+                    {{ i18n.t("events.description") }} <span class="text-ink/45 dark:text-sand-light/30">{{ i18n.t("events.markdown_supported") }}</span>
+                </label>
+                <textarea
+                    id="description"
+                    name="description"
+                    rows="8"
+                    required
+                    aria-required="true"
+                    class="mt-1.5 block w-full min-h-[200px] resize-y input-raised px-3.5 py-2.5 text-sm font-mono placeholder-ink/35 dark:placeholder-sand-light/30"
+                    placeholder="{{ i18n.t("events.description_placeholder") }}"
+                    aria-label="{{ i18n.t("events.description") }}"
+                >{% match event %}{% when Some with (e) %}{{ e.description }}{% when None %}{% endmatch %}</textarea>
+            </div>
 
-                    {% if services.is_empty() %}
-                    <p class="mt-4 text-sm text-ink/55 dark:text-sand-light/45">
-                        {{ i18n.t("events.no_services_available") }}
-                        <a href="/services/new" class="text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light">{{ i18n.t("events.create_service_link") }}</a>
-                    </p>
-                    {% else %}
-                    <div class="mt-4 space-y-1" role="group" aria-label="{{ i18n.t("events.services_list_aria") }}">
-                        {% for svc in services %}
-                        <label class="flex items-center gap-3 cursor-pointer group rounded-sm px-2.5 py-2 -mx-1 transition-colors hover-row">
-                            <input
-                                type="checkbox"
-                                name="service_ids"
-                                value="{{ svc.id }}"
-                                {% match event %}
-                                {% when Some with (e) %}{% if e.has_service(svc.id) %}checked{% endif %}
-                                {% when None %}
-                                {% endmatch %}
-                                class="checkbox-fancy"
-                            >
-                            <div class="flex-1 min-w-0">
-                                <span class="block text-sm text-ink/85 dark:text-sand-light/85 group-hover:text-ink dark:group-hover:text-sand-light transition-colors truncate">
-                                    {{ svc.name }}
-                                </span>
-                            </div>
-                            <span class="flex items-center gap-1.5 flex-shrink-0" title="{{ i18n.t(svc.status.i18n_key()) }}">
-                                <span class="h-2 w-2 rounded-full {{ svc.status.dot_class() }}" aria-hidden="true"></span>
-                                <span class="text-[12px] {{ svc.status.css_class() }} whitespace-nowrap">{{ i18n.t(svc.status.i18n_key()) }}</span>
-                            </span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-
-                    <div id="severity-hint" class="mt-4 rounded-sm bg-cream p-3 dark:bg-surface-1 hidden">
-                        <p class="text-[12px] text-ink/70 dark:text-sand-light/70">
-                            <span class="font-medium">{{ i18n.t("events.severity_hint_label") }}</span>
-                            <span id="severity-hint-text"></span>
-                        </p>
-                    </div>
-                </div>
-            </aside>
+            <div class="mt-6 flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-ink/10 dark:border-sand-light/10">
+                {% match event %}
+                {% when None %}
+                <label class="flex items-center gap-2 cursor-pointer mr-auto">
+                    <input type="checkbox" name="save_as_template" class="checkbox-fancy">
+                    <span class="text-sm font-medium text-ink/55 dark:text-sand-light/55">{{ i18n.t("events.save_as_template_label") }}</span>
+                </label>
+                {% when Some with (_e) %}
+                {% endmatch %}
+                <a
+                    href="/events"
+                    class="text-sm font-medium text-ink/55 hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light transition-colors"
+                >
+                    {{ i18n.t("common.cancel") }}
+                </a>
+                <button type="submit" class="btn-3d text-sm">
+                    <span>{% match event %}
+                    {% when Some with (_e) %}{{ i18n.t("common.save") }}{% when None %}{{ i18n.t("events.submit_create") }}{% endmatch %}</span>
+                </button>
+            </div>
         </div>
+
+        <aside class="lg:pl-10 min-w-0" aria-label="{{ i18n.t("events.affected_services_sidebar") }}">
+            <div class="lg:sticky lg:top-8">
+                <p class="text-[11px] font-mono uppercase tracking-[0.12em] text-ink/55 dark:text-sand-light/45">
+                    {{ i18n.t("events.affected_services_sidebar") }}
+                </p>
+                <p class="mt-1 text-[12.5px] text-ink/55 dark:text-sand-light/45 leading-relaxed">
+                    {{ i18n.t("events.select_affected_hint") }}
+                </p>
+
+                {% if services.is_empty() %}
+                <p class="mt-4 text-sm text-ink/55 dark:text-sand-light/45">
+                    {{ i18n.t("events.no_services_available") }}
+                    <a href="/services/new" class="text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light">{{ i18n.t("events.create_service_link") }}</a>
+                </p>
+                {% else %}
+                <div class="mt-4" role="group" aria-label="{{ i18n.t("events.services_list_aria") }}">
+                    {% for svc in services %}
+                    <label class="svc-pick">
+                        <input
+                            type="checkbox"
+                            name="service_ids"
+                            value="{{ svc.id }}"
+                            {% match event %}
+                            {% when Some with (e) %}{% if e.has_service(svc.id) %}checked{% endif %}
+                            {% when None %}
+                            {% endmatch %}
+                            class="checkbox-fancy"
+                        >
+                        <span class="svc-pick-name">{{ svc.name }}</span>
+                        <span class="svc-pick-status" title="{{ i18n.t(svc.status.i18n_key()) }}">
+                            <span class="h-2 w-2 rounded-full {{ svc.status.dot_class() }}" aria-hidden="true"></span>
+                            <span class="text-[11px] font-mono uppercase tracking-[0.06em] text-ink/55 dark:text-sand-light/45">{{ i18n.t(svc.status.i18n_key()) }}</span>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </aside>
     </form>
 </div>
 
 <script>
 var severityHints = {
-    incident_critical: '{{ i18n.t("hint.incident_critical") }}',
-    incident_major: '{{ i18n.t("hint.incident_major") }}',
-    incident_minor: '{{ i18n.t("hint.incident_minor") }}',
-    incident_no_severity: '{{ i18n.t("hint.incident_no_severity") }}',
-    maintenance: '{{ i18n.t("hint.maintenance") }}',
-    publication: '{{ i18n.t("hint.publication") }}'
+    incident_critical: {{ i18n.t("hint.incident_critical")|json|safe }},
+    incident_major: {{ i18n.t("hint.incident_major")|json|safe }},
+    incident_minor: {{ i18n.t("hint.incident_minor")|json|safe }},
+    incident_no_severity: {{ i18n.t("hint.incident_no_severity")|json|safe }},
+    maintenance: {{ i18n.t("hint.maintenance")|json|safe }},
+    publication: {{ i18n.t("hint.publication")|json|safe }}
 };
+
+var kindLabels = {
+    incident: {{ i18n.t("kind.incident")|json|safe }},
+    maintenance: {{ i18n.t("kind.maintenance")|json|safe }},
+    publication: {{ i18n.t("kind.publication")|json|safe }}
+};
+
+function chipClassFor(kind, severity) {
+    if (kind === 'incident' && severity === 'critical') return 'log-chip log-chip-crit';
+    if (kind === 'incident' && severity === 'major') return 'log-chip log-chip-major';
+    if (kind === 'incident') return 'log-chip log-chip-minor';
+    if (kind === 'maintenance') return 'log-chip log-chip-info';
+    if (kind === 'publication') return 'log-chip log-chip-pub';
+    return 'log-chip log-chip-minor';
+}
 
 function applyTemplate(templateId) {
     fetch('/events/templates/' + templateId)
@@ -286,22 +308,23 @@ document.addEventListener('click', function(e) {
     }
 });
 
+function setOpen(el, open) {
+    if (!el) return;
+    el.classList.toggle('is-open', open);
+}
+
 function updateVisibilityAndHint() {
     var kind = document.getElementById('kind').value;
     var severity = document.getElementById('severity').value;
     var planned = document.getElementById('planned').checked;
-    var severityField = document.getElementById('severity-field');
-    var plannedField = document.getElementById('planned-field');
-    var plannedDates = document.getElementById('planned-dates');
-    var categoryField = document.getElementById('category-field');
-    var hint = document.getElementById('severity-hint');
     var hintText = document.getElementById('severity-hint-text');
+    var chip = document.getElementById('chip-preview');
     var msg = '';
 
-    severityField.style.display = (kind === 'publication') ? 'none' : '';
-    plannedField.style.display = (kind === 'maintenance') ? '' : 'none';
-    plannedDates.style.display = (kind === 'maintenance' && planned) ? '' : 'none';
-    categoryField.style.display = (kind === 'publication') ? '' : 'none';
+    setOpen(document.getElementById('severity-field'), kind !== 'publication');
+    setOpen(document.getElementById('planned-field'), kind === 'maintenance');
+    setOpen(document.getElementById('planned-dates'), kind === 'maintenance' && planned);
+    setOpen(document.getElementById('category-field'), kind === 'publication');
 
     if (kind === 'incident') {
         if (severity === 'critical') msg = severityHints.incident_critical;
@@ -315,7 +338,11 @@ function updateVisibilityAndHint() {
     }
 
     hintText.textContent = msg;
-    hint.classList.toggle('hidden', !msg);
+
+    if (chip) {
+        chip.className = chipClassFor(kind, severity);
+        chip.textContent = (kindLabels[kind] || '').toUpperCase();
+    }
 }
 
 document.getElementById('kind').addEventListener('change', updateVisibilityAndHint);

@@ -2059,5 +2059,73 @@
             width: 100vw;
         }
     }
+
+    /* Smooth show/hide using grid-template-rows, avoids transitioning height
+       directly. Inner child must own padding/margin so collapsing hides them. */
+    .collapse-row {
+        display: grid;
+        grid-template-rows: 0fr;
+        opacity: 0;
+        transition:
+            grid-template-rows 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+            opacity 180ms ease;
+    }
+
+    .collapse-row.is-open {
+        grid-template-rows: 1fr;
+        opacity: 1;
+    }
+
+    .collapse-row > .collapse-inner {
+        overflow: hidden;
+        min-height: 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .collapse-row {
+            transition: none;
+        }
+    }
+
+    /* Services checklist, used in the event form sidebar. Flat list with
+       hairlines, no card framing. */
+    .svc-pick {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 4px;
+        cursor: pointer;
+        border-bottom: 1px solid var(--hairline);
+        transition: background-color 120ms ease;
+    }
+
+    .svc-pick:first-of-type {
+        border-top: 1px solid var(--hairline);
+    }
+
+    .svc-pick:hover {
+        background-color: var(--surface-hover);
+    }
+
+    .svc-pick-name {
+        font-size: 13px;
+        color: var(--color-ink);
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    :is(.dark *) .svc-pick-name {
+        color: var(--color-sand-light);
+    }
+
+    .svc-pick-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+    }
 }
 
