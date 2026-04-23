@@ -71,19 +71,19 @@
         {% endfor %}
     </div>
     {# Desktop, flat table #}
-    <div class="mt-6 hidden sm:block animate-in delay-1">
+    <div class="mt-6 hidden sm:block animate-in delay-1 -mx-4 sm:-mx-6 lg:-mx-8">
         <table class="min-w-full">
             <thead>
                 <tr class="border-b border-ink/15 dark:border-sand-light/15">
-                    <th scope="col" class="pb-2 text-left text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("services.name_label") }}</th>
-                    <th scope="col" class="pb-2 text-left text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">Statut</th>
-                    <th scope="col" class="pb-2 text-right text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">Actions</th>
+                    <th scope="col" class="pb-2 pl-4 pr-4 sm:pl-6 lg:pl-8 text-left text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("services.name_label") }}</th>
+                    <th scope="col" class="pb-2 pr-4 text-left text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">Statut</th>
+                    <th scope="col" class="pb-2 pr-4 sm:pr-6 lg:pr-8 text-right text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for service in services %}
                 <tr class="border-b border-ink/10 dark:border-sand-light/10 last:border-b-0 transition-colors hover-row">
-                    <td class="py-3.5 pr-4">
+                    <td class="py-3.5 pl-4 pr-4 sm:pl-6 lg:pl-8">
                         <div class="flex items-center gap-2.5">
                             <span class="h-2 w-2 flex-shrink-0 rounded-full {{ service.status.dot_class() }}" aria-hidden="true"></span>
                             {% let icon_size = "h-6 w-6" %}
@@ -98,10 +98,10 @@
                             </div>
                         </div>
                     </td>
-                    <td class="py-3.5">
+                    <td class="py-3.5 pr-4">
                         {% include "components/status_selector.html" %}
                     </td>
-                    <td class="py-3.5 text-right">
+                    <td class="py-3.5 pr-4 sm:pr-6 lg:pr-8 text-right">
                         <div class="flex items-center justify-end gap-3">
                             <a href="/services/{{ service.id }}/edit"
                                class="text-[13px] font-medium text-ink/60 hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light transition-colors"
