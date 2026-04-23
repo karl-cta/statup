@@ -141,6 +141,13 @@
   "events.update_message_aria": "Update message",
   "events.search_term_aria": "Search term",
   "events.services_list_aria": "Services list",
+  "events.search": "Search",
+  "events.state": "State",
+  "events.state_active": "Active",
+  "events.state_closed": "Closed",
+  "events.no_events_short": "No events",
+  "events.count_one": "event",
+  "events.count_many": "events",
 
   "common.cancel": "Cancel",
   "common.close": "Close",

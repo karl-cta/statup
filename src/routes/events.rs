@@ -13,8 +13,8 @@ use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, OptionalUser, RequirePublisher, ValidatedForm};
 use crate::models::{
-    Category, CreateEventInput, EventSummary, EventUpdateWithAuthor, EventWithServices, Kind,
-    Lifecycle, Service, Severity, User,
+    Category, CreateEventInput, DayGroup, EventSummary, EventUpdateWithAuthor, EventWithServices,
+    Kind, Lifecycle, LifecycleGroup, Service, Severity, User, group_by_day,
 };
 use crate::repositories::{
     EventRepository, EventTemplateRepository, IconRepository, ServiceRepository,
@@ -33,11 +33,14 @@ struct EventListTemplate {
     is_authenticated: bool,
     unread_count: i64,
     last_admin_action: Option<String>,
-    events: Vec<EventSummary>,
+    groups: Vec<DayGroup>,
+    total: usize,
     page: i64,
     has_next: bool,
     filter_kind: Option<String>,
     filter_service: Option<String>,
+    filter_lifecycle: Option<String>,
+    filter_q: Option<String>,
     filter_from: Option<String>,
     filter_to: Option<String>,
     services: Vec<Service>,
@@ -189,6 +192,10 @@ pub struct ListQuery {
     service_id: Option<i64>,
     from: Option<String>,
     to: Option<String>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    lifecycle: Option<String>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    q: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -356,10 +363,18 @@ pub async fn list(
 
     let from = params.from.as_deref().and_then(parse_date);
     let to = params.to.as_deref().and_then(parse_date_end_of_day);
+    let lifecycle_group = params.lifecycle.as_deref().and_then(LifecycleGroup::parse);
+    let q = params
+        .q
+        .as_ref()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
 
     let filters = crate::models::EventFilters {
         kind: params.kind,
         service_id: params.service_id,
+        lifecycle_group,
+        q: q.clone(),
         from,
         to,
         limit: PAGE_SIZE + 1,
@@ -372,6 +387,8 @@ pub async fn list(
     let has_next = events.len() as i64 > PAGE_SIZE;
     #[allow(clippy::cast_possible_truncation)]
     events.truncate(PAGE_SIZE as usize);
+    let total = events.len();
+    let groups = group_by_day(events, &i18n);
 
     let services = ServiceRepository::list_all(&state.pool).await?;
     let (user_display_name, is_admin, is_authenticated) = layout_fields(user.as_ref());
@@ -379,6 +396,8 @@ pub async fn list(
 
     let filter_kind = params.kind.map(|k| k.as_str().to_string());
     let filter_service = params.service_id.map(|id| id.to_string());
+    let filter_lifecycle = lifecycle_group.map(|g| g.as_str().to_string());
+    let filter_q = q;
 
     let mut base_url = String::from("/events?");
     {
@@ -388,6 +407,14 @@ pub async fn list(
         }
         if let Some(ref s) = filter_service {
             let _ = write!(base_url, "service_id={s}&");
+        }
+        if let Some(ref l) = filter_lifecycle {
+            let _ = write!(base_url, "lifecycle={l}&");
+        }
+        if let Some(ref q) = filter_q {
+            let encoded =
+                percent_encoding::utf8_percent_encode(q, percent_encoding::NON_ALPHANUMERIC);
+            let _ = write!(base_url, "q={encoded}&");
         }
         if let Some(ref f) = params.from {
             let _ = write!(base_url, "from={f}&");
@@ -405,11 +432,14 @@ pub async fn list(
         is_authenticated,
         unread_count,
         last_admin_action,
-        events,
+        groups,
+        total,
         page,
         has_next,
         filter_kind,
         filter_service,
+        filter_lifecycle,
+        filter_q,
         filter_from: params.from,
         filter_to: params.to,
         services,

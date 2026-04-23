@@ -67,6 +67,7 @@ uuid = { version = "1", features = ["v4"] }
 slug = "0.1"
 rand = "0.8"
 async-trait = "0.1"
+percent-encoding = "2"
 
 [dev-dependencies]
 tokio-test = "0.4"

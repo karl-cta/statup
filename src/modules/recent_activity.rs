@@ -8,7 +8,7 @@ use async_trait::async_trait;
 
 use crate::error::AppError;
 use crate::i18n::I18n;
-use crate::models::EventSummary;
+use crate::models::{DayGroup, group_by_day};
 use crate::repositories::EventRepository;
 
 use super::{Module, ModuleContext, ModuleRenderContext};
@@ -16,11 +16,6 @@ use super::{Module, ModuleContext, ModuleRenderContext};
 const DEFAULT_LIMIT: i64 = 10;
 
 pub struct RecentActivityModule;
-
-pub struct DayGroup {
-    pub label: String,
-    pub events: Vec<EventSummary>,
-}
 
 #[derive(Template)]
 #[template(path = "modules/recent_activity.html")]
@@ -36,25 +31,6 @@ fn read_limit(config: &serde_json::Value) -> i64 {
         .and_then(serde_json::Value::as_i64)
         .filter(|l| *l > 0 && *l <= 100)
         .unwrap_or(DEFAULT_LIMIT)
-}
-
-fn group_by_day(events: Vec<EventSummary>, i18n: &I18n) -> Vec<DayGroup> {
-    let mut groups: Vec<DayGroup> = Vec::new();
-    let mut current_date = None;
-    for event in events {
-        let date = event.created_at.date_naive();
-        if Some(date) != current_date {
-            groups.push(DayGroup {
-                label: i18n.date_label(&date),
-                events: Vec::new(),
-            });
-            current_date = Some(date);
-        }
-        if let Some(last) = groups.last_mut() {
-            last.events.push(event);
-        }
-    }
-    groups
 }
 
 #[async_trait]

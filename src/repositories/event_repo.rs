@@ -130,6 +130,13 @@ impl EventRepository {
         if filters.lifecycle.is_some() {
             conditions.push("e.lifecycle = ?".to_string());
         }
+        if let Some(group) = filters.lifecycle_group {
+            let placeholders = vec!["?"; group.lifecycles().len()].join(", ");
+            conditions.push(format!("e.lifecycle IN ({placeholders})"));
+        }
+        if filters.q.is_some() {
+            conditions.push("e.title LIKE ?".to_string());
+        }
         if filters.from.is_some() {
             conditions.push("e.created_at >= ?".to_string());
         }
@@ -154,6 +161,14 @@ impl EventRepository {
         }
         if let Some(l) = filters.lifecycle {
             query = query.bind(l);
+        }
+        if let Some(group) = filters.lifecycle_group {
+            for lc in group.lifecycles() {
+                query = query.bind(*lc);
+            }
+        }
+        if let Some(ref q) = filters.q {
+            query = query.bind(format!("%{q}%"));
         }
         if let Some(from) = filters.from {
             query = query.bind(from);

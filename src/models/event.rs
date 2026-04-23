@@ -15,6 +15,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use super::Service;
+use crate::i18n::I18n;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Serialize, Deserialize)]
 #[sqlx(type_name = "TEXT", rename_all = "snake_case")]
@@ -224,6 +225,47 @@ impl Lifecycle {
     }
 }
 
+/// Pragmatic lifecycle bucket used by the `/events` list filter.
+/// Publications have no lifecycle and are excluded from both groups.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LifecycleGroup {
+    Active,
+    Closed,
+}
+
+impl LifecycleGroup {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::Closed => "closed",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "active" => Some(Self::Active),
+            "closed" => Some(Self::Closed),
+            _ => None,
+        }
+    }
+
+    pub fn lifecycles(self) -> &'static [Lifecycle] {
+        match self {
+            Self::Active => &[
+                Lifecycle::Investigating,
+                Lifecycle::InProgress,
+                Lifecycle::Monitoring,
+                Lifecycle::Scheduled,
+            ],
+            Self::Closed => &[
+                Lifecycle::Resolved,
+                Lifecycle::Cancelled,
+                Lifecycle::Completed,
+            ],
+        }
+    }
+}
+
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct Event {
     pub id: i64,
@@ -425,11 +467,40 @@ impl CreateEventInput {
 pub struct EventFilters {
     pub kind: Option<Kind>,
     pub lifecycle: Option<Lifecycle>,
+    pub lifecycle_group: Option<LifecycleGroup>,
     pub service_id: Option<i64>,
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
+    pub q: Option<String>,
     pub limit: i64,
     pub offset: i64,
+}
+
+/// Day bucket used by the recent-activity and `/events` list views.
+pub struct DayGroup {
+    pub label: String,
+    pub events: Vec<EventSummary>,
+}
+
+/// Group an event list into day buckets, preserving input order. The caller is
+/// expected to pass events sorted by `created_at` descending.
+pub fn group_by_day(events: Vec<EventSummary>, i18n: &I18n) -> Vec<DayGroup> {
+    let mut groups: Vec<DayGroup> = Vec::new();
+    let mut current_date = None;
+    for event in events {
+        let date = event.created_at.date_naive();
+        if Some(date) != current_date {
+            groups.push(DayGroup {
+                label: i18n.date_label(&date),
+                events: Vec::new(),
+            });
+            current_date = Some(date);
+        }
+        if let Some(last) = groups.last_mut() {
+            last.events.push(event);
+        }
+    }
+    groups
 }
 
 #[cfg(test)]

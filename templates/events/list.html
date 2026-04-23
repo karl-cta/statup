@@ -3,10 +3,24 @@
 {% block title %}{{ i18n.t("events.title") }}{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-    <div class="flex items-center justify-between animate-in">
-        <h1 class="text-2xl font-medium tracking-tight text-ink dark:text-sand-light">{{ i18n.t("events.heading") }}</h1>
-        <a href="/events/new" class="btn-3d text-[13px]" aria-label="{{ i18n.t("events.create_event_aria") }}">
+<div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
+
+    <header class="flex items-baseline justify-between gap-4 animate-in">
+        <div>
+            <h1 class="text-[28px] font-semibold tracking-tight text-ink dark:text-sand-light">
+                {{ i18n.t("events.heading") }}
+            </h1>
+            <p class="mt-1 text-[11px] font-mono uppercase tracking-[0.12em] text-ink/55 dark:text-sand-light/45 tabular-nums">
+                {% if total == 0 %}
+                {{ i18n.t("events.no_events_short") }}
+                {% else if total == 1 %}
+                1 {{ i18n.t("events.count_one") }}
+                {% else %}
+                {{ total }} {{ i18n.t("events.count_many") }}
+                {% endif %}
+            </p>
+        </div>
+        <a href="/events/new" class="btn-3d text-[13px] shrink-0" aria-label="{{ i18n.t("events.create_event_aria") }}">
             <span class="inline-flex items-center gap-1.5">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -14,13 +28,20 @@
                 {{ i18n.t("events.new") }}
             </span>
         </a>
-    </div>
+    </header>
 
     <form id="events-filters" method="get" action="/events"
           hx-get="/events" hx-target="#events-results" hx-select="#events-results"
-          hx-trigger="change from:find select, change from:find input[type='date']" hx-push-url="true" hx-swap="outerHTML"
+          hx-trigger="change from:find select, change from:find input[type='date'], keyup changed delay:400ms from:find input[type='search']"
+          hx-push-url="true" hx-swap="outerHTML"
           class="mt-6 animate-in delay-1 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
-        <div class="sm:min-w-[160px]">
+        <div class="col-span-2 sm:min-w-[220px] sm:flex-1">
+            <label for="q" class="block text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.search") }}</label>
+            <input id="q" name="q" type="search" value="{{ filter_q.as_deref().unwrap_or_default() }}"
+                   placeholder="{{ i18n.t("events.search_placeholder") }}"
+                   class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:py-1.5">
+        </div>
+        <div class="sm:min-w-[140px]">
             <label for="kind" class="block text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.kind") }}</label>
             <select id="kind" name="kind" data-custom-select class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:py-1.5 cursor-pointer">
                 <option value="">{{ i18n.t("common.all") }}</option>
@@ -29,7 +50,15 @@
                 <option value="publication" {% if filter_kind.as_deref() == Some("publication") %}selected{% endif %}>{{ i18n.t("kind.publication") }}</option>
             </select>
         </div>
-        <div class="sm:min-w-[180px]">
+        <div class="sm:min-w-[140px]">
+            <label for="lifecycle" class="block text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.state") }}</label>
+            <select id="lifecycle" name="lifecycle" data-custom-select class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:py-1.5 cursor-pointer">
+                <option value="">{{ i18n.t("common.all") }}</option>
+                <option value="active" {% if filter_lifecycle.as_deref() == Some("active") %}selected{% endif %}>{{ i18n.t("events.state_active") }}</option>
+                <option value="closed" {% if filter_lifecycle.as_deref() == Some("closed") %}selected{% endif %}>{{ i18n.t("events.state_closed") }}</option>
+            </select>
+        </div>
+        <div class="sm:min-w-[160px]">
             <label for="service_id" class="block text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.service") }}</label>
             <select id="service_id" name="service_id" data-custom-select class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:py-1.5 cursor-pointer">
                 <option value="">{{ i18n.t("common.all") }}</option>
@@ -57,19 +86,24 @@
         </noscript>
     </form>
 
-    <div id="events-results">
-    {% if events.is_empty() %}
-    <div class="mt-12 text-center animate-in delay-2">
-        <p class="text-sm text-ink/50 dark:text-sand-light/45">{{ i18n.t("events.no_events") }}</p>
-    </div>
+    <div id="events-results" class="mt-6 animate-in delay-2">
+    {% if total == 0 %}
+        <section class="card">
+            <p class="card-empty">{{ i18n.t("events.no_events") }}</p>
+        </section>
     {% else %}
-    <div class="mt-6 animate-in delay-2">
-        {% for event in events %}
-        {% include "components/event_line.html" %}
-        {% endfor %}
-    </div>
+        <section class="card">
+            {% for group in groups %}
+            <div class="log-day">
+                <span>{{ group.label }}</span>
+            </div>
+            {% for event in group.events %}
+            {% include "components/event_line.html" %}
+            {% endfor %}
+            {% endfor %}
+        </section>
 
-    {% include "components/pagination.html" %}
+        {% include "components/pagination.html" %}
     {% endif %}
     </div>
 </div>
