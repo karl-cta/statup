@@ -11,18 +11,18 @@
           hx-trigger="change from:find select, change from:find input[type='date']"
           hx-push-url="true" hx-swap="outerHTML"
           class="mt-6 animate-in delay-1 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
-        <div class="col-span-2 sm:col-span-1">
+        <div class="col-span-2 sm:col-span-1 sm:min-w-[160px]">
             <label for="kind" class="block text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.kind") }}</label>
-            <select id="kind" name="kind" class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:w-auto sm:py-1.5 cursor-pointer">
+            <select id="kind" name="kind" data-custom-select class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:py-1.5 cursor-pointer">
                 <option value="">{{ i18n.t("common.all") }}</option>
                 <option value="incident" {% if filter_kind.as_deref() == Some("incident") %}selected{% endif %}>{{ i18n.t("kind.incident") }}</option>
                 <option value="maintenance" {% if filter_kind.as_deref() == Some("maintenance") %}selected{% endif %}>{{ i18n.t("kind.maintenance") }}</option>
                 <option value="publication" {% if filter_kind.as_deref() == Some("publication") %}selected{% endif %}>{{ i18n.t("kind.publication") }}</option>
             </select>
         </div>
-        <div class="col-span-2 sm:col-span-1">
+        <div class="col-span-2 sm:col-span-1 sm:min-w-[180px]">
             <label for="service_id" class="block text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.service") }}</label>
-            <select id="service_id" name="service_id" class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:w-auto sm:py-1.5 cursor-pointer">
+            <select id="service_id" name="service_id" data-custom-select class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:py-1.5 cursor-pointer">
                 <option value="">{{ i18n.t("common.all") }}</option>
                 {% for svc in services %}
                 <option value="{{ svc.id }}" {% if filter_service.as_deref() == Some(svc.id.to_string().as_str()) %}selected{% endif %}>{{ svc.name }}</option>

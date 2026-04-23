@@ -89,7 +89,7 @@
                 <form method="post" action="/admin/users/{{ u.id }}/role"
                       hx-post="/admin/users/{{ u.id }}/role" hx-target="body" hx-swap="outerHTML" class="inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <select name="role"
+                    <select name="role" data-custom-select
                             aria-label="{{ i18n.t("profile.role") }} {{ u.display_name }}"
                             class="input-raised px-2 py-1.5 text-[12px] font-medium cursor-pointer"
                             onchange="this.form.requestSubmit()">
@@ -155,7 +155,7 @@
                         <form method="post" action="/admin/users/{{ u.id }}/role"
                               hx-post="/admin/users/{{ u.id }}/role" hx-target="body" hx-swap="outerHTML" class="inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            <select name="role"
+                            <select name="role" data-custom-select
                                     aria-label="{{ i18n.t("profile.role") }} {{ u.display_name }}"
                                     class="input-raised px-2 py-1 text-[12px] font-medium cursor-pointer"
                                     onchange="this.form.requestSubmit()">

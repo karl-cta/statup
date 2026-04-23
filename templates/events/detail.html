@@ -23,7 +23,7 @@
                     {% if !allowed_transitions.is_empty() %}
                     <form id="lifecycle-form" method="post" action="/events/{{ event.event.id }}/lifecycle" class="mt-3 flex items-center gap-1.5">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <select id="lifecycle-select" name="lifecycle"
+                        <select id="lifecycle-select" name="lifecycle" data-custom-select
                                 class="input-raised px-2 py-1 text-[13px] cursor-pointer flex-1 min-w-0">
                             {% for next in allowed_transitions %}
                             <option value="{{ next.as_str() }}">{{ i18n.t(next.i18n_key()) }}</option>
