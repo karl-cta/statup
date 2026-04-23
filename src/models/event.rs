@@ -157,14 +157,6 @@ impl Severity {
         }
     }
 
-    pub fn css_class(self) -> &'static str {
-        match self {
-            Self::Minor => "badge-severity-minor",
-            Self::Major => "badge-severity-major",
-            Self::Critical => "badge-severity-critical",
-        }
-    }
-
     pub fn level(self) -> u8 {
         match self {
             Self::Minor => 1,
@@ -220,18 +212,6 @@ impl Lifecycle {
             Self::Cancelled => "cancelled",
             Self::Scheduled => "scheduled",
             Self::Completed => "completed",
-        }
-    }
-
-    pub fn css_class(self) -> &'static str {
-        match self {
-            Self::Investigating => "badge-investigating",
-            Self::InProgress => "badge-in-progress",
-            Self::Monitoring => "badge-monitoring",
-            Self::Resolved => "badge-resolved",
-            Self::Cancelled => "badge-cancelled",
-            Self::Scheduled => "badge-scheduled",
-            Self::Completed => "badge-completed",
         }
     }
 
