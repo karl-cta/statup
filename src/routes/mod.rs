@@ -82,8 +82,8 @@ pub fn create_router(state: AppState) -> Router {
 
         // Icon routes (RequirePublisher extractor)
         .route("/icons", get(icons::list))
-        .route("/icons/picker", get(icons::picker))
         .route("/icons/upload", post(icons::upload))
+        .route("/icons/upload-picker", post(icons::upload_picker))
         .route("/icons/:id/delete", post(icons::delete))
 
         // Admin routes (RequireAdmin extractor)

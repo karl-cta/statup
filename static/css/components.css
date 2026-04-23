@@ -2087,6 +2087,58 @@
         }
     }
 
+    /* Icon upload field, clickable label, auto-uploads on file selection. */
+    .icon-upload-field {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        padding: 10px 14px;
+        border: 1px dashed var(--line);
+        border-radius: 2px;
+        cursor: pointer;
+        transition: border-color 120ms ease, background-color 120ms ease;
+    }
+
+    .icon-upload-field:hover {
+        border-color: var(--color-ink);
+        background-color: var(--surface-hover);
+    }
+
+    :is(.dark *) .icon-upload-field:hover {
+        border-color: var(--color-sand-light);
+    }
+
+    .icon-upload-field:focus-within {
+        outline: 2px solid var(--color-ink);
+        outline-offset: 2px;
+    }
+
+    :is(.dark *) .icon-upload-field:focus-within {
+        outline-color: var(--color-sand-light);
+    }
+
+    .icon-upload-cta {
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        color: var(--color-ink);
+    }
+
+    :is(.dark *) .icon-upload-cta {
+        color: var(--color-sand-light);
+    }
+
+    .icon-upload-hint {
+        font-size: 11.5px;
+        color: var(--color-muted-light);
+    }
+
+    :is(.dark *) .icon-upload-hint {
+        color: var(--color-muted-dark);
+    }
+
     /* Services checklist, used in the event form sidebar. Flat list with
        hairlines, no card framing. */
     .svc-pick {

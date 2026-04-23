@@ -9,7 +9,7 @@ use validator::Validate;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, RequirePublisher, ValidatedForm};
-use crate::models::{BUILTIN_ICONS, BuiltinIcon, ServiceStatus, User};
+use crate::models::{BUILTIN_ICONS, BuiltinIcon, Icon, ServiceStatus, User};
 use crate::repositories::{EventRepository, IconRepository, ServiceRepository};
 use crate::services::{EventService, ServiceService};
 use crate::state::AppState;
@@ -42,6 +42,7 @@ struct ServiceFormTemplate {
     selected_icon_url: Option<String>,
     selected_icon_name: Option<String>,
     builtin_icons: &'static [BuiltinIcon],
+    custom_icons: Vec<Icon>,
     i18n: I18n,
 }
 
@@ -139,6 +140,7 @@ pub async fn new_form(
     let (user_display_name, is_admin, is_authenticated) = layout_fields(&user);
     let unread_count = unread(&state.pool, &user).await?;
     let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
+    let custom_icons = IconRepository::list_all(&state.pool).await?;
     let tpl = ServiceFormTemplate {
         csrf_token: csrf_token.0,
         user_display_name,
@@ -152,6 +154,7 @@ pub async fn new_form(
         selected_icon_url: None,
         selected_icon_name: None,
         builtin_icons: BUILTIN_ICONS,
+        custom_icons,
         i18n,
     };
     render(&tpl)
@@ -181,6 +184,7 @@ pub async fn create(
             let unread_count = unread(&state.pool, &user).await?;
             let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
             let icon_url = resolve_icon_url(&state.pool, icon_id).await?;
+            let custom_icons = IconRepository::list_all(&state.pool).await?;
             let tpl = ServiceFormTemplate {
                 csrf_token: csrf_token.0,
                 user_display_name,
@@ -194,6 +198,7 @@ pub async fn create(
                 selected_icon_url: icon_url,
                 selected_icon_name: icon_name,
                 builtin_icons: BUILTIN_ICONS,
+                custom_icons,
                 i18n,
             };
             render(&tpl)
@@ -218,6 +223,7 @@ pub async fn edit_form(
     let (user_display_name, is_admin, is_authenticated) = layout_fields(&user);
     let unread_count = unread(&state.pool, &user).await?;
     let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
+    let custom_icons = IconRepository::list_all(&state.pool).await?;
     let tpl = ServiceFormTemplate {
         csrf_token: csrf_token.0,
         user_display_name,
@@ -230,6 +236,7 @@ pub async fn edit_form(
         selected_icon_url: icon_url,
         selected_icon_name: icon_name,
         builtin_icons: BUILTIN_ICONS,
+        custom_icons,
         i18n,
         service: Some(ServiceFormData {
             id: service.id,
@@ -266,6 +273,7 @@ pub async fn update(
             let unread_count = unread(&state.pool, &user).await?;
             let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
             let icon_url = resolve_icon_url(&state.pool, icon_id).await?;
+            let custom_icons = IconRepository::list_all(&state.pool).await?;
             let tpl = ServiceFormTemplate {
                 csrf_token: csrf_token.0,
                 user_display_name,
@@ -283,6 +291,7 @@ pub async fn update(
                 selected_icon_url: icon_url,
                 selected_icon_name: icon_name,
                 builtin_icons: BUILTIN_ICONS,
+                custom_icons,
                 i18n,
             };
             render(&tpl)

@@ -1,8 +1,9 @@
-{# Icon picker component, expects `selected_icon_name` (Option<String>), `selected_icon_id` (Option<i64>),
-   `selected_icon_url` (Option<String>), `builtin_icons` (&[BuiltinIcon]), `csrf_token` (String) in scope #}
+{# Icon picker component. Expects `selected_icon_name` (Option<String>), `selected_icon_id` (Option<i64>),
+   `selected_icon_url` (Option<String>), `builtin_icons` (&[BuiltinIcon]), `custom_icons` (Vec<Icon>),
+   `csrf_token` (String), `i18n` (I18n) in scope. #}
 <div class="icon-picker-wrapper">
     <label class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-        {{ i18n.t("services.icon") }} <span class="text-ink/45 dark:text-sand-light/30">(optionnel)</span>
+        {{ i18n.t("services.icon") }} <span class="text-ink/45 dark:text-sand-light/30">{{ i18n.t("events.optional") }}</span>
     </label>
     <p class="mt-0.5 text-[12px] text-ink/45 dark:text-sand-light/40">{{ i18n.t("services.icon_help") }}</p>
 
@@ -30,7 +31,7 @@
         {% endif %}
     </div>
 
-    <div class="mt-3">
+    <div class="mt-4">
         <p class="text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45 mb-2">{{ i18n.t("icons.builtin") }}</p>
         <div class="grid grid-cols-6 gap-1.5 sm:grid-cols-8">
             {% for icon in builtin_icons %}
@@ -52,21 +53,34 @@
         </div>
     </div>
 
-    <details class="mt-3">
-        <summary class="text-[12px] font-medium text-ink/55 dark:text-sand-light/45 cursor-pointer hover:text-ink dark:hover:text-sand-light transition-colors">
-            {{ i18n.t("icons.custom") }}...
-        </summary>
-        <div class="mt-2">
-            <button type="button"
-                    hx-get="/icons/picker"
-                    hx-target="#icon-gallery-modal"
-                    hx-swap="innerHTML"
-                    class="btn-3d-ghost text-[13px] !px-3 !py-1.5">
-                {{ i18n.t("icons.heading") }}
-            </button>
+    <div class="mt-5">
+        <div class="flex items-baseline justify-between mb-2">
+            <p class="text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("icons.custom") }}</p>
+            <span id="icon-upload-status" class="text-[11px] font-mono text-ink/45 dark:text-sand-light/40 hidden">
+                {{ i18n.t("icons.uploading") }}
+            </span>
         </div>
-    </details>
-    <div id="icon-gallery-modal"></div>
+
+        {# Auto-upload on file change. File input sits directly in the parent service form,
+           hx-params filters to only these two fields so the service form doesn't get spammed. #}
+        <label class="icon-upload-field">
+            <span class="icon-upload-cta">{{ i18n.t("icons.upload") }}</span>
+            <span class="icon-upload-hint">{{ i18n.t("icons.upload_hint_short") }}</span>
+            <input type="file" name="file" id="icon-upload-file"
+                   accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                   class="sr-only"
+                   hx-post="/icons/upload-picker"
+                   hx-target="#custom-icons-grid"
+                   hx-swap="outerHTML"
+                   hx-trigger="change"
+                   hx-encoding="multipart/form-data"
+                   hx-params="file,csrf_token"
+                   hx-indicator="#icon-upload-status"
+                   hx-on::after-request="this.value=''">
+        </label>
+
+        {% include "components/icon_grid.html" %}
+    </div>
 </div>
 
 <script>
@@ -80,12 +94,32 @@ function selectBuiltinIcon(btn) {
     }).join('');
     document.getElementById('icon-preview').innerHTML =
         '<svg class="h-6 w-6 text-ink/70 dark:text-sand-light/60" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">' + svgPaths + '</svg>';
-    document.querySelectorAll('.icon-btn').forEach(function(b) {
+    document.querySelectorAll('.icon-btn, .icon-btn-custom').forEach(function(b) {
         b.classList.remove('border-ink', 'bg-sand-warm', 'dark:border-sand-light', 'dark:bg-surface-2');
         b.classList.add('border-ink/10', 'bg-cream', 'dark:border-sand-light/10', 'dark:bg-surface-1');
     });
     btn.classList.remove('border-ink/10', 'bg-cream', 'dark:border-sand-light/10', 'dark:bg-surface-1');
     btn.classList.add('border-ink', 'bg-sand-warm', 'dark:border-sand-light', 'dark:bg-surface-2');
+    ensureRemoveButton();
+}
+
+function selectCustomIcon(btn) {
+    var id = btn.dataset.iconId;
+    var url = btn.dataset.iconUrl;
+    document.getElementById('icon-id-input').value = id;
+    document.getElementById('icon-name-input').value = '';
+    document.getElementById('icon-preview').innerHTML =
+        '<img src="' + url + '" alt="Icône" class="h-8 w-8 rounded-sm object-contain">';
+    document.querySelectorAll('.icon-btn, .icon-btn-custom').forEach(function(b) {
+        b.classList.remove('border-ink', 'bg-sand-warm', 'dark:border-sand-light', 'dark:bg-surface-2');
+        b.classList.add('border-ink/10', 'bg-cream', 'dark:border-sand-light/10', 'dark:bg-surface-1');
+    });
+    btn.classList.remove('border-ink/10', 'bg-cream', 'dark:border-sand-light/10', 'dark:bg-surface-1');
+    btn.classList.add('border-ink', 'bg-sand-warm', 'dark:border-sand-light', 'dark:bg-surface-2');
+    ensureRemoveButton();
+}
+
+function ensureRemoveButton() {
     var removeBtn = document.getElementById('icon-remove-btn');
     if (!removeBtn) {
         var container = document.getElementById('icon-preview').parentNode;
@@ -104,7 +138,7 @@ function clearIcon() {
     document.getElementById('icon-id-input').value = '';
     document.getElementById('icon-preview').innerHTML =
         '<svg class="h-5 w-5 text-ink/25 dark:text-sand-light/20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" /></svg>';
-    document.querySelectorAll('.icon-btn').forEach(function(b) {
+    document.querySelectorAll('.icon-btn, .icon-btn-custom').forEach(function(b) {
         b.classList.remove('border-ink', 'bg-sand-warm', 'dark:border-sand-light', 'dark:bg-surface-2');
         b.classList.add('border-ink/10', 'bg-cream', 'dark:border-sand-light/10', 'dark:bg-surface-1');
     });
