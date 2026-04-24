@@ -11,7 +11,7 @@ use crate::i18n::I18n;
 use crate::models::{DayGroup, group_by_day};
 use crate::repositories::EventRepository;
 
-use super::{Module, ModuleContext, ModuleRenderContext};
+use super::{ColumnWidth, Module, ModuleContext, ModuleRenderContext};
 
 const DEFAULT_LIMIT: i64 = 10;
 
@@ -53,6 +53,10 @@ impl Module for RecentActivityModule {
 
     fn default_position(&self, _context: ModuleContext) -> i64 {
         30
+    }
+
+    fn column_width(&self) -> ColumnWidth {
+        ColumnWidth::Wide
     }
 
     async fn render(&self, ctx: &ModuleRenderContext<'_>) -> Result<String, AppError> {

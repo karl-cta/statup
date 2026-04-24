@@ -15,6 +15,21 @@ use crate::services::EventService;
 use crate::state::AppState;
 
 #[derive(Template)]
+#[template(path = "admin/settings.html")]
+struct SettingsPageTemplate {
+    csrf_token: String,
+    user_display_name: String,
+    is_admin: bool,
+    is_authenticated: bool,
+    unread_count: i64,
+    last_admin_action: Option<String>,
+    public_mode: bool,
+    users_count: i64,
+    admins_count: i64,
+    i18n: I18n,
+}
+
+#[derive(Template)]
 #[template(path = "admin/users.html")]
 struct UsersListTemplate {
     csrf_token: String,
@@ -25,7 +40,6 @@ struct UsersListTemplate {
     last_admin_action: Option<String>,
     current_user_id: i64,
     users: Vec<UserRow>,
-    public_mode: bool,
     i18n: I18n,
 }
 
@@ -86,6 +100,35 @@ fn to_user_row(u: User, i18n: &I18n) -> UserRow {
     }
 }
 
+pub async fn settings_page(
+    RequireAdmin(user): RequireAdmin,
+    State(state): State<AppState>,
+    csrf_token: CsrfToken,
+    Locale(i18n): Locale,
+) -> Result<Response, AppError> {
+    let (user_display_name, is_admin, is_authenticated) = layout_fields(&user);
+    let unread_count = unread(&state.pool, &user).await?;
+    let users_count = UserRepository::count_all(&state.pool).await?;
+    let admins_count = UserRepository::count_admins(&state.pool).await?;
+    let last_admin_action = EventRepository::last_admin_action(&state.pool)
+        .await?
+        .map(|dt| i18n.format_datetime_long(&dt));
+
+    let tpl = SettingsPageTemplate {
+        csrf_token: csrf_token.0,
+        user_display_name,
+        is_admin,
+        is_authenticated,
+        unread_count,
+        last_admin_action,
+        public_mode: state.is_public_mode(),
+        users_count,
+        admins_count,
+        i18n,
+    };
+    render(&tpl)
+}
+
 pub async fn users_list(
     RequireAdmin(user): RequireAdmin,
     State(state): State<AppState>,
@@ -112,7 +155,6 @@ pub async fn users_list(
         last_admin_action,
         current_user_id: user.id,
         users,
-        public_mode: state.is_public_mode(),
         i18n,
     };
     render(&tpl)
@@ -217,5 +259,5 @@ pub async fn toggle_public_mode(
         "Public mode toggled"
     );
 
-    Ok(Redirect::to("/admin/users").into_response())
+    Ok(Redirect::to("/admin/settings").into_response())
 }

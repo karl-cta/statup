@@ -12,7 +12,7 @@ use crate::i18n::I18n;
 use crate::models::EventSummary;
 use crate::repositories::EventRepository;
 
-use super::{Module, ModuleContext, ModuleRenderContext};
+use super::{ColumnWidth, Module, ModuleContext, ModuleRenderContext};
 
 pub struct StatusBannerModule;
 
@@ -43,6 +43,10 @@ impl Module for StatusBannerModule {
 
     fn default_position(&self, _context: ModuleContext) -> i64 {
         10
+    }
+
+    fn column_width(&self) -> ColumnWidth {
+        ColumnWidth::Full
     }
 
     async fn render(&self, ctx: &ModuleRenderContext<'_>) -> Result<String, AppError> {

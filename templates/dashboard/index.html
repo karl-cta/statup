@@ -5,7 +5,7 @@
 {% block content %}
 <div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12" data-dashboard-context="{{ context_label }}">
 
-    {# Top, status banner full width #}
+    {# Banner, always pinned full width at the top, locked out of the reorder editor. #}
     {% match banner_html %}
     {% when Some with (html) %}
     <section class="animate-in">
@@ -14,48 +14,27 @@
     {% when None %}
     {% endmatch %}
 
-    {% if banner_html.is_some() && (services_html.is_some() || activity_html.is_some() || maintenances_html.is_some()) %}
+    {% if banner_html.is_some() && !row_modules.is_empty() %}
     <hr class="my-8 border-0 border-t border-ink/10 dark:border-sand-light/10">
     {% endif %}
 
-    {# Three columns, Magazine asymmetric. Stack on mobile. #}
-    <div class="grid gap-8 lg:gap-0 lg:grid-cols-[260px_minmax(0,1fr)_260px]">
-
-        {% match services_html %}
-        {% when Some with (html) %}
-        <aside class="animate-in delay-1 lg:pr-8 lg:border-r lg:border-ink/10 lg:dark:border-sand-light/10">
-            {{ html|safe }}
-        </aside>
-        {% when None %}
-        {% endmatch %}
-
-        {% match activity_html %}
-        {% when Some with (html) %}
-        <section class="animate-in delay-2 min-w-0 lg:px-8">
-            {{ html|safe }}
+    {# Modules in saved order. Each keeps its intrinsic width (narrow = 260px,
+       wide = flex-1). Stack on mobile, flex row from lg. Hairlines between. #}
+    {% if !row_modules.is_empty() %}
+    <div class="flex flex-col gap-8 lg:flex-row lg:gap-0 lg:items-start animate-in delay-1">
+        {% for m in row_modules %}
+        <section data-module-id="{{ m.id }}"
+                 class="lg:min-w-0
+                        {% if m.is_wide %}lg:flex-1{% else %}lg:w-[260px] lg:shrink-0{% endif %}
+                        {% if !loop.first %}lg:pl-8 lg:border-l lg:border-ink/10 lg:dark:border-sand-light/10{% endif %}
+                        {% if !loop.last %}lg:pr-8{% endif %}">
+            {{ m.html|safe }}
         </section>
-        {% when None %}
-        {% endmatch %}
-
-        {% match maintenances_html %}
-        {% when Some with (html) %}
-        <aside class="animate-in delay-3 lg:pl-8 lg:border-l lg:border-ink/10 lg:dark:border-sand-light/10">
-            {{ html|safe }}
-        </aside>
-        {% when None %}
-        {% endmatch %}
-    </div>
-
-    {# Extra modules (future, not core) stack below #}
-    {% if !extra_modules.is_empty() %}
-    <div class="mt-12 space-y-8 animate-in delay-4">
-        {% for module in extra_modules %}
-        <section data-module-id="{{ module.id }}">{{ module.html|safe }}</section>
         {% endfor %}
     </div>
     {% endif %}
 
-    {% if banner_html.is_none() && services_html.is_none() && activity_html.is_none() && maintenances_html.is_none() && extra_modules.is_empty() %}
+    {% if banner_html.is_none() && row_modules.is_empty() %}
     <div class="rounded-sm border border-ink/10 bg-cream px-5 py-10 text-center dark:border-sand-light/10 dark:bg-surface-1">
         <p class="text-sm text-ink/55 dark:text-sand-light/45">{{ i18n.t("dashboard.no_modules") }}</p>
     </div>

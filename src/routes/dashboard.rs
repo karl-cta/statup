@@ -9,7 +9,7 @@ use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, OptionalUser};
 use crate::models::User;
-use crate::modules::{ModuleContext, ModuleRegistry, ModuleRenderContext};
+use crate::modules::{ColumnWidth, ModuleContext, ModuleRegistry, ModuleRenderContext};
 use crate::repositories::{EventRepository, UserRepository};
 use crate::services::{DashboardLayoutService, EventService};
 use crate::state::AppState;
@@ -25,16 +25,14 @@ struct DashboardTemplate {
     last_admin_action: Option<String>,
     context_label: &'static str,
     banner_html: Option<String>,
-    services_html: Option<String>,
-    activity_html: Option<String>,
-    maintenances_html: Option<String>,
-    extra_modules: Vec<RenderedModule>,
+    row_modules: Vec<RenderedModule>,
     i18n: I18n,
 }
 
 struct RenderedModule {
     id: String,
     html: String,
+    is_wide: bool,
 }
 
 fn render(tpl: &impl Template) -> Result<Response, AppError> {
@@ -81,10 +79,7 @@ pub async fn index(
     let resolved = DashboardLayoutService::resolve(&state.pool, &registry, context).await?;
 
     let mut banner_html = None;
-    let mut services_html = None;
-    let mut activity_html = None;
-    let mut maintenances_html = None;
-    let mut extra_modules = Vec::new();
+    let mut row_modules = Vec::new();
 
     for item in resolved {
         if !item.enabled {
@@ -97,17 +92,16 @@ pub async fn index(
             context,
             config: &item.config,
         };
-        let id = item.module.id();
         let html = item.module.render(&render_ctx).await?;
-        match id {
-            "status_banner" => banner_html = Some(html),
-            "services" => services_html = Some(html),
-            "recent_activity" => activity_html = Some(html),
-            "scheduled_maintenances" => maintenances_html = Some(html),
-            _ => extra_modules.push(RenderedModule {
-                id: id.to_string(),
+        let width = item.module.column_width();
+        if width.is_pinned_top() {
+            banner_html = Some(html);
+        } else {
+            row_modules.push(RenderedModule {
+                id: item.module.id().to_string(),
                 html,
-            }),
+                is_wide: matches!(width, ColumnWidth::Wide),
+            });
         }
     }
 
@@ -125,10 +119,7 @@ pub async fn index(
         last_admin_action,
         context_label: context.as_str(),
         banner_html,
-        services_html,
-        activity_html,
-        maintenances_html,
-        extra_modules,
+        row_modules,
         i18n,
     };
     render(&tpl)

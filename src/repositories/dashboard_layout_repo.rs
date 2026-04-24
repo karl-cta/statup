@@ -116,26 +116,6 @@ impl DashboardLayoutRepository {
         Ok(())
     }
 
-    /// Replace the stored config blob for a default-layout row.
-    pub async fn set_default_config(
-        pool: &DbPool,
-        context: ModuleContext,
-        module_id: &str,
-        config_json: &str,
-    ) -> Result<(), AppError> {
-        sqlx::query(
-            "UPDATE dashboard_layouts
-             SET config = ?, updated_at = datetime('now')
-             WHERE context = ? AND user_id IS NULL AND module_id = ?",
-        )
-        .bind(config_json)
-        .bind(context.as_str())
-        .bind(module_id)
-        .execute(pool)
-        .await?;
-        Ok(())
-    }
-
     /// Remove layout rows whose module is no longer registered.
     pub async fn prune_unknown(
         pool: &DbPool,

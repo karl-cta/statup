@@ -10,7 +10,7 @@ use crate::i18n::I18n;
 use crate::models::EventSummary;
 use crate::repositories::EventRepository;
 
-use super::{Module, ModuleContext, ModuleRenderContext};
+use super::{ColumnWidth, Module, ModuleContext, ModuleRenderContext};
 
 const RESOLVED_LIMIT: i64 = 5;
 
@@ -44,6 +44,10 @@ impl Module for ScheduledMaintenancesModule {
 
     fn default_position(&self, _context: ModuleContext) -> i64 {
         40
+    }
+
+    fn column_width(&self) -> ColumnWidth {
+        ColumnWidth::Narrow
     }
 
     async fn render(&self, ctx: &ModuleRenderContext<'_>) -> Result<String, AppError> {

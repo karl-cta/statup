@@ -67,6 +67,24 @@ pub struct ModuleRenderContext<'a> {
     pub config: &'a Value,
 }
 
+/// Intrinsic width a module asks for when laid out in the dashboard flex row.
+/// The dashboard renders modules in saved order; each keeps its own width.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColumnWidth {
+    /// Full width row, locked at the top of the dashboard (banner).
+    Full,
+    /// Flexible column, takes remaining space in the flex row.
+    Wide,
+    /// Fixed 260px sidebar column.
+    Narrow,
+}
+
+impl ColumnWidth {
+    pub fn is_pinned_top(self) -> bool {
+        matches!(self, Self::Full)
+    }
+}
+
 /// Async rendering contract implemented by every dashboard module.
 ///
 /// The returned HTML fragment is trusted and assembled into the dashboard
@@ -97,6 +115,12 @@ pub trait Module: Send + Sync + 'static {
     /// Default ordering hint, used when seeding a new layout. Lower comes first.
     fn default_position(&self, _context: ModuleContext) -> i64 {
         100
+    }
+
+    /// Intrinsic width the module asks for in the dashboard flex row.
+    /// Defaults to `Wide` (flex-1). Banner-like modules should return `Full`.
+    fn column_width(&self) -> ColumnWidth {
+        ColumnWidth::Wide
     }
 }
 

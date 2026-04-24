@@ -12,8 +12,10 @@
      mnav-     magazine nav row
      mnt-      scheduled maintenances
      nav-      generic nav pills (admin context switch)
+     set-      settings rows and sections (admin)
      strip-    service status strip color variables
      svc-      services list rows
+     toggle-   magazine switch (aria role=switch)
    Singletons: glow-dot, hover-row, noise, status-label, eyebrow, chip-dot. */
 
 @layer components {
@@ -2178,6 +2180,161 @@
         align-items: center;
         gap: 6px;
         flex-shrink: 0;
+    }
+
+    /* Admin settings: stacked rows inside a card, hairline separators,
+       left label + help text, right action (toggle or link button). */
+
+    .set-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 16px;
+        border-bottom: 1px solid var(--hairline);
+    }
+
+    .set-row:last-child {
+        border-bottom: none;
+    }
+
+    .set-label {
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--color-ink);
+        line-height: 1.35;
+    }
+
+    :is(.dark *) .set-label {
+        color: var(--color-sand-light);
+    }
+
+    .set-help {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--color-muted-light);
+        line-height: 1.5;
+        max-width: 52ch;
+    }
+
+    :is(.dark *) .set-help {
+        color: var(--color-muted-dark);
+    }
+
+    .set-state {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 6px;
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-muted-light);
+        font-feature-settings: 'tnum' 1;
+    }
+
+    :is(.dark *) .set-state {
+        color: var(--color-muted-dark);
+    }
+
+    .set-state.is-on {
+        color: var(--sem-ok-text);
+    }
+
+    .set-state.is-on::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--sem-ok-text);
+        box-shadow: 0 0 0 3px var(--sem-ok-soft);
+    }
+
+    /* Magazine toggle switch. Transform-only animation. */
+
+    .toggle {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        flex-shrink: 0;
+        height: 22px;
+        width: 40px;
+        border: 1px solid rgb(28 27 24 / 0.18);
+        border-radius: 999px;
+        background: rgb(28 27 24 / 0.06);
+        cursor: pointer;
+        transition: background-color 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+                    border-color 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .toggle:hover {
+        background: rgb(28 27 24 / 0.1);
+    }
+
+    .toggle:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgb(28 27 24 / 0.12);
+    }
+
+    .toggle[aria-checked="true"] {
+        background: var(--color-ink);
+        border-color: var(--color-ink);
+    }
+
+    .toggle[aria-checked="true"]:hover {
+        background: rgb(28 27 24 / 0.88);
+    }
+
+    .toggle-thumb {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--color-sand-light);
+        box-shadow: 0 1px 2px rgb(28 27 24 / 0.2);
+        transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .toggle[aria-checked="true"] .toggle-thumb {
+        transform: translateX(18px);
+    }
+
+    :is(.dark *) .toggle {
+        background: rgb(244 241 235 / 0.08);
+        border-color: rgb(244 241 235 / 0.18);
+    }
+
+    :is(.dark *) .toggle:hover {
+        background: rgb(244 241 235 / 0.12);
+    }
+
+    :is(.dark *) .toggle:focus-visible {
+        box-shadow: 0 0 0 3px rgb(244 241 235 / 0.18);
+    }
+
+    :is(.dark *) .toggle[aria-checked="true"] {
+        background: var(--color-sand-light);
+        border-color: var(--color-sand-light);
+    }
+
+    :is(.dark *) .toggle[aria-checked="true"]:hover {
+        background: rgb(244 241 235 / 0.88);
+    }
+
+    :is(.dark *) .toggle-thumb {
+        background: var(--color-ink);
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .toggle,
+        .toggle-thumb {
+            transition: none;
+        }
     }
 }
 

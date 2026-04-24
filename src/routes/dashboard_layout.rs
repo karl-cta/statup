@@ -1,5 +1,5 @@
-//! Admin routes for the dashboard module engine: layout editor and per-module
-//! configuration.
+//! Admin routes for the dashboard module engine: layout editor (enable /
+//! disable modules and reorder them).
 
 use askama::Template;
 use axum::Form;
@@ -11,7 +11,7 @@ use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, HtmlForm, RequireAdmin};
 use crate::models::User;
-use crate::modules::{Module, ModuleContext, ModuleRegistry};
+use crate::modules::{ColumnWidth, ModuleContext, ModuleRegistry};
 use crate::repositories::{DashboardLayoutRepository, EventRepository};
 use crate::services::{DashboardLayoutService, EventService};
 use crate::state::AppState;
@@ -27,6 +27,7 @@ struct LayoutTemplate {
     last_admin_action: Option<String>,
     context: String,
     context_label_key: &'static str,
+    pinned: Option<LayoutRow>,
     rows: Vec<LayoutRow>,
     saved_flash: bool,
     i18n: I18n,
@@ -37,23 +38,6 @@ struct LayoutRow {
     name: String,
     description: String,
     enabled: bool,
-}
-
-#[derive(Template)]
-#[template(path = "admin/module_config.html")]
-struct ModuleConfigTemplate {
-    csrf_token: String,
-    user_display_name: String,
-    is_admin: bool,
-    is_authenticated: bool,
-    unread_count: i64,
-    last_admin_action: Option<String>,
-    module_id: String,
-    module_name: String,
-    module_description: String,
-    raw_config: String,
-    saved_flash: bool,
-    i18n: I18n,
 }
 
 fn render(tpl: &impl Template) -> Result<Response, AppError> {
@@ -97,15 +81,21 @@ pub async fn layout_editor(
     let registry = ModuleRegistry::builtin();
     let resolved = DashboardLayoutService::resolve(&state.pool, &registry, context).await?;
 
-    let rows: Vec<LayoutRow> = resolved
-        .iter()
-        .map(|r| LayoutRow {
+    let mut pinned: Option<LayoutRow> = None;
+    let mut rows: Vec<LayoutRow> = Vec::with_capacity(resolved.len());
+    for r in &resolved {
+        let row = LayoutRow {
             module_id: r.module.id().to_string(),
             name: i18n.t(r.module.name_key()).to_string(),
             description: i18n.t(r.module.description_key()).to_string(),
             enabled: r.enabled,
-        })
-        .collect();
+        };
+        if matches!(r.module.column_width(), ColumnWidth::Full) {
+            pinned = Some(row);
+        } else {
+            rows.push(row);
+        }
+    }
 
     let unread_count = EventService::unread_count(&state.pool, user.last_seen_at).await?;
     let last_admin_action = EventRepository::last_admin_action(&state.pool)
@@ -122,6 +112,7 @@ pub async fn layout_editor(
         last_admin_action,
         context: context.as_str().to_string(),
         context_label_key: context_label_key(context),
+        pinned,
         rows,
         saved_flash: query.saved,
         i18n,
@@ -185,109 +176,4 @@ pub async fn toggle_module(
     );
 
     Ok(Redirect::to(&format!("/admin/dashboard/{context}/layout?saved=true")).into_response())
-}
-
-pub async fn module_config_form(
-    RequireAdmin(user): RequireAdmin,
-    State(state): State<AppState>,
-    Path(module_id): Path<String>,
-    csrf_token: CsrfToken,
-    Locale(i18n): Locale,
-    axum::extract::Query(query): axum::extract::Query<LayoutQuery>,
-) -> Result<Response, AppError> {
-    let registry = ModuleRegistry::builtin();
-    let module = registry.get(&module_id).ok_or(AppError::NotFound)?;
-
-    let raw = read_admin_config(&state.pool, module).await?;
-    let pretty = pretty_json(&raw);
-    let unread_count = EventService::unread_count(&state.pool, user.last_seen_at).await?;
-    let last_admin_action = EventRepository::last_admin_action(&state.pool)
-        .await?
-        .map(|dt| i18n.format_datetime_long(&dt));
-    let (user_display_name, is_admin, is_authenticated) = layout_fields(&user);
-
-    let tpl = ModuleConfigTemplate {
-        csrf_token: csrf_token.0,
-        user_display_name,
-        is_admin,
-        is_authenticated,
-        unread_count,
-        last_admin_action,
-        module_id: module.id().to_string(),
-        module_name: i18n.t(module.name_key()).to_string(),
-        module_description: i18n.t(module.description_key()).to_string(),
-        raw_config: pretty,
-        saved_flash: query.saved,
-        i18n,
-    };
-    render(&tpl)
-}
-
-#[derive(Deserialize)]
-pub struct ConfigForm {
-    config: String,
-}
-
-pub async fn module_config_save(
-    RequireAdmin(admin): RequireAdmin,
-    State(state): State<AppState>,
-    Path(module_id): Path<String>,
-    Form(form): Form<ConfigForm>,
-) -> Result<Response, AppError> {
-    let registry = ModuleRegistry::builtin();
-    let module = registry.get(&module_id).ok_or(AppError::NotFound)?;
-
-    let normalized = normalize_config(&form.config)?;
-    for context in module.contexts() {
-        DashboardLayoutRepository::set_default_config(
-            &state.pool,
-            *context,
-            module.id(),
-            &normalized,
-        )
-        .await?;
-    }
-
-    tracing::info!(
-        admin_id = admin.id,
-        module_id = module.id(),
-        "Dashboard module config saved"
-    );
-
-    Ok(Redirect::to(&format!("/admin/modules/{module_id}/config?saved=true")).into_response())
-}
-
-async fn read_admin_config(
-    pool: &crate::db::DbPool,
-    module: &dyn Module,
-) -> Result<String, AppError> {
-    let context = module
-        .contexts()
-        .iter()
-        .copied()
-        .next()
-        .unwrap_or(ModuleContext::Admin);
-    let rows = DashboardLayoutRepository::list_default(pool, context).await?;
-    Ok(rows
-        .into_iter()
-        .find(|r| r.module_id == module.id())
-        .map_or_else(|| "{}".to_string(), |r| r.config))
-}
-
-fn pretty_json(raw: &str) -> String {
-    serde_json::from_str::<serde_json::Value>(raw)
-        .ok()
-        .and_then(|v| serde_json::to_string_pretty(&v).ok())
-        .unwrap_or_else(|| raw.to_string())
-}
-
-fn normalize_config(input: &str) -> Result<String, AppError> {
-    let trimmed = input.trim();
-    if trimmed.is_empty() {
-        return Ok("{}".to_string());
-    }
-    let value: serde_json::Value = serde_json::from_str(trimmed)
-        .map_err(|_| AppError::Validation("validation.invalid_json".to_string()))?;
-    serde_json::to_string(&value)
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("config serialize: {e}")))
 }

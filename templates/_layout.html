@@ -46,7 +46,7 @@
                     <a class="mnav" data-nav="/services" href="/services">{{ i18n.t("nav.services") }}</a>
                     {% endif %}
                     {% if is_admin %}
-                    <a class="mnav" data-nav="/admin" href="/admin/users">{{ i18n.t("nav.admin") }}</a>
+                    <a class="mnav" data-nav="/admin" href="/admin/settings">{{ i18n.t("nav.admin") }}</a>
                     {% endif %}
                     <div class="mnav-spacer"></div>
                     <div class="mnav-tools">
@@ -107,7 +107,7 @@
                     {{ i18n.t("nav.search") }}
                 </a>
                 {% if is_admin %}
-                <a href="/admin/users" class="block py-2.5 text-[14px] font-medium text-ink/75 transition-colors hover:text-ink dark:text-sand-light/75 dark:hover:text-sand-light">
+                <a href="/admin/settings" class="block py-2.5 text-[14px] font-medium text-ink/75 transition-colors hover:text-ink dark:text-sand-light/75 dark:hover:text-sand-light">
                     {{ i18n.t("nav.admin") }}
                 </a>
                 {% endif %}

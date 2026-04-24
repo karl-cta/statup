@@ -14,7 +14,7 @@ use crate::i18n::I18n;
 use crate::models::Service;
 use crate::repositories::{EventRepository, ServiceRepository};
 
-use super::{Module, ModuleContext, ModuleRenderContext};
+use super::{ColumnWidth, Module, ModuleContext, ModuleRenderContext};
 
 const SPARKLINE_DAYS: u32 = 30;
 
@@ -103,6 +103,10 @@ impl Module for ServicesModule {
 
     fn default_position(&self, _context: ModuleContext) -> i64 {
         20
+    }
+
+    fn column_width(&self) -> ColumnWidth {
+        ColumnWidth::Narrow
     }
 
     async fn render(&self, ctx: &ModuleRenderContext<'_>) -> Result<String, AppError> {

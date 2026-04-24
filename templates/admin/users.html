@@ -1,52 +1,20 @@
 {% extends "_layout.html" %}
 
-{% block title %}{{ i18n.t("admin.title") }}{% endblock %}
+{% block title %}{{ i18n.t("admin.users_title") }}{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-    {# Settings, public mode toggle #}
-    <div class="mb-8 animate-in">
-        <p class="eyebrow mb-3">{{ i18n.t("admin.settings") }}</p>
-        <div class="flex items-center justify-between gap-4 py-3 border-b border-ink/10 dark:border-sand-light/10">
-            <div class="min-w-0">
-                <div class="text-sm font-medium text-ink dark:text-sand-light">{{ i18n.t("admin.public_mode") }}</div>
-                <p class="mt-0.5 text-[12px] text-ink/55 dark:text-sand-light/45">
-                    {% if public_mode %}
-                    {{ i18n.t("admin.public_mode_on") }}
-                    {% else %}
-                    {{ i18n.t("admin.public_mode_off") }}
-                    {% endif %}
-                </p>
-            </div>
-            <form method="post" action="/admin/settings/public-mode"
-                  hx-post="/admin/settings/public-mode"
-                  hx-target="body" hx-swap="outerHTML">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <button type="submit"
-                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-ink/30 focus:ring-offset-2 focus:ring-offset-page dark:focus:ring-sand-light/40 dark:focus:ring-offset-ink
-                               {% if public_mode %}bg-ink dark:bg-sand{% else %}bg-ink/15 dark:bg-sand-light/15{% endif %}"
-                        role="switch"
-                        aria-checked="{{ public_mode }}"
-                        aria-label="{{ i18n.t("admin.enable_public") }}">
-                    <span class="pointer-events-none inline-block h-5 w-5 rounded-full bg-cream shadow ring-0 transition-transform
-                                 {% if public_mode %}translate-x-5{% else %}translate-x-0{% endif %}"
-                          aria-hidden="true"></span>
-                </button>
-            </form>
+<div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
+    <header class="animate-in">
+        <p class="eyebrow">{{ i18n.t("admin.users_kicker") }}</p>
+        <div class="mt-2 flex items-baseline justify-between gap-4">
+            <h1 class="text-[28px] font-semibold tracking-tight text-ink dark:text-sand-light">
+                {{ i18n.t("admin.users_heading") }}
+            </h1>
+            <a href="/admin/settings" class="text-[12px] font-medium text-ink/55 hover:text-ink dark:text-sand-light/45 dark:hover:text-sand-light transition-colors shrink-0">
+                &larr; {{ i18n.t("admin.users_back") }}
+            </a>
         </div>
-        <div class="flex items-center justify-between gap-4 py-3 border-b border-ink/10 dark:border-sand-light/10">
-            <div class="min-w-0">
-                <div class="text-sm font-medium text-ink dark:text-sand-light">{{ i18n.t("modules.layout_title") }}</div>
-                <p class="mt-0.5 text-[12px] text-ink/55 dark:text-sand-light/45">{{ i18n.t("modules.layout_drag_hint") }}</p>
-            </div>
-            <div class="flex gap-2">
-                <a href="/admin/dashboard/public/layout" class="nav-pill">{{ i18n.t("modules.layout_context_public") }}</a>
-                <a href="/admin/dashboard/admin/layout" class="nav-pill">{{ i18n.t("modules.layout_context_admin") }}</a>
-            </div>
-        </div>
-    </div>
-
-    <h1 class="text-2xl font-medium tracking-tight text-ink dark:text-sand-light animate-in delay-1">{{ i18n.t("admin.users") }}</h1>
+    </header>
 
     {% if users.is_empty() %}
     <div class="mt-12 text-center animate-in delay-2">

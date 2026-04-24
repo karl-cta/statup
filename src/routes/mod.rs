@@ -87,10 +87,11 @@ pub fn create_router(state: AppState) -> Router {
         .route("/icons/:id/delete", post(icons::delete))
 
         // Admin routes (RequireAdmin extractor)
+        .route("/admin/settings", get(admin::settings_page))
+        .route("/admin/settings/public-mode", post(admin::toggle_public_mode))
         .route("/admin/users", get(admin::users_list))
         .route("/admin/users/:id/role", post(admin::update_role))
         .route("/admin/users/:id/disable", post(admin::toggle_active))
-        .route("/admin/settings/public-mode", post(admin::toggle_public_mode))
         .route(
             "/admin/dashboard/:context/layout",
             get(dashboard_layout::layout_editor),
@@ -102,10 +103,6 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/admin/dashboard/:context/layout/:module_id/toggle",
             post(dashboard_layout::toggle_module),
-        )
-        .route(
-            "/admin/modules/:module_id/config",
-            get(dashboard_layout::module_config_form).post(dashboard_layout::module_config_save),
         )
 
         // Profile routes (authenticated)

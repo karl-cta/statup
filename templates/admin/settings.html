@@ -1,0 +1,101 @@
+{% extends "_layout.html" %}
+
+{% block title %}{{ i18n.t("admin.title") }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
+
+    <header class="animate-in">
+        <p class="eyebrow">{{ i18n.t("admin.settings_kicker") }}</p>
+        <h1 class="mt-2 text-[28px] font-semibold tracking-tight text-ink dark:text-sand-light">
+            {{ i18n.t("admin.settings") }}
+        </h1>
+        <p class="mt-1 text-[13px] text-ink/60 dark:text-sand-light/50 max-w-[60ch]">
+            {{ i18n.t("admin.settings_intro") }}
+        </p>
+    </header>
+
+    <section class="mt-8 card animate-in delay-1">
+        <div class="card-head">
+            <h2>{{ i18n.t("admin.section_access") }}</h2>
+        </div>
+        <div class="set-row">
+            <div class="min-w-0">
+                <div class="set-label">{{ i18n.t("admin.public_mode") }}</div>
+                <p class="set-help">{{ i18n.t("admin.public_mode_help") }}</p>
+                <span class="set-state {% if public_mode %}is-on{% endif %}">
+                    {% if public_mode %}
+                    {{ i18n.t("admin.public_mode_on") }}
+                    {% else %}
+                    {{ i18n.t("admin.public_mode_off") }}
+                    {% endif %}
+                </span>
+            </div>
+            <form method="post" action="/admin/settings/public-mode"
+                  hx-post="/admin/settings/public-mode"
+                  hx-target="body" hx-swap="outerHTML">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                {% if public_mode %}
+                <button type="submit" class="toggle" role="switch"
+                        aria-checked="true"
+                        aria-label="{{ i18n.t("admin.disable_public") }}">
+                    <span class="toggle-thumb" aria-hidden="true"></span>
+                </button>
+                {% else %}
+                <button type="submit" class="toggle" role="switch"
+                        aria-checked="false"
+                        aria-label="{{ i18n.t("admin.enable_public") }}">
+                    <span class="toggle-thumb" aria-hidden="true"></span>
+                </button>
+                {% endif %}
+            </form>
+        </div>
+    </section>
+
+    <section class="mt-6 card animate-in delay-2">
+        <div class="card-head">
+            <h2>
+                {{ i18n.t("admin.section_team") }}
+                <span class="card-head-cnt">
+                    {{ users_count }} {% if users_count > 1 %}{{ i18n.t("admin.team_count_many") }}{% else %}{{ i18n.t("admin.team_count_one") }}{% endif %}
+                    ·
+                    {{ admins_count }} {% if admins_count > 1 %}{{ i18n.t("admin.team_admin_count_many") }}{% else %}{{ i18n.t("admin.team_admin_count_one") }}{% endif %}
+                </span>
+            </h2>
+        </div>
+        <div class="set-row">
+            <div class="min-w-0">
+                <div class="set-label">{{ i18n.t("admin.team_label") }}</div>
+                <p class="set-help">{{ i18n.t("admin.team_help") }}</p>
+            </div>
+            <a href="/admin/users" class="btn-3d-ghost text-[13px] shrink-0">
+                <span>{{ i18n.t("admin.team_manage") }}</span>
+            </a>
+        </div>
+    </section>
+
+    <section class="mt-6 mb-8 card animate-in delay-3">
+        <div class="card-head">
+            <h2>{{ i18n.t("admin.section_dashboard") }}</h2>
+        </div>
+        <div class="set-row">
+            <div class="min-w-0">
+                <div class="set-label">{{ i18n.t("admin.dashboard_public_label") }}</div>
+                <p class="set-help">{{ i18n.t("admin.dashboard_public_help") }}</p>
+            </div>
+            <a href="/admin/dashboard/public/layout" class="btn-3d-ghost text-[13px] shrink-0">
+                <span>{{ i18n.t("admin.edit_layout") }}</span>
+            </a>
+        </div>
+        <div class="set-row">
+            <div class="min-w-0">
+                <div class="set-label">{{ i18n.t("admin.dashboard_admin_label") }}</div>
+                <p class="set-help">{{ i18n.t("admin.dashboard_admin_help") }}</p>
+            </div>
+            <a href="/admin/dashboard/admin/layout" class="btn-3d-ghost text-[13px] shrink-0">
+                <span>{{ i18n.t("admin.edit_layout") }}</span>
+            </a>
+        </div>
+    </section>
+</div>
+{% endblock %}
