@@ -114,6 +114,20 @@ impl UserRepository {
         Ok(())
     }
 
+    /// Update a user's preferred UI locale. Pass `None` to clear it.
+    pub async fn update_preferred_locale(
+        pool: &DbPool,
+        user_id: i64,
+        locale: Option<&str>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE users SET preferred_locale = ? WHERE id = ?")
+            .bind(locale)
+            .bind(user_id)
+            .execute(pool)
+            .await?;
+        Ok(())
+    }
+
     /// Update a user's password hash.
     pub async fn update_password(
         pool: &DbPool,

@@ -4,6 +4,8 @@ use std::net::SocketAddr;
 
 use askama::Template;
 use axum::extract::{ConnectInfo, State};
+use axum::http::header::{HeaderValue, LOCATION, SET_COOKIE};
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use serde::Deserialize;
 use time::Duration;
@@ -54,6 +56,23 @@ pub struct RegisterInput {
     #[validate(length(min = 12, message = "validation.password_min_length"))]
     password: String,
     password_confirm: String,
+}
+
+/// 303 redirect with an optional `lang` cookie sync. Used after login so the
+/// authenticated user lands on a page already rendered in their saved locale.
+fn redirect_with_locale(target: &str, locale: Option<&str>) -> Response {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        LOCATION,
+        HeaderValue::from_str(target).unwrap_or_else(|_| HeaderValue::from_static("/")),
+    );
+    if let Some(loc) = locale {
+        let cookie = format!("lang={loc}; Path=/; Max-Age=31536000; SameSite=Lax");
+        if let Ok(value) = HeaderValue::from_str(&cookie) {
+            headers.insert(SET_COOKIE, value);
+        }
+    }
+    (StatusCode::SEE_OTHER, headers).into_response()
 }
 
 /// Render an Askama template into an HTML response.
@@ -113,7 +132,7 @@ pub async fn login(
                 .await
                 .map_err(|e| AppError::Internal(anyhow::anyhow!("session insert failed: {e}")))?;
 
-            Ok(Redirect::to("/").into_response())
+            Ok(redirect_with_locale("/", user.preferred_locale.as_deref()))
         }
         Err(e) => {
             state.login_limiter.record_failure(&ip);

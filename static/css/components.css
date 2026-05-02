@@ -623,6 +623,10 @@
         background: rgb(244 241 235 / 0.18);
     }
 
+    .mast-lang {
+        display: contents;
+    }
+
     .mast-nav-inner {
         display: flex;
         align-items: stretch;

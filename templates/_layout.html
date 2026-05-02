@@ -25,11 +25,15 @@
                         <span id="mast-clock">UTC</span>
                     </div>
                     <div class="mast-top-right">
-                        <button type="button" onclick="switchLang()"
-                                class="transition-colors"
-                                aria-label="{{ i18n.t("lang.switch") }}">
-                            {% if i18n.is_fr() %}EN{% else %}FR{% endif %}
-                        </button>
+                        <form method="post" action="/i18n" class="mast-lang">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="locale" value="{% if i18n.is_fr() %}en{% else %}fr{% endif %}">
+                            <button type="submit"
+                                    class="transition-colors"
+                                    aria-label="{{ i18n.t("lang.switch") }}">
+                                {% if i18n.is_fr() %}EN{% else %}FR{% endif %}
+                            </button>
+                        </form>
                     </div>
                 </div>
                 <nav class="mast-nav-inner" aria-label="{{ i18n.t("nav.main_nav") }}">
@@ -111,10 +115,14 @@
                     {{ i18n.t("nav.admin") }}
                 </a>
                 {% endif %}
-                <button type="button" onclick="switchLang()"
-                        class="block w-full py-2.5 text-left text-[14px] font-medium text-ink/75 transition-colors hover:text-ink dark:text-sand-light/75 dark:hover:text-sand-light">
-                    {{ i18n.t("lang.switch") }} : {% if i18n.is_fr() %}English{% else %}Français{% endif %}
-                </button>
+                <form method="post" action="/i18n">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="locale" value="{% if i18n.is_fr() %}en{% else %}fr{% endif %}">
+                    <button type="submit"
+                            class="block w-full py-2.5 text-left text-[14px] font-medium text-ink/75 transition-colors hover:text-ink dark:text-sand-light/75 dark:hover:text-sand-light">
+                        {{ i18n.t("lang.switch") }} : {% if i18n.is_fr() %}English{% else %}Français{% endif %}
+                    </button>
+                </form>
             </div>
             <div class="border-t border-ink/10 px-4 py-3 dark:border-sand-light/10">
                 {% if is_authenticated %}
@@ -164,11 +172,15 @@
                 </span>
                 <span class="text-ink/20 dark:text-sand-light/15" aria-hidden="true">·</span>
                 {% endif %}
-                <button type="button" onclick="switchLang()"
-                        class="text-ink/55 transition-colors hover:text-ink dark:text-sand-light/50 dark:hover:text-sand-light"
-                        aria-label="{{ i18n.t("lang.switch") }}">
-                    {% if i18n.is_fr() %}EN{% else %}FR{% endif %}
-                </button>
+                <form method="post" action="/i18n" class="mast-lang">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="locale" value="{% if i18n.is_fr() %}en{% else %}fr{% endif %}">
+                    <button type="submit"
+                            class="text-ink/55 transition-colors hover:text-ink dark:text-sand-light/50 dark:hover:text-sand-light"
+                            aria-label="{{ i18n.t("lang.switch") }}">
+                        {% if i18n.is_fr() %}EN{% else %}FR{% endif %}
+                    </button>
+                </form>
             </div>
         </div>
     </footer>

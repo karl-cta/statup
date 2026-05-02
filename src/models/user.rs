@@ -35,6 +35,7 @@ pub struct User {
     pub last_seen_at: Option<chrono::DateTime<chrono::Utc>>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub preferred_locale: Option<String>,
 }
 
 /// Public-facing user data (without password hash).
@@ -91,6 +92,7 @@ mod tests {
             last_seen_at: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
+            preferred_locale: None,
         };
 
         let public = UserPublic::from(user);

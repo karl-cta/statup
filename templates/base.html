@@ -31,12 +31,6 @@
         var d = document.documentElement.classList.toggle('dark');
         localStorage.setItem('theme', d ? 'dark' : 'light');
     }
-    function switchLang() {
-        var current = document.documentElement.lang || 'fr';
-        var next = current === 'fr' ? 'en' : 'fr';
-        document.cookie = 'lang=' + next + ';path=/;max-age=31536000;SameSite=Lax';
-        location.reload();
-    }
     // Masthead live clock and active nav marker
     (function() {
         var lang = document.documentElement.lang || 'fr';

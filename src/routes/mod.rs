@@ -17,6 +17,7 @@ mod dashboard_layout;
 mod events;
 mod health;
 mod icons;
+mod locale;
 mod profile;
 mod services;
 
@@ -54,6 +55,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/login", get(auth::login_form).post(auth::login))
         .route("/register", get(auth::register_form).post(auth::register))
         .route("/health", get(health::check))
+        .route("/i18n", post(locale::switch))
 
         // Read-only routes (OptionalUser, public mode or authenticated)
         .route("/", get(dashboard::index))
