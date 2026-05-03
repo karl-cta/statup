@@ -31,6 +31,7 @@
   "auth.password_confirm": "Confirmer le mot de passe",
 
   "dashboard.title": "Dashboard | Statup",
+  "dashboard.heading": "Tableau de bord",
   "dashboard.status_eyebrow": "Statut",
   "dashboard.all_operational": "Tous les systèmes opérationnels",
   "dashboard.services_monitored": "service(s) supervisé(s)",
@@ -258,6 +259,11 @@
   "common.previous": "Précédent",
   "common.next": "Suivant",
   "common.page": "Page",
+  "common.pagination_aria": "Pagination",
+  "common.previous_page_aria": "Page précédente",
+  "common.next_page_aria": "Page suivante",
+  "services.change_status_aria": "Changer le statut de",
+  "icons.icon_alt": "Icône",
 
   "kind.incident": "Incident",
   "kind.maintenance": "Maintenance",

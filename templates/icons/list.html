@@ -36,7 +36,7 @@
         {% for icon in icons %}
         <div class="group relative card-raised p-3">
             <div class="flex h-16 items-center justify-center">
-                <img src="{{ icon.url() }}" alt="{{ icon.original_name }}" class="h-12 w-12 rounded-sm object-contain">
+                <img src="{{ icon.url() }}" alt="{{ icon.original_name }}" class="h-12 w-12 rounded-sm object-contain" loading="lazy">
             </div>
             <p class="mt-2 truncate text-center text-[12px] text-ink/55 dark:text-sand-light/45" title="{{ icon.original_name }}">
                 {{ icon.original_name }}
@@ -47,7 +47,7 @@
                   class="mt-1 text-center">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit"
-                        class="text-[12px] font-medium text-red-600/70 opacity-0 transition-all group-hover:opacity-100 hover:text-red-700 dark:text-red-400/70 dark:hover:text-red-400"
+                        class="text-[12px] font-medium text-danger opacity-0 transition-all group-hover:opacity-100"
                         aria-label="{{ i18n.t("common.delete") }} {{ icon.original_name }}">
                     {{ i18n.t("common.delete") }}
                 </button>

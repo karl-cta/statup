@@ -5,7 +5,7 @@
         <span class="hero-dot hero-dot-ok" aria-hidden="true"></span>
         <span>{{ i18n.t("dashboard.status_ok_mono") }}</span>
     </p>
-    <h1 class="hero-title">{{ i18n.t("dashboard.all_operational") }}</h1>
+    <h2 class="hero-title">{{ i18n.t("dashboard.all_operational") }}</h2>
 </section>
 {% else %}
 <section class="hero hero-incident">
@@ -15,13 +15,13 @@
     </p>
     {% match active_incidents.first() %}
     {% when Some with (first) %}
-    <h1 class="hero-title">
+    <h2 class="hero-title">
         {% if active_incidents.len() == 1 %}
         {{ first.title }}
         {% else %}
         {{ active_incidents.len() }} {{ i18n.t("dashboard.active_incidents") }}
         {% endif %}
-    </h1>
+    </h2>
     <p class="hero-meta">
         {% if !first.service_names.is_empty() %}
         <b>{{ first.service_names }}</b>

@@ -31,8 +31,8 @@
                     <div class="mt-0.5 truncate text-[12px] text-ink/45 dark:text-sand-light/40">{{ u.email }}</div>
                 </div>
                 {% if u.is_active %}
-                <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-700 dark:text-emerald-400">
-                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 glow-dot" aria-hidden="true"></span>
+                <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-success">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
                     {{ i18n.t("admin.active") }}
                 </span>
                 {% else %}
@@ -74,9 +74,9 @@
                       class="inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     {% if u.is_active %}
-                    <button type="submit" class="text-[12px] font-medium text-red-600/70 hover:text-red-700 dark:text-red-400/70 dark:hover:text-red-400 transition-colors" aria-label="{{ i18n.t("admin.disable") }} {{ u.display_name }}">{{ i18n.t("admin.disable") }}</button>
+                    <button type="submit" class="text-[12px] font-medium text-danger-soft" aria-label="{{ i18n.t("admin.disable") }} {{ u.display_name }}">{{ i18n.t("admin.disable") }}</button>
                     {% else %}
-                    <button type="submit" class="text-[12px] font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors" aria-label="{{ i18n.t("admin.enable") }} {{ u.display_name }}">{{ i18n.t("admin.enable") }}</button>
+                    <button type="submit" class="text-[12px] font-medium text-success-soft" aria-label="{{ i18n.t("admin.enable") }} {{ u.display_name }}">{{ i18n.t("admin.enable") }}</button>
                     {% endif %}
                 </form>
                 {% endif %}
@@ -136,8 +136,8 @@
                     </td>
                     <td class="py-3.5 pr-4">
                         {% if u.is_active %}
-                        <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-700 dark:text-emerald-400">
-                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 glow-dot" aria-hidden="true"></span>
+                        <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-success">
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
                             {{ i18n.t("admin.active") }}
                         </span>
                         {% else %}
@@ -156,13 +156,13 @@
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                             {% if u.is_active %}
                             <button type="submit"
-                                    class="text-[12px] font-medium text-red-600/70 hover:text-red-700 dark:text-red-400/70 dark:hover:text-red-400 transition-colors"
+                                    class="text-[12px] font-medium text-danger-soft"
                                     aria-label="{{ i18n.t("admin.disable") }} {{ u.display_name }}">
                                 {{ i18n.t("admin.disable") }}
                             </button>
                             {% else %}
                             <button type="submit"
-                                    class="text-[12px] font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
+                                    class="text-[12px] font-medium text-success-soft"
                                     aria-label="{{ i18n.t("admin.enable") }} {{ u.display_name }}">
                                 {{ i18n.t("admin.enable") }}
                             </button>

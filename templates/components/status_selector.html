@@ -15,7 +15,7 @@
                transition-colors duration-200
                focus:outline-none
                {{ service.status.css_class() }}"
-        aria-label="Changer le statut de {{ service.name }}"
+        aria-label="{{ i18n.t("services.change_status_aria") }} {{ service.name }}"
     >
         <option value="operational" {% if service.status == crate::models::ServiceStatus::Operational %}selected{% endif %}>{{ i18n.t("status.service.operational") }}</option>
         <option value="degraded" {% if service.status == crate::models::ServiceStatus::Degraded %}selected{% endif %}>{{ i18n.t("status.service.degraded") }}</option>

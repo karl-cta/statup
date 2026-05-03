@@ -15,7 +15,7 @@
                        {% if let Some(sel) = selected_icon_id %}{% if sel.eq(icon.id) %}border-ink bg-sand-warm dark:border-sand-light dark:bg-surface-2{% else %}border-ink/10 bg-cream hover:border-ink/25 hover:bg-sand-warm dark:border-sand-light/10 dark:bg-surface-1 dark:hover:border-sand-light/20 dark:hover:bg-surface-2{% endif %}{% else %}border-ink/10 bg-cream hover:border-ink/25 hover:bg-sand-warm dark:border-sand-light/10 dark:bg-surface-1 dark:hover:border-sand-light/20 dark:hover:bg-surface-2{% endif %}"
                 title="{{ icon.original_name }}"
                 aria-label="{{ i18n.t("icons.select") }} {{ icon.original_name }}">
-            <img src="{{ icon.url() }}" alt="{{ icon.original_name }}" class="h-6 w-6 rounded-sm object-contain">
+            <img src="{{ icon.url() }}" alt="{{ icon.original_name }}" class="h-6 w-6 rounded-sm object-contain" loading="lazy">
         </button>
         {% endfor %}
     </div>

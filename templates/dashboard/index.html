@@ -5,6 +5,8 @@
 {% block content %}
 <div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12" data-dashboard-context="{{ context_label }}">
 
+    <h1 class="sr-only">{{ i18n.t("dashboard.heading") }}</h1>
+
     {# Banner, always pinned full width at the top, locked out of the reorder editor. #}
     {% match banner_html %}
     {% when Some with (html) %}

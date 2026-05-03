@@ -19,3 +19,10 @@
         filter: blur(2px);
     }
 }
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation: none;
+    }
+}

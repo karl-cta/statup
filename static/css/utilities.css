@@ -29,6 +29,15 @@
     .delay-3 { animation-delay: 150ms; }
     .delay-4 { animation-delay: 200ms; }
 
+    @media (prefers-reduced-motion: reduce) {
+        .animate-in {
+            animation: none;
+        }
+        .delay-1, .delay-2, .delay-3, .delay-4 {
+            animation-delay: 0ms;
+        }
+    }
+
     /* Paper grain overlay, one of the Magazine signatures. */
     .noise::before {
         content: "";
@@ -62,20 +71,6 @@
         .strip-maintenance { --strip-color: oklch(0.707 0.165 254); }
     }
 
-    .glow-dot {
-        position: relative;
-    }
-
-    .glow-dot::after {
-        content: "";
-        position: absolute;
-        inset: -3px;
-        border-radius: 9999px;
-        background: inherit;
-        opacity: 0.3;
-        filter: blur(4px);
-    }
-
     /* Observed by the IntersectionObserver registered in base.html. */
     .reveal {
         opacity: 0;
@@ -90,6 +85,48 @@
         opacity: 1;
         transform: translateY(0);
         filter: blur(0);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .reveal {
+            opacity: 1;
+            transform: none;
+            filter: none;
+            transition: none;
+        }
+    }
+
+    /* Inline action colors driven by semantic status tokens. Use these on
+       text-only buttons and labels so the palette adapts in dark mode and
+       stays in sync with chips, dots, hero banners. The -soft variant is
+       for resting state on destructive or affirmative actions, paired with
+       a hover that resolves to full strength. */
+    .text-danger {
+        color: var(--sem-crit-text);
+    }
+
+    .text-danger-soft {
+        color: var(--sem-crit-text);
+        opacity: 0.7;
+        transition: opacity 0.15s ease;
+    }
+
+    .text-danger-soft:hover {
+        opacity: 1;
+    }
+
+    .text-success {
+        color: var(--sem-ok-text);
+    }
+
+    .text-success-soft {
+        color: var(--sem-ok-text);
+        opacity: 0.7;
+        transition: opacity 0.15s ease;
+    }
+
+    .text-success-soft:hover {
+        opacity: 1;
     }
 
     .hover-row {

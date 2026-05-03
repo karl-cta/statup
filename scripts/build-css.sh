@@ -15,8 +15,8 @@ OUTPUT="$ROOT/static/css/style.css"
 
 if [ "${1:-}" = "--watch" ]; then
     exec "$TAILWIND" --input "$INPUT" --output "$OUTPUT" --watch
-elif [ "${1:-}" = "--minify" ]; then
-    exec "$TAILWIND" --input "$INPUT" --output "$OUTPUT" --minify
-else
+elif [ "${1:-}" = "--no-minify" ]; then
     exec "$TAILWIND" --input "$INPUT" --output "$OUTPUT"
+else
+    exec "$TAILWIND" --input "$INPUT" --output "$OUTPUT" --minify
 fi
