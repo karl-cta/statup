@@ -88,8 +88,8 @@
             <li data-module-row
                 data-module-id="{{ row.module_id }}"
                 draggable="true"
-                class="set-row cursor-move {% if !row.enabled %}opacity-60{% endif %}">
-                <span class="flex-shrink-0 text-ink/35 dark:text-sand-light/30" aria-hidden="true">
+                class="set-row set-row-draggable {% if !row.enabled %}opacity-60{% endif %}">
+                <span class="row-handle" aria-hidden="true">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
                     </svg>
@@ -98,24 +98,42 @@
                     <div class="set-label">{{ row.name }}</div>
                     <p class="set-help">{{ row.description }}</p>
                 </div>
-                <form method="post" class="shrink-0"
-                      action="/admin/dashboard/{{ context }}/layout/{{ row.module_id }}/toggle">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <input type="hidden" name="enabled" value="{% if row.enabled %}false{% else %}true{% endif %}">
-                    {% if row.enabled %}
-                    <button type="submit" class="toggle" role="switch"
-                            aria-checked="true"
-                            aria-label="{{ i18n.t("modules.toggle_disable") }} {{ row.name }}">
-                        <span class="toggle-thumb" aria-hidden="true"></span>
-                    </button>
-                    {% else %}
-                    <button type="submit" class="toggle" role="switch"
-                            aria-checked="false"
-                            aria-label="{{ i18n.t("modules.toggle_enable") }} {{ row.name }}">
-                        <span class="toggle-thumb" aria-hidden="true"></span>
-                    </button>
-                    {% endif %}
-                </form>
+                <div class="row-actions">
+                    <div class="row-move" role="group" aria-label="{{ i18n.t("modules.move_up") }} / {{ i18n.t("modules.move_down") }}">
+                        <button type="button" data-move="up"
+                                class="row-move-btn"
+                                aria-label="{{ i18n.t("modules.move_up") }} {{ row.name }}">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                            </svg>
+                        </button>
+                        <button type="button" data-move="down"
+                                class="row-move-btn"
+                                aria-label="{{ i18n.t("modules.move_down") }} {{ row.name }}">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                    </div>
+                    <form method="post"
+                          action="/admin/dashboard/{{ context }}/layout/{{ row.module_id }}/toggle">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="enabled" value="{% if row.enabled %}false{% else %}true{% endif %}">
+                        {% if row.enabled %}
+                        <button type="submit" class="toggle" role="switch"
+                                aria-checked="true"
+                                aria-label="{{ i18n.t("modules.toggle_disable") }} {{ row.name }}">
+                            <span class="toggle-thumb" aria-hidden="true"></span>
+                        </button>
+                        {% else %}
+                        <button type="submit" class="toggle" role="switch"
+                                aria-checked="false"
+                                aria-label="{{ i18n.t("modules.toggle_enable") }} {{ row.name }}">
+                            <span class="toggle-thumb" aria-hidden="true"></span>
+                        </button>
+                        {% endif %}
+                    </form>
+                </div>
             </li>
             {% endfor %}
         </ul>

@@ -74,10 +74,12 @@
   "modules.layout_back": "Back to settings",
   "modules.layout_context_public": "Public page",
   "modules.layout_context_admin": "Member dashboard",
-  "modules.layout_hint": "Show or hide modules. Drag sections to change their order on the dashboard.",
+  "modules.layout_hint": "Show or hide modules. Drag sections, or use the arrows, to change their order on the dashboard.",
   "modules.layout_pinned_top": "Always on top",
   "modules.toggle_enable": "Enable",
   "modules.toggle_disable": "Disable",
+  "modules.move_up": "Move up",
+  "modules.move_down": "Move down",
   "modules.layout_saved": "Layout saved.",
 
   "events.title": "Events | Statup",

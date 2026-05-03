@@ -31,6 +31,35 @@
         var d = document.documentElement.classList.toggle('dark');
         localStorage.setItem('theme', d ? 'dark' : 'light');
     }
+    // Mobile burger menu, paired with #mobile-menu in _layout.html.
+    // Open: toggles class on the button (icon morph), reveals the menu, listens
+    // for click outside and Escape to close.
+    var _mobileMenuOutside = null;
+    function toggleMobileMenu(btn) {
+        var m = document.getElementById('mobile-menu');
+        if (!m || !btn) return;
+        var willOpen = m.classList.contains('hidden');
+        m.classList.toggle('hidden', !willOpen);
+        btn.classList.toggle('is-open', willOpen);
+        btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        if (willOpen) {
+            _mobileMenuOutside = function(e) {
+                if (m.contains(e.target) || btn.contains(e.target)) return;
+                toggleMobileMenu(btn);
+            };
+            setTimeout(function() {
+                document.addEventListener('click', _mobileMenuOutside);
+            }, 0);
+        } else if (_mobileMenuOutside) {
+            document.removeEventListener('click', _mobileMenuOutside);
+            _mobileMenuOutside = null;
+        }
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape') return;
+        var btn = document.getElementById('mast-burger');
+        if (btn && btn.classList.contains('is-open')) toggleMobileMenu(btn);
+    });
     // Masthead live clock and active nav marker
     (function() {
         var lang = document.documentElement.lang || 'fr';

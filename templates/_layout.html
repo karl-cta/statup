@@ -80,11 +80,15 @@
                     </div>
                 </nav>
                 <button type="button" class="mast-burger"
-                        onclick="var m=document.getElementById('mobile-menu');m.classList.toggle('hidden');this.setAttribute('aria-expanded',!m.classList.contains('hidden'))"
+                        id="mast-burger"
+                        onclick="toggleMobileMenu(this)"
                         aria-expanded="false" aria-controls="mobile-menu"
                         aria-label="{{ i18n.t("nav.main_menu") }}">
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                    <svg class="mast-burger-icon mast-burger-icon-open" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                    </svg>
+                    <svg class="mast-burger-icon mast-burger-icon-close" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18" />
                     </svg>
                 </button>
             </div>
@@ -115,6 +119,10 @@
                     {{ i18n.t("nav.admin") }}
                 </a>
                 {% endif %}
+                <button type="button" onclick="toggleTheme()"
+                        class="block w-full py-2.5 text-left text-[14px] font-medium text-ink/75 transition-colors hover:text-ink dark:text-sand-light/75 dark:hover:text-sand-light">
+                    {{ i18n.t("nav.toggle_theme") }}
+                </button>
                 <form method="post" action="/i18n">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <input type="hidden" name="locale" value="{% if i18n.is_fr() %}en{% else %}fr{% endif %}">

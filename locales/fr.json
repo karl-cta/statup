@@ -74,10 +74,12 @@
   "modules.layout_back": "Retour aux paramètres",
   "modules.layout_context_public": "Page publique",
   "modules.layout_context_admin": "Tableau de bord des membres",
-  "modules.layout_hint": "Afficher ou masquer les modules. Glissez les sections pour changer leur ordre sur le tableau de bord.",
+  "modules.layout_hint": "Afficher ou masquer les modules. Glissez les sections, ou utilisez les flèches, pour changer leur ordre sur le tableau de bord.",
   "modules.layout_pinned_top": "Toujours en haut",
   "modules.toggle_enable": "Activer",
   "modules.toggle_disable": "Désactiver",
+  "modules.move_up": "Monter",
+  "modules.move_down": "Descendre",
   "modules.layout_saved": "Organisation enregistrée.",
 
   "events.title": "Événements | Statup",

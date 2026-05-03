@@ -58,7 +58,7 @@
                 <option value="closed" {% if filter_lifecycle.as_deref() == Some("closed") %}selected{% endif %}>{{ i18n.t("events.state_closed") }}</option>
             </select>
         </div>
-        <div class="sm:min-w-[160px]">
+        <div class="col-span-2 sm:col-span-1 sm:min-w-[160px]">
             <label for="service_id" class="block text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.service") }}</label>
             <select id="service_id" name="service_id" data-custom-select class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:py-1.5 cursor-pointer">
                 <option value="">{{ i18n.t("common.all") }}</option>

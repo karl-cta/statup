@@ -3,7 +3,7 @@
 {% block title %}{{ event.event.title }} | Statup{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+<div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
     <a href="/events" class="inline-flex items-center gap-1 text-sm font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors animate-in">
         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
@@ -13,7 +13,7 @@
 
     <div class="mt-5 grid grid-cols-1 lg:grid-cols-[1fr_280px] lg:gap-10">
 
-        <aside class="order-first lg:order-last animate-in delay-1">
+        <aside class="order-last mt-8 lg:mt-0 animate-in delay-1">
             <div class="card-raised p-5 lg:sticky lg:top-6 space-y-6">
                 {% if event.event.kind.has_lifecycle() %}
                 {% if let Some(lc) = event.event.lifecycle %}
@@ -147,7 +147,7 @@
             </div>
         </aside>
 
-        <div class="order-last lg:order-first mt-6 lg:mt-0">
+        <div class="order-first mt-6 lg:mt-0">
             <div class="animate-in delay-1">
                 <p class="eyebrow">
                     {{ i18n.t(event.event.kind.i18n_key()) }}{% if let Some(sev) = event.event.severity %} · {{ i18n.t(sev.i18n_key()) }}{% endif %}{% if let Some(cat) = event.event.category %} · {{ i18n.t(cat.i18n_key()) }}{% endif %}
