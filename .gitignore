@@ -31,6 +31,9 @@ skills-lock.json
 
 # Impeccable design context (internal)
 .impeccable.md
+.impeccable/
+PRODUCT.md
+DESIGN.md
 
 # Docs (internal notes)
 docs/
