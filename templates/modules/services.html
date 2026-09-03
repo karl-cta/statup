@@ -13,7 +13,10 @@
     </header>
 
     {% if services.is_empty() %}
-    <p class="card-empty">{{ i18n.t("dashboard.no_services") }}</p>
+    <div class="empty-state">
+        <p class="empty-state-title">{{ i18n.t("dashboard.no_services") }}</p>
+        <p class="empty-state-text">{{ i18n.t("dashboard.no_services_text") }}</p>
+    </div>
     {% else %}
     {% for service in services %}
     <article class="svc">

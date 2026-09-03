@@ -26,6 +26,7 @@ use crate::state::AppState;
 
 #[derive(Template)]
 #[template(path = "events/list.html")]
+#[allow(clippy::struct_excessive_bools)]
 struct EventListTemplate {
     csrf_token: String,
     user_display_name: String,
@@ -43,6 +44,9 @@ struct EventListTemplate {
     filter_q: Option<String>,
     filter_from: Option<String>,
     filter_to: Option<String>,
+    /// True when any filter narrows the list, which tells an empty result set
+    /// ("nothing matches") apart from an empty instance ("nothing exists yet").
+    has_filters: bool,
     services: Vec<Service>,
     base_url: String,
     i18n: I18n,
@@ -424,6 +428,17 @@ pub async fn list(
         }
     }
 
+    let has_filters = [
+        filter_kind.as_deref(),
+        filter_service.as_deref(),
+        filter_lifecycle.as_deref(),
+        filter_q.as_deref(),
+        params.from.as_deref(),
+        params.to.as_deref(),
+    ]
+    .iter()
+    .any(|f| f.is_some_and(|v| !v.is_empty()));
+
     let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
     let tpl = EventListTemplate {
         csrf_token: csrf_token.0,
@@ -442,6 +457,7 @@ pub async fn list(
         filter_q,
         filter_from: params.from,
         filter_to: params.to,
+        has_filters,
         services,
         base_url,
         i18n,

@@ -977,7 +977,7 @@
     .hero {
         padding: 22px 24px 24px;
         border: 1px solid rgb(28 27 24 / 0.14);
-        background: var(--color-sand-light);
+        background: var(--color-cream);
         margin-bottom: 20px;
     }
 
@@ -1033,6 +1033,56 @@
     .hero-dot-crit {
         background: var(--sem-crit);
         box-shadow: 0 0 0 3px var(--sem-crit-ring);
+    }
+
+    /* Idle: no service configured. Neutral on purpose, this is neither health
+       nor failure, and a green dot here would be a claim the instance cannot make. */
+    .hero-dot-idle {
+        background: var(--color-muted-light);
+        box-shadow: 0 0 0 3px var(--surface-subtle);
+    }
+
+    :is(.dark *) .hero-dot-idle {
+        background: var(--color-muted-dark);
+    }
+
+    .hero-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 14px;
+        padding: 7px 12px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-ink);
+        border: 1px solid var(--color-sand-warm);
+        border-radius: 6px;
+        transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .hero-action svg {
+        width: 12px;
+        height: 12px;
+        transition: transform 0.15s ease;
+    }
+
+    .hero-action:hover {
+        background: var(--surface-subtle);
+        border-color: var(--color-sand);
+    }
+
+    .hero-action:hover svg {
+        transform: translateX(2px);
+    }
+
+    :is(.dark *) .hero-action {
+        color: var(--color-sand-light);
+        border-color: rgb(244 241 235 / 0.14);
+    }
+
+    :is(.dark *) .hero-action:hover {
+        background: rgb(244 241 235 / 0.06);
+        border-color: rgb(244 241 235 / 0.22);
     }
 
     .hero-title {
@@ -1232,6 +1282,34 @@
     }
 
     :is(.dark *) .card-empty {
+        color: var(--color-muted-dark);
+    }
+
+    /* Empty state: says what belongs here and how to put it there, rather than
+       reporting an absence and stopping. */
+    .empty-state {
+        padding: 32px 24px 28px;
+    }
+
+    .empty-state-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--color-ink);
+    }
+
+    :is(.dark *) .empty-state-title {
+        color: var(--color-sand-light);
+    }
+
+    .empty-state-text {
+        margin-top: 6px;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--color-muted-light);
+        max-width: 56ch;
+    }
+
+    :is(.dark *) .empty-state-text {
         color: var(--color-muted-dark);
     }
 

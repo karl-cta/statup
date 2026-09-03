@@ -1,5 +1,23 @@
-{# Status banner, magazine hero. Expects: active_incidents (Vec<EventSummary>), i18n #}
-{% if active_incidents.is_empty() %}
+{# Status banner, magazine hero. Expects: active_incidents (Vec<EventSummary>), has_services, can_configure, i18n #}
+{% if !has_services %}
+{# No service configured: state that nothing is watched rather than claiming health. #}
+<section class="hero hero-idle">
+    <p class="hero-kicker">
+        <span class="hero-dot hero-dot-idle" aria-hidden="true"></span>
+        <span>{{ i18n.t("dashboard.status_idle_mono") }}</span>
+    </p>
+    <h2 class="hero-title">{{ i18n.t("dashboard.nothing_watched") }}</h2>
+    <p class="hero-meta">{{ i18n.t("dashboard.nothing_watched_hint") }}</p>
+    {% if can_configure %}
+    <a href="/services/new" class="hero-action">
+        {{ i18n.t("dashboard.add_first_service") }}
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6"/>
+        </svg>
+    </a>
+    {% endif %}
+</section>
+{% else if active_incidents.is_empty() %}
 <section class="hero hero-ok">
     <p class="hero-kicker">
         <span class="hero-dot hero-dot-ok" aria-hidden="true"></span>

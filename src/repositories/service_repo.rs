@@ -67,6 +67,14 @@ impl ServiceRepository {
             .await
     }
 
+    /// Number of configured services. Used to tell "everything is fine" apart
+    /// from "nothing is being watched", which must never look the same.
+    pub async fn count(pool: &DbPool) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM services")
+            .fetch_one(pool)
+            .await
+    }
+
     /// List all services ordered alphabetically by name.
     pub async fn list_all(pool: &DbPool) -> Result<Vec<Service>, sqlx::Error> {
         sqlx::query_as::<_, Service>("SELECT * FROM services ORDER BY name ASC")

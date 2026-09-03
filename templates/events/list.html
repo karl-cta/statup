@@ -30,6 +30,7 @@
         </a>
     </header>
 
+    {% if total > 0 || has_filters %}
     <form id="events-filters" method="get" action="/events"
           hx-get="/events" hx-target="#events-results" hx-select="#events-results"
           hx-trigger="change from:find select, change from:find input[type='date'], keyup changed delay:400ms from:find input[type='search']"
@@ -85,11 +86,19 @@
             </div>
         </noscript>
     </form>
+    {% endif %}
 
     <div id="events-results" class="mt-6 animate-in delay-2">
-    {% if total == 0 %}
-        <section class="card">
-            <p class="card-empty">{{ i18n.t("events.no_events") }}</p>
+    {% if total == 0 && !has_filters %}
+        <section class="card empty-state">
+            <p class="empty-state-title">{{ i18n.t("events.empty_title") }}</p>
+            <p class="empty-state-text">{{ i18n.t("events.empty_text") }}</p>
+        </section>
+    {% else if total == 0 %}
+        <section class="card empty-state">
+            <p class="empty-state-title">{{ i18n.t("events.no_match_title") }}</p>
+            <p class="empty-state-text">{{ i18n.t("events.no_match_text") }}</p>
+            <a href="/events" class="hero-action">{{ i18n.t("events.clear_filters") }}</a>
         </section>
     {% else %}
         <section class="card">
