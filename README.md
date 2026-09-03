@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="static/logo.svg" width="80" height="80" alt="Statup logo">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="static/logo-dark.svg">
+  <img src="static/logo.svg" width="60" height="80" alt="Statup logo">
+</picture>
 
 # Statup
 
