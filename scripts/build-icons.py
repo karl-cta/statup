@@ -17,10 +17,10 @@ INK = (0x1C, 0x1B, 0x18)
 SAGE = (0x62, 0x81, 0x41)
 WHITE = (0xFF, 0xFF, 0xFF)
 
-# Mark geometry, identical to static/logo.svg (viewBox 12 8 40 48).
-BARS = [(12, 8, 52, 16), (12, 16, 20, 32), (44, 32, 52, 48), (12, 48, 52, 56)]
-DOT = (48, 24, 4)
-ART = (12, 8, 52, 56)  # x0, y0, x1, y1
+# Mark geometry, identical to static/logo.svg (viewBox 12 8 36 48).
+BARS = [(12, 8, 48, 16), (12, 16, 20, 32), (40, 32, 48, 48), (12, 48, 48, 56)]
+DOT = (44, 24, 4)
+ART = (12, 8, 48, 56)  # x0, y0, x1, y1
 
 SS = 4  # supersampling factor, box-downsampled afterwards for clean edges
 
