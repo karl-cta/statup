@@ -143,6 +143,37 @@
         color: var(--sem-crit-text);
     }
 
+    /* User-supplied text with no space to break on: service names, event
+       titles, author-entered identifiers. Wraps mid-word rather than letting
+       the tail leave the container, where it is clipped without a scrollbar
+       and without an ellipsis. */
+    .wrap-anywhere {
+        overflow-wrap: anywhere;
+    }
+
+    /* Status dot fill. Same reason as the text classes below: a dot painted
+       with a raw Tailwind color sits next to a token-driven label and the two
+       drift apart. */
+    .status-dot-operational {
+        background-color: var(--sem-ok);
+    }
+
+    .status-dot-degraded {
+        background-color: var(--sem-minor);
+    }
+
+    .status-dot-partial {
+        background-color: var(--sem-major);
+    }
+
+    .status-dot-major {
+        background-color: var(--sem-crit);
+    }
+
+    .status-dot-maintenance {
+        background-color: var(--sem-info);
+    }
+
     /* Service status read as a value, keyed on Status so the percentage and
        the dot next to it resolve through the same token. These replaced raw
        Tailwind palette classes, which put an emerald from outside the system

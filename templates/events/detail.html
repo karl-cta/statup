@@ -1,6 +1,6 @@
 {% extends "_layout.html" %}
 
-{% block title %}{{ event.event.title }} | Statup{% endblock %}
+{% block title %}{{ event.event.title|truncate(60) }} | Statup{% endblock %}
 
 {% block content %}
 <div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
@@ -25,7 +25,7 @@
                     <span class="eyebrow">{{ i18n.t(cat.i18n_key()) }}</span>
                     {% endif %}
                 </p>
-                <h1 class="mt-2 text-2xl font-medium tracking-tight text-ink dark:text-sand-light leading-tight">{{ event.event.title }}</h1>
+                <h1 class="mt-2 text-2xl font-medium tracking-tight text-ink dark:text-sand-light leading-tight wrap-anywhere">{{ event.event.title }}</h1>
                 <p class="mt-2 text-[13px] text-ink/50 dark:text-sand-light/45">
                     {{ author_name }} · {{ i18n.format_datetime(event.event.created_at) }}
                 </p>

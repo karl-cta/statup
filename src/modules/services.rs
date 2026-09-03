@@ -22,6 +22,11 @@ pub struct ServicesModule;
 
 pub struct SparklineDay {
     pub class: &'static str,
+    /// Stacked on two lines in the tooltip: a single line was 152px wide in a
+    /// 260px column, which left it no room to follow the day it describes.
+    pub date: String,
+    pub status: String,
+    /// Single line, for the accessible name.
     pub tooltip: String,
 }
 
@@ -59,8 +64,15 @@ impl ServicesTemplate {
                     2 => "bar bar-major",
                     _ => "bar bar-crit",
                 };
-                let tooltip = format!("{} · {}", date.format("%Y-%m-%d"), self.i18n.t(label_key));
-                SparklineDay { class, tooltip }
+                let day = date.format("%Y-%m-%d").to_string();
+                let status = self.i18n.t(label_key).to_string();
+                let tooltip = format!("{day} · {status}");
+                SparklineDay {
+                    class,
+                    date: day,
+                    status,
+                    tooltip,
+                }
             })
             .collect()
     }

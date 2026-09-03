@@ -230,7 +230,7 @@
                     <a href="/services/new" class="text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light">{{ i18n.t("events.create_service_link") }}</a>
                 </p>
                 {% else %}
-                <div class="mt-4" role="group" aria-label="{{ i18n.t("events.services_list_aria") }}">
+                <div class="mt-4 svc-pick-list" role="group" aria-label="{{ i18n.t("events.services_list_aria") }}">
                     {% for svc in services %}
                     <label class="svc-pick">
                         <input

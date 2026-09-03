@@ -1431,7 +1431,6 @@
         border-radius: 1.5px;
         opacity: 0.55;
         transition: opacity 0.12s;
-        position: relative;
     }
 
     .svc-bars .bar:hover,
@@ -1448,12 +1447,19 @@
         outline-color: var(--color-sand-light);
     }
 
+    /* Anchored to the bar row, not to the bar. A 152px label centered on a
+       16px bar (7px in the narrow column) ran off both ends of the card at the
+       first and last days. Pinned instead to whichever end of the row the
+       hovered bar sits nearest, so it can never leave the card. */
     .svc-bars .bar::after {
-        content: attr(data-day-label);
+        content: attr(data-day-date) "\A" attr(data-day-status);
         position: absolute;
         bottom: calc(100% + 6px);
-        left: 50%;
-        transform: translateX(-50%);
+        left: 0;
+        right: auto;
+        white-space: pre;
+        text-align: center;
+        line-height: 1.35;
         padding: 4px 8px;
         background: var(--color-ink);
         color: var(--color-sand-light);
@@ -1461,13 +1467,26 @@
         font-size: 10.5px;
         font-weight: 500;
         letter-spacing: 0.02em;
-        white-space: nowrap;
         border-radius: 4px;
         z-index: 10;
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.08s ease-out;
         box-shadow: 0 2px 8px rgb(28 27 24 / 0.18);
+    }
+
+    .svc-bars .bar:nth-last-child(-n + 15)::after {
+        left: auto;
+        right: 0;
+    }
+
+    /* With uptime-tooltip.js the label follows the hovered day and is clamped
+       to the row. The two rules above are the no-script fallback: never wrong,
+       just pinned to whichever end of the row is nearest. */
+    .svc-bars.tip-js .bar::after,
+    .svc-bars.tip-js .bar:nth-last-child(-n + 15)::after {
+        left: var(--tt-x, 0);
+        right: auto;
     }
 
     .svc-bars .bar:hover::after,
@@ -2186,6 +2205,11 @@
         font-size: 14px;
         color: rgb(28 27 24 / 0.85);
         line-height: 1.65;
+        /* Incident text carries stack traces, identifiers and URLs, none of
+           which contain a space to break on. Without this they run past the
+           container and the tail is clipped with no scrollbar and no ellipsis,
+           which silently hides the end of the message. */
+        overflow-wrap: anywhere;
     }
 
     :is(.dark *) .rich-text {
@@ -2469,6 +2493,16 @@
 
     /* Services checklist, used in the event form sidebar. Flat list with
        hairlines, no card framing. */
+    /* An instance with thirty services pushed the submit button 1300px below
+       the fold. The list keeps its own scroll instead of growing the form. */
+    .svc-pick-list {
+        max-height: 320px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        border-top: 1px solid var(--hairline);
+        border-bottom: 1px solid var(--hairline);
+    }
+
     .svc-pick {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;

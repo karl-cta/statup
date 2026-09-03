@@ -37,7 +37,7 @@
                     {% let icon_size = "h-5 w-5" %}
                     {% include "components/service_icon.html" %}
                     <div class="min-w-0 flex-1">
-                        <div class="text-sm font-medium text-ink dark:text-sand-light">{{ service.name }}</div>
+                        <div class="text-sm font-medium text-ink dark:text-sand-light wrap-anywhere">{{ service.name }}</div>
                         {% match service.description %}
                         {% when Some with (desc) %}
                         <div class="mt-0.5 text-[12px] text-ink/55 dark:text-sand-light/45 line-clamp-1">{{ desc }}</div>
@@ -89,7 +89,7 @@
                             {% let icon_size = "h-6 w-6" %}
                             {% include "components/service_icon.html" %}
                             <div class="min-w-0">
-                                <div class="text-sm font-medium text-ink dark:text-sand-light">{{ service.name }}</div>
+                                <div class="text-sm font-medium text-ink dark:text-sand-light wrap-anywhere">{{ service.name }}</div>
                                 {% match service.description %}
                                 {% when Some with (desc) %}
                                 <div class="text-[12px] text-ink/55 dark:text-sand-light/45 mt-0.5">{{ desc }}</div>

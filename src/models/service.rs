@@ -64,17 +64,6 @@ impl ServiceStatus {
         }
     }
 
-    /// Icon identifier for the status.
-    pub fn icon(self) -> &'static str {
-        match self {
-            Self::Operational => "check-circle",
-            Self::Degraded => "minus-circle",
-            Self::PartialOutage => "exclamation-circle",
-            Self::MajorOutage => "x-circle",
-            Self::Maintenance => "wrench",
-        }
-    }
-
     /// Translation key for i18n.
     pub fn i18n_key(self) -> &'static str {
         match self {
@@ -86,37 +75,15 @@ impl ServiceStatus {
         }
     }
 
-    /// Tailwind CSS background class for a small status dot.
+    /// Background class for a small status dot. Resolves through the semantic
+    /// tokens, so the dot and the label beside it can never drift apart.
     pub fn dot_class(self) -> &'static str {
         match self {
-            Self::Operational => "bg-emerald-500",
-            Self::Degraded => "bg-yellow-500",
-            Self::PartialOutage => "bg-orange-500",
-            Self::MajorOutage => "bg-red-500",
-            Self::Maintenance => "bg-blue-500",
-        }
-    }
-
-    /// Tailwind classes for a subtle row background matching the status.
-    /// Operational returns an empty string so the row stays neutral.
-    pub fn row_bg_class(self) -> &'static str {
-        match self {
-            Self::Operational => "",
-            Self::Degraded => "bg-yellow-100/40 dark:bg-yellow-950/25",
-            Self::PartialOutage => "bg-orange-100/50 dark:bg-orange-950/25",
-            Self::MajorOutage => "bg-red-100/50 dark:bg-red-950/25",
-            Self::Maintenance => "bg-blue-100/40 dark:bg-blue-950/25",
-        }
-    }
-
-    /// Short mono label, used in Magazine-style list items (OK, DEG, KO, etc).
-    pub fn mono_label(self) -> &'static str {
-        match self {
-            Self::Operational => "OK",
-            Self::Degraded => "DEG",
-            Self::PartialOutage => "PART",
-            Self::MajorOutage => "KO",
-            Self::Maintenance => "MNT",
+            Self::Operational => "status-dot-operational",
+            Self::Degraded => "status-dot-degraded",
+            Self::PartialOutage => "status-dot-partial",
+            Self::MajorOutage => "status-dot-major",
+            Self::Maintenance => "status-dot-maintenance",
         }
     }
 
@@ -251,7 +218,8 @@ mod tests {
         ];
         for s in statuses {
             assert!(!s.css_class().is_empty());
-            assert!(!s.icon().is_empty());
+            assert!(!s.dot_class().is_empty());
+            assert!(!s.mono_color_class().is_empty());
             assert!(!s.i18n_key().is_empty());
         }
     }
