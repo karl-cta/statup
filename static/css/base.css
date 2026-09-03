@@ -65,8 +65,18 @@
     }
 
 
+    /* The closed event drawer is parked off-screen right, which would otherwise
+       widen the scrollable area and let every page slide sideways. `clip` stops
+       that without creating a scroll container, so the sticky masthead still works.
+       It has to sit on the root too: the drawer is position: fixed, so body's own
+       clip does not reach it. */
+    html {
+        overflow-x: clip;
+    }
+
     body {
         font-family: var(--font-sans);
+        overflow-x: clip;
     }
 
     code, pre, kbd, samp, .font-mono {

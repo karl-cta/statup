@@ -524,18 +524,31 @@
         border-bottom-color: var(--color-sand);
     }
 
+    /* Horizontal inset mirrors the page container scale (px-4 / sm:px-6 / lg:px-10)
+       so the wordmark lines up with the content below it at every width. */
     .mast-inner {
         max-width: 1320px;
         margin: 0 auto;
-        padding: 0 24px;
+        padding: 0 16px;
         display: grid;
         grid-template-columns: auto 1fr;
         align-items: center;
     }
 
+    @media (min-width: 640px) {
+        .mast-inner {
+            padding: 0 24px;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .mast-inner {
+            padding: 0 40px;
+        }
+    }
+
     .mast-title-cell {
         padding-right: 24px;
-        margin-right: 4px;
         border-right: 1px solid var(--line);
         align-self: stretch;
         display: flex;
@@ -571,7 +584,7 @@
     }
 
     .mast-top {
-        padding: 8px 0;
+        padding: 8px 0 8px 16px;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -847,13 +860,15 @@
         }
     }
 
-    @media (max-width: 720px) {
-        .mast-inner {
-            padding: 0 16px;
-        }
+    /* Compact masthead. Threshold sits above the 920px the full nav row needs,
+       otherwise the header overflows and every page scrolls sideways. */
+    @media (max-width: 960px) {
         .mast-title-cell {
             padding-right: 16px;
             border-right: none;
+        }
+        .mast-top {
+            padding-left: 0;
         }
         .mast-title {
             font-size: 22px;
@@ -866,13 +881,21 @@
         .mast-top > .mast-top-left > .sep {
             display: none;
         }
-        .mast-rows .mast-nav,
+        .mast-rows .mast-nav-inner,
         .mast-rows .mast-top .sep,
         .mast-rows .mast-top-right {
             display: none;
         }
         .mast-burger {
             display: inline-flex;
+        }
+    }
+
+    /* Paired with .mast-burger: the compact menu stays available for as long as
+       the burger is shown, so the two thresholds must not drift apart. */
+    @media (min-width: 961px) {
+        .mast-mobile-menu {
+            display: none;
         }
     }
 
