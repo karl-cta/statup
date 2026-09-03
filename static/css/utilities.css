@@ -174,30 +174,6 @@
         background-color: var(--sem-info);
     }
 
-    /* Service status read as a value, keyed on Status so the percentage and
-       the dot next to it resolve through the same token. These replaced raw
-       Tailwind palette classes, which put an emerald from outside the system
-       beside a sage dot and made the two greens look like a mistake. */
-    .status-operational {
-        color: var(--sem-ok-text);
-    }
-
-    .status-degraded {
-        color: var(--sem-minor-text);
-    }
-
-    .status-partial {
-        color: var(--sem-major-text);
-    }
-
-    .status-major {
-        color: var(--sem-crit-text);
-    }
-
-    .status-maintenance {
-        color: var(--sem-info-text);
-    }
-
     .hover-row {
         transition: background-color 0.15s ease;
     }

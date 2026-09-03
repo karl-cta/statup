@@ -1,13 +1,12 @@
 {# Scheduled maintenances, dashboard right card. Expects: active_maintenance, resolved_maintenance, i18n #}
 <section class="card">
     <header class="card-head">
+        {# No count here: it would only cover the upcoming group, while the two
+           group headers below already count themselves. #}
         <h2>
             <span>{{ i18n.t("dashboard.maintenance") }}</span>
-            {% if !active_maintenance.is_empty() %}
-            <span class="card-head-cnt">{{ active_maintenance.len() }}</span>
-            {% endif %}
         </h2>
-        <a href="/events" class="card-action">{{ i18n.t("dashboard.view_all") }}</a>
+        <a href="/events?kind=maintenance" class="card-action">{{ i18n.t("dashboard.view_all") }}</a>
     </header>
 
     {% if active_maintenance.is_empty() && resolved_maintenance.is_empty() %}

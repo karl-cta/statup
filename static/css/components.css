@@ -1350,6 +1350,7 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
+        gap: 10px;
         margin-bottom: 8px;
     }
 
@@ -1392,28 +1393,40 @@
         box-shadow: 0 0 0 3px var(--sem-info-ring);
     }
 
+    /* The service name is the object of this card, so it outweighs the rows
+       around it, but only by one step: at 20px it grew past the heading of its
+       own card and broke the rhythm of the three columns. It wraps rather than
+       truncating, because a service the visitor came to check must never read
+       "Passerelle de pai...". */
     .svc-name {
-        font-size: 13px;
-        font-weight: 500;
-        letter-spacing: -0.005em;
+        font-size: 14px;
+        line-height: 1.35;
+        font-weight: 600;
+        letter-spacing: -0.008em;
         color: var(--color-ink);
         min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        overflow-wrap: anywhere;
     }
 
     :is(.dark *) .svc-name {
         color: var(--color-sand-light);
     }
 
+    /* Neutral on purpose: the dot beside it already states the current status,
+       and this number covers the last thirty days. Colouring a history with a
+       present-tense colour put two different facts on one channel. */
     .svc-pct {
         font-family: var(--font-mono);
-        font-size: 10.5px;
+        font-size: 12px;
         font-weight: 500;
         letter-spacing: 0.02em;
         font-feature-settings: 'tnum' 1;
         flex-shrink: 0;
+        color: var(--color-ink);
+    }
+
+    :is(.dark *) .svc-pct {
+        color: var(--color-sand-light);
     }
 
     .svc-bars {
@@ -1524,32 +1537,23 @@
         opacity: 0.95;
     }
 
-    .svc-foot {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        gap: 10px;
-        font-family: var(--font-mono);
+    /* One legend for the whole card. The period used to be repeated under every
+       service, where it said the same thing on every row and still left the
+       sparklines without a stated meaning. */
+    .svc-legend {
+        margin: 0;
+        padding: 10px 16px 12px;
+        border-top: 1px solid var(--hairline);
         font-size: 10.5px;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
         color: var(--color-muted-light);
         font-feature-settings: 'tnum' 1;
     }
 
-    :is(.dark *) .svc-foot {
+    :is(.dark *) .svc-legend {
         color: var(--color-muted-dark);
-    }
-
-    .svc-foot-desc {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        text-transform: none;
-    }
-
-    .svc-foot-period {
-        flex-shrink: 0;
-        letter-spacing: 0.02em;
     }
 
     .log-day {
@@ -1627,7 +1631,7 @@
     }
 
     .log-title {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 500;
         color: var(--color-ink);
         letter-spacing: -0.005em;
@@ -1902,7 +1906,7 @@
     }
 
     .mnt-title {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 500;
         letter-spacing: -0.005em;
         color: var(--color-ink);
@@ -1975,7 +1979,7 @@
     }
 
     .mnt-past-title {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-ink);
         overflow: hidden;
         text-overflow: ellipsis;

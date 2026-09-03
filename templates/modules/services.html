@@ -25,7 +25,7 @@
                 <span class="svc-dot svc-dot-{{ service.status.as_str() }}" aria-hidden="true"></span>
                 <span class="svc-name">{{ service.name }}</span>
             </div>
-            <span class="svc-pct {{ service.status.mono_color_class() }}">{{ self.uptime_pct(service.id) }}</span>
+            <span class="svc-pct">{{ self.uptime_pct(service.id) }}</span>
         </div>
         <div class="svc-bars"
              role="img"
@@ -34,20 +34,10 @@
             <span class="{{ day.class }}" data-day-date="{{ day.date }}" data-day-status="{{ day.status }}" tabindex="0" role="img" aria-label="{{ day.tooltip }}"></span>
             {% endfor %}
         </div>
-        <div class="svc-foot">
-            {% match service.description %}
-            {% when Some with (desc) %}
-            {% if !desc.is_empty() %}
-            <span class="svc-foot-desc">{{ desc }}</span>
-            {% else %}
-            <span></span>
-            {% endif %}
-            {% when None %}
-            <span></span>
-            {% endmatch %}
-            <span class="svc-foot-period">30{{ i18n.t("dashboard.days_short") }}</span>
-        </div>
     </article>
     {% endfor %}
+    {# The period is the same for every row, so it is stated once, and it gives
+       the sparklines the legend they need to mean anything. #}
+    <p class="svc-legend">{{ i18n.t("dashboard.availability_30d") }}</p>
     {% endif %}
 </section>

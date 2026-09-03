@@ -87,19 +87,6 @@ impl ServiceStatus {
         }
     }
 
-    /// Text color class for a status read as a value, such as the uptime
-    /// percentage. Resolves through the semantic tokens so it matches the dot
-    /// beside it and needs no dark-theme variant.
-    pub fn mono_color_class(self) -> &'static str {
-        match self {
-            Self::Operational => "status-operational",
-            Self::Degraded => "status-degraded",
-            Self::PartialOutage => "status-partial",
-            Self::MajorOutage => "status-major",
-            Self::Maintenance => "status-maintenance",
-        }
-    }
-
     /// Priority for determining the worst status (higher = worse).
     pub fn priority(self) -> u8 {
         match self {
@@ -219,7 +206,6 @@ mod tests {
         for s in statuses {
             assert!(!s.css_class().is_empty());
             assert!(!s.dot_class().is_empty());
-            assert!(!s.mono_color_class().is_empty());
             assert!(!s.i18n_key().is_empty());
         }
     }
