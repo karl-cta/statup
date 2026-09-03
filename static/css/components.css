@@ -860,9 +860,9 @@
         }
     }
 
-    /* Compact masthead. Threshold sits above the 920px the full nav row needs,
-       otherwise the header overflows and every page scrolls sideways. */
-    @media (max-width: 960px) {
+    /* Compact masthead, small screens only. With the tool labels already dropped
+       above, the row needs about 767px, so the burger takes over below 800px. */
+    @media (max-width: 800px) {
         .mast-title-cell {
             padding-right: 16px;
             border-right: none;
@@ -891,9 +891,27 @@
         }
     }
 
+    /* Mid width: keep the four nav tabs, drop the tool labels to their icons.
+       The labels cost 116px, which is what pushed the whole row past the viewport.
+       Each .mnav-tool already carries an aria-label, so the icons stay announced. */
+    @media (max-width: 960px) {
+        .mnav-tool span {
+            display: none;
+        }
+
+        /* Bound the account name so a long one cannot push the row past the
+           viewport. The full name stays on /profile. */
+        .mnav-user > a {
+            max-width: 110px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    }
+
     /* Paired with .mast-burger: the compact menu stays available for as long as
        the burger is shown, so the two thresholds must not drift apart. */
-    @media (min-width: 961px) {
+    @media (min-width: 801px) {
         .mast-mobile-menu {
             display: none;
         }
