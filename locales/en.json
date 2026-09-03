@@ -35,7 +35,7 @@
   "dashboard.status_eyebrow": "Status",
   "dashboard.all_operational": "All systems operational",
   "dashboard.services_monitored": "service(s) monitored",
-  "dashboard.active_incidents": "active incident(s)",
+  "dashboard.active_incidents": "active incidents",
   "dashboard.services": "Services",
   "dashboard.no_services": "No service configured",
   "dashboard.no_services_text": "Every service you add appears here with its status and its 30 day availability.",
