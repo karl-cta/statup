@@ -7,7 +7,7 @@
     <div class="w-full max-w-sm animate-in">
         <div class="rounded-sm border border-ink/10 bg-cream px-8 py-10 dark:border-sand-light/10 dark:bg-surface-1">
             <div class="text-center">
-                {% let logo_size = "mx-auto mb-6 h-14 w-14 text-ink dark:text-sand-light" %}
+                {% let logo_size = "mx-auto mb-6 h-14 w-auto text-ink dark:text-sand-light" %}
                 {% include "components/logo.html" %}
                 <h1 class="text-2xl font-medium tracking-tight text-ink dark:text-sand-light">{{ i18n.t("auth.register_heading") }}</h1>
                 <p class="mt-1.5 text-sm text-ink/55 dark:text-sand-light/45">{{ i18n.t("auth.register_subtitle") }}</p>
