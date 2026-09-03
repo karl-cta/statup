@@ -91,8 +91,9 @@
                 <tr class="border-b border-ink/15 dark:border-sand-light/15">
                     <th scope="col" class="pb-2 text-left text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("admin.users") }}</th>
                     <th scope="col" class="pb-2 text-left text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("profile.role") }}</th>
-                    <th scope="col" class="pb-2 text-left text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">Statut</th>
-                    <th scope="col" class="pb-2 text-right text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">Actions</th>
+                    <th scope="col" class="pb-2 text-left text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("common.status_label") }}</th>
+                    {# Named for assistive tech only, the column holds self-describing controls. #}
+                    <th scope="col" class="pb-2"><span class="sr-only">{{ i18n.t("common.actions_label") }}</span></th>
                 </tr>
             </thead>
             <tbody>
