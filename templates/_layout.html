@@ -78,19 +78,19 @@
                         <a class="mnav-tool" href="/login">{{ i18n.t("nav.login") }}</a>
                         {% endif %}
                     </div>
+                    <button type="button" class="mast-burger"
+                            id="mast-burger"
+                            onclick="toggleMobileMenu(this)"
+                            aria-expanded="false" aria-controls="mobile-menu"
+                            aria-label="{{ i18n.t("nav.main_menu") }}">
+                        <svg class="mast-burger-icon mast-burger-icon-open" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                        </svg>
+                        <svg class="mast-burger-icon mast-burger-icon-close" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18" />
+                        </svg>
+                    </button>
                 </nav>
-                <button type="button" class="mast-burger"
-                        id="mast-burger"
-                        onclick="toggleMobileMenu(this)"
-                        aria-expanded="false" aria-controls="mobile-menu"
-                        aria-label="{{ i18n.t("nav.main_menu") }}">
-                    <svg class="mast-burger-icon mast-burger-icon-open" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                    </svg>
-                    <svg class="mast-burger-icon mast-burger-icon-close" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18" />
-                    </svg>
-                </button>
             </div>
         </div>
         <div id="mobile-menu" role="region" aria-label="{{ i18n.t("nav.mobile_menu") }}" class="mast-mobile-menu hidden border-t border-ink/10 dark:border-sand-light/10">

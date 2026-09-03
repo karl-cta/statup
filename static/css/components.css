@@ -860,20 +860,16 @@
         }
     }
 
-    /* Compact masthead, small screens only. With the tool labels already dropped
-       above, the row needs about 767px, so the burger takes over below 800px. */
-    @media (max-width: 800px) {
+    /* Compact masthead, phones only. With the trimming already done above the row
+       needs about 587px, so the tabs survive every tablet and only give way below
+       600px. */
+    @media (max-width: 599px) {
         .mast-title-cell {
             padding-right: 16px;
             border-right: none;
         }
         .mast-top {
             padding-left: 0;
-        }
-        .mast-title {
-            font-size: 22px;
-        }
-        .mast-top {
             font-size: 9.5px;
             letter-spacing: 0.08em;
         }
@@ -881,37 +877,45 @@
         .mast-top > .mast-top-left > .sep {
             display: none;
         }
-        .mast-rows .mast-nav-inner,
+        /* The burger now lives inside the nav row, so hide the row's contents
+           rather than the row itself. */
+        .mast-nav-inner > .mnav,
+        .mast-nav-inner > .mnav-tools,
         .mast-rows .mast-top .sep,
         .mast-rows .mast-top-right {
             display: none;
         }
-        .mast-burger {
-            display: inline-flex;
-        }
     }
 
-    /* Mid width: keep the four nav tabs, drop the tool labels to their icons.
-       The labels cost 116px, which is what pushed the whole row past the viewport.
-       Each .mnav-tool already carries an aria-label, so the icons stay announced. */
+    /* Tablet width: keep the four nav tabs, which only cost 343px. What does not
+       fit is the trimming, so the tool labels fall back to their icons (each
+       .mnav-tool already carries an aria-label) and the account block moves into
+       the burger menu, which stays reachable here. Row drops to roughly 666px. */
     @media (max-width: 960px) {
         .mnav-tool span {
             display: none;
         }
 
-        /* Bound the account name so a long one cannot push the row past the
-           viewport. The full name stays on /profile. */
-        .mnav-user > a {
-            max-width: 110px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+        .mnav-user {
+            display: none;
+        }
+
+        .mast-title {
+            font-size: 22px;
+        }
+
+        .mnav {
+            padding: 0 12px;
+        }
+
+        .mast-burger {
+            display: inline-flex;
         }
     }
 
     /* Paired with .mast-burger: the compact menu stays available for as long as
        the burger is shown, so the two thresholds must not drift apart. */
-    @media (min-width: 801px) {
+    @media (min-width: 961px) {
         .mast-mobile-menu {
             display: none;
         }
