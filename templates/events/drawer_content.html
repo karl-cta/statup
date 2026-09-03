@@ -1,14 +1,14 @@
 {# Drawer content partial, read-only event detail. Loaded via HTMX #}
 <div class="drawer-head">
     <p class="drawer-kicker">
-        <span>{{ i18n.t(event.event.kind.i18n_key()) }}</span>
+        <span class="{{ event.event.chip_class() }}">{{ i18n.t(event.event.kind.i18n_key()) }}</span>
         {% if let Some(sev) = event.event.severity %}
         <span aria-hidden="true">·</span>
         <span>{{ i18n.t(sev.i18n_key()) }}</span>
         {% endif %}
         {% if let Some(lc) = event.event.lifecycle %}
         <span aria-hidden="true">·</span>
-        <span>{{ i18n.t(lc.i18n_key()) }}</span>
+        <span class="log-right-{{ lc.as_str() }}">{{ i18n.t(lc.i18n_key()) }}</span>
         {% endif %}
     </p>
     <button type="button" class="drawer-close" onclick="closeDrawer()" aria-label="{{ i18n.t("common.close") }}">
@@ -21,37 +21,20 @@
 <div class="drawer-body">
     <h2 class="drawer-title">{{ event.event.title }}</h2>
 
-    <section class="drawer-section drawer-section-first">
-        <p class="drawer-section-label">{{ i18n.t("events.details_label") }}</p>
-        <dl class="drawer-kv">
-            <dt>{{ i18n.t("events.created_at") }}</dt>
-            <dd>{{ i18n.format_datetime(event.event.created_at) }}</dd>
-            <dt>{{ i18n.t("events.author_label") }}</dt>
-            <dd>{{ author_name }}</dd>
-            <dt>{{ i18n.t("events.kind") }}</dt>
-            <dd>{{ i18n.t(event.event.kind.i18n_key()) }}</dd>
-            {% if let Some(sev) = event.event.severity %}
-            <dt>{{ i18n.t("events.severity") }}</dt>
-            <dd>{{ i18n.t(sev.i18n_key()) }}</dd>
-            {% endif %}
-            {% if let Some(lc) = event.event.lifecycle %}
-            <dt>{{ i18n.t("events.lifecycle_label") }}</dt>
-            <dd>{{ i18n.t(lc.i18n_key()) }}</dd>
-            {% endif %}
-            {% if !event.services.is_empty() %}
-            <dt>{{ i18n.t("events.services_label") }}</dt>
-            <dd>
-                {% for svc in event.services %}{{ svc.name }}{% if !loop.last %}, {% endif %}{% endfor %}
-            </dd>
-            {% endif %}
-        </dl>
-    </section>
+    <p class="drawer-meta">
+        {{ author_name }}
+        <span aria-hidden="true">·</span>
+        {{ i18n.format_datetime(event.event.created_at) }}
+    </p>
+
+    {% if !event.services.is_empty() %}
+    <p class="drawer-services">
+        {% for svc in event.services %}{{ svc.name }}{% if !loop.last %}, {% endif %}{% endfor %}
+    </p>
+    {% endif %}
 
     {% if !event.event.description.is_empty() %}
-    <section class="drawer-section">
-        <p class="drawer-section-label">{{ i18n.t("events.description") }}</p>
-        <div class="drawer-prose">{{ description_html|safe }}</div>
-    </section>
+    <div class="drawer-prose drawer-section drawer-section-first">{{ description_html|safe }}</div>
     {% endif %}
 
     {% if !updates.is_empty() %}
@@ -73,9 +56,14 @@
     {% endif %}
 
     <div class="drawer-foot">
-        <a href="/events/{{ event.event.id }}">{{ i18n.t("events.open_full_page") }}</a>
+        <a class="drawer-foot-link" href="/events/{{ event.event.id }}">
+            {{ i18n.t("events.open_full_page") }}
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6"/>
+            </svg>
+        </a>
         {% if can_edit %}
-        <a href="/events/{{ event.event.id }}/edit">{{ i18n.t("common.edit") }}</a>
+        <a class="btn-3d-ghost text-[13px] !px-3 !py-1.5" href="/events/{{ event.event.id }}/edit">{{ i18n.t("common.edit") }}</a>
         {% endif %}
     </div>
 </div>

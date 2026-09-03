@@ -15,8 +15,15 @@
 
         <div class="mt-6 lg:mt-0">
             <div class="animate-in delay-1">
-                <p class="eyebrow">
-                    {{ i18n.t(event.event.kind.i18n_key()) }}{% if let Some(sev) = event.event.severity %} · {{ i18n.t(sev.i18n_key()) }}{% endif %}{% if let Some(cat) = event.event.category %} · {{ i18n.t(cat.i18n_key()) }}{% endif %}
+                <p class="flex flex-wrap items-center gap-2">
+                    <span class="{{ event.event.chip_class() }}">{{ i18n.t(event.event.kind.i18n_key()) }}</span>
+                    {% if let Some(sev) = event.event.severity %}
+                    <span class="eyebrow sev-{{ sev.as_str() }}">{{ i18n.t(sev.i18n_key()) }}</span>
+                    {% endif %}
+                    {% if let Some(cat) = event.event.category %}
+                    <span class="eyebrow" aria-hidden="true">·</span>
+                    <span class="eyebrow">{{ i18n.t(cat.i18n_key()) }}</span>
+                    {% endif %}
                 </p>
                 <h1 class="mt-2 text-2xl font-medium tracking-tight text-ink dark:text-sand-light leading-tight">{{ event.event.title }}</h1>
                 <p class="mt-2 text-[13px] text-ink/50 dark:text-sand-light/45">
@@ -145,52 +152,27 @@
                 </script>
                 {% endif %}
 
-                <dl class="space-y-2 text-[13px]">
-                    <div class="flex items-center justify-between py-1">
-                        <dt class="text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.kind") }}</dt>
-                        <dd class="font-medium text-ink/85 dark:text-sand-light/85">{{ i18n.t(event.event.kind.i18n_key()) }}</dd>
-                    </div>
-                    {% if let Some(sev) = event.event.severity %}
-                    <div class="flex items-center justify-between py-1">
-                        <dt class="text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.severity") }}</dt>
-                        <dd class="font-mono text-[12px] uppercase tracking-[0.08em] text-ink/70 dark:text-sand-light/70">{{ i18n.t(sev.i18n_key()) }}</dd>
-                    </div>
-                    {% endif %}
-                    {% if let Some(cat) = event.event.category %}
-                    <div class="flex items-center justify-between py-1">
-                        <dt class="text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.category") }}</dt>
-                        <dd class="font-medium text-ink/85 dark:text-sand-light/85">{{ i18n.t(cat.i18n_key()) }}</dd>
-                    </div>
-                    {% endif %}
-                    <div class="flex items-center justify-between py-1">
-                        <dt class="text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.created_label") }}</dt>
-                        <dd class="font-mono text-[12px] tabular-nums text-ink/70 dark:text-sand-light/60">{{ i18n.format_datetime(event.event.created_at) }}</dd>
-                    </div>
-                    <div class="flex items-center justify-between py-1">
-                        <dt class="text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.author_label") }}</dt>
-                        <dd class="font-medium text-ink/70 dark:text-sand-light/80">{{ author_name }}</dd>
-                    </div>
-                </dl>
-
                 {% if !event.services.is_empty() %}
-                <div class="flex flex-wrap gap-2" role="list" aria-label="{{ i18n.t("events.affected_services_sidebar") }}">
-                    {% for svc in event.services %}
-                    <span role="listitem" class="rounded-full bg-sand-warm px-2.5 py-0.5 text-[12px] font-medium text-ink/70 dark:bg-surface-2 dark:text-sand-light/70">{{ svc.name }}</span>
-                    {% endfor %}
+                <div>
+                    <p id="sidebar-services-label" class="eyebrow">{{ i18n.t("events.affected_services_sidebar") }}</p>
+                    <div class="mt-2 flex flex-wrap gap-2" role="list" aria-labelledby="sidebar-services-label">
+                        {% for svc in event.services %}
+                        <span role="listitem" class="rounded-full bg-sand-warm px-2.5 py-0.5 text-[12px] font-medium text-ink/70 dark:bg-surface-2 dark:text-sand-light/70">{{ svc.name }}</span>
+                        {% endfor %}
+                    </div>
                 </div>
                 {% endif %}
 
                 {% if can_edit %}
-                <div class="flex items-center gap-3 text-[13px]">
+                <div class="flex items-center justify-between gap-3">
                     <a href="/events/{{ event.event.id }}/edit"
-                       class="font-medium text-ink/50 hover:text-ink dark:text-sand-light/45 dark:hover:text-sand-light transition-colors">
+                       class="btn-3d-ghost text-[13px] !px-3 !py-1.5">
                         {{ i18n.t("common.edit") }}
                     </a>
-                    <span class="text-ink/20 dark:text-sand-light/15">·</span>
                     <form method="post" action="/events/{{ event.event.id }}/delete" class="inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" onclick="return confirm('{{ i18n.t("events.confirm_delete_text") }}')"
-                                class="font-medium text-danger-soft hover:text-danger transition-colors"
+                                class="btn-outline-danger text-[13px]"
                                 aria-label="{{ i18n.t("events.confirm_delete") }}">
                             {{ i18n.t("common.delete") }}
                         </button>

@@ -129,6 +129,20 @@
         opacity: 1;
     }
 
+    /* Severity carries the urgency color wherever it is read as a value,
+       keyed on Severity::as_str() so the template stays declarative. */
+    .sev-minor {
+        color: var(--sem-minor-text);
+    }
+
+    .sev-major {
+        color: var(--sem-major-text);
+    }
+
+    .sev-critical {
+        color: var(--sem-crit-text);
+    }
+
     .hover-row {
         transition: background-color 0.15s ease;
     }

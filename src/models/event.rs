@@ -302,6 +302,24 @@ pub struct EventWithServices {
     pub services: Vec<Service>,
 }
 
+impl Event {
+    /// Chip style variant for log-rows, derived from kind + severity.
+    pub fn chip_class(&self) -> &'static str {
+        chip_class_for(self.kind, self.severity)
+    }
+}
+
+/// Shared by `Event` and `EventSummary`, which both carry kind + severity.
+fn chip_class_for(kind: Kind, severity: Option<Severity>) -> &'static str {
+    match (kind, severity) {
+        (Kind::Incident, Some(Severity::Critical)) => "log-chip log-chip-crit",
+        (Kind::Incident, Some(Severity::Major)) => "log-chip log-chip-major",
+        (Kind::Incident, _) => "log-chip log-chip-minor",
+        (Kind::Maintenance, _) => "log-chip log-chip-info",
+        (Kind::Publication, _) => "log-chip log-chip-pub",
+    }
+}
+
 /// Lightweight projection for lists and dashboards.
 #[derive(Debug, Clone, sqlx::FromRow, Serialize)]
 pub struct EventSummary {
@@ -383,13 +401,7 @@ impl EventSummary {
 
     /// Chip style variant for log-rows, derived from kind + severity.
     pub fn chip_class(&self) -> &'static str {
-        match (self.kind, self.severity) {
-            (Kind::Incident, Some(Severity::Critical)) => "log-chip log-chip-crit",
-            (Kind::Incident, Some(Severity::Major)) => "log-chip log-chip-major",
-            (Kind::Incident, _) => "log-chip log-chip-minor",
-            (Kind::Maintenance, _) => "log-chip log-chip-info",
-            (Kind::Publication, _) => "log-chip log-chip-pub",
-        }
+        chip_class_for(self.kind, self.severity)
     }
 
     /// Breakdown of the countdown into (days, hours, minutes) for rich display.

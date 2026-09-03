@@ -1,6 +1,6 @@
 /* Class prefix registry:
      badge-    status and lifecycle badges
-     btn-      buttons (3d variants, ghost, success)
+     btn-      buttons (3d variants, ghost, success, outline-danger)
      card-     generic card surfaces
      checkbox- custom checkboxes
      cs-       custom select (combobox, portalized panel)
@@ -45,26 +45,48 @@
         height: 6px;
         border-radius: 50%;
         background: var(--led);
-        box-shadow: 0 0 4px 0px var(--led);
+        box-shadow: 0 0 0 3px var(--led-ring);
         flex-shrink: 0;
     }
 
-    .badge-scheduled     { --led: oklch(0.62 0.20 260); color: oklch(0.48 0.12 258); }
-    .badge-investigating { --led: oklch(0.75 0.18 80);  color: oklch(0.48 0.11 78); }
-    .badge-in-progress   { --led: oklch(0.60 0.20 295); color: oklch(0.48 0.13 293); }
-    .badge-monitoring    { --led: oklch(0.68 0.12 215); color: oklch(0.48 0.08 213); }
-    .badge-resolved      { --led: oklch(0.58 0.14 160); color: oklch(0.44 0.11 160); }
-    .badge-completed     { --led: oklch(0.60 0.14 195); color: oklch(0.45 0.11 195); }
-    .badge-cancelled     { --led: oklch(0.60 0.01 0);   color: oklch(0.52 0.01 0); }
+    /* Lifecycle resolves to the semantic tokens rather than its own hues:
+       blue for planned work, green once closed, neutral ink while still open.
+       Severity carries the urgency color, the lifecycle stage does not. */
+    .badge-scheduled {
+        --led: var(--sem-info);
+        --led-ring: var(--sem-info-ring);
+        color: var(--sem-info-text);
+    }
 
-    :is(.dark *) {
-        .badge-scheduled     { --led: oklch(0.70 0.18 260); color: oklch(0.78 0.10 258); }
-        .badge-investigating { --led: oklch(0.80 0.18 80);  color: oklch(0.82 0.10 82); }
-        .badge-in-progress   { --led: oklch(0.68 0.18 295); color: oklch(0.78 0.10 297); }
-        .badge-monitoring    { --led: oklch(0.72 0.12 215); color: oklch(0.76 0.07 217); }
-        .badge-resolved      { --led: oklch(0.72 0.14 160); color: oklch(0.82 0.10 160); }
-        .badge-completed     { --led: oklch(0.74 0.14 195); color: oklch(0.82 0.10 195); }
-        .badge-cancelled     { --led: oklch(0.50 0.01 0);   color: oklch(0.62 0.01 0); }
+    .badge-resolved,
+    .badge-completed {
+        --led: var(--sem-ok);
+        --led-ring: var(--sem-ok-ring);
+        color: var(--sem-ok-text);
+    }
+
+    .badge-investigating,
+    .badge-in-progress,
+    .badge-monitoring {
+        --led: var(--color-ink);
+        --led-ring: var(--surface-subtle);
+        color: var(--color-ink);
+    }
+
+    :is(.dark *) :is(.badge-investigating, .badge-in-progress, .badge-monitoring) {
+        --led: var(--color-sand-light);
+        color: var(--color-sand-light);
+    }
+
+    .badge-cancelled {
+        --led: var(--color-muted-light);
+        --led-ring: var(--surface-subtle);
+        color: var(--color-muted-light);
+    }
+
+    :is(.dark *) .badge-cancelled {
+        --led: var(--color-muted-dark);
+        color: var(--color-muted-dark);
     }
 
     .status-label {
@@ -205,6 +227,34 @@
         .btn-3d-success:hover {
             background: oklch(0.74 0.15 160);
         }
+    }
+
+    /* Destructive outline: readable as a button at rest, without competing
+       with the primary action next to it. Fills only on hover. */
+    .btn-outline-danger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 6px 12px;
+        font-family: var(--font-sans);
+        font-weight: 500;
+        color: var(--sem-crit-text);
+        background: transparent;
+        border: 1px solid var(--sem-crit-border);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .btn-outline-danger:hover {
+        background: var(--sem-crit-soft);
+        border-color: var(--sem-crit-text);
+    }
+
+    .btn-outline-danger:focus-visible {
+        outline: 2px solid var(--sem-crit-text);
+        outline-offset: 2px;
     }
 
     .card-raised {
@@ -2015,34 +2065,25 @@
         color: var(--color-muted-dark);
     }
 
-    .drawer-kv {
-        display: grid;
-        grid-template-columns: 96px 1fr;
-        gap: 10px 16px;
-        font-size: 13px;
-        line-height: 1.5;
-    }
-
-    .drawer-kv dt {
-        font-family: var(--font-mono);
-        font-size: 10.5px;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+    /* Author and date, the only identity the kicker does not already carry. */
+    .drawer-meta {
+        margin-top: 6px;
+        font-size: 12.5px;
         color: var(--color-muted-light);
-        padding-top: 2px;
         font-feature-settings: 'tnum' 1;
     }
 
-    :is(.dark *) .drawer-kv dt {
+    :is(.dark *) .drawer-meta {
         color: var(--color-muted-dark);
     }
 
-    .drawer-kv dd {
+    .drawer-services {
+        margin-top: 8px;
+        font-size: 12.5px;
         color: var(--color-ink);
-        margin: 0;
     }
 
-    :is(.dark *) .drawer-kv dd {
+    :is(.dark *) .drawer-services {
         color: var(--color-sand-light);
     }
 
@@ -2112,6 +2153,8 @@
         padding-top: 16px;
         border-top: 1px solid rgb(28 27 24 / 0.1);
         display: flex;
+        align-items: center;
+        justify-content: space-between;
         gap: 16px;
     }
 
@@ -2119,22 +2162,39 @@
         border-top-color: rgb(244 241 235 / 0.08);
     }
 
-    .drawer-foot a {
+    .drawer-foot-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin-left: -8px;
+        padding: 6px 8px;
         font-size: 12.5px;
-        color: var(--color-muted-light);
-        transition: color 0.12s;
-    }
-
-    .drawer-foot a:hover {
+        font-weight: 500;
         color: var(--color-ink);
+        border-radius: 5px;
+        transition: background 0.12s;
     }
 
-    :is(.dark *) .drawer-foot a {
-        color: var(--color-muted-dark);
+    .drawer-foot-link svg {
+        width: 12px;
+        height: 12px;
+        transition: transform 0.12s;
     }
 
-    :is(.dark *) .drawer-foot a:hover {
+    .drawer-foot-link:hover {
+        background: rgb(28 27 24 / 0.05);
+    }
+
+    .drawer-foot-link:hover svg {
+        transform: translateX(2px);
+    }
+
+    :is(.dark *) .drawer-foot-link {
         color: var(--color-sand-light);
+    }
+
+    :is(.dark *) .drawer-foot-link:hover {
+        background: rgb(244 241 235 / 0.06);
     }
 
     .drawer-loader {
