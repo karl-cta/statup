@@ -76,7 +76,7 @@
     --color-accent-hover: #36332D;
 
     /* Service status and impact severity, WCAG AA on sand/cream. */
-    --color-status-operational: oklch(0.508 0.154 163);
+    --color-status-operational: #61803E;
     --color-status-degraded: oklch(0.554 0.135 66);
     --color-status-partial: oklch(0.553 0.195 38);
     --color-status-major: oklch(0.577 0.245 27);
@@ -94,7 +94,7 @@
 }
 
 .dark {
-    --color-status-operational: oklch(0.765 0.177 163);
+    --color-status-operational: #8BAE66;
     --color-status-degraded: oklch(0.852 0.199 92);
     --color-status-partial: oklch(0.750 0.183 56);
     --color-status-major: oklch(0.704 0.191 22);

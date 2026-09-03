@@ -1,10 +1,15 @@
 @layer base {
     /* Single source of truth for status across hero, chips, dots, bars, tags. */
     :root {
-        --sem-ok: #10B981;
-        --sem-ok-text: #047857;
-        --sem-ok-ring: rgb(16 185 129 / 0.18);
-        --sem-ok-soft: rgb(16 185 129 / 0.1);
+        /* Operational shares the brand hue on purpose: two near-identical
+           greens on one screen read as a mistake. The dot and the uptime bars
+           carry the exact brand sage; the text is the same hue darkened to
+           4.5:1, because sage itself only reaches 2.5:1 on white and this is
+           the label a visitor must read first. */
+        --sem-ok: #8BAE66;
+        --sem-ok-text: #61803E;
+        --sem-ok-ring: rgb(139 174 102 / 0.24);
+        --sem-ok-soft: rgb(139 174 102 / 0.16);
 
         --sem-minor: #EAB308;
         --sem-minor-text: #A16207;
@@ -29,10 +34,10 @@
     }
 
     .dark {
-        --sem-ok: #34D399;
-        --sem-ok-text: #34D399;
-        --sem-ok-ring: rgb(52 211 153 / 0.2);
-        --sem-ok-soft: rgb(52 211 153 / 0.12);
+        --sem-ok: #8BAE66;
+        --sem-ok-text: #8BAE66;
+        --sem-ok-ring: rgb(139 174 102 / 0.24);
+        --sem-ok-soft: rgb(139 174 102 / 0.16);
 
         --sem-minor: #FACC15;
         --sem-minor-text: #FACC15;
