@@ -627,6 +627,17 @@
         color: inherit;
     }
 
+    /* The one colored element of the identity: the dot of the mark, and the
+       wordmark it sits next to. Nowhere else, so the palette stays free to
+       mean status and only status. */
+    .logo-dot {
+        fill: var(--color-brand);
+    }
+
+    .mast-word {
+        color: var(--color-brand);
+    }
+
     .mast-rows {
         display: flex;
         flex-direction: column;

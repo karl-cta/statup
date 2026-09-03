@@ -16,6 +16,13 @@
     --color-sand-light: #FAF8F2;
     --color-cream: #FAFAF9;
     --color-page: #FFFFFF;
+
+    /* Brand accent, used only on the mark and the wordmark. Olive from the
+       original brand system (docs/mockups/brand.html), which pairs with the
+       sage used on dark. Sage sits 71 degrees from the operational green, so
+       the identity is not read as a status; on white it only reaches 2.5:1,
+       hence the deeper olive here and the lighter sage under .dark. */
+    --color-brand: #628141;
     --color-muted-light: #5F5C52;
     --color-muted-dark: #9C9689;
 
@@ -101,6 +108,8 @@
 
     --color-accent: #F4F1EB;
     --color-accent-hover: #FAF8F2;
+
+    --color-brand: #8BAE66;
 }
 
 /* Mode-aware alpha ramps. Use these instead of hard-coded rgb(ink/sand / a),
