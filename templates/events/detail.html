@@ -32,7 +32,7 @@
             </div>
 
             <div class="mt-6 animate-in delay-2">
-                <div class="prose prose-sm max-w-none prose-stone dark:prose-invert prose-p:leading-relaxed">
+                <div class="rich-text">
                     {{ description_html|safe }}
                 </div>
             </div>
@@ -45,12 +45,12 @@
                 {% else %}
                 <div class="mt-4 space-y-4">
                     {% for update in updates %}
-                    <div class="pl-4 border-l-2 border-ink/15 dark:border-sand-light/15">
+                    <div class="pl-4 border-l border-ink/15 dark:border-sand-light/15">
                         <div class="flex items-baseline justify-between gap-2">
                             <span class="text-[13px] font-medium text-ink/85 dark:text-sand-light/85">{{ update.author_name }}</span>
-                            <span class="font-mono text-[11px] tabular-nums text-ink/45 dark:text-sand-light/30">{{ i18n.format_datetime(update.created_at) }}</span>
+                            <span class="font-mono text-[10.5px] tabular-nums text-ink/45 dark:text-sand-light/30">{{ i18n.format_datetime(update.created_at) }}</span>
                         </div>
-                        <div class="mt-1 prose prose-sm max-w-none prose-stone dark:prose-invert prose-p:leading-relaxed">
+                        <div class="mt-1 rich-text">
                             {{ update.message|safe }}
                         </div>
                     </div>

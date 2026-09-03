@@ -9,7 +9,7 @@
 <div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
 
     <header class="animate-in">
-        <a href="/events" class="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-[0.12em] text-ink/55 dark:text-sand-light/45 hover:text-ink dark:hover:text-sand-light transition-colors">
+        <a href="/events" class="inline-flex items-center gap-1.5 text-[10.5px] font-mono uppercase tracking-[0.12em] text-ink/55 dark:text-sand-light/45 hover:text-ink dark:hover:text-sand-light transition-colors">
             <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
@@ -111,7 +111,7 @@
                 </p>
                 <div class="mt-2 flex items-start gap-3">
                     <span id="chip-preview" class="log-chip log-chip-minor mt-0.5">INCIDENT</span>
-                    <p id="severity-hint" class="text-[12.5px] text-ink/60 dark:text-sand-light/55 leading-relaxed">
+                    <p id="severity-hint" class="text-[12px] text-ink/60 dark:text-sand-light/55 leading-relaxed">
                         <span id="severity-hint-text"></span>
                     </p>
                 </div>
@@ -217,10 +217,10 @@
 
         <aside class="lg:pl-10 min-w-0" aria-label="{{ i18n.t("events.affected_services_sidebar") }}">
             <div class="lg:sticky lg:top-8">
-                <p class="text-[11px] font-mono uppercase tracking-[0.12em] text-ink/55 dark:text-sand-light/45">
+                <p class="text-[10.5px] font-mono uppercase tracking-[0.12em] text-ink/55 dark:text-sand-light/45">
                     {{ i18n.t("events.affected_services_sidebar") }}
                 </p>
-                <p class="mt-1 text-[12.5px] text-ink/55 dark:text-sand-light/45 leading-relaxed">
+                <p class="mt-1 text-[12px] text-ink/55 dark:text-sand-light/45 leading-relaxed">
                     {{ i18n.t("events.select_affected_hint") }}
                 </p>
 
@@ -246,7 +246,7 @@
                         <span class="svc-pick-name">{{ svc.name }}</span>
                         <span class="svc-pick-status" title="{{ i18n.t(svc.status.i18n_key()) }}">
                             <span class="h-2 w-2 rounded-full {{ svc.status.dot_class() }}" aria-hidden="true"></span>
-                            <span class="text-[11px] font-mono uppercase tracking-[0.06em] text-ink/55 dark:text-sand-light/45">{{ i18n.t(svc.status.i18n_key()) }}</span>
+                            <span class="text-[10.5px] font-mono uppercase tracking-[0.06em] text-ink/55 dark:text-sand-light/45">{{ i18n.t(svc.status.i18n_key()) }}</span>
                         </span>
                     </label>
                     {% endfor %}

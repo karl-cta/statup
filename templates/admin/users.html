@@ -46,13 +46,13 @@
                 {% if u.id == current_user_id %}
                 {% match u.role %}
                 {% when crate::models::Role::Admin %}
-                <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[11px] font-mono font-medium uppercase tracking-[0.08em] text-ink dark:text-sand-light border border-ink/30 dark:border-sand-light/30">{{ i18n.t("role.admin") }}</span>
+                <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10.5px] font-mono font-medium uppercase tracking-[0.08em] text-ink dark:text-sand-light border border-ink/30 dark:border-sand-light/30">{{ i18n.t("role.admin") }}</span>
                 {% when crate::models::Role::Publisher %}
-                <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[11px] font-mono font-medium uppercase tracking-[0.08em] text-ink/75 dark:text-sand-light/75 border border-ink/20 dark:border-sand-light/20">{{ i18n.t("role.publisher") }}</span>
+                <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10.5px] font-mono font-medium uppercase tracking-[0.08em] text-ink/75 dark:text-sand-light/75 border border-ink/20 dark:border-sand-light/20">{{ i18n.t("role.publisher") }}</span>
                 {% when crate::models::Role::Reader %}
-                <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[11px] font-mono font-medium uppercase tracking-[0.08em] text-ink/55 dark:text-sand-light/45 border border-ink/15 dark:border-sand-light/15">{{ i18n.t("role.reader") }}</span>
+                <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10.5px] font-mono font-medium uppercase tracking-[0.08em] text-ink/55 dark:text-sand-light/45 border border-ink/15 dark:border-sand-light/15">{{ i18n.t("role.reader") }}</span>
                 {% endmatch %}
-                <span class="text-[11px] text-ink/45 dark:text-sand-light/30">{{ i18n.t("admin.you") }}</span>
+                <span class="text-[10.5px] text-ink/45 dark:text-sand-light/30">{{ i18n.t("admin.you") }}</span>
                 {% else %}
                 <form method="post" action="/admin/users/{{ u.id }}/role"
                       hx-post="/admin/users/{{ u.id }}/role" hx-target="body" hx-swap="outerHTML" class="inline">
@@ -89,10 +89,10 @@
         <table class="min-w-full">
             <thead>
                 <tr class="border-b border-ink/15 dark:border-sand-light/15">
-                    <th scope="col" class="pb-2 text-left text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("admin.users") }}</th>
-                    <th scope="col" class="pb-2 text-left text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("profile.role") }}</th>
-                    <th scope="col" class="pb-2 text-left text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">Statut</th>
-                    <th scope="col" class="pb-2 text-right text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">Actions</th>
+                    <th scope="col" class="pb-2 text-left text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("admin.users") }}</th>
+                    <th scope="col" class="pb-2 text-left text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("profile.role") }}</th>
+                    <th scope="col" class="pb-2 text-left text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">Statut</th>
+                    <th scope="col" class="pb-2 text-right text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -106,19 +106,19 @@
                         {% if u.id == current_user_id %}
                         {% match u.role %}
                         {% when crate::models::Role::Admin %}
-                        <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[11px] font-mono font-medium uppercase tracking-[0.08em] text-ink dark:text-sand-light border border-ink/30 dark:border-sand-light/30">
+                        <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10.5px] font-mono font-medium uppercase tracking-[0.08em] text-ink dark:text-sand-light border border-ink/30 dark:border-sand-light/30">
                             {{ i18n.t("role.admin") }}
                         </span>
                         {% when crate::models::Role::Publisher %}
-                        <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[11px] font-mono font-medium uppercase tracking-[0.08em] text-ink/75 dark:text-sand-light/75 border border-ink/20 dark:border-sand-light/20">
+                        <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10.5px] font-mono font-medium uppercase tracking-[0.08em] text-ink/75 dark:text-sand-light/75 border border-ink/20 dark:border-sand-light/20">
                             {{ i18n.t("role.publisher") }}
                         </span>
                         {% when crate::models::Role::Reader %}
-                        <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[11px] font-mono font-medium uppercase tracking-[0.08em] text-ink/55 dark:text-sand-light/45 border border-ink/15 dark:border-sand-light/15">
+                        <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10.5px] font-mono font-medium uppercase tracking-[0.08em] text-ink/55 dark:text-sand-light/45 border border-ink/15 dark:border-sand-light/15">
                             {{ i18n.t("role.reader") }}
                         </span>
                         {% endmatch %}
-                        <span class="ml-1 text-[11px] text-ink/45 dark:text-sand-light/30">{{ i18n.t("admin.you") }}</span>
+                        <span class="ml-1 text-[10.5px] text-ink/45 dark:text-sand-light/30">{{ i18n.t("admin.you") }}</span>
                         {% else %}
                         <form method="post" action="/admin/users/{{ u.id }}/role"
                               hx-post="/admin/users/{{ u.id }}/role" hx-target="body" hx-swap="outerHTML" class="inline">

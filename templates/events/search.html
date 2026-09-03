@@ -27,7 +27,7 @@
             </summary>
             <div class="mt-3 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
                 <div class="sm:min-w-[160px]">
-                    <label for="kind" class="block text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.kind") }}</label>
+                    <label for="kind" class="block text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.kind") }}</label>
                     <select id="kind" name="kind" data-custom-select class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:py-1.5 cursor-pointer">
                         <option value="">{{ i18n.t("common.all") }}</option>
                         <option value="incident" {% if filter_kind.as_deref() == Some("incident") %}selected{% endif %}>{{ i18n.t("kind.incident") }}</option>
@@ -36,7 +36,7 @@
                     </select>
                 </div>
                 <div class="sm:min-w-[180px]">
-                    <label for="service_id" class="block text-[10px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.service") }}</label>
+                    <label for="service_id" class="block text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("events.service") }}</label>
                     <select id="service_id" name="service_id" data-custom-select class="mt-1.5 w-full input-raised px-3 py-2 text-sm sm:py-1.5 cursor-pointer">
                         <option value="">{{ i18n.t("common.all") }}</option>
                         {% for svc in services %}
@@ -69,12 +69,12 @@
                   transition-colors hover-row cursor-pointer">
             <span class="flex-shrink-0 h-2 w-2 rounded-full {% if let Some(sev) = r.event.severity %}{{ sev.dot_class() }}{% else %}{{ r.event.kind.dot_class() }}{% endif %}"
                   aria-hidden="true"></span>
-            <span class="flex-shrink-0 font-mono text-[11px] tabular-nums text-ink/45 dark:text-sand-light/40">
+            <span class="flex-shrink-0 font-mono text-[10.5px] tabular-nums text-ink/45 dark:text-sand-light/40">
                 {{ i18n.format_time(r.event.created_at) }}
             </span>
             <span class="truncate min-w-0 flex-1 text-sm
                 {% if let Some(lc) = r.event.lifecycle %}{% if lc.is_active() %}font-medium text-ink dark:text-sand-light{% else %}text-ink/70 dark:text-sand-light/60{% endif %}{% else %}text-ink/70 dark:text-sand-light/60{% endif %}">{{ r.highlighted_title|safe }}</span>
-            <span class="flex-shrink-0 text-[11px] text-ink/45 dark:text-sand-light/40 whitespace-nowrap">
+            <span class="flex-shrink-0 text-[10.5px] text-ink/45 dark:text-sand-light/40 whitespace-nowrap">
                 {{ i18n.t(r.event.kind.i18n_key()) }}
             </span>
         </a>

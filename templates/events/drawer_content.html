@@ -34,7 +34,7 @@
     {% endif %}
 
     {% if !event.event.description.is_empty() %}
-    <div class="drawer-prose drawer-section drawer-section-first">{{ description_html|safe }}</div>
+    <div class="rich-text drawer-section drawer-section-first">{{ description_html|safe }}</div>
     {% endif %}
 
     {% if !updates.is_empty() %}

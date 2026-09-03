@@ -25,7 +25,7 @@
         align-items: center;
         gap: 6px;
         font-family: var(--font-mono);
-        font-size: 11px;
+        font-size: 10.5px;
         font-weight: 500;
         letter-spacing: 0.07em;
         text-transform: uppercase;
@@ -91,7 +91,7 @@
 
     .status-label {
         font-family: var(--font-mono);
-        font-size: 11px;
+        font-size: 10.5px;
         font-weight: 500;
         letter-spacing: 0.06em;
         text-transform: uppercase;
@@ -99,7 +99,7 @@
 
     .eyebrow {
         font-family: var(--font-mono);
-        font-size: 11px;
+        font-size: 10.5px;
         font-weight: 500;
         letter-spacing: 0.16em;
         text-transform: uppercase;
@@ -697,7 +697,7 @@
         height: 100%;
         display: inline-flex;
         align-items: center;
-        font-size: 12.5px;
+        font-size: 12px;
         font-weight: 500;
         color: var(--color-muted-light);
         letter-spacing: -0.005em;
@@ -745,7 +745,7 @@
         border-radius: 999px;
         background: var(--sem-crit);
         color: var(--color-sand-light);
-        font-size: 10px;
+        font-size: 10.5px;
         font-weight: 600;
         letter-spacing: 0;
         line-height: 1;
@@ -774,7 +774,7 @@
         gap: 6px;
         border-right: 1px solid var(--line);
         color: var(--color-muted-light);
-        font-size: 11.5px;
+        font-size: 12px;
         letter-spacing: 0.04em;
         text-transform: uppercase;
         transition: color 0.15s, background 0.15s;
@@ -806,7 +806,7 @@
 
     .mnav-user {
         padding: 0 14px;
-        font-size: 11.5px;
+        font-size: 12px;
         letter-spacing: 0.04em;
         color: var(--color-ink);
         border-left: 1px solid var(--line);
@@ -920,7 +920,7 @@
         }
         .mast-top {
             padding-left: 0;
-            font-size: 9.5px;
+            font-size: 10.5px;
             letter-spacing: 0.08em;
         }
         .mast-top > .mast-top-left > span:not(:first-child),
@@ -951,7 +951,7 @@
         }
 
         .mast-title {
-            font-size: 22px;
+            font-size: 24px;
         }
 
         .mnav {
@@ -1110,7 +1110,7 @@
     }
 
     .hero-list-title {
-        font-size: 13.5px;
+        font-size: 13px;
         font-weight: 500;
         color: var(--color-ink);
         letter-spacing: -0.005em;
@@ -1145,7 +1145,7 @@
             padding: 18px 16px 20px;
         }
         .hero-title {
-            font-size: 22px;
+            font-size: 24px;
         }
         .hero-list-svc {
             display: none;
@@ -1177,7 +1177,7 @@
     }
 
     .card-head h2 {
-        font-size: 13.5px;
+        font-size: 13px;
         font-weight: 600;
         letter-spacing: -0.008em;
         color: var(--color-ink);
@@ -1204,7 +1204,7 @@
     }
 
     .card-action {
-        font-size: 12.5px;
+        font-size: 12px;
         color: var(--color-muted-light);
         padding: 3px 8px;
         border-radius: 5px;
@@ -1301,7 +1301,7 @@
     }
 
     .svc-name {
-        font-size: 13.5px;
+        font-size: 13px;
         font-weight: 500;
         letter-spacing: -0.005em;
         color: var(--color-ink);
@@ -1447,7 +1447,7 @@
         gap: 12px;
         padding: 10px 16px 4px;
         font-family: var(--font-mono);
-        font-size: 9.5px;
+        font-size: 10.5px;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         color: var(--color-muted-light);
@@ -1516,7 +1516,7 @@
     }
 
     .log-title {
-        font-size: 13.5px;
+        font-size: 13px;
         font-weight: 500;
         color: var(--color-ink);
         letter-spacing: -0.005em;
@@ -1640,7 +1640,7 @@
     }
 
     .log-excerpt {
-        font-size: 12.5px;
+        font-size: 12px;
         color: var(--color-muted-light);
         line-height: 1.5;
         overflow: hidden;
@@ -1669,7 +1669,7 @@
             display: none;
         }
         .log-right {
-            font-size: 9.5px;
+            font-size: 10.5px;
             letter-spacing: 0.06em;
         }
         .log-row-ext .log-meta {
@@ -1693,7 +1693,7 @@
         justify-content: space-between;
         padding: 10px 16px;
         font-family: var(--font-mono);
-        font-size: 9.5px;
+        font-size: 10.5px;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         color: var(--color-muted-light);
@@ -1746,7 +1746,7 @@
         align-items: center;
         gap: 5px;
         font-family: var(--font-mono);
-        font-size: 9.5px;
+        font-size: 10.5px;
         font-weight: 500;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -1791,7 +1791,7 @@
     }
 
     .mnt-title {
-        font-size: 13.5px;
+        font-size: 13px;
         font-weight: 500;
         letter-spacing: -0.005em;
         color: var(--color-ink);
@@ -1824,7 +1824,7 @@
 
     .mnt-chip {
         font-family: var(--font-mono);
-        font-size: 10px;
+        font-size: 10.5px;
         letter-spacing: 0.02em;
         padding: 2px 6px;
         background: var(--surface-subtle);
@@ -1864,7 +1864,7 @@
     }
 
     .mnt-past-title {
-        font-size: 12.5px;
+        font-size: 12px;
         color: var(--color-ink);
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1878,7 +1878,7 @@
 
     .mnt-past-meta {
         font-family: var(--font-mono);
-        font-size: 10px;
+        font-size: 10.5px;
         color: var(--color-muted-light);
         letter-spacing: 0.04em;
         text-transform: uppercase;
@@ -2068,7 +2068,7 @@
     /* Author and date, the only identity the kicker does not already carry. */
     .drawer-meta {
         margin-top: 6px;
-        font-size: 12.5px;
+        font-size: 12px;
         color: var(--color-muted-light);
         font-feature-settings: 'tnum' 1;
     }
@@ -2079,7 +2079,7 @@
 
     .drawer-services {
         margin-top: 8px;
-        font-size: 12.5px;
+        font-size: 12px;
         color: var(--color-ink);
     }
 
@@ -2087,18 +2087,86 @@
         color: var(--color-sand-light);
     }
 
-    .drawer-prose {
-        font-size: 14.5px;
+    /* Rendered markdown: event descriptions and updates. Hand-written rather
+       than the typography plugin, which was referenced by class name but never
+       installed, so the content fell back to browser defaults. */
+    .rich-text {
+        font-size: 14px;
         color: rgb(28 27 24 / 0.85);
         line-height: 1.65;
     }
 
-    :is(.dark *) .drawer-prose {
+    :is(.dark *) .rich-text {
         color: rgb(244 241 235 / 0.85);
     }
 
-    .drawer-prose p + p {
+    .rich-text > * + * {
         margin-top: 10px;
+    }
+
+    .rich-text ul,
+    .rich-text ol {
+        padding-left: 20px;
+    }
+
+    .rich-text ul { list-style: disc; }
+    .rich-text ol { list-style: decimal; }
+
+    .rich-text li + li {
+        margin-top: 4px;
+    }
+
+    .rich-text strong {
+        font-weight: 600;
+        color: var(--color-ink);
+    }
+
+    :is(.dark *) .rich-text strong {
+        color: var(--color-sand-light);
+    }
+
+    .rich-text a {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        text-decoration-color: rgb(28 27 24 / 0.3);
+    }
+
+    .rich-text a:hover {
+        text-decoration-color: currentColor;
+    }
+
+    :is(.dark *) .rich-text a {
+        text-decoration-color: rgb(244 241 235 / 0.35);
+    }
+
+    .rich-text code {
+        font-size: 13px;
+        padding: 1px 5px;
+        border-radius: 3px;
+        background: var(--surface-subtle);
+    }
+
+    .rich-text pre {
+        font-size: 13px;
+        padding: 10px 12px;
+        border-radius: 4px;
+        background: var(--surface-subtle);
+        overflow-x: auto;
+    }
+
+    .rich-text pre code {
+        padding: 0;
+        background: none;
+    }
+
+    .rich-text blockquote {
+        padding-left: 12px;
+        border-left: 1px solid var(--line);
+        color: var(--color-muted-light);
+    }
+
+    :is(.dark *) .rich-text blockquote {
+        color: var(--color-muted-dark);
     }
 
     .drawer-update {
@@ -2168,7 +2236,7 @@
         gap: 5px;
         margin-left: -8px;
         padding: 6px 8px;
-        font-size: 12.5px;
+        font-size: 12px;
         font-weight: 500;
         color: var(--color-ink);
         border-radius: 5px;
@@ -2288,7 +2356,7 @@
 
     .icon-upload-cta {
         font-family: var(--font-mono);
-        font-size: 11.5px;
+        font-size: 12px;
         font-weight: 500;
         letter-spacing: 0.04em;
         color: var(--color-ink);
@@ -2299,7 +2367,7 @@
     }
 
     .icon-upload-hint {
-        font-size: 11.5px;
+        font-size: 12px;
         color: var(--color-muted-light);
     }
 
@@ -2477,7 +2545,7 @@
     }
 
     .set-label {
-        font-size: 13.5px;
+        font-size: 13px;
         font-weight: 500;
         color: var(--color-ink);
         line-height: 1.35;

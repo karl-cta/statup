@@ -96,30 +96,6 @@ impl Kind {
         }
     }
 
-    /// Tailwind class for the event card's vertical strip. Width reflects the
-    /// "weight" (active incident = thick, others = thin or none), color
-    /// reflects kind and severity.
-    pub fn card_strip_class(
-        self,
-        severity: Option<Severity>,
-        lifecycle: Option<Lifecycle>,
-    ) -> &'static str {
-        let is_active = lifecycle.is_some_and(Lifecycle::is_active);
-        match self {
-            Self::Incident if is_active => match severity {
-                Some(Severity::Critical) => "border-l-4 border-l-red-500 dark:border-l-red-400",
-                Some(Severity::Major) => "border-l-4 border-l-orange-500 dark:border-l-orange-400",
-                Some(Severity::Minor) => "border-l-4 border-l-yellow-600 dark:border-l-yellow-500",
-                None => "border-l-4 border-l-stone-400 dark:border-l-stone-500",
-            },
-            Self::Maintenance if is_active => "border-l-2 border-l-blue-400 dark:border-l-blue-500",
-            Self::Incident | Self::Maintenance => {
-                "border-l-2 border-l-stone-300 dark:border-l-stone-600"
-            }
-            Self::Publication => "border-l-0",
-        }
-    }
-
     /// Allowed transitions from `current` for this kind. Returns an empty
     /// slice for terminal states or for an invalid (kind, lifecycle) pair.
     pub fn allowed_transitions(self, current: Lifecycle) -> &'static [Lifecycle] {

@@ -4,7 +4,7 @@
 <div class="flex min-h-full flex-col">
 
     <a href="#main-content"
-       class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-sm focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-sand-light focus:outline-none focus:ring-2 focus:ring-ink dark:focus:bg-sand-light dark:focus:text-ink dark:focus:ring-sand-light">
+       class="sr-only text-sm focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-sm focus:bg-ink focus:px-4 focus:py-2 focus:font-medium focus:text-sand-light focus:outline-none focus:ring-2 focus:ring-ink dark:focus:bg-sand-light dark:focus:text-ink dark:focus:ring-sand-light">
         {{ i18n.t("nav.skip_to_content") }}
     </a>
 
@@ -101,7 +101,7 @@
                 <a href="/events" class="relative block py-2.5 text-[14px] font-medium text-ink/75 transition-colors hover:text-ink dark:text-sand-light/75 dark:hover:text-sand-light">
                     {{ i18n.t("nav.events") }}
                     {% if unread_count > 0 %}
-                    <span class="ml-2 inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-medium tabular-nums text-sand-light bg-red-600">
+                    <span class="ml-2 inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[10.5px] font-medium tabular-nums text-sand-light bg-red-600">
                         {% if unread_count > 99 %}99+{% else %}{{ unread_count }}{% endif %}
                     </span>
                     {% endif %}
@@ -170,10 +170,10 @@
                 {% let logo_size = "h-4 w-4 text-ink/55 dark:text-sand-light/45" %}
                 {% include "components/logo.html" %}
                 <span class="text-[13px] font-medium text-ink/70 dark:text-sand-light/60">Statup</span>
-                <span class="text-ink/25 dark:text-sand-light/20" aria-hidden="true">·</span>
-                <span class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink/45 dark:text-sand-light/40">AGPL-3.0</span>
+                <span class="text-[13px] text-ink/25 dark:text-sand-light/20" aria-hidden="true">·</span>
+                <span class="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink/45 dark:text-sand-light/40">AGPL-3.0</span>
             </div>
-            <div class="flex items-center gap-4 font-mono text-[10px] uppercase tracking-[0.14em]">
+            <div class="flex items-center gap-4 font-mono text-[10.5px] uppercase tracking-[0.14em]">
                 {% if let Some(ts) = last_admin_action %}
                 <span class="text-ink/45 dark:text-sand-light/40">
                     {{ i18n.t("date.last_update") }} · {{ ts }}
