@@ -12,10 +12,10 @@
     --color-ink: #1C1B18;
     --color-ink-deep: #141310;
     --color-sand: #F4F1EB;
-    --color-sand-warm: #E8E3D8;
+    --color-sand-warm: #E8E6E1;
     --color-sand-light: #FAF8F2;
-    --color-cream: #FAF8F2;
-    --color-page: #F4F1EB;
+    --color-cream: #FAFAF9;
+    --color-page: #FFFFFF;
     --color-muted-light: #5F5C52;
     --color-muted-dark: #9C9689;
 
@@ -76,10 +76,10 @@
     --color-impact-major: oklch(0.553 0.195 38);
     --color-impact-critical: oklch(0.577 0.245 27);
 
-    --color-surface-0: #F4F1EB;
-    --color-surface-1: #FAF8F2;
-    --color-surface-2: #E8E3D8;
-    --color-surface-3: #D5CFBE;
+    --color-surface-0: #FFFFFF;
+    --color-surface-1: #FAFAF9;
+    --color-surface-2: #E8E6E1;
+    --color-surface-3: #D9D5CE;
 }
 
 .dark {
