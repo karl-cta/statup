@@ -17,12 +17,16 @@
     --color-cream: #FAFAF9;
     --color-page: #FFFFFF;
 
-    /* Brand accent, used only on the mark and the wordmark. Olive from the
-       original brand system (docs/mockups/brand.html), which pairs with the
-       sage used on dark. Sage sits 71 degrees from the operational green, so
-       the identity is not read as a status; on white it only reaches 2.5:1,
-       hence the deeper olive here and the lighter sage under .dark. */
-    --color-brand: #628141;
+    /* Brand accent, used only on the dot of the mark and the last letter of
+       the wordmark. Sage from the original brand system
+       (docs/mockups/brand.html). One value in both themes, decided with the
+       product owner: a brand color that shifts between themes is not one
+       color, and the mark is the one place the identity must stay fixed.
+       Sage sits 71 degrees from the operational green, so the identity is
+       never read as a status. It reaches 2.5:1 on white, which WCAG allows
+       here because logotypes and brand names carry no contrast requirement;
+       do not reuse it for anything that has to be read. */
+    --color-brand: #8BAE66;
     --color-muted-light: #5F5C52;
     --color-muted-dark: #9C9689;
 
@@ -108,8 +112,6 @@
 
     --color-accent: #F4F1EB;
     --color-accent-hover: #FAF8F2;
-
-    --color-brand: #8BAE66;
 }
 
 /* Mode-aware alpha ramps. Use these instead of hard-coded rgb(ink/sand / a),

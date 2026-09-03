@@ -628,13 +628,16 @@
     }
 
     /* The one colored element of the identity: the dot of the mark, and the
-       wordmark it sits next to. Nowhere else, so the palette stays free to
-       mean status and only status. */
+       last letter of the wordmark it sits next to, which echoes that dot.
+       Nowhere else, so the palette stays free to mean status and only status.
+       The wordmark itself stays ink: a fully colored word puts more brand on
+       the page than the accent rule allows, and competes with the status
+       colors it sits above. */
     .logo-dot {
         fill: var(--color-brand);
     }
 
-    .mast-word {
+    .mast-word-accent {
         color: var(--color-brand);
     }
 
