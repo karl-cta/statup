@@ -65,6 +65,7 @@ async fn main() {
         login_limiter: Arc::new(LoginRateLimiter::default()),
         upload_dir: config.upload_dir,
         public_mode: Arc::new(AtomicBool::new(public_mode)),
+        trust_proxy_headers: config.trust_proxy_headers,
     };
 
     let app = create_router(state).layer(session_layer);

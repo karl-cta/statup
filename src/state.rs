@@ -20,6 +20,8 @@ pub struct AppState {
     /// Public mode: read-only pages accessible without login (REQ-16).
     /// Togglable at runtime from the admin panel.
     pub public_mode: Arc<AtomicBool>,
+    /// Read the client IP from proxy headers when rate limiting.
+    pub trust_proxy_headers: bool,
 }
 
 impl AppState {

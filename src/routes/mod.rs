@@ -22,8 +22,8 @@ mod profile;
 mod services;
 
 use axum::Router;
-use axum::http::HeaderValue;
 use axum::http::header::HeaderName;
+use axum::http::{HeaderValue, Response, StatusCode};
 use axum::middleware;
 use axum::routing::{get, post};
 use tower_governor::GovernorLayer;
@@ -50,7 +50,36 @@ use crate::state::AppState;
 #[allow(clippy::too_many_lines)]
 pub fn create_router(state: AppState) -> Router {
     let upload_dir = state.upload_dir.clone();
-    Router::new()
+    let trust_proxy_headers = state.trust_proxy_headers;
+
+    // Assets are served outside the rate limiter. One page view pulls six
+    // requests (page, stylesheet, two scripts, font, texture), so counting
+    // them left a budget of about sixteen page views per minute per IP.
+    let assets = Router::new()
+        // Static files, short TTL + ETag revalidation (no hash in filenames yet)
+        .nest_service(
+            "/static",
+            tower::ServiceBuilder::new()
+                .layer(SetResponseHeaderLayer::if_not_present(
+                    axum::http::header::CACHE_CONTROL,
+                    axum::http::HeaderValue::from_static(
+                        "public, max-age=300, must-revalidate",
+                    ),
+                ))
+                .service(ServeDir::new("static").precompressed_gzip()),
+        )
+        // User-uploaded files with shorter cache
+        .nest_service(
+            "/uploads",
+            tower::ServiceBuilder::new()
+                .layer(SetResponseHeaderLayer::if_not_present(
+                    axum::http::header::CACHE_CONTROL,
+                    axum::http::HeaderValue::from_static("public, max-age=86400"),
+                ))
+                .service(ServeDir::new(upload_dir)),
+        );
+
+    let routes = Router::new()
         // Public routes (no auth required)
         .route("/login", get(auth::login_form).post(auth::login))
         .route("/register", get(auth::register_form).post(auth::register))
@@ -114,29 +143,23 @@ pub fn create_router(state: AppState) -> Router {
         // Logout (authenticated)
         .route("/logout", post(auth::logout))
 
-        // Static files, short TTL + ETag revalidation (no hash in filenames yet)
-        .nest_service(
-            "/static",
-            tower::ServiceBuilder::new()
-                .layer(SetResponseHeaderLayer::if_not_present(
-                    axum::http::header::CACHE_CONTROL,
-                    axum::http::HeaderValue::from_static(
-                        "public, max-age=300, must-revalidate",
-                    ),
-                ))
-                .service(ServeDir::new("static").precompressed_gzip()),
-        )
-        // User-uploaded files with shorter cache
-        .nest_service(
-            "/uploads",
-            tower::ServiceBuilder::new()
-                .layer(SetResponseHeaderLayer::if_not_present(
-                    axum::http::header::CACHE_CONTROL,
-                    axum::http::HeaderValue::from_static("public, max-age=86400"),
-                ))
-                .service(ServeDir::new(upload_dir)),
-        )
-        .layer(middleware::from_fn(csrf_middleware))
+        .layer(middleware::from_fn(csrf_middleware));
+
+    // 100 requests per minute per client, dynamic routes only. Behind a reverse
+    // proxy every visitor shares the proxy address, which would turn a per
+    // client limit into a site wide one, so the key extractor is configurable.
+    let routes = if trust_proxy_headers {
+        routes.layer(GovernorLayer {
+            config: std::sync::Arc::new(proxied_rate_limit_config()),
+        })
+    } else {
+        routes.layer(GovernorLayer {
+            config: std::sync::Arc::new(direct_rate_limit_config()),
+        })
+    };
+
+    routes
+        .merge(assets)
         // Security headers
         .layer(SetResponseHeaderLayer::overriding(
             axum::http::header::X_CONTENT_TYPE_OPTIONS,
@@ -158,10 +181,6 @@ pub fn create_router(state: AppState) -> Router {
         ))
         // Request body size limit: 1 MB
         .layer(RequestBodyLimitLayer::new(1024 * 1024))
-        // Global rate limiting: 100 req/min per IP with X-RateLimit-* headers
-        .layer(GovernorLayer {
-            config: std::sync::Arc::new(rate_limit_config()),
-        })
         // Gzip compression for responses > 1 KB
         .layer(
             CompressionLayer::new()
@@ -176,8 +195,9 @@ pub fn create_router(state: AppState) -> Router {
         .with_state(state)
 }
 
-/// Build governor config: 100 requests per minute per IP, with rate-limit headers.
-fn rate_limit_config() -> tower_governor::governor::GovernorConfig<
+/// 100 requests per minute, keyed on the address of the direct connection.
+/// The default: correct when the app faces clients itself.
+fn direct_rate_limit_config() -> tower_governor::governor::GovernorConfig<
     tower_governor::key_extractor::PeerIpKeyExtractor,
     governor::middleware::StateInformationMiddleware,
 > {
@@ -186,6 +206,77 @@ fn rate_limit_config() -> tower_governor::governor::GovernorConfig<
         .per_millisecond(600)
         .burst_size(100)
         .use_headers()
+        .error_handler(rate_limited_response)
         .finish()
         .expect("invalid rate limit configuration")
+}
+
+/// Same budget, keyed on the client address advertised by the proxy. Enabled by
+/// `TRUST_PROXY_HEADERS`: without a proxy in front, those headers are attacker
+/// controlled and every request would land in a different bucket.
+fn proxied_rate_limit_config() -> tower_governor::governor::GovernorConfig<
+    tower_governor::key_extractor::SmartIpKeyExtractor,
+    governor::middleware::StateInformationMiddleware,
+> {
+    GovernorConfigBuilder::default()
+        .per_millisecond(600)
+        .burst_size(100)
+        .use_headers()
+        .key_extractor(tower_governor::key_extractor::SmartIpKeyExtractor)
+        .error_handler(rate_limited_response)
+        .finish()
+        .expect("invalid rate limit configuration")
+}
+
+/// Response served when a client runs out of budget. The crate default is a bare
+/// string that reads "Wait for 0s", because a slot frees in under a second and
+/// the delay is printed as whole seconds. This says something true instead, and
+/// stays self contained so it renders even if nothing else loads.
+fn rate_limited_response(
+    error: tower_governor::errors::GovernorError,
+) -> Response<axum::body::Body> {
+    let (status, wait_time, headers) = match error {
+        tower_governor::errors::GovernorError::TooManyRequests { wait_time, headers } => {
+            (StatusCode::TOO_MANY_REQUESTS, wait_time.max(1), headers)
+        }
+        tower_governor::errors::GovernorError::UnableToExtractKey => {
+            (StatusCode::INTERNAL_SERVER_ERROR, 1, None)
+        }
+        tower_governor::errors::GovernorError::Other { code, headers, .. } => (code, 1, headers),
+    };
+
+    let body = format!(
+        r#"<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="{wait_time}">
+<title>Slow down | Statup</title>
+<style>
+  :root {{ color-scheme: light dark; }}
+  body {{ margin: 0; min-height: 100vh; display: grid; place-items: center;
+         background: #FFFFFF; color: #1C1B18; text-align: center; padding: 24px;
+         font: 400 14px/1.6 -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }}
+  h1 {{ font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 8px; }}
+  p {{ margin: 0; color: #5F5C52; max-width: 44ch; }}
+  @media (prefers-color-scheme: dark) {{
+    body {{ background: #1C1B18; color: #FAF8F2; }}
+    p {{ color: #9C9689; }}
+  }}
+</style></head>
+<body><main>
+  <h1>Too many requests</h1>
+  <p>This page is rate limited. It reloads on its own in {wait_time} second(s).</p>
+</main></body></html>"#
+    );
+
+    let mut response = Response::new(axum::body::Body::from(body));
+    *response.status_mut() = status;
+    if let Some(headers) = headers {
+        *response.headers_mut() = headers;
+    }
+    response.headers_mut().insert(
+        axum::http::header::CONTENT_TYPE,
+        HeaderValue::from_static("text/html; charset=utf-8"),
+    );
+    response
 }

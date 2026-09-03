@@ -59,6 +59,7 @@ impl TestApp {
             login_limiter: Arc::new(LoginRateLimiter::default()),
             upload_dir,
             public_mode: Arc::new(AtomicBool::new(false)),
+            trust_proxy_headers: false,
         };
 
         let app = create_router(state).layer(session_layer);

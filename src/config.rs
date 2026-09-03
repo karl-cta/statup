@@ -40,6 +40,10 @@ pub struct Config {
     pub upload_dir: String,
     /// Public mode: read-only pages accessible without login (REQ-16).
     pub public_mode: bool,
+    /// Read the client IP from `Forwarded` / `X-Forwarded-For` for rate limiting.
+    /// Only enable behind a reverse proxy that sets those headers: with no proxy
+    /// in front, a client can forge them and walk around the rate limit.
+    pub trust_proxy_headers: bool,
 }
 
 impl Config {
@@ -88,6 +92,12 @@ impl Config {
                 key: "PUBLIC_MODE".into(),
                 message: e.to_string(),
             })?;
+        let trust_proxy_headers = get_env_or("TRUST_PROXY_HEADERS", "false")
+            .parse::<bool>()
+            .map_err(|e| ConfigError::InvalidValue {
+                key: "TRUST_PROXY_HEADERS".into(),
+                message: e.to_string(),
+            })?;
 
         let config = Self {
             database_url,
@@ -101,6 +111,7 @@ impl Config {
             admin_password,
             upload_dir,
             public_mode,
+            trust_proxy_headers,
         };
 
         config.validate()?;

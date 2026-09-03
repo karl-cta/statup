@@ -72,6 +72,7 @@ Everything lives in `.env`. Only `SESSION_SECRET` is required.
 | `PORT` | No | `3000` | Listen port |
 | `LOG_LEVEL` | No | `info` | trace, debug, info, warn, error |
 | `PUBLIC_MODE` | No | `false` | Allow guest access to read-only pages |
+| `TRUST_PROXY_HEADERS` | No | `false` | Read the client IP from `Forwarded` / `X-Forwarded-For` when rate limiting. Enable it behind a reverse proxy, otherwise every visitor shares the proxy address and the limit becomes site wide. Never enable it without a proxy in front: the headers are then attacker controlled |
 | `ADMIN_EMAIL` | No | | Initial admin email (first run only) |
 | `ADMIN_PASSWORD` | No | | Initial admin password (first run only) |
 
