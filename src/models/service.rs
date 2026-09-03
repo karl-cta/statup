@@ -120,25 +120,16 @@ impl ServiceStatus {
         }
     }
 
-    /// Mono label text color class.
+    /// Text color class for a status read as a value, such as the uptime
+    /// percentage. Resolves through the semantic tokens so it matches the dot
+    /// beside it and needs no dark-theme variant.
     pub fn mono_color_class(self) -> &'static str {
         match self {
-            Self::Operational => "text-emerald-700 dark:text-emerald-400",
-            Self::Degraded => "text-yellow-700 dark:text-yellow-400",
-            Self::PartialOutage => "text-orange-700 dark:text-orange-400",
-            Self::MajorOutage => "text-red-700 dark:text-red-400",
-            Self::Maintenance => "text-blue-700 dark:text-blue-400",
-        }
-    }
-
-    /// CSS class for the left-side status strip on cards.
-    pub fn strip_class(self) -> &'static str {
-        match self {
-            Self::Operational => "strip-operational",
-            Self::Degraded => "strip-degraded",
-            Self::PartialOutage => "strip-partial",
-            Self::MajorOutage => "strip-major",
-            Self::Maintenance => "strip-maintenance",
+            Self::Operational => "status-operational",
+            Self::Degraded => "status-degraded",
+            Self::PartialOutage => "status-partial",
+            Self::MajorOutage => "status-major",
+            Self::Maintenance => "status-maintenance",
         }
     }
 
