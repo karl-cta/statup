@@ -8,7 +8,6 @@
            the label a visitor must read first. */
         --sem-ok: #8BAE66;
         --sem-ok-text: #517232;
-        --sem-ok-ring: rgb(139 174 102 / 0.24);
         --sem-ok-soft: rgb(139 174 102 / 0.16);
 
         /* The four status hues below were drawn for this ink and this ground.
@@ -20,30 +19,25 @@
            that shouts. */
         --sem-minor: #D2B373;
         --sem-minor-text: #826931;
-        --sem-minor-ring: rgb(210 179 115 / 0.22);
         --sem-minor-soft: rgb(210 179 115 / 0.14);
 
         --sem-major: #CA874E;
         --sem-major-text: #925A25;
-        --sem-major-ring: rgb(202 135 78 / 0.22);
         --sem-major-soft: rgb(202 135 78 / 0.12);
 
         --sem-crit: #D03833;
         --sem-crit-text: #B01F1F;
-        --sem-crit-ring: rgb(208 56 51 / 0.22);
         --sem-crit-soft: rgb(208 56 51 / 0.1);
         --sem-crit-border: rgb(208 56 51 / 0.26);
 
         --sem-info: #507FA7;
         --sem-info-text: #336288;
-        --sem-info-ring: rgb(80 127 167 / 0.2);
         --sem-info-soft: rgb(80 127 167 / 0.1);
     }
 
     .dark {
         --sem-ok: #8BAE66;
         --sem-ok-text: #8BAE66;
-        --sem-ok-ring: rgb(139 174 102 / 0.24);
         --sem-ok-soft: rgb(139 174 102 / 0.16);
 
         /* Composed for the dark ground, not lightened mechanically from the
@@ -51,23 +45,19 @@
            critical still the most saturated of the four. */
         --sem-minor: #E3C78E;
         --sem-minor-text: #E3C78E;
-        --sem-minor-ring: rgb(227 199 142 / 0.2);
         --sem-minor-soft: rgb(227 199 142 / 0.14);
 
         --sem-major: #E4A067;
         --sem-major-text: #E4A067;
-        --sem-major-ring: rgb(228 160 103 / 0.22);
         --sem-major-soft: rgb(228 160 103 / 0.12);
 
         --sem-crit: #EF675C;
         --sem-crit-text: #EF675C;
-        --sem-crit-ring: rgb(239 103 92 / 0.22);
         --sem-crit-soft: rgb(239 103 92 / 0.08);
         --sem-crit-border: rgb(239 103 92 / 0.28);
 
         --sem-info: #73ABDA;
         --sem-info-text: #73ABDA;
-        --sem-info-ring: rgb(115 171 218 / 0.22);
         --sem-info-soft: rgb(115 171 218 / 0.12);
     }
 

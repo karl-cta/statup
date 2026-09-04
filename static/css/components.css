@@ -21,6 +21,7 @@
 @layer components {
 
     .badge {
+        position: relative;
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -45,8 +46,23 @@
         height: 6px;
         border-radius: 50%;
         background: var(--led);
-        box-shadow: 0 0 0 3px var(--led-ring);
         flex-shrink: 0;
+    }
+
+    /* The ring sits over the ::before dot, which is the badge's first flex item
+       and therefore flush with its left edge. */
+    .badge::after {
+        content: '';
+        position: absolute;
+        left: -3px;
+        top: 50%;
+        margin-top: -6px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 1px solid var(--led);
+        pointer-events: none;
+        animation: dot-ring-in 0.56s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
 
     /* Lifecycle resolves to the semantic tokens rather than its own hues:
@@ -54,14 +70,12 @@
        Severity carries the urgency color, the lifecycle stage does not. */
     .badge-scheduled {
         --led: var(--sem-info);
-        --led-ring: var(--sem-info-ring);
         color: var(--sem-info-text);
     }
 
     .badge-resolved,
     .badge-completed {
         --led: var(--sem-ok);
-        --led-ring: var(--sem-ok-ring);
         color: var(--sem-ok-text);
     }
 
@@ -69,7 +83,6 @@
     .badge-in-progress,
     .badge-monitoring {
         --led: var(--color-ink);
-        --led-ring: var(--surface-subtle);
         color: var(--color-ink);
     }
 
@@ -80,7 +93,6 @@
 
     .badge-cancelled {
         --led: var(--color-muted-light);
-        --led-ring: var(--surface-subtle);
         color: var(--color-muted-light);
     }
 
@@ -1032,32 +1044,31 @@
     }
 
     .hero-dot {
+        position: relative;
         width: 8px;
         height: 8px;
         border-radius: 50%;
         flex-shrink: 0;
         display: inline-block;
+        background: var(--dot);
     }
 
     .hero-dot-ok {
-        background: var(--sem-ok);
-        box-shadow: 0 0 0 3px var(--sem-ok-ring);
+        --dot: var(--sem-ok);
     }
 
     .hero-dot-crit {
-        background: var(--sem-crit);
-        box-shadow: 0 0 0 3px var(--sem-crit-ring);
+        --dot: var(--sem-crit);
     }
 
     /* Idle: no service configured. Neutral on purpose, this is neither health
        nor failure, and a green dot here would be a claim the instance cannot make. */
     .hero-dot-idle {
-        background: var(--color-muted-light);
-        box-shadow: 0 0 0 3px var(--surface-subtle);
+        --dot: var(--color-muted-light);
     }
 
     :is(.dark *) .hero-dot-idle {
-        background: var(--color-muted-dark);
+        --dot: var(--color-muted-dark);
     }
 
     .hero-action {
@@ -1165,12 +1176,15 @@
         opacity: 0.7;
     }
 
+    /* No ring here on purpose: at 6px, inside a list of incidents, a ring
+       around every line reads as noise rather than as emphasis. */
     .hero-dot-sm {
         width: 6px;
         height: 6px;
         border-radius: 50%;
         flex-shrink: 0;
         align-self: center;
+        background: var(--dot);
     }
 
     .hero-list-title {
@@ -1362,35 +1376,71 @@
     }
 
     .svc-dot {
+        position: relative;
         flex: none;
         width: 8px;
         height: 8px;
         border-radius: 50%;
+        background: var(--dot);
     }
 
     .svc-dot-operational {
-        background: var(--sem-ok);
-        box-shadow: 0 0 0 3px var(--sem-ok-ring);
+        --dot: var(--sem-ok);
     }
 
     .svc-dot-degraded {
-        background: var(--sem-minor);
-        box-shadow: 0 0 0 3px var(--sem-minor-ring);
+        --dot: var(--sem-minor);
     }
 
     .svc-dot-partial_outage {
-        background: var(--sem-major);
-        box-shadow: 0 0 0 3px var(--sem-major-ring);
+        --dot: var(--sem-major);
     }
 
     .svc-dot-major_outage {
-        background: var(--sem-crit);
-        box-shadow: 0 0 0 3px var(--sem-crit-ring);
+        --dot: var(--sem-crit);
     }
 
     .svc-dot-maintenance {
-        background: var(--sem-info);
-        box-shadow: 0 0 0 3px var(--sem-info-ring);
+        --dot: var(--sem-info);
+    }
+
+    /* The ring is its own element rather than a box-shadow so the gap between
+       dot and ring stays transparent: it then reads identically on the page, on
+       a card and on the tinted incident ground. It is a full-opacity hairline,
+       because the translucent halo it replaces belonged to the family of tells
+       this system rejects. It arrives once, on load, and never loops: motion
+       marks where something is, it does not decorate a state that is not
+       changing. */
+    .hero-dot::after,
+    .svc-dot::after {
+        content: '';
+        position: absolute;
+        inset: -3px;
+        border-radius: 50%;
+        border: 1px solid var(--dot);
+        pointer-events: none;
+        animation: dot-ring-in 0.56s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    @keyframes dot-ring-in {
+        from {
+            transform: scale(0.35);
+            opacity: 0;
+        }
+
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+        .hero-dot::after,
+        .svc-dot::after,
+        .badge::after {
+            animation: none;
+        }
     }
 
     /* The service name is the object of this card, so it outweighs the rows
