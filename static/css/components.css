@@ -1537,6 +1537,18 @@
         opacity: 0.95;
     }
 
+    /* Days before the service existed. Neutral on purpose: nothing observed
+       them, and an operational bar there claims uptime never measured. The
+       token is theme aware, so one rule covers light and dark. */
+    .svc-bars .bar-none {
+        background: var(--color-surface-2);
+        opacity: 1;
+    }
+
+    :is(.dark *) .svc-bars .bar-none {
+        opacity: 1;
+    }
+
     /* One legend for the whole card. The period used to be repeated under every
        service, where it said the same thing on every row and still left the
        sparklines without a stated meaning. */

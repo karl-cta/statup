@@ -65,6 +65,8 @@
   "dashboard.sparkline_legend_minor": "Incident mineur",
   "dashboard.sparkline_legend_major": "Incident majeur",
   "dashboard.sparkline_legend_critical": "Panne critique",
+  "dashboard.sparkline_legend_none": "Avant la création du service",
+  "dashboard.availability_unknown": "n/d",
   "dashboard.no_modules": "Aucun module activé sur ce tableau de bord.",
 
   "modules.status_banner.name": "Bandeau de statut",

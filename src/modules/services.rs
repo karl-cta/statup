@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use askama::Template;
 use async_trait::async_trait;
-use chrono::{Duration, Utc};
+use chrono::{Duration, NaiveDate, Utc};
 
 use crate::error::AppError;
 use crate::i18n::I18n;
@@ -39,11 +39,14 @@ struct ServicesTemplate {
 }
 
 impl ServicesTemplate {
-    #[allow(clippy::trivially_copy_pass_by_ref)]
-    fn sparkline_days(&self, service_id: &i64) -> Vec<SparklineDay> {
+    /// One entry per day in the window, oldest first. `None` marks a day before
+    /// the service existed: nothing observed it, and painting it operational
+    /// would claim uptime the instance never measured.
+    fn day_levels(&self, service: &Service) -> Vec<(NaiveDate, Option<u8>)> {
         let empty = vec![0u8; SPARKLINE_DAYS as usize];
-        let points = self.sparkline_map.get(service_id).unwrap_or(&empty);
+        let points = self.sparkline_map.get(&service.id).unwrap_or(&empty);
         let today = Utc::now().date_naive();
+        let first_day = service.created_at.date_naive();
         let count = points.len();
         points
             .iter()
@@ -52,21 +55,26 @@ impl ServicesTemplate {
                 let offset =
                     i64::try_from(count.saturating_sub(1).saturating_sub(idx)).unwrap_or(0);
                 let date = today - Duration::days(offset);
-                let label_key = match level {
-                    0 => "dashboard.sparkline_legend_ok",
-                    1 => "dashboard.sparkline_legend_minor",
-                    2 => "dashboard.sparkline_legend_major",
-                    _ => "dashboard.sparkline_legend_critical",
-                };
-                let class = match level {
-                    0 => "bar",
-                    1 => "bar bar-minor",
-                    2 => "bar bar-major",
-                    _ => "bar bar-crit",
+                let observed = if date < first_day { None } else { Some(level) };
+                (date, observed)
+            })
+            .collect()
+    }
+
+    fn sparkline_days(&self, service: &Service) -> Vec<SparklineDay> {
+        self.day_levels(service)
+            .into_iter()
+            .map(|(date, level)| {
+                let (label_key, class) = match level {
+                    None => ("dashboard.sparkline_legend_none", "bar bar-none"),
+                    Some(0) => ("dashboard.sparkline_legend_ok", "bar"),
+                    Some(1) => ("dashboard.sparkline_legend_minor", "bar bar-minor"),
+                    Some(2) => ("dashboard.sparkline_legend_major", "bar bar-major"),
+                    Some(_) => ("dashboard.sparkline_legend_critical", "bar bar-crit"),
                 };
                 let day = date.format("%Y-%m-%d").to_string();
                 let status = self.i18n.t(label_key).to_string();
-                let tooltip = format!("{day} · {status}");
+                let tooltip = format!("{day} \u{b7} {status}");
                 SparklineDay {
                     class,
                     date: day,
@@ -77,21 +85,27 @@ impl ServicesTemplate {
             .collect()
     }
 
-    #[allow(clippy::trivially_copy_pass_by_ref, clippy::naive_bytecount)]
-    fn uptime_pct(&self, service_id: &i64) -> String {
-        let points = match self.sparkline_map.get(service_id) {
-            Some(p) if !p.is_empty() => p,
-            _ => return "100.00%".to_string(),
-        };
-        let total = u32::try_from(points.len()).unwrap_or(u32::MAX);
-        let ok_days =
-            u32::try_from(points.iter().filter(|&&level| level == 0).count()).unwrap_or(u32::MAX);
-        let pct = if total > 0 {
-            f64::from(ok_days) / f64::from(total) * 100.0
-        } else {
-            100.0
-        };
-        format!("{pct:.2}%")
+    /// Availability over the days the service actually existed, not over the
+    /// whole window. A service with nothing observed yet prints a placeholder:
+    /// a fresh instance cannot claim thirty perfect days on its first morning.
+    /// One decimal, because thirty day-buckets only ever yield 31 values and a
+    /// second decimal would advertise a precision the computation lacks.
+    #[allow(clippy::naive_bytecount, clippy::cast_precision_loss)]
+    fn uptime_pct(&self, service: &Service) -> String {
+        let observed: Vec<u8> = self
+            .day_levels(service)
+            .into_iter()
+            .filter_map(|(_, level)| level)
+            .collect();
+        // A single observed day is the partial day the service was created on,
+        // which is not a measurement. The bars still show whatever happened.
+        let total = observed.len();
+        if total < 2 {
+            return self.i18n.t("dashboard.availability_unknown").to_string();
+        }
+        let ok_days = observed.iter().filter(|&&level| level == 0).count();
+        let pct = ok_days as f64 / total as f64 * 100.0;
+        format!("{pct:.1}%")
     }
 }
 

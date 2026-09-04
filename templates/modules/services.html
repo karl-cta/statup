@@ -25,12 +25,12 @@
                 <span class="svc-dot svc-dot-{{ service.status.as_str() }}" aria-hidden="true"></span>
                 <span class="svc-name">{{ service.name }}</span>
             </div>
-            <span class="svc-pct">{{ self.uptime_pct(service.id) }}</span>
+            <span class="svc-pct">{{ self.uptime_pct(service) }}</span>
         </div>
         <div class="svc-bars"
              role="img"
              aria-label="{{ i18n.t("dashboard.availability_30d") }}">
-            {% for day in self.sparkline_days(service.id) %}
+            {% for day in self.sparkline_days(service) %}
             <span class="{{ day.class }}" data-day-date="{{ day.date }}" data-day-status="{{ day.status }}" tabindex="0" role="img" aria-label="{{ day.tooltip }}"></span>
             {% endfor %}
         </div>

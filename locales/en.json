@@ -65,6 +65,8 @@
   "dashboard.sparkline_legend_minor": "Minor issue",
   "dashboard.sparkline_legend_major": "Major issue",
   "dashboard.sparkline_legend_critical": "Critical outage",
+  "dashboard.sparkline_legend_none": "Before the service existed",
+  "dashboard.availability_unknown": "n/a",
   "dashboard.no_modules": "No module enabled on this dashboard.",
 
   "modules.status_banner.name": "Status banner",
