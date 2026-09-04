@@ -1795,10 +1795,14 @@
     @media (max-width: 420px) {
         .log-row {
             grid-template-columns: 40px minmax(0, 1fr);
-            gap: 8px;
+            gap: 2px 8px;
         }
+        /* The lifecycle is the answer a visitor came for, so it moves to a
+           second line instead of being dropped. Hiding it left a phone unable
+           to tell an ongoing incident from one closed last month. */
         .log-row .log-right {
-            display: none;
+            grid-column: 2;
+            justify-self: start;
         }
     }
 
