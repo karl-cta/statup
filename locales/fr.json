@@ -50,6 +50,12 @@
   "dashboard.maintenance_past": "Passées",
   "dashboard.maintenance_tag_soon": "À venir",
   "dashboard.maintenance_tag_scheduled": "Programmée",
+  "time.overdue": "En retard de",
+  "dashboard.maintenance_tag_overdue": "En retard",
+  "events.planned_from": "Du",
+  "events.planned_to": "au",
+  "events.resolved_at": "Résolu le",
+  "events.duration": "durée",
   "dashboard.no_maintenance_at_all": "Aucune maintenance",
   "dashboard.availability_30d": "Disponibilité sur 30 jours",
   "dashboard.days_short": "j",
@@ -363,7 +369,6 @@
   "date.last_update": "Dernière mise à jour",
   "date.unknown_author": "Inconnu",
 
-  "time.now": "Maintenant",
 
   "month.1": "janvier",
   "month.2": "février",

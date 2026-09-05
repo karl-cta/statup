@@ -21,15 +21,17 @@
     {% for event in active_maintenance %}
     <a href="/events/{{ event.id }}" data-drawer="/events/{{ event.id }}/drawer" class="mnt">
         <div class="mnt-top">
-            <span class="mnt-tag {% if event.is_soon() %}mnt-tag-soon{% else %}mnt-tag-scheduled{% endif %}">
+            <span class="mnt-tag {% if event.is_overdue() || event.is_soon() %}mnt-tag-soon{% else %}mnt-tag-scheduled{% endif %}">
                 <span class="mnt-tag-dot" aria-hidden="true"></span>
-                {% if event.is_soon() %}
+                {% if event.is_overdue() %}
+                {{ i18n.t("dashboard.maintenance_tag_overdue") }}
+                {% else if event.is_soon() %}
                 {{ i18n.t("dashboard.maintenance_tag_soon") }}
                 {% else %}
                 {{ i18n.t("dashboard.maintenance_tag_scheduled") }}
                 {% endif %}
             </span>
-            {% match i18n.format_countdown_opt(event.countdown_parts()) %}
+            {% match i18n.format_countdown_opt(event.countdown()) %}
             {% when Some with (text) %}
             <span class="mnt-countdown{% if event.is_soon() %} mnt-countdown-soon{% endif %}">{{ text }}</span>
             {% when None %}

@@ -13,6 +13,8 @@ use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use chrono::{DateTime, Datelike, NaiveDate, Utc};
 
+use crate::models::Countdown;
+
 type TranslationMap = HashMap<String, String>;
 
 /// All supported translations, keyed by locale code.
@@ -179,14 +181,30 @@ impl I18n {
         }
     }
 
-    /// Format countdown from `countdown_parts()` result. Returns `None` if not applicable.
-    /// Designed for Askama templates to avoid destructuring issues.
-    pub fn format_countdown_opt(&self, parts: Option<Option<(i64, i64, i64)>>) -> Option<String> {
-        match parts {
-            Some(Some((d, h, m))) => Some(self.format_countdown(d, h, m)),
-            Some(None) => Some(self.t("time.now").to_string()),
-            None => None,
+    /// Format a countdown for templates, in whichever direction it runs.
+    /// Returns `None` when the event carries no planned date.
+    pub fn format_countdown_opt(&self, countdown: Option<Countdown>) -> Option<String> {
+        match countdown? {
+            Countdown::Upcoming {
+                days,
+                hours,
+                minutes,
+            } => Some(self.format_countdown(days, hours, minutes)),
+            Countdown::Overdue {
+                days,
+                hours,
+                minutes,
+            } => Some(format!(
+                "{} {}",
+                self.t("time.overdue"),
+                self.format_countdown(days, hours, minutes)
+            )),
         }
+    }
+
+    /// Format a duration triple, same shape as a countdown.
+    pub fn format_duration(&self, parts: &(i64, i64, i64)) -> String {
+        self.format_countdown(parts.0, parts.1, parts.2)
     }
 }
 

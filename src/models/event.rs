@@ -279,6 +279,19 @@ pub struct EventWithServices {
 }
 
 impl Event {
+    /// How long the event lasted, once it carries both ends.
+    pub fn duration(&self) -> Option<(i64, i64, i64)> {
+        let (start, end) = (self.started_at?, self.ended_at?);
+        if end <= start {
+            return None;
+        }
+        let diff = end - start;
+        Some((
+            diff.num_days(),
+            diff.num_hours() % 24,
+            diff.num_minutes() % 60,
+        ))
+    }
     /// Chip style variant for log-rows, derived from kind + severity.
     pub fn chip_class(&self) -> &'static str {
         chip_class_for(self.kind, self.severity)
@@ -348,31 +361,17 @@ impl EventSummary {
             .map(|f| format!("/uploads/icons/{f}"))
     }
 
-    /// Human countdown until the planned start (e.g. "3d 2h").
-    pub fn countdown(&self) -> Option<String> {
-        let start = self.planned_start?;
-        let now = Utc::now();
-        if start <= now {
-            return Some("Now".to_string());
-        }
-        let diff = start - now;
-        let days = diff.num_days();
-        let hours = diff.num_hours() % 24;
-        let minutes = diff.num_minutes() % 60;
-        if days > 0 {
-            Some(format!("{days}j {hours}h"))
-        } else if hours > 0 {
-            Some(format!("{hours}h {minutes:02}min"))
-        } else {
-            Some(format!("{minutes}min"))
-        }
-    }
-
     /// True if the planned start is less than 3 days away.
     pub fn is_soon(&self) -> bool {
-        self.countdown_parts()
-            .and_then(|inner| inner)
-            .is_some_and(|(days, _, _)| days < 3)
+        matches!(self.countdown(), Some(Countdown::Upcoming { days, .. }) if days < 3)
+    }
+
+    /// True once the planned start has passed. A scheduled maintenance that
+    /// still reads as calm and upcoming weeks after its date is the interface
+    /// stating something false, so this state is named rather than folded into
+    /// the countdown.
+    pub fn is_overdue(&self) -> bool {
+        matches!(self.countdown(), Some(Countdown::Overdue { .. }))
     }
 
     /// Chip style variant for log-rows, derived from kind + severity.
@@ -380,20 +379,40 @@ impl EventSummary {
         chip_class_for(self.kind, self.severity)
     }
 
-    /// Breakdown of the countdown into (days, hours, minutes) for rich display.
-    /// `None` if there is no planned date, `Some(None)` if the deadline is past.
-    pub fn countdown_parts(&self) -> Option<Option<(i64, i64, i64)>> {
+    /// Where the planned start sits relative to now. `None` when the event
+    /// carries no planned date.
+    pub fn countdown(&self) -> Option<Countdown> {
         let start = self.planned_start?;
         let now = Utc::now();
-        if start <= now {
-            return Some(None);
-        }
-        let diff = start - now;
+        let (diff, overdue) = if start <= now {
+            (now - start, true)
+        } else {
+            (start - now, false)
+        };
         let days = diff.num_days();
         let hours = diff.num_hours() % 24;
         let minutes = diff.num_minutes() % 60;
-        Some(Some((days, hours, minutes)))
+        Some(if overdue {
+            Countdown::Overdue {
+                days,
+                hours,
+                minutes,
+            }
+        } else {
+            Countdown::Upcoming {
+                days,
+                hours,
+                minutes,
+            }
+        })
     }
+}
+
+/// Distance between now and a planned start, in either direction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Countdown {
+    Upcoming { days: i64, hours: i64, minutes: i64 },
+    Overdue { days: i64, hours: i64, minutes: i64 },
 }
 
 #[derive(Debug, Clone)]

@@ -26,6 +26,20 @@
         <span aria-hidden="true">·</span>
         {{ i18n.format_datetime(event.event.created_at) }}
     </p>
+    {% match event.event.planned_start %}
+    {% when Some with (start) %}
+    <p class="drawer-meta">
+        {{ i18n.t("events.planned_from") }} {{ i18n.format_datetime(start) }}{% match event.event.planned_end %}{% when Some with (end) %} {{ i18n.t("events.planned_to") }} {{ i18n.format_datetime(end) }}{% when None %}{% endmatch %}
+    </p>
+    {% when None %}
+    {% endmatch %}
+    {% match event.event.ended_at %}
+    {% when Some with (ended) %}
+    <p class="drawer-meta">
+        {{ i18n.t("events.resolved_at") }} {{ i18n.format_datetime(ended) }}{% match event.event.duration() %}{% when Some with (parts) %} <span aria-hidden="true">·</span> {{ i18n.t("events.duration") }} {{ i18n.format_duration(parts) }}{% when None %}{% endmatch %}
+    </p>
+    {% when None %}
+    {% endmatch %}
 
     {% if !event.services.is_empty() %}
     <p class="drawer-services">
