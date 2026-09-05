@@ -363,6 +363,17 @@
         border-color: var(--color-ink);
     }
 
+    /* The native select underneath is taken out of the tab order, so this
+       button is what a keyboard user actually lands on. It carried a rest, a
+       hover, an open and a disabled state, and nothing that said "you are
+       here". Same treatment as .input-raised, because they sit side by side in
+       every form. */
+    .cs-trigger:focus-visible {
+        border-color: var(--color-ink);
+        box-shadow: 0 0 0 3px rgb(27 33 26 / 0.12);
+        outline: none;
+    }
+
     .cs-wrap.cs-open .cs-trigger {
         border-color: var(--color-ink);
         box-shadow: 0 0 0 3px rgb(27 27 24 / 0.1);
@@ -438,6 +449,11 @@
         background: rgb(244 241 235 / 0.05);
         border-color: rgb(244 241 235 / 0.14);
         color: var(--color-sand-light);
+    }
+
+    :is(.dark *) .cs-trigger:focus-visible {
+        border-color: var(--color-sand);
+        box-shadow: 0 0 0 3px rgb(244 241 235 / 0.18);
     }
 
     :is(.dark *) .cs-trigger:hover {
