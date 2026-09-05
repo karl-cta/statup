@@ -88,11 +88,13 @@ impl Kind {
         matches!(self, Self::Publication)
     }
 
+    /// Fallback dot when the event carries no severity. Mirrors `chip_class`,
+    /// so a kind never claims an urgency the event did not declare.
     pub fn dot_class(self) -> &'static str {
         match self {
-            Self::Incident => "bg-red-500",
-            Self::Maintenance => "bg-blue-500",
-            Self::Publication => "bg-emerald-500",
+            Self::Incident => "status-dot-minor",
+            Self::Maintenance => "status-dot-info",
+            Self::Publication => "status-dot-ok",
         }
     }
 
@@ -144,9 +146,9 @@ impl Severity {
 
     pub fn dot_class(self) -> &'static str {
         match self {
-            Self::Minor => "bg-yellow-500 dark:bg-yellow-400",
-            Self::Major => "bg-orange-500 dark:bg-orange-400",
-            Self::Critical => "bg-red-500 dark:bg-red-400",
+            Self::Minor => "status-dot-minor",
+            Self::Major => "status-dot-major",
+            Self::Critical => "status-dot-crit",
         }
     }
 }

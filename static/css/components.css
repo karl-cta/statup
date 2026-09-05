@@ -208,7 +208,9 @@
         }
     }
 
-    /* Success reuses the operational status hue to stay consistent with the dashboard. */
+    /* Operational, and nothing else. This carried its own emerald until
+       2026-09-04, a second green sitting beside the brand sage on the same
+       screen. */
     .btn-3d-success {
         display: inline-flex;
         align-items: center;
@@ -219,25 +221,27 @@
         font-size: 14px;
         font-weight: 500;
         color: var(--color-sand-light);
-        background: oklch(0.45 0.11 160);
-        border: 1px solid oklch(0.38 0.11 160);
+        background: var(--sem-ok-text);
+        border: 1px solid var(--sem-ok-text);
         border-radius: 6px;
         cursor: pointer;
         transition: background 0.15s ease;
     }
 
     .btn-3d-success:hover {
-        background: oklch(0.38 0.11 160);
+        background: color-mix(in oklch, var(--sem-ok-text), var(--color-ink) 22%);
+        border-color: color-mix(in oklch, var(--sem-ok-text), var(--color-ink) 22%);
     }
 
     :is(.dark *) {
         .btn-3d-success {
             color: var(--color-ink);
-            background: oklch(0.68 0.14 160);
-            border-color: oklch(0.62 0.14 160);
+            background: var(--sem-ok);
+            border-color: var(--sem-ok);
         }
         .btn-3d-success:hover {
-            background: oklch(0.74 0.15 160);
+            background: color-mix(in oklch, var(--sem-ok), white 14%);
+            border-color: color-mix(in oklch, var(--sem-ok), white 14%);
         }
     }
 

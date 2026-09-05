@@ -79,11 +79,11 @@ impl ServiceStatus {
     /// tokens, so the dot and the label beside it can never drift apart.
     pub fn dot_class(self) -> &'static str {
         match self {
-            Self::Operational => "status-dot-operational",
-            Self::Degraded => "status-dot-degraded",
-            Self::PartialOutage => "status-dot-partial",
-            Self::MajorOutage => "status-dot-major",
-            Self::Maintenance => "status-dot-maintenance",
+            Self::Operational => "status-dot-ok",
+            Self::Degraded => "status-dot-minor",
+            Self::PartialOutage => "status-dot-major",
+            Self::MajorOutage => "status-dot-crit",
+            Self::Maintenance => "status-dot-info",
         }
     }
 

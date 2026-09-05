@@ -56,21 +56,6 @@
         }
     }
 
-    /* Each strip-* class sets --strip-color, consumed inline via style="background: var(--strip-color)". */
-    .strip-operational { --strip-color: oklch(0.508 0.154 163); }
-    .strip-degraded { --strip-color: oklch(0.554 0.135 66); }
-    .strip-partial { --strip-color: oklch(0.553 0.195 38); }
-    .strip-major { --strip-color: oklch(0.577 0.245 27); }
-    .strip-maintenance { --strip-color: oklch(0.546 0.245 262); }
-
-    :is(.dark *) {
-        .strip-operational { --strip-color: oklch(0.765 0.177 163); }
-        .strip-degraded { --strip-color: oklch(0.852 0.199 92); }
-        .strip-partial { --strip-color: oklch(0.750 0.183 56); }
-        .strip-major { --strip-color: oklch(0.704 0.191 22); }
-        .strip-maintenance { --strip-color: oklch(0.707 0.165 254); }
-    }
-
     /* Observed by the IntersectionObserver registered in base.html. */
     .reveal {
         opacity: 0;
@@ -154,23 +139,23 @@
     /* Status dot fill. Same reason as the text classes below: a dot painted
        with a raw Tailwind color sits next to a token-driven label and the two
        drift apart. */
-    .status-dot-operational {
+    .status-dot-ok {
         background-color: var(--sem-ok);
     }
 
-    .status-dot-degraded {
+    .status-dot-minor {
         background-color: var(--sem-minor);
     }
 
-    .status-dot-partial {
+    .status-dot-major {
         background-color: var(--sem-major);
     }
 
-    .status-dot-major {
+    .status-dot-crit {
         background-color: var(--sem-crit);
     }
 
-    .status-dot-maintenance {
+    .status-dot-info {
         background-color: var(--sem-info);
     }
 
