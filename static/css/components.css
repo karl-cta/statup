@@ -2440,6 +2440,27 @@
         padding: 48px 0;
     }
 
+    /* A failed load states the problem and offers the way out, rather than
+       leaving an open dialog with nothing in it. */
+    .drawer-error {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        padding: 44px 24px;
+        text-align: center;
+    }
+
+    .drawer-error p {
+        margin: 0;
+        font-size: 13px;
+        color: var(--color-muted-light);
+    }
+
+    :is(.dark *) .drawer-error p {
+        color: var(--color-muted-dark);
+    }
+
     .drawer-spinner {
         width: 16px;
         height: 16px;

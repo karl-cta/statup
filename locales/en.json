@@ -169,6 +169,8 @@
 
   "common.cancel": "Cancel",
   "common.close": "Close",
+  "events.drawer_error": "Could not load the details.",
+  "common.retry": "Retry",
 
   "events.history_title": "History | Statup",
   "events.history_heading": "History",

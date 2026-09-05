@@ -103,17 +103,33 @@
     // as the response is ready. The drawer is isolated via `contain: layout
     // paint style`, so the swap does not cascade into a dashboard repaint.
     var _drawerReq = 0;
+    var _drawerUrl = null;
+    var _drawerReturn = null;
+    var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
     function openDrawer(url) {
         var overlay = document.getElementById('drawer-overlay');
         var panel = document.getElementById('drawer');
         var content = document.getElementById('drawer-content');
         if (!overlay || !panel || !content) return;
         var reqId = ++_drawerReq;
+        _drawerUrl = url;
+        // Remember where focus came from, so closing puts it back rather than
+        // dropping it on the body.
+        if (!panel.contains(document.activeElement)) _drawerReturn = document.activeElement;
         content.innerHTML = '<div class="drawer-loader"><div class="drawer-spinner"></div></div>';
+        panel.removeAttribute('inert');
         overlay.classList.add('open');
         panel.classList.add('open');
+        // preventScroll: the panel is fixed and parked off-screen, so a plain
+        // focus() makes the page jump trying to bring it into view.
+        panel.focus({ preventScroll: true });
         fetch(url, { headers: { 'HX-Request': 'true' } })
-            .then(function(r) { return r.text(); })
+            .then(function(r) {
+                // Without this a 404 or a 500 would be poured into the panel as
+                // if it were the event.
+                if (!r.ok) throw new Error(r.status);
+                return r.text();
+            })
             .then(function(html) {
                 if (reqId !== _drawerReq) return;
                 content.innerHTML = html;
@@ -121,8 +137,14 @@
             })
             .catch(function() {
                 if (reqId !== _drawerReq) return;
-                content.innerHTML = '';
+                // An empty panel with no explanation is worse than an error:
+                // the reader is left with an open, silent dialog.
+                content.innerHTML = '<div class="drawer-error"><p>{{ i18n.t("events.drawer_error") }}</p>'
+                    + '<button type="button" class="btn-3d-ghost" onclick="retryDrawer()">{{ i18n.t("common.retry") }}</button></div>';
             });
+    }
+    function retryDrawer() {
+        if (_drawerUrl) openDrawer(_drawerUrl);
     }
     function closeDrawer() {
         var overlay = document.getElementById('drawer-overlay');
@@ -131,9 +153,28 @@
         _drawerReq++;
         panel.classList.remove('open');
         overlay.classList.remove('open');
+        // The closed panel is parked off-screen but still rendered, so without
+        // this its links stay in the tab order and focus vanishes into it.
+        panel.setAttribute('inert', '');
+        if (_drawerReturn && document.contains(_drawerReturn)) _drawerReturn.focus();
+        _drawerReturn = null;
     }
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeDrawer();
+        var panel = document.getElementById('drawer');
+        if (e.key === 'Escape') { closeDrawer(); return; }
+        if (e.key !== 'Tab' || !panel || !panel.classList.contains('open')) return;
+        // A dialog that declares aria-modal must actually hold the focus.
+        var items = panel.querySelectorAll(FOCUSABLE);
+        if (!items.length) { e.preventDefault(); panel.focus(); return; }
+        var first = items[0];
+        var last = items[items.length - 1];
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === panel)) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
     });
     // Delegate: any [data-drawer] click opens the drawer with that URL,
     // falling back to the href navigation if JS is disabled.

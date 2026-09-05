@@ -169,6 +169,8 @@
 
   "common.cancel": "Annuler",
   "common.close": "Fermer",
+  "events.drawer_error": "Impossible de charger le détail.",
+  "common.retry": "Réessayer",
 
   "events.history_title": "Historique | Statup",
   "events.history_heading": "Historique",
