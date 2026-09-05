@@ -983,6 +983,14 @@
         }
     }
 
+    /* The compact menu repeats the nav tabs, which is only useful when the tabs
+       themselves are gone. Between 600 and 960 both were on screen at once. */
+    @media (min-width: 600px) {
+        .mast-menu-nav {
+            display: none;
+        }
+    }
+
     /* Tablet width: keep the four nav tabs, which only cost 343px. What does not
        fit is the trimming, so the tool labels fall back to their icons (each
        .mnav-tool already carries an aria-label) and the account block moves into
@@ -2446,6 +2454,22 @@
         align-items: center;
         justify-content: center;
         padding: 48px 0;
+    }
+
+    /* One banner for every form. Six templates each carried their own raw red
+       utilities, which is how a colour from outside the system ends up next to
+       one from inside it. */
+    .form-error {
+        border: 1px solid var(--sem-crit-border);
+        background: var(--sem-crit-soft);
+        border-radius: 4px;
+        padding: 12px 16px;
+    }
+
+    .form-error p {
+        margin: 0;
+        font-size: 13px;
+        color: var(--sem-crit-text);
     }
 
     /* A failed load states the problem and offers the way out, rather than

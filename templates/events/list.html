@@ -20,6 +20,9 @@
                 {% endif %}
             </p>
         </div>
+        {# The list is a public route: an anonymous visitor was shown a button
+           that only leads to the login page. #}
+        {% if can_edit %}
         <a href="/events/new" class="btn-3d text-[13px] shrink-0" aria-label="{{ i18n.t("events.create_event_aria") }}">
             <span class="inline-flex items-center gap-1.5">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
@@ -28,6 +31,7 @@
                 {{ i18n.t("events.new") }}
             </span>
         </a>
+        {% endif %}
     </header>
 
     {% if total > 0 || has_filters %}

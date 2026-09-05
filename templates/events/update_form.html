@@ -3,7 +3,7 @@
 {% block title %}{{ i18n.t("events.update_add_title") }}{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-lg px-4 py-8 sm:px-6 lg:px-8 animate-in">
+<div class="mx-auto max-w-lg px-4 py-8 sm:px-6 lg:px-10 animate-in">
     <form method="post" action="/events/{{ event_id }}/updates" class="space-y-4">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <label for="message" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">

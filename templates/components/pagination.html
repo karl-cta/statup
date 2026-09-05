@@ -1,4 +1,7 @@
 {# Pagination, expects `page` (i64), `has_next` (bool), `base_url` (String) in scope #}
+{# A lone "Page 1" with nothing either side of it is a control that cannot
+   be used and a count nobody asked for. #}
+{% if page > 1 || has_next %}
 <nav class="mt-8 flex items-center justify-between" aria-label="{{ i18n.t("common.pagination_aria") }}">
     {% if page > 1 %}
     <a href="{{ base_url }}page={{ page - 1 }}" class="btn-3d-ghost text-sm !px-3 !py-2" aria-label="{{ i18n.t("common.previous_page_aria") }}">
@@ -26,3 +29,4 @@
     <span></span>
     {% endif %}
 </nav>
+{% endif %}

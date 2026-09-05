@@ -23,8 +23,8 @@
 
     {% match error %}
     {% when Some with (msg) %}
-    <div id="form-error" class="mt-6 rounded-sm border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/50 dark:bg-red-950/30" role="alert">
-        <p class="text-sm text-red-700 dark:text-red-400">{{ msg }}</p>
+    <div id="form-error" class="mt-6 form-error" role="alert">
+        <p>{{ msg }}</p>
     </div>
     {% when None %}
     {% endmatch %}

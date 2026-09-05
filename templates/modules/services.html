@@ -7,7 +7,7 @@
             <span class="card-head-cnt">{{ services.len() }}</span>
             {% endif %}
         </h2>
-        {% if !services.is_empty() %}
+        {% if !services.is_empty() && can_edit %}
         <a href="/services" class="card-action">{{ i18n.t("dashboard.view_all") }}</a>
         {% endif %}
     </header>

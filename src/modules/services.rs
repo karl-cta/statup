@@ -33,6 +33,9 @@ pub struct SparklineDay {
 struct ServicesTemplate {
     services: Vec<Service>,
     sparkline_map: HashMap<i64, Vec<u8>>,
+    /// `/services` is publisher-only, so the link to it is not offered to a
+    /// visitor it would only send to the login page.
+    can_edit: bool,
     i18n: I18n,
 }
 
@@ -144,6 +147,7 @@ impl Module for ServicesModule {
         let tpl = ServicesTemplate {
             services,
             sparkline_map,
+            can_edit: ctx.user.is_some_and(|u| u.role.can_publish()),
             i18n: ctx.i18n.clone(),
         };
         tpl.render()

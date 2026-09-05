@@ -3,7 +3,7 @@
 {% block title %}{{ i18n.t("profile.title") }}{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-lg px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+<div class="mx-auto max-w-lg px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
     <div class="animate-in">
         <a href="/" class="inline-flex items-center gap-1 text-sm font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors">
             <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
@@ -17,8 +17,8 @@
 
     {% match error %}
     {% when Some with (msg) %}
-    <div id="profile-error" class="mt-6 rounded-sm border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30" role="alert">
-        <p class="text-sm text-red-700 dark:text-red-400">{{ msg }}</p>
+    <div id="profile-error" class="mt-6 form-error" role="alert">
+        <p>{{ msg }}</p>
     </div>
     {% when None %}
     {% endmatch %}
@@ -64,9 +64,9 @@
 
         {% match password_error %}
         {% when Some with (msg) %}
-        <div id="password-form-error" class="mt-4 rounded-sm border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30" role="alert">
-            <p class="text-sm text-red-700 dark:text-red-400">{{ msg }}</p>
-        </div>
+        <div id="password-form-error" class="mt-6 form-error" role="alert">
+        <p>{{ msg }}</p>
+    </div>
         {% when None %}
         {% endmatch %}
 
@@ -113,7 +113,7 @@
                        aria-label="{{ i18n.t("profile.confirm_password") }}">
             </div>
 
-            <button type="submit" class="btn-3d text-sm"><span>{{ i18n.t("profile.submit_password") }}</span></button>
+            <button type="submit" class="btn-3d-ghost text-sm"><span>{{ i18n.t("profile.submit_password") }}</span></button>
         </form>
     </div>
 </div>

@@ -15,9 +15,9 @@
 
             {% match error %}
             {% when Some with (msg) %}
-            <div id="form-error" class="mt-6 rounded-sm border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30" role="alert">
-                <p class="text-sm text-red-700 dark:text-red-400">{{ msg }}</p>
-            </div>
+            <div id="form-error" class="mt-6 form-error" role="alert">
+        <p>{{ msg }}</p>
+    </div>
             {% when None %}
             {% endmatch %}
 
