@@ -27,11 +27,14 @@
             </div>
             <span class="svc-pct">{{ self.uptime_pct(service) }}</span>
         </div>
+        {# One image with one label. Each bar used to be its own focusable
+           image, which put 90 tab stops and 90 nested images on a card with
+           three services. #}
         <div class="svc-bars"
              role="img"
-             aria-label="{{ i18n.t("dashboard.availability_30d") }}">
+             aria-label="{{ self.availability_label(service) }}">
             {% for day in self.sparkline_days(service) %}
-            <span class="{{ day.class }}" data-day-date="{{ day.date }}" data-day-status="{{ day.status }}" tabindex="0" role="img" aria-label="{{ day.tooltip }}"></span>
+            <span class="{{ day.class }}" data-day-date="{{ day.date }}" data-day-status="{{ day.status }}"></span>
             {% endfor %}
         </div>
     </article>

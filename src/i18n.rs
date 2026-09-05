@@ -202,6 +202,44 @@ impl I18n {
         }
     }
 
+    /// Spoken summary of a 30 day availability strip. The bars are a picture,
+    /// so the picture needs one label that says what it shows: 30 individually
+    /// labelled squares made 90 tab stops and 90 nested images out of one card.
+    pub fn format_availability(&self, ok: usize, incidents: usize, unknown: usize) -> String {
+        let plural = |n: usize| if n > 1 { "s" } else { "" };
+        let english = self.locale == "en";
+        let mut parts = vec![if english {
+            format!("{ok} day{} without an incident", plural(ok))
+        } else {
+            format!("{ok} jour{} sans incident", plural(ok))
+        }];
+        if incidents > 0 {
+            parts.push(if english {
+                format!("{incidents} day{} with an incident", plural(incidents))
+            } else {
+                format!("{incidents} jour{} avec incident", plural(incidents))
+            });
+        }
+        if unknown > 0 {
+            parts.push(if english {
+                format!(
+                    "{unknown} day{} before the service existed",
+                    plural(unknown)
+                )
+            } else {
+                format!(
+                    "{unknown} jour{} avant la création du service",
+                    plural(unknown)
+                )
+            });
+        }
+        format!(
+            "{} : {}",
+            self.t("dashboard.availability_30d"),
+            parts.join(", ")
+        )
+    }
+
     /// Format a duration triple, same shape as a countdown.
     pub fn format_duration(&self, parts: &(i64, i64, i64)) -> String {
         self.format_countdown(parts.0, parts.1, parts.2)

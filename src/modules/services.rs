@@ -26,8 +26,6 @@ pub struct SparklineDay {
     /// 260px column, which left it no room to follow the day it describes.
     pub date: String,
     pub status: String,
-    /// Single line, for the accessible name.
-    pub tooltip: String,
 }
 
 #[derive(Template)]
@@ -72,17 +70,22 @@ impl ServicesTemplate {
                     Some(2) => ("dashboard.sparkline_legend_major", "bar bar-major"),
                     Some(_) => ("dashboard.sparkline_legend_critical", "bar bar-crit"),
                 };
-                let day = date.format("%Y-%m-%d").to_string();
-                let status = self.i18n.t(label_key).to_string();
-                let tooltip = format!("{day} \u{b7} {status}");
                 SparklineDay {
                     class,
-                    date: day,
-                    status,
-                    tooltip,
+                    date: date.format("%Y-%m-%d").to_string(),
+                    status: self.i18n.t(label_key).to_string(),
                 }
             })
             .collect()
+    }
+
+    /// One label for the whole strip, replacing thirty individual ones.
+    fn availability_label(&self, service: &Service) -> String {
+        let levels = self.day_levels(service);
+        let unknown = levels.iter().filter(|(_, l)| l.is_none()).count();
+        let ok = levels.iter().filter(|(_, l)| *l == Some(0)).count();
+        let incidents = levels.len() - unknown - ok;
+        self.i18n.format_availability(ok, incidents, unknown)
     }
 
     /// Availability over the days the service actually existed, not over the

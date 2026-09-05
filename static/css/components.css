@@ -1494,18 +1494,8 @@
         transition: opacity 0.12s;
     }
 
-    .svc-bars .bar:hover,
-    .svc-bars .bar:focus-visible {
+    .svc-bars .bar:hover {
         opacity: 1;
-    }
-
-    .svc-bars .bar:focus-visible {
-        outline: 2px solid var(--color-ink);
-        outline-offset: 2px;
-    }
-
-    :is(.dark *) .svc-bars .bar:focus-visible {
-        outline-color: var(--color-sand-light);
     }
 
     /* Anchored to the bar row, not to the bar. A 152px label centered on a
@@ -1550,8 +1540,7 @@
         right: auto;
     }
 
-    .svc-bars .bar:hover::after,
-    .svc-bars .bar:focus-visible::after {
+    .svc-bars .bar:hover::after {
         opacity: 1;
     }
 
@@ -1565,8 +1554,7 @@
         opacity: 0.4;
     }
 
-    :is(.dark *) .svc-bars .bar:hover,
-    :is(.dark *) .svc-bars .bar:focus-visible {
+    :is(.dark *) .svc-bars .bar:hover {
         opacity: 0.85;
     }
 

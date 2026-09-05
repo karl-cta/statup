@@ -60,7 +60,6 @@
     }
 
     document.addEventListener('pointerover', onReveal);
-    document.addEventListener('focusin', onReveal);
     // Cached widths are in pixels, so a zoom or a font swap invalidates them.
     window.addEventListener('resize', function () {
         widths = Object.create(null);
