@@ -1017,30 +1017,12 @@
         border-color: var(--sem-crit-border);
     }
 
-    .hero-kicker {
-        display: inline-flex;
-        align-items: center;
-        gap: 9px;
-        font-family: var(--font-mono);
-        font-size: 10.5px;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        font-weight: 500;
-        color: var(--color-muted-light);
-        margin-bottom: 10px;
-        font-feature-settings: 'tnum' 1;
-    }
-
-    :is(.dark *) .hero-kicker {
-        color: var(--color-muted-dark);
-    }
-
-    .hero-ok .hero-kicker {
-        color: var(--sem-ok-text);
-    }
-
-    .hero-incident .hero-kicker {
-        color: var(--sem-crit-text);
+    /* The dot sits inside the title now. The label that used to carry it said
+       the same thing as the heading in smaller letters, which is the eyebrow
+       pattern this system rejects: a heading carries its own weight. */
+    .hero-title .hero-dot {
+        margin-right: 10px;
+        vertical-align: 0.16em;
     }
 
     .hero-dot {

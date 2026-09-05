@@ -2,11 +2,10 @@
 {% if !has_services %}
 {# No service configured: state that nothing is watched rather than claiming health. #}
 <section class="hero hero-idle">
-    <p class="hero-kicker">
+    <h2 class="hero-title">
         <span class="hero-dot hero-dot-idle" aria-hidden="true"></span>
-        <span>{{ i18n.t("dashboard.status_idle_mono") }}</span>
-    </p>
-    <h2 class="hero-title">{{ i18n.t("dashboard.nothing_watched") }}</h2>
+        {{ i18n.t("dashboard.nothing_watched") }}
+    </h2>
     <p class="hero-meta">{{ i18n.t("dashboard.nothing_watched_hint") }}</p>
     {% if can_configure %}
     <a href="/services/new" class="hero-action">
@@ -19,21 +18,20 @@
 </section>
 {% else if active_incidents.is_empty() %}
 <section class="hero hero-ok">
-    <p class="hero-kicker">
+    <h2 class="hero-title">
         <span class="hero-dot hero-dot-ok" aria-hidden="true"></span>
-        <span>{{ i18n.t("dashboard.status_ok_mono") }}</span>
-    </p>
-    <h2 class="hero-title">{{ i18n.t("dashboard.all_operational") }}</h2>
+        {{ i18n.t("dashboard.all_operational") }}
+    </h2>
 </section>
 {% else %}
 <section class="hero hero-incident">
-    <p class="hero-kicker">
-        <span class="hero-dot hero-dot-crit" aria-hidden="true"></span>
-        <span>{{ i18n.t("dashboard.status_incident_mono") }}</span>
-    </p>
     {% match active_incidents.first() %}
     {% when Some with (first) %}
     <h2 class="hero-title">
+        <span class="hero-dot hero-dot-crit" aria-hidden="true"></span>
+        {# The single-incident title is the incident's own, so without this the
+           state would be carried by the ground colour alone. #}
+        <span class="sr-only">{{ i18n.t("dashboard.status_incident_mono") }} :</span>
         {% if active_incidents.len() == 1 %}
         {{ first.title }}
         {% else %}
