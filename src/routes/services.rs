@@ -50,6 +50,7 @@ struct ServiceFormData {
     id: i64,
     name: String,
     description: String,
+    status: ServiceStatus,
 }
 
 #[derive(Deserialize, Validate)]
@@ -60,6 +61,9 @@ pub struct ServiceInput {
     description: Option<String>,
     icon_id: Option<i64>,
     icon_name: Option<String>,
+    /// Only submitted by the edit form: the status a service exists to publish
+    /// was reachable from the list alone, which is not where the reflex leads.
+    status: Option<String>,
 }
 
 fn render(tpl: &impl Template) -> Result<Response, AppError> {
@@ -242,6 +246,7 @@ pub async fn edit_form(
             id: service.id,
             name: service.name,
             description: service.description.unwrap_or_default(),
+            status: service.status,
         }),
     };
     render(&tpl)
@@ -257,6 +262,12 @@ pub async fn update(
 ) -> Result<Response, AppError> {
     let icon_id = parse_icon_id(input.icon_id);
     let icon_name = parse_icon_name(input.icon_name);
+    let status = input
+        .status
+        .as_deref()
+        .map(str::parse::<ServiceStatus>)
+        .transpose()
+        .map_err(AppError::Validation)?;
     match ServiceService::update(
         &state.pool,
         id,
@@ -267,7 +278,12 @@ pub async fn update(
     )
     .await
     {
-        Ok(()) => Ok(Redirect::to("/services").into_response()),
+        Ok(()) => {
+            if let Some(status) = status {
+                ServiceRepository::update_status(&state.pool, id, status).await?;
+            }
+            Ok(Redirect::to("/services").into_response())
+        }
         Err(AppError::Validation(msg)) => {
             let (user_display_name, is_admin, is_authenticated) = layout_fields(&user);
             let unread_count = unread(&state.pool, &user).await?;
@@ -286,6 +302,7 @@ pub async fn update(
                     id,
                     name: input.name,
                     description: input.description.unwrap_or_default(),
+                    status: status.unwrap_or(ServiceStatus::Operational),
                 }),
                 selected_icon_id: icon_id,
                 selected_icon_url: icon_url,

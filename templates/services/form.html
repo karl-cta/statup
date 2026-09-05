@@ -17,7 +17,7 @@
         </a>
         <h1 class="mt-2 text-[28px] font-semibold tracking-tight text-ink dark:text-sand-light">
             {% match service %}
-            {% when Some with (_s) %}{{ i18n.t("services.edit") }}{% when None %}{{ i18n.t("services.new") }}{% endmatch %}
+            {% when Some with (s) %}{{ i18n.t("services.edit") }} <span class="wrap-anywhere">{{ s.name }}</span>{% when None %}{{ i18n.t("services.new") }}{% endmatch %}
         </h1>
     </header>
 
@@ -55,6 +55,25 @@
                       placeholder="{{ i18n.t("services.description_placeholder") }}"
                       aria-label="{{ i18n.t("services.description") }}">{% match service %}{% when Some with (s) %}{{ s.description }}{% when None %}{% endmatch %}</textarea>
         </div>
+
+        {# Edit only: a new service starts operational, and asking on creation
+           would state a health nobody has observed yet. #}
+        {% match service %}
+        {% when Some with (s) %}
+        <div class="mt-5">
+            <label for="status" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
+                {{ i18n.t("common.status_label") }}
+            </label>
+            <select id="status" name="status" data-custom-select
+                    class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm cursor-pointer"
+                    aria-label="{{ i18n.t("common.status_label") }}">
+                {% for st in crate::models::ServiceStatus::ALL %}
+                <option value="{{ st.as_str() }}" {% if st.as_str() == s.status.as_str() %}selected{% endif %}>{{ i18n.t(st.i18n_key()) }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% when None %}
+        {% endmatch %}
 
         <div class="mt-5">
             {% include "components/icon_picker.html" %}
