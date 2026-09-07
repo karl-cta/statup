@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ i18n.t("auth.login_title") }}{% endblock %}
+{% block title %}{{ i18n.t("auth.login_title") }} | {{ crate::brand_name() }}{% endblock %}
 
 {% block body %}
 <div class="flex min-h-full items-center justify-center px-4 py-12 sm:px-6 lg:px-8">

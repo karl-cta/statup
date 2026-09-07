@@ -1,6 +1,6 @@
 {% extends "_layout.html" %}
 
-{% block title %}{{ i18n.t("admin.title") }}{% endblock %}
+{% block title %}{{ i18n.t("admin.title") }} | {{ crate::brand_name() }}{% endblock %}
 
 {% block content %}
 <div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
@@ -44,6 +44,27 @@
                     <span class="toggle-thumb" aria-hidden="true"></span>
                 </button>
                 {% endif %}
+            </form>
+        </div>
+    </section>
+
+    <section class="mt-6 card animate-in delay-2">
+        <div class="card-head">
+            <h2>{{ i18n.t("admin.section_identity") }}</h2>
+        </div>
+        <div class="set-row">
+            <div class="min-w-0">
+                <div class="set-label">{{ i18n.t("admin.instance_name") }}</div>
+                <p class="set-help">{{ i18n.t("admin.instance_name_help") }}</p>
+            </div>
+            <form method="post" action="/admin/settings/instance-name" class="set-inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <label for="instance-name" class="sr-only">{{ i18n.t("admin.instance_name") }}</label>
+                <input id="instance-name" type="text" name="instance_name"
+                       value="{{ instance_name }}" maxlength="40"
+                       placeholder="{{ i18n.t("admin.instance_name_placeholder") }}"
+                       class="input-raised px-3 py-2 text-sm">
+                <button type="submit" class="btn-3d text-sm"><span>{{ i18n.t("common.save") }}</span></button>
             </form>
         </div>
     </section>

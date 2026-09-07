@@ -2,7 +2,7 @@
 
 {% block title %}
 {% match edit_id %}
-{% when Some with (_id) %}{{ i18n.t("events.edit_title") }}{% when None %}{{ i18n.t("events.new_title") }}{% endmatch %}
+{% when Some with (_id) %}{{ i18n.t("events.edit_title") }} | {{ crate::brand_name() }}{% when None %}{{ i18n.t("events.new_title") }} | {{ crate::brand_name() }}{% endmatch %}
 {% endblock %}
 
 {% block content %}

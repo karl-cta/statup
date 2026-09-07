@@ -120,6 +120,10 @@ pub fn create_router(state: AppState) -> Router {
         // Admin routes (RequireAdmin extractor)
         .route("/admin/settings", get(admin::settings_page))
         .route("/admin/settings/public-mode", post(admin::toggle_public_mode))
+        .route(
+            "/admin/settings/instance-name",
+            post(admin::update_instance_name),
+        )
         .route("/admin/users", get(admin::users_list))
         .route("/admin/users/:id/role", post(admin::update_role))
         .route("/admin/users/:id/disable", post(admin::toggle_active))

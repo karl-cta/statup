@@ -60,6 +60,10 @@ async fn main() {
     };
     tracing::info!(public_mode, "Public mode");
 
+    if let Ok(Some(name)) = SettingsRepository::get(&pool, "instance_name").await {
+        statup::set_instance_name(&name);
+    }
+
     let state = AppState {
         pool,
         login_limiter: Arc::new(LoginRateLimiter::default()),

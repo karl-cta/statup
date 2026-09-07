@@ -8,13 +8,20 @@
         {{ i18n.t("nav.skip_to_content") }}
     </a>
 
+    {# The host's own name takes the wordmark's place. The accented last letter
+       is Statup's signature, so it stays on the product name only. #}
+    {% let instance = crate::instance_name() %}
     <header class="mast" aria-label="{{ i18n.t("nav.main_nav") }}">
         <div class="mast-inner">
             <div class="mast-title-cell">
                 <a href="/" class="mast-title">
                     {% let logo_size = "mast-mark" %}
                     {% include "components/logo.html" %}
+                    {% if instance.is_empty() %}
                     <span class="mast-word">Statu<span class="mast-word-accent">p</span></span>
+                    {% else %}
+                    <span class="mast-word mast-word-custom">{{ instance }}</span>
+                    {% endif %}
                 </a>
             </div>
             <div class="mast-rows">
@@ -173,7 +180,7 @@
             <div class="flex items-center gap-3">
                 {% let logo_size = "h-4 w-auto text-ink/55 dark:text-sand-light/45" %}
                 {% include "components/logo.html" %}
-                <span class="text-[13px] font-medium text-ink/70 dark:text-sand-light/60">Statup</span>
+                <span class="text-[13px] font-medium text-ink/70 dark:text-sand-light/60">{% if instance.is_empty() %}Statup{% else %}{{ i18n.t("footer.powered_by") }} Statup{% endif %}</span>
                 <span class="text-[13px] text-ink/25 dark:text-sand-light/20" aria-hidden="true">·</span>
                 <span class="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink/45 dark:text-sand-light/40">AGPL-3.0</span>
             </div>

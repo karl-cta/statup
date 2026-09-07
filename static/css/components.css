@@ -789,6 +789,19 @@
         color: var(--color-brand);
     }
 
+    /* A host's name can run to forty characters where the wordmark runs to six.
+       On a phone it would squeeze the date beside it into a three-line column,
+       so it steps down a size and yields with an ellipsis past the width that
+       leaves the date its room. Wide screens never reach this. */
+    @media (max-width: 640px) {
+        .mast-word-custom {
+            font-size: 20px;
+            max-width: calc(100vw - 210px);
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    }
+
     .mast-rows {
         display: flex;
         flex-direction: column;
@@ -2892,6 +2905,20 @@
         border-bottom: none;
     }
 
+    /* A short text setting saved in place: field and button on one line beside
+       the label, the field taking the row's width once the row wraps. */
+    .set-inline-form {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    .set-inline-form .input-raised {
+        width: 260px;
+        max-width: 100%;
+    }
+
     .set-row-draggable {
         cursor: move;
     }
@@ -2995,6 +3022,13 @@
         }
         .set-row .row-actions {
             margin-left: auto;
+        }
+        .set-row .set-inline-form {
+            flex: 1 1 100%;
+        }
+        .set-inline-form .input-raised {
+            flex: 1 1 auto;
+            width: auto;
         }
         .set-row-draggable {
             padding-left: 12px;

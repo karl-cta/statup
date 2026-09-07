@@ -24,6 +24,7 @@ struct SettingsPageTemplate {
     unread_count: i64,
     last_admin_action: Option<String>,
     public_mode: bool,
+    instance_name: String,
     users_count: i64,
     admins_count: i64,
     i18n: I18n,
@@ -122,6 +123,7 @@ pub async fn settings_page(
         unread_count,
         last_admin_action,
         public_mode: state.is_public_mode(),
+        instance_name: crate::instance_name(),
         users_count,
         admins_count,
         i18n,
@@ -242,6 +244,41 @@ pub async fn toggle_active(
     );
 
     Ok(Redirect::to("/admin/users").into_response())
+}
+
+#[derive(Deserialize)]
+pub struct InstanceNameInput {
+    #[serde(default)]
+    instance_name: String,
+}
+
+/// Long enough for a company and a purpose, short enough to stay on one line
+/// of the masthead beside the mark.
+const INSTANCE_NAME_MAX_CHARS: usize = 40;
+
+pub async fn update_instance_name(
+    RequireAdmin(admin): RequireAdmin,
+    State(state): State<AppState>,
+    Locale(_i18n): Locale,
+    axum::extract::Form(input): axum::extract::Form<InstanceNameInput>,
+) -> Result<Response, AppError> {
+    let name = input.instance_name.trim();
+    if name.chars().count() > INSTANCE_NAME_MAX_CHARS {
+        return Err(AppError::Validation(
+            "validation.instance_name_too_long".to_string(),
+        ));
+    }
+
+    SettingsRepository::set(&state.pool, "instance_name", name).await?;
+    crate::set_instance_name(name);
+
+    tracing::info!(
+        admin_id = admin.id,
+        instance_name = name,
+        "Instance name updated"
+    );
+
+    Ok(Redirect::to("/admin/settings").into_response())
 }
 
 pub async fn toggle_public_mode(

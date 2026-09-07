@@ -575,3 +575,51 @@ async fn role_change_with_invalid_role_is_rejected() {
         .expect("user not found");
     assert_eq!(user.role, Role::Reader);
 }
+
+/// A self-hosted page should carry the host's identity, not ours: the name
+/// set in the settings replaces the wordmark and the tab title, and the
+/// product only keeps a credit in the footer.
+#[tokio::test]
+async fn instance_name_replaces_the_brand_in_masthead_and_title() {
+    let (app, _admin_id) = spawn_with_admin().await;
+    let csrf = app.csrf().await;
+
+    let (status, _, location) = app
+        .post_form(
+            "/admin/settings/instance-name",
+            &csrf,
+            &[("instance_name", "  Acme Status  ")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/admin/settings"));
+
+    let (_, body) = app.get("/admin/settings").await;
+    assert!(
+        body.contains("| Acme Status</title>"),
+        "tab title should end with the instance name"
+    );
+    assert!(
+        body.contains(r#"<span class="mast-word">Acme Status</span>"#),
+        "masthead should show the instance name without the accented wordmark"
+    );
+    assert!(
+        body.contains("Statup</span>") && !body.contains(r#"<span class="mast-word">Statu"#),
+        "the product should only remain as a footer credit"
+    );
+    assert!(
+        body.contains(r#"value="Acme Status""#),
+        "the settings field should show the trimmed saved value"
+    );
+
+    // The name lives in process memory, so put it back for the other tests.
+    let csrf = app.csrf().await;
+    app.post_form(
+        "/admin/settings/instance-name",
+        &csrf,
+        &[("instance_name", "")],
+    )
+    .await;
+    let (_, body) = app.get("/").await;
+    assert!(body.contains(r#"<span class="mast-word">Statu"#));
+}

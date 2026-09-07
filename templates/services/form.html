@@ -2,7 +2,7 @@
 
 {% block title %}
 {% match edit_id %}
-{% when Some with (_id) %}{{ i18n.t("services.edit") }}{% match service %}{% when Some with (s) %} {{ s.name }}{% when None %}{% endmatch %} | Statup{% when None %}{{ i18n.t("services.new_title") }}{% endmatch %}
+{% when Some with (_id) %}{{ i18n.t("services.edit") }}{% match service %}{% when Some with (s) %} {{ s.name }}{% when None %}{% endmatch %} | {{ crate::brand_name() }}{% when None %}{{ i18n.t("services.new_title") }} | {{ crate::brand_name() }}{% endmatch %}
 {% endblock %}
 
 {% block content %}
