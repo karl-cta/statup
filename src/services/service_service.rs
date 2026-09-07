@@ -16,15 +16,8 @@ impl ServiceService {
         icon_name: Option<&str>,
     ) -> Result<Service, AppError> {
         let name = name.trim();
-        if name.is_empty() {
-            return Err(AppError::Validation(
-                "validation.service_name_required".to_string(),
-            ));
-        }
-        if name.len() > 100 {
-            return Err(AppError::Validation(
-                "validation.service_name_too_long".to_string(),
-            ));
+        if let Some(key) = service_field_error(name, description) {
+            return Err(AppError::Validation(key.to_string()));
         }
 
         let description = description.map(str::trim).filter(|d| !d.is_empty());
@@ -47,15 +40,8 @@ impl ServiceService {
         icon_name: Option<&str>,
     ) -> Result<(), AppError> {
         let name = name.trim();
-        if name.is_empty() {
-            return Err(AppError::Validation(
-                "validation.service_name_required".to_string(),
-            ));
-        }
-        if name.len() > 100 {
-            return Err(AppError::Validation(
-                "validation.service_name_too_long".to_string(),
-            ));
+        if let Some(key) = service_field_error(name, description) {
+            return Err(AppError::Validation(key.to_string()));
         }
 
         let description = description.map(str::trim).filter(|d| !d.is_empty());
@@ -103,6 +89,23 @@ impl ServiceService {
 
         Ok(worst)
     }
+}
+
+/// Name and description rules, returning the message key rather than an error so
+/// a route can re-render the form with what the author typed. The length cap on
+/// the description used to live on the form extractor, which rejected the body
+/// before any handler could hand it back.
+pub fn service_field_error(name: &str, description: Option<&str>) -> Option<&'static str> {
+    if name.trim().is_empty() {
+        return Some("validation.service_name_required");
+    }
+    if name.len() > 100 {
+        return Some("validation.service_name_too_long");
+    }
+    if description.is_some_and(|d| d.chars().count() > 500) {
+        return Some("validation.description_max_length");
+    }
+    None
 }
 
 /// Project an active event onto a service status. Publications do not affect

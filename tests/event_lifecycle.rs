@@ -613,3 +613,81 @@ async fn publication_does_not_affect_service_status() {
         "publication should not affect service status"
     );
 }
+
+/// A rejected creation used to come back with an empty form, so the author lost
+/// the incident they had just written. The edit handler repopulated correctly,
+/// which is what proved the creation path was an oversight rather than a policy.
+#[tokio::test]
+async fn rejected_event_creation_gives_the_input_back() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Payment gateway").await;
+
+    let (_, form) = app.get("/events/new").await;
+    let csrf = extract_csrf_token(&form);
+    let service_id_str = service_id.to_string();
+
+    let (status, body, _) = app
+        .post_form(
+            "/events/new",
+            &csrf,
+            &[
+                ("title", "   "),
+                ("description", "Checkout has been failing since 02:14 UTC."),
+                ("kind", "incident"),
+                ("severity", "critical"),
+                ("planned_start", "2026-09-07T02:14"),
+                ("service_ids", &service_id_str),
+            ],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK, "should re-render the form");
+    assert!(
+        body.contains("Checkout has been failing since 02:14 UTC."),
+        "description should survive the rejection"
+    );
+    assert!(
+        body.contains("2026-09-07T02:14"),
+        "planned start should survive the rejection"
+    );
+    assert!(
+        body.contains(r#"value="critical" selected"#),
+        "severity should stay selected"
+    );
+    assert!(
+        body.contains(r#"action="/events/new""#),
+        "the form should still post to the creation route"
+    );
+}
+
+/// Same defect on the service form, where only the icon used to survive.
+#[tokio::test]
+async fn rejected_service_creation_gives_the_input_back() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+
+    let (_, form) = app.get("/services/new").await;
+    let csrf = extract_csrf_token(&form);
+
+    let (status, body, _) = app
+        .post_form(
+            "/services/new",
+            &csrf,
+            &[
+                ("name", "  "),
+                ("description", "Handles checkout and refunds."),
+            ],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK, "should re-render the form");
+    assert!(
+        body.contains("Handles checkout and refunds."),
+        "description should survive the rejection"
+    );
+    assert!(
+        body.contains(r#"action="/services/new""#),
+        "the form should still post to the creation route"
+    );
+}

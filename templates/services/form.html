@@ -1,8 +1,8 @@
 {% extends "_layout.html" %}
 
 {% block title %}
-{% match service %}
-{% when Some with (s) %}{{ i18n.t("services.edit") }} {{ s.name }} | Statup{% when None %}{{ i18n.t("services.new_title") }}{% endmatch %}
+{% match edit_id %}
+{% when Some with (_id) %}{{ i18n.t("services.edit") }}{% match service %}{% when Some with (s) %} {{ s.name }}{% when None %}{% endmatch %} | Statup{% when None %}{{ i18n.t("services.new_title") }}{% endmatch %}
 {% endblock %}
 
 {% block content %}
@@ -16,8 +16,8 @@
             {{ i18n.t("services.back_to_services") }}
         </a>
         <h1 class="mt-2 text-[28px] font-semibold tracking-tight text-ink dark:text-sand-light">
-            {% match service %}
-            {% when Some with (s) %}{{ i18n.t("services.edit") }} <span class="wrap-anywhere">{{ s.name }}</span>{% when None %}{{ i18n.t("services.new") }}{% endmatch %}
+            {% match edit_id %}
+            {% when Some with (_id) %}{{ i18n.t("services.edit") }}{% match service %}{% when Some with (s) %} <span class="wrap-anywhere">{{ s.name }}</span>{% when None %}{% endmatch %}{% when None %}{{ i18n.t("services.new") }}{% endmatch %}
         </h1>
     </header>
 
@@ -30,7 +30,7 @@
     {% endmatch %}
 
     <form method="post"
-          action="{% match service %}{% when Some with (s) %}/services/{{ s.id }}/edit{% when None %}/services/new{% endmatch %}"
+          action="{% match edit_id %}{% when Some with (id) %}/services/{{ id }}/edit{% when None %}/services/new{% endmatch %}"
           class="mt-8 animate-in delay-1"
           {% match error %}{% when Some with (_msg) %}aria-describedby="form-error"{% when None %}{% endmatch %}>
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -58,6 +58,8 @@
 
         {# Edit only: a new service starts operational, and asking on creation
            would state a health nobody has observed yet. #}
+        {% match edit_id %}
+        {% when Some with (_id) %}
         {% match service %}
         {% when Some with (s) %}
         <div class="mt-5">
@@ -74,6 +76,8 @@
         </div>
         {% when None %}
         {% endmatch %}
+        {% when None %}
+        {% endmatch %}
 
         <div class="mt-5">
             {% include "components/icon_picker.html" %}
@@ -85,8 +89,8 @@
                 {{ i18n.t("common.back") }}
             </a>
             <button type="submit" class="btn-3d text-sm">
-                <span>{% match service %}
-                {% when Some with (_s) %}{{ i18n.t("common.save") }}{% when None %}{{ i18n.t("services.submit_create") }}{% endmatch %}</span>
+                <span>{% match edit_id %}
+                {% when Some with (_id) %}{{ i18n.t("common.save") }}{% when None %}{{ i18n.t("services.submit_create") }}{% endmatch %}</span>
             </button>
         </div>
     </form>

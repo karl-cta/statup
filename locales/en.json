@@ -318,7 +318,6 @@
   "validation.passwords_mismatch": "Passwords do not match",
   "validation.rate_limited": "Too many attempts. Try again in a few minutes.",
   "validation.generic_error": "An error occurred",
-  "validation.title_required": "Title is required (max 200 characters)",
   "validation.description_required": "Description is required",
   "validation.update_required": "Update message is required",
   "validation.service_name_required": "Service name is required (max 100 characters)",

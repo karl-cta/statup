@@ -165,21 +165,27 @@ impl EventService {
     }
 }
 
+/// Title and description rules, returning the message key rather than an error
+/// so a route can re-render the form with what the author typed instead of
+/// bubbling up and losing it.
+pub fn event_field_error(title: &str, description: &str) -> Option<&'static str> {
+    if title.trim().is_empty() {
+        return Some("validation.title_empty");
+    }
+    if title.len() > 200 {
+        return Some("validation.title_too_long");
+    }
+    if description.trim().is_empty() {
+        return Some("validation.description_required");
+    }
+    None
+}
+
 fn validate_event_input(input: &CreateEventInput) -> Result<(), AppError> {
-    if input.title.trim().is_empty() {
-        return Err(AppError::Validation("validation.title_empty".to_string()));
+    match event_field_error(&input.title, &input.description) {
+        Some(key) => Err(AppError::Validation(key.to_string())),
+        None => Ok(()),
     }
-    if input.title.len() > 200 {
-        return Err(AppError::Validation(
-            "validation.title_too_long".to_string(),
-        ));
-    }
-    if input.description.trim().is_empty() {
-        return Err(AppError::Validation(
-            "validation.description_required".to_string(),
-        ));
-    }
-    Ok(())
 }
 
 /// An event is modifiable as long as it is not in a terminal state.

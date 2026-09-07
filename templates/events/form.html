@@ -1,8 +1,8 @@
 {% extends "_layout.html" %}
 
 {% block title %}
-{% match event %}
-{% when Some with (e) %}{{ i18n.t("events.edit_title") }}{% when None %}{{ i18n.t("events.new_title") }}{% endmatch %}
+{% match edit_id %}
+{% when Some with (_id) %}{{ i18n.t("events.edit_title") }}{% when None %}{{ i18n.t("events.new_title") }}{% endmatch %}
 {% endblock %}
 
 {% block content %}
@@ -16,8 +16,8 @@
             {{ i18n.t("events.back_to_events") }}
         </a>
         <h1 class="mt-2 text-[28px] font-semibold tracking-tight text-ink dark:text-sand-light">
-            {% match event %}
-            {% when Some with (_e) %}{{ i18n.t("events.edit") }}{% when None %}{{ i18n.t("events.new") }}{% endmatch %}
+            {% match edit_id %}
+            {% when Some with (_id) %}{{ i18n.t("events.edit") }}{% when None %}{{ i18n.t("events.new") }}{% endmatch %}
         </h1>
     </header>
 
@@ -31,7 +31,7 @@
 
     <form
         method="post"
-        action="{% match event %}{% when Some with (e) %}/events/{{ e.id }}/edit{% when None %}/events/new{% endmatch %}"
+        action="{% match edit_id %}{% when Some with (id) %}/events/{{ id }}/edit{% when None %}/events/new{% endmatch %}"
         class="mt-8 animate-in delay-1 grid gap-8 lg:gap-0 lg:grid-cols-[minmax(0,1fr)_280px]"
         {% match error %}{% when Some with (_msg) %}aria-describedby="form-error"{% when None %}{% endmatch %}
     >
@@ -194,13 +194,13 @@
             </div>
 
             <div class="mt-6 flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-ink/10 dark:border-sand-light/10">
-                {% match event %}
+                {% match edit_id %}
                 {% when None %}
                 <label class="flex items-center gap-2 cursor-pointer mr-auto">
                     <input type="checkbox" name="save_as_template" class="checkbox-fancy">
                     <span class="text-sm font-medium text-ink/55 dark:text-sand-light/55">{{ i18n.t("events.save_as_template_label") }}</span>
                 </label>
-                {% when Some with (_e) %}
+                {% when Some with (_id) %}
                 {% endmatch %}
                 <a
                     href="/events"
@@ -209,8 +209,8 @@
                     {{ i18n.t("common.cancel") }}
                 </a>
                 <button type="submit" class="btn-3d text-sm">
-                    <span>{% match event %}
-                    {% when Some with (_e) %}{{ i18n.t("common.save") }}{% when None %}{{ i18n.t("events.submit_create") }}{% endmatch %}</span>
+                    <span>{% match edit_id %}
+                    {% when Some with (_id) %}{{ i18n.t("common.save") }}{% when None %}{{ i18n.t("events.submit_create") }}{% endmatch %}</span>
                 </button>
             </div>
         </div>

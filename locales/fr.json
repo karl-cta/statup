@@ -318,7 +318,6 @@
   "validation.passwords_mismatch": "Les mots de passe ne correspondent pas",
   "validation.rate_limited": "Trop de tentatives. Réessayez dans quelques minutes.",
   "validation.generic_error": "Une erreur est survenue",
-  "validation.title_required": "Le titre est requis (max 200 caractères)",
   "validation.description_required": "La description est requise",
   "validation.update_required": "Le message de mise à jour est requis",
   "validation.service_name_required": "Le nom du service est requis (max 100 caractères)",

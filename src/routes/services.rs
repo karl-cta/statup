@@ -37,6 +37,10 @@ struct ServiceFormTemplate {
     unread_count: i64,
     last_admin_action: Option<String>,
     error: Option<String>,
+    /// Set only when editing, and kept apart from `service` so that a rejected
+    /// creation can hand the author their input back without the form turning
+    /// into an edit form pointed at a service that does not exist.
+    edit_id: Option<i64>,
     service: Option<ServiceFormData>,
     selected_icon_id: Option<i64>,
     selected_icon_url: Option<String>,
@@ -47,17 +51,17 @@ struct ServiceFormTemplate {
 }
 
 struct ServiceFormData {
-    id: i64,
     name: String,
     description: String,
     status: ServiceStatus,
 }
 
+/// The name and description rules live in `service_field_error`, not on the
+/// fields: a rule enforced by the extractor rejects the body before any handler
+/// runs, which is what emptied the form on a failed creation.
 #[derive(Deserialize, Validate)]
 pub struct ServiceInput {
-    #[validate(length(min = 1, max = 100, message = "validation.service_name_required"))]
     name: String,
-    #[validate(length(max = 500, message = "validation.description_max_length"))]
     description: Option<String>,
     icon_id: Option<i64>,
     icon_name: Option<String>,
@@ -153,6 +157,7 @@ pub async fn new_form(
         unread_count,
         last_admin_action,
         error: None,
+        edit_id: None,
         service: None,
         selected_icon_id: None,
         selected_icon_url: None,
@@ -184,31 +189,66 @@ pub async fn create(
     {
         Ok(_) => Ok(Redirect::to("/services").into_response()),
         Err(AppError::Validation(msg)) => {
-            let (user_display_name, is_admin, is_authenticated) = layout_fields(&user);
-            let unread_count = unread(&state.pool, &user).await?;
-            let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
-            let icon_url = resolve_icon_url(&state.pool, icon_id).await?;
-            let custom_icons = IconRepository::list_all(&state.pool).await?;
-            let tpl = ServiceFormTemplate {
-                csrf_token: csrf_token.0,
-                user_display_name,
-                is_admin,
-                is_authenticated,
-                unread_count,
-                last_admin_action,
-                error: Some(i18n.t(&msg).to_string()),
-                service: None,
-                selected_icon_id: icon_id,
-                selected_icon_url: icon_url,
-                selected_icon_name: icon_name,
-                builtin_icons: BUILTIN_ICONS,
-                custom_icons,
-                i18n,
+            let form = ServiceFormData {
+                name: input.name,
+                description: input.description.unwrap_or_default(),
+                // Never read: the status control only renders when editing.
+                status: ServiceStatus::Operational,
             };
-            render(&tpl)
+            render_service_form(
+                &state,
+                &user,
+                csrf_token.0,
+                i18n,
+                None,
+                &msg,
+                form,
+                icon_id,
+                icon_name,
+            )
+            .await
         }
         Err(e) => Err(e),
     }
+}
+
+/// Re-renders the form carrying what the author typed, instead of handing back
+/// an empty one and asking them to write it all again.
+#[allow(clippy::too_many_arguments)]
+async fn render_service_form(
+    state: &AppState,
+    user: &User,
+    csrf_token: String,
+    i18n: I18n,
+    edit_id: Option<i64>,
+    error_key: &str,
+    service: ServiceFormData,
+    icon_id: Option<i64>,
+    icon_name: Option<String>,
+) -> Result<Response, AppError> {
+    let (user_display_name, is_admin, is_authenticated) = layout_fields(user);
+    let unread_count = unread(&state.pool, user).await?;
+    let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
+    let icon_url = resolve_icon_url(&state.pool, icon_id).await?;
+    let custom_icons = IconRepository::list_all(&state.pool).await?;
+    let tpl = ServiceFormTemplate {
+        csrf_token,
+        user_display_name,
+        is_admin,
+        is_authenticated,
+        unread_count,
+        last_admin_action,
+        error: Some(i18n.t(error_key).to_string()),
+        edit_id,
+        service: Some(service),
+        selected_icon_id: icon_id,
+        selected_icon_url: icon_url,
+        selected_icon_name: icon_name,
+        builtin_icons: BUILTIN_ICONS,
+        custom_icons,
+        i18n,
+    };
+    render(&tpl)
 }
 
 pub async fn edit_form(
@@ -236,6 +276,7 @@ pub async fn edit_form(
         unread_count,
         last_admin_action,
         error: None,
+        edit_id: Some(service.id),
         selected_icon_id: service.icon_id,
         selected_icon_url: icon_url,
         selected_icon_name: icon_name,
@@ -243,7 +284,6 @@ pub async fn edit_form(
         custom_icons,
         i18n,
         service: Some(ServiceFormData {
-            id: service.id,
             name: service.name,
             description: service.description.unwrap_or_default(),
             status: service.status,
@@ -285,33 +325,23 @@ pub async fn update(
             Ok(Redirect::to("/services").into_response())
         }
         Err(AppError::Validation(msg)) => {
-            let (user_display_name, is_admin, is_authenticated) = layout_fields(&user);
-            let unread_count = unread(&state.pool, &user).await?;
-            let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
-            let icon_url = resolve_icon_url(&state.pool, icon_id).await?;
-            let custom_icons = IconRepository::list_all(&state.pool).await?;
-            let tpl = ServiceFormTemplate {
-                csrf_token: csrf_token.0,
-                user_display_name,
-                is_admin,
-                is_authenticated,
-                unread_count,
-                last_admin_action,
-                error: Some(i18n.t(&msg).to_string()),
-                service: Some(ServiceFormData {
-                    id,
-                    name: input.name,
-                    description: input.description.unwrap_or_default(),
-                    status: status.unwrap_or(ServiceStatus::Operational),
-                }),
-                selected_icon_id: icon_id,
-                selected_icon_url: icon_url,
-                selected_icon_name: icon_name,
-                builtin_icons: BUILTIN_ICONS,
-                custom_icons,
-                i18n,
+            let form = ServiceFormData {
+                name: input.name,
+                description: input.description.unwrap_or_default(),
+                status: status.unwrap_or(ServiceStatus::Operational),
             };
-            render(&tpl)
+            render_service_form(
+                &state,
+                &user,
+                csrf_token.0,
+                i18n,
+                Some(id),
+                &msg,
+                form,
+                icon_id,
+                icon_name,
+            )
+            .await
         }
         Err(e) => Err(e),
     }

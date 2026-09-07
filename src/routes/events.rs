@@ -20,7 +20,7 @@ use crate::repositories::{
     EventRepository, EventTemplateRepository, IconRepository, ServiceRepository,
 };
 use crate::services::{
-    CreateTemplateParams, EventService, EventTemplateService, sanitize_markdown,
+    CreateTemplateParams, EventService, EventTemplateService, event_field_error, sanitize_markdown,
 };
 use crate::state::AppState;
 
@@ -96,12 +96,15 @@ struct EventFormTemplate {
     last_admin_action: Option<String>,
     error: Option<String>,
     services: Vec<Service>,
+    /// Set only when editing, and kept apart from `event` so that a rejected
+    /// creation can hand the author their input back without the form turning
+    /// into an edit form pointed at an event that does not exist.
+    edit_id: Option<i64>,
     event: Option<EventFormData>,
     i18n: I18n,
 }
 
 struct EventFormData {
-    id: i64,
     title: String,
     description: String,
     kind: Kind,
@@ -120,11 +123,12 @@ impl EventFormData {
     }
 }
 
+/// The title and description rules live in `event_field_error`, not on the
+/// fields: a rule enforced by the extractor rejects the body before any handler
+/// runs, which is what emptied the form on every failed submission.
 #[derive(Deserialize, Validate)]
 pub struct EventInput {
-    #[validate(length(min = 1, max = 200, message = "validation.title_required"))]
     title: String,
-    #[validate(length(min = 1, message = "validation.description_required"))]
     description: String,
     kind: Kind,
     #[serde(default, deserialize_with = "empty_string_as_none")]
@@ -576,6 +580,7 @@ pub async fn new_form(
         last_admin_action,
         error: None,
         services,
+        edit_id: None,
         event: None,
         i18n,
     };
@@ -636,26 +641,53 @@ pub async fn create(
             Ok(Redirect::to(&format!("/events/{}", event.id)).into_response())
         }
         Err(AppError::Validation(msg)) => {
-            let services = ServiceRepository::list_all(&state.pool).await?;
-            let (user_display_name, is_admin, is_authenticated) = layout_fields_auth(&user);
-            let unread_count = unread_auth(&state.pool, &user).await?;
-            let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
-            let tpl = EventFormTemplate {
-                csrf_token: csrf_token.0,
-                user_display_name,
-                is_admin,
-                is_authenticated,
-                unread_count,
-                last_admin_action,
-                error: Some(i18n.t(&msg).to_string()),
-                services,
-                event: None,
-                i18n,
-            };
-            render(&tpl)
+            render_event_form(&state, &user, csrf_token.0, i18n, None, &msg, input).await
         }
         Err(e) => Err(e),
     }
+}
+
+/// Re-renders the form carrying what the author typed. A rejected submission
+/// used to come back blank, which cost them the incident they were writing on
+/// the one screen that gets used while something is burning.
+async fn render_event_form(
+    state: &AppState,
+    user: &User,
+    csrf_token: String,
+    i18n: I18n,
+    edit_id: Option<i64>,
+    error_key: &str,
+    input: EventInput,
+) -> Result<Response, AppError> {
+    let (severity, planned, category) = input.normalized();
+    let services = ServiceRepository::list_all(&state.pool).await?;
+    let (user_display_name, is_admin, is_authenticated) = layout_fields_auth(user);
+    let unread_count = unread_auth(&state.pool, user).await?;
+    let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
+    let tpl = EventFormTemplate {
+        csrf_token,
+        user_display_name,
+        is_admin,
+        is_authenticated,
+        unread_count,
+        last_admin_action,
+        error: Some(i18n.t(error_key).to_string()),
+        services,
+        edit_id,
+        event: Some(EventFormData {
+            title: input.title,
+            description: input.description,
+            kind: input.kind,
+            severity,
+            planned,
+            category,
+            service_ids: input.service_ids,
+            planned_start: input.planned_start,
+            planned_end: input.planned_end,
+        }),
+        i18n,
+    };
+    render(&tpl)
 }
 
 pub async fn edit_form(
@@ -682,8 +714,8 @@ pub async fn edit_form(
         last_admin_action,
         error: None,
         services,
+        edit_id: Some(ews.event.id),
         event: Some(EventFormData {
-            id: ews.event.id,
             title: ews.event.title,
             description: ews.event.description,
             kind: ews.event.kind,
@@ -721,35 +753,8 @@ pub async fn update(
     let icon_id = parse_icon_id(input.icon_id);
     let (severity, planned, category) = input.normalized();
 
-    if input.title.trim().is_empty() {
-        let services = ServiceRepository::list_all(&state.pool).await?;
-        let (user_display_name, is_admin, is_authenticated) = layout_fields_auth(&user);
-        let unread_count = unread_auth(&state.pool, &user).await?;
-        let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
-        let tpl = EventFormTemplate {
-            csrf_token: csrf_token.0,
-            user_display_name,
-            is_admin,
-            is_authenticated,
-            unread_count,
-            last_admin_action,
-            error: Some(i18n.t("validation.title_empty").to_string()),
-            services,
-            event: Some(EventFormData {
-                id,
-                title: input.title,
-                description: input.description,
-                kind: input.kind,
-                severity,
-                planned,
-                category,
-                service_ids: input.service_ids,
-                planned_start: input.planned_start,
-                planned_end: input.planned_end,
-            }),
-            i18n,
-        };
-        return render(&tpl);
+    if let Some(key) = event_field_error(&input.title, &input.description) {
+        return render_event_form(&state, &user, csrf_token.0, i18n, Some(id), key, input).await;
     }
 
     let planned_start = input
