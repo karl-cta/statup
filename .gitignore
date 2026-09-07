@@ -43,3 +43,6 @@ coverage/
 
 # Cargo
 .cargo/
+
+# Uploaded icons and any other runtime data, never part of the repository
+/data/
