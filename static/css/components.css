@@ -1044,9 +1044,32 @@
         background: rgb(244 241 235 / 0.03);
     }
 
+    /* The ground takes the hue of the worst active incident, not a fixed red.
+       Painting a minor incident under watch the same red as a production
+       outage spent the loudest signal the page has on the mildest case. */
     .hero-incident {
-        background: var(--sem-crit-soft);
-        border-color: var(--sem-crit-border);
+        background: var(--tone-soft);
+        border-color: var(--tone-border);
+    }
+
+    .hero-tone-crit {
+        --tone-soft: var(--sem-crit-soft);
+        --tone-border: var(--sem-crit-border);
+    }
+
+    .hero-tone-major {
+        --tone-soft: var(--sem-major-soft);
+        --tone-border: var(--sem-major-border);
+    }
+
+    .hero-tone-minor {
+        --tone-soft: var(--sem-minor-soft);
+        --tone-border: var(--sem-minor-border);
+    }
+
+    .hero-tone-info {
+        --tone-soft: var(--sem-info-soft);
+        --tone-border: var(--sem-info-border);
     }
 
     /* The dot sits inside the title now. The label that used to carry it said
@@ -1071,8 +1094,23 @@
         --dot: var(--sem-ok);
     }
 
+    /* The text variants, not the signal ones: these dots sit on the banner's own
+       tinted ground, where the light-theme signal amber measured 1.74 against
+       it. A dot is graphical, so it owes 3:1 there, not on the page behind. */
     .hero-dot-crit {
-        --dot: var(--sem-crit);
+        --dot: var(--sem-crit-text);
+    }
+
+    .hero-dot-major {
+        --dot: var(--sem-major-text);
+    }
+
+    .hero-dot-minor {
+        --dot: var(--sem-minor-text);
+    }
+
+    .hero-dot-info {
+        --dot: var(--sem-info-text);
     }
 
     /* Idle: no service configured. Neutral on purpose, this is neither health
@@ -1174,7 +1212,7 @@
     }
 
     .hero-list li {
-        border-top: 1px solid var(--sem-crit-border);
+        border-top: 1px solid var(--tone-border);
     }
 
     .hero-list-item {

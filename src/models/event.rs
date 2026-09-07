@@ -300,6 +300,19 @@ impl Event {
     }
 }
 
+/// Which semantic hue an active event lends the status banner. The banner used
+/// to paint every line critical red and order them by date, so a minor incident
+/// under watch outranked a production outage and wore the same colour.
+fn banner_tone(kind: Kind, severity: Option<Severity>) -> &'static str {
+    match (kind, severity) {
+        (Kind::Incident, Some(Severity::Critical)) => "crit",
+        (Kind::Incident, Some(Severity::Major)) => "major",
+        (Kind::Incident, _) => "minor",
+        // Publications never reach the banner; an unplanned maintenance does.
+        _ => "info",
+    }
+}
+
 /// Shared by `Event` and `EventSummary`, which both carry kind + severity.
 fn chip_class_for(kind: Kind, severity: Option<Severity>) -> &'static str {
     match (kind, severity) {
@@ -379,6 +392,27 @@ impl EventSummary {
     /// Chip style variant for log-rows, derived from kind + severity.
     pub fn chip_class(&self) -> &'static str {
         chip_class_for(self.kind, self.severity)
+    }
+
+    /// Banner ground for this event. The query hands the worst one first, so
+    /// the banner takes its colour from the incident that matters most.
+    pub fn hero_tone_class(&self) -> &'static str {
+        match banner_tone(self.kind, self.severity) {
+            "crit" => "hero-tone-crit",
+            "major" => "hero-tone-major",
+            "minor" => "hero-tone-minor",
+            _ => "hero-tone-info",
+        }
+    }
+
+    /// Banner dot, keyed on the same tone as the ground.
+    pub fn hero_dot_class(&self) -> &'static str {
+        match banner_tone(self.kind, self.severity) {
+            "crit" => "hero-dot-crit",
+            "major" => "hero-dot-major",
+            "minor" => "hero-dot-minor",
+            _ => "hero-dot-info",
+        }
     }
 
     /// Where the planned start sits relative to now. `None` when the event

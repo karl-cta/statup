@@ -294,7 +294,10 @@ impl EventRepository {
              WHERE e.lifecycle NOT IN ('resolved', 'completed', 'cancelled') \
                AND (e.kind = 'incident' OR (e.kind = 'maintenance' AND e.planned = 0)) \
              GROUP BY e.id \
-             ORDER BY e.created_at DESC",
+             ORDER BY CASE e.severity \
+                        WHEN 'critical' THEN 3 WHEN 'major' THEN 2 WHEN 'minor' THEN 1 \
+                        ELSE 0 END DESC, \
+                      e.created_at DESC",
         )
         .fetch_all(pool)
         .await

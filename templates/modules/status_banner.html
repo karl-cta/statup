@@ -24,11 +24,13 @@
     </h2>
 </section>
 {% else %}
-<section class="hero hero-incident">
-    {% match active_incidents.first() %}
-    {% when Some with (first) %}
+{# The query hands back the worst incident first, so the head of the list sets
+   both the ground and the title dot. #}
+{% match active_incidents.first() %}
+{% when Some with (first) %}
+<section class="hero hero-incident {{ first.hero_tone_class() }}">
     <h2 class="hero-title">
-        <span class="hero-dot hero-dot-crit" aria-hidden="true"></span>
+        <span class="hero-dot {{ first.hero_dot_class() }}" aria-hidden="true"></span>
         {# The single-incident title is the incident's own, so without this the
            state would be carried by the ground colour alone. #}
         <span class="sr-only">{{ i18n.t("dashboard.status_incident_mono") }} :</span>
@@ -45,14 +47,12 @@
         {% endif %}
         <span data-relative-from="{{ first.created_at.to_rfc3339() }}"></span>
     </p>
-    {% when None %}
-    {% endmatch %}
     {% if active_incidents.len() > 1 %}
     <ul class="hero-list">
         {% for inc in active_incidents %}
         <li>
             <a href="/events/{{ inc.id }}" data-drawer="/events/{{ inc.id }}/drawer" class="hero-list-item">
-                <span class="hero-dot-sm hero-dot-crit" aria-hidden="true"></span>
+                <span class="hero-dot-sm {{ inc.hero_dot_class() }}" aria-hidden="true"></span>
                 <span class="hero-list-title">{{ inc.title }}</span>
                 {% if !inc.service_names.is_empty() %}
                 <span class="hero-list-svc">{{ inc.service_names }}</span>
@@ -63,4 +63,6 @@
     </ul>
     {% endif %}
 </section>
+{% when None %}
+{% endmatch %}
 {% endif %}
