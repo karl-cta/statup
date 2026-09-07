@@ -1035,7 +1035,11 @@
         margin-bottom: 20px;
     }
 
-    :is(.dark *) .hero {
+    /* The :not() keeps the neutral dark surface away from an incident banner.
+       Without it the dark rule outweighs .hero-incident on specificity and the
+       alert tint disappears in dark mode, leaving an outage indistinguishable
+       from a healthy page. The --sem-* tokens already carry their dark values. */
+    :is(.dark *) .hero:not(.hero-incident) {
         border-color: rgb(244 241 235 / 0.12);
         background: rgb(244 241 235 / 0.03);
     }
@@ -1777,7 +1781,7 @@
         flex-shrink: 0;
     }
 
-    :is(.dark *) .log-right {
+    :is(.dark *) .log-right:not(.log-right-resolved, .log-right-completed) {
         color: var(--color-muted-dark);
     }
 
@@ -1960,7 +1964,9 @@
         font-feature-settings: 'tnum' 1;
     }
 
-    :is(.dark *) .mnt-countdown {
+    /* Same specificity trap as .hero-incident: without the :not(), the dark
+       rule outweighs the modifier and a maintenance due soon loses its tint. */
+    :is(.dark *) .mnt-countdown:not(.mnt-countdown-soon) {
         color: var(--color-muted-dark);
     }
 
