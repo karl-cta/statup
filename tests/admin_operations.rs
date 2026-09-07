@@ -600,7 +600,7 @@ async fn instance_name_replaces_the_brand_in_masthead_and_title() {
         "tab title should end with the instance name"
     );
     assert!(
-        body.contains(r#"<span class="mast-word">Acme Status</span>"#),
+        body.contains(r#"<span class="mast-word mast-word-custom">Acme Status</span>"#),
         "masthead should show the instance name without the accented wordmark"
     );
     assert!(
