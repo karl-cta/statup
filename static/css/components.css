@@ -1374,11 +1374,18 @@
         background: rgb(244 241 235 / 0.03);
     }
 
+    /* Wraps rather than squeezes: in the narrow dashboard column the state word
+       takes half the row, and letting the name fight it for the rest turned
+       "Passerelle de paiement" into seven stacked lines. Below the threshold the
+       state drops to its own line, right aligned so it lines up with the
+       percentage underneath. */
     .svc-top {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
         gap: 10px;
+        row-gap: 2px;
         margin-bottom: 8px;
     }
 
@@ -1386,7 +1393,8 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        min-width: 0;
+        flex: 1 1 130px;
+        min-width: 130px;
     }
 
     .svc-dot {
@@ -1476,9 +1484,60 @@
         color: var(--color-sand-light);
     }
 
-    /* Neutral on purpose: the dot beside it already states the current status,
-       and this number covers the last thirty days. Colouring a history with a
-       present-tense colour put two different facts on one channel. */
+    /* The state is spelled out, because a dot alone put the only answer this
+       card gives on a channel that colour blindness, a bright screen or a phone
+       held at arm's length can each remove. Operational stays muted: the charter
+       reserves emphasis for what is wrong, and a column of green words would
+       spend the loudest signal on the ordinary case. */
+    .svc-status {
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+        flex-shrink: 0;
+        margin-left: auto;
+    }
+
+    /* Keyed on the same string as the dot beside it, so the two can never
+       disagree. Colours resolve per theme through the tokens, and the neutral
+       case declares its dark value on the modifier itself rather than on the
+       base class, which would outrank the four coloured ones. */
+    .svc-status-operational {
+        color: var(--color-muted-light);
+    }
+
+    :is(.dark *) .svc-status-operational {
+        color: var(--color-muted-dark);
+    }
+
+    .svc-status-degraded {
+        color: var(--sem-minor-text);
+    }
+
+    .svc-status-partial_outage {
+        color: var(--sem-major-text);
+    }
+
+    .svc-status-major_outage {
+        color: var(--sem-crit-text);
+    }
+
+    .svc-status-maintenance {
+        color: var(--sem-info-text);
+    }
+
+    /* Muted and beside the bars: this number covers the last thirty days, while
+       the row above answers for right now. It used to carry full ink weight
+       opposite the name, which made a history compete with a live state. */
+    .svc-strip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
     .svc-pct {
         font-family: var(--font-mono);
         font-size: 12px;
@@ -1486,18 +1545,19 @@
         letter-spacing: 0.02em;
         font-feature-settings: 'tnum' 1;
         flex-shrink: 0;
-        color: var(--color-ink);
+        color: var(--color-muted-light);
     }
 
     :is(.dark *) .svc-pct {
-        color: var(--color-sand-light);
+        color: var(--color-muted-dark);
     }
 
     .svc-bars {
         display: flex;
+        flex: 1;
+        min-width: 0;
         gap: 2px;
         height: 20px;
-        margin-bottom: 8px;
         position: relative;
     }
 

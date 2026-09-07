@@ -25,17 +25,25 @@
                 <span class="svc-dot svc-dot-{{ service.status.as_str() }}" aria-hidden="true"></span>
                 <span class="svc-name">{{ service.name }}</span>
             </div>
-            <span class="svc-pct">{{ self.uptime_pct(service) }}</span>
+            {# The state is a word, the dot only reinforces it. This row used to
+               read "avatar 96.7%", so an outage and a healthy service differed
+               by an 8px hue and nothing else. #}
+            <span class="svc-status svc-status-{{ service.status.as_str() }}">{{ i18n.t(service.status.i18n_key()) }}</span>
         </div>
-        {# One image with one label. Each bar used to be its own focusable
-           image, which put 90 tab stops and 90 nested images on a card with
-           three services. #}
-        <div class="svc-bars"
-             role="img"
-             aria-label="{{ self.availability_label(service) }}">
-            {% for day in self.sparkline_days(service) %}
-            <span class="{{ day.class }}" data-day-date="{{ day.date }}" data-day-status="{{ day.status }}"></span>
-            {% endfor %}
+        {# The percentage sits with the bars because both describe the same
+           thirty days, while the row above answers for right now. #}
+        <div class="svc-strip">
+            {# One image with one label. Each bar used to be its own focusable
+               image, which put 90 tab stops and 90 nested images on a card with
+               three services. #}
+            <div class="svc-bars"
+                 role="img"
+                 aria-label="{{ self.availability_label(service) }}">
+                {% for day in self.sparkline_days(service) %}
+                <span class="{{ day.class }}" data-day-date="{{ day.date }}" data-day-status="{{ day.status }}"></span>
+                {% endfor %}
+            </div>
+            <span class="svc-pct">{{ self.uptime_pct(service) }}</span>
         </div>
     </article>
     {% endfor %}
