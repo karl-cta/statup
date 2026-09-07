@@ -1,5 +1,13 @@
-{# Custom icons grid for the picker. Expects `custom_icons` (Vec<Icon>), `selected_icon_id` (Option<i64>), `i18n` (I18n) in scope. #}
+{# Custom icons grid for the picker. Expects `custom_icons` (Vec<Icon>), `selected_icon_id` (Option<i64>),
+   `upload_error` (Option<String>), `i18n` (I18n) in scope. #}
 <div id="custom-icons-grid" class="mt-3">
+    {% match upload_error %}
+    {% when Some with (msg) %}
+    <div class="form-error mb-3" role="alert">
+        <p>{{ msg }}</p>
+    </div>
+    {% when None %}
+    {% endmatch %}
     {% if custom_icons.is_empty() %}
     <p class="text-[12px] text-ink/45 dark:text-sand-light/40">
         {{ i18n.t("icons.no_custom") }}

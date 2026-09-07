@@ -260,7 +260,9 @@
   "icons.no_custom": "No custom icon yet",
   "icons.upload": "Upload an icon",
   "icons.uploading": "Uploading",
-  "icons.upload_hint_short": "PNG, JPG, WebP or SVG, 1 MB max",
+  "icons.upload_hint_short": "PNG, JPG, WebP or SVG, up to",
+  "icons.remove": "Remove",
+  "units.kb": "KB",
   "icons.choose_file": "Choose a file",
 
   "common.save": "Save",

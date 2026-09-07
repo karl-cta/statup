@@ -49,6 +49,8 @@ struct ServiceFormTemplate {
     selected_icon_name: Option<String>,
     builtin_icons: &'static [BuiltinIcon],
     custom_icons: Vec<Icon>,
+    /// Only the picker's own upload fragment ever carries a message here.
+    upload_error: Option<String>,
     i18n: I18n,
 }
 
@@ -167,6 +169,7 @@ pub async fn new_form(
         selected_icon_name: None,
         builtin_icons: BUILTIN_ICONS,
         custom_icons,
+        upload_error: None,
         i18n,
     };
     render(&tpl)
@@ -249,6 +252,7 @@ async fn render_service_form(
         selected_icon_name: icon_name,
         builtin_icons: BUILTIN_ICONS,
         custom_icons,
+        upload_error: None,
         i18n,
     };
     render(&tpl)
@@ -285,6 +289,7 @@ pub async fn edit_form(
         selected_icon_name: icon_name,
         builtin_icons: BUILTIN_ICONS,
         custom_icons,
+        upload_error: None,
         i18n,
         service: Some(ServiceFormData {
             name: service.name,

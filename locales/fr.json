@@ -260,7 +260,9 @@
   "icons.no_custom": "Pas encore d'icône personnalisée",
   "icons.upload": "Téléverser une icône",
   "icons.uploading": "Téléversement",
-  "icons.upload_hint_short": "PNG, JPG, WebP ou SVG, 1 Mo max",
+  "icons.upload_hint_short": "PNG, JPG, WebP ou SVG, jusqu'à",
+  "icons.remove": "Retirer",
+  "units.kb": "Ko",
   "icons.choose_file": "Choisir un fichier",
 
   "common.save": "Enregistrer",

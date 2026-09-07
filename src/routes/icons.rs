@@ -30,6 +30,10 @@ struct IconListTemplate {
 struct IconGridTemplate {
     custom_icons: Vec<Icon>,
     selected_icon_id: Option<i64>,
+    /// A refused upload comes back as a normal swap carrying this message.
+    /// htmx does not swap error statuses, so a 400 left the author with a
+    /// picker that did nothing and said nothing.
+    upload_error: Option<String>,
     i18n: I18n,
 }
 
@@ -135,21 +139,30 @@ pub async fn upload_picker(
     Locale(i18n): Locale,
     mut multipart: Multipart,
 ) -> Result<Response, AppError> {
-    let (original_name, data) = extract_upload(&mut multipart, &i18n).await?;
+    let uploaded = async {
+        let (original_name, data) = extract_upload(&mut multipart, &i18n).await?;
+        IconService::upload(
+            &state.pool,
+            &state.upload_dir,
+            &data,
+            &original_name,
+            user.id,
+        )
+        .await
+    }
+    .await;
 
-    let icon = IconService::upload(
-        &state.pool,
-        &state.upload_dir,
-        &data,
-        &original_name,
-        user.id,
-    )
-    .await?;
+    let (selected_icon_id, upload_error) = match uploaded {
+        Ok(icon) => (Some(icon.id), None),
+        Err(AppError::Validation(msg)) => (None, Some(i18n.t(&msg).to_string())),
+        Err(e) => return Err(e),
+    };
 
     let icons = IconRepository::list_all(&state.pool).await?;
     let tpl = IconGridTemplate {
         custom_icons: icons,
-        selected_icon_id: Some(icon.id),
+        selected_icon_id,
+        upload_error,
         i18n,
     };
     render(&tpl)

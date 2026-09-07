@@ -18,15 +18,29 @@
             {% when Some with (url) %}
             <img src="{{ url }}" alt="{{ i18n.t("icons.icon_alt") }}" class="h-8 w-8 rounded-sm object-contain">
             {% when None %}
+            {# A built-in icon is a name, not a file, so it has no URL: the
+               preview used to show the placeholder while the grid showed a
+               selected cell. #}
+            {% match selected_icon_name.as_deref().and_then(crate::models::find_builtin_icon) %}
+            {% when Some with (icon) %}
+            <svg class="h-6 w-6 text-ink/70 dark:text-sand-light/60" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                {% for path in icon.paths.split("|||") %}
+                <path stroke-linecap="round" stroke-linejoin="round" d="{{ path }}" />
+                {% endfor %}
+            </svg>
+            {% when None %}
             <svg class="h-5 w-5 text-ink/25 dark:text-sand-light/20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
             </svg>
             {% endmatch %}
+            {% endmatch %}
         </div>
+        {# Quiet and named for what it does: it clears the choice, it deletes
+           nothing, so it does not wear the colour of destruction. #}
         {% if selected_icon_name.is_some() || selected_icon_id.is_some() %}
         <button type="button" id="icon-remove-btn" onclick="clearIcon()"
-                class="text-[13px] font-medium text-danger-soft cursor-pointer">
-            {{ i18n.t("common.delete") }}
+                class="text-[13px] font-medium text-ink/55 hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light transition-colors cursor-pointer">
+            {{ i18n.t("icons.remove") }}
         </button>
         {% endif %}
     </div>
@@ -65,7 +79,9 @@
            hx-params filters to only these two fields so the service form doesn't get spammed. #}
         <label class="icon-upload-field">
             <span class="icon-upload-cta">{{ i18n.t("icons.upload") }}</span>
-            <span class="icon-upload-hint">{{ i18n.t("icons.upload_hint_short") }}</span>
+            {# The cap is read from the constant that enforces it, so the hint
+               cannot drift from the rule again. #}
+            <span class="icon-upload-hint">{{ i18n.t("icons.upload_hint_short") }} {{ crate::models::MAX_ICON_SIZE / 1024 }} {{ i18n.t("units.kb") }}</span>
             <input type="file" name="file" id="icon-upload-file"
                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
                    class="sr-only"
@@ -75,8 +91,7 @@
                    hx-trigger="change"
                    hx-encoding="multipart/form-data"
                    hx-params="file,csrf_token"
-                   hx-indicator="#icon-upload-status"
-                   hx-on::after-request="this.value=''">
+                   hx-indicator="#icon-upload-status">
         </label>
 
         {% include "components/icon_grid.html" %}
@@ -127,11 +142,28 @@ function ensureRemoveButton() {
         rb.type = 'button';
         rb.id = 'icon-remove-btn';
         rb.onclick = clearIcon;
-        rb.className = 'text-[13px] font-medium text-danger-soft cursor-pointer';
-        rb.textContent = '{{ i18n.t("common.delete") }}';
+        rb.className = 'text-[13px] font-medium text-ink/55 hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light transition-colors cursor-pointer';
+        rb.textContent = '{{ i18n.t("icons.remove") }}';
         container.appendChild(rb);
     }
 }
+
+// The upload swaps the grid with the new icon marked selected, but the hidden
+// inputs and the preview live outside that grid: without this, the choice
+// looked made and was not saved.
+document.body.addEventListener('htmx:afterSwap', function (e) {
+    if (!e.target || e.target.id !== 'custom-icons-grid') return;
+    var chosen = e.target.querySelector('.icon-btn-custom.border-ink');
+    if (chosen) selectCustomIcon(chosen);
+});
+
+// Clears the file input once the upload has been answered, so the same file
+// can be picked again. This used to be an hx-on attribute, which htmx runs
+// through eval: the content security policy forbids that, so it threw on every
+// page load and the first upload after loading was never drawn.
+document.body.addEventListener('htmx:afterRequest', function (e) {
+    if (e.target && e.target.id === 'icon-upload-file') e.target.value = '';
+});
 
 function clearIcon() {
     document.getElementById('icon-name-input').value = '';
