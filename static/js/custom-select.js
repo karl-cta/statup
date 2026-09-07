@@ -263,6 +263,10 @@
         native.addEventListener('change', function (e) {
             if (e.isTrusted) syncLabel();
         });
+
+        // Lets another script put the value back and have the trigger follow,
+        // without firing a change that listeners would read as a new choice.
+        native.addEventListener('cs:sync', syncLabel);
     }
 
     function initAll(root) {

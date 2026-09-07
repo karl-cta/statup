@@ -101,6 +101,122 @@
         color: var(--color-muted-dark);
     }
 
+    /* The status control publishes to the public page, so it carries a confirm
+       step for the two outage levels and a receipt with an undo afterwards.
+       Both live in the same cell as the select, so the row never grows. */
+    .status-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        min-width: 0;
+    }
+
+    .status-cell [hidden] {
+        display: none;
+    }
+
+    .status-confirm,
+    .status-receipt {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .status-confirm-label,
+    .status-receipt-text {
+        font-weight: 500;
+        color: var(--color-muted-light);
+    }
+
+    :is(.dark *) .status-confirm-label,
+    :is(.dark *) .status-receipt-text {
+        color: var(--color-muted-dark);
+    }
+
+    .status-confirm-label::after {
+        content: ' ?';
+    }
+
+    .status-confirm-go,
+    .status-confirm-cancel,
+    .status-receipt-undo {
+        font: inherit;
+        letter-spacing: inherit;
+        text-transform: inherit;
+        background: none;
+        border: 0;
+        padding: 2px 4px;
+        margin: -2px -4px;
+        cursor: pointer;
+        border-radius: 3px;
+        transition: color 0.12s;
+    }
+
+    /* The affirmative one is the only coloured word here: it is the one that
+       reaches every visitor. Cancel and undo stay quiet on purpose. */
+    .status-confirm-go {
+        color: var(--sem-crit-text);
+        font-weight: 600;
+    }
+
+    .status-confirm-cancel,
+    .status-receipt-undo {
+        color: var(--color-muted-light);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+
+    :is(.dark *) .status-confirm-cancel,
+    :is(.dark *) .status-receipt-undo {
+        color: var(--color-muted-dark);
+    }
+
+    .status-confirm-cancel:hover,
+    .status-receipt-undo:hover {
+        color: var(--color-ink);
+    }
+
+    :is(.dark *) .status-confirm-cancel:hover,
+    :is(.dark *) .status-receipt-undo:hover {
+        color: var(--color-sand-light);
+    }
+
+    .status-confirm-go:focus-visible,
+    .status-confirm-cancel:focus-visible,
+    .status-receipt-undo:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+    }
+
+    /* Arrives once, so the receipt registers as new without looping. */
+    .status-receipt {
+        animation: status-receipt-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    @keyframes status-receipt-in {
+        from {
+            opacity: 0;
+            transform: translateY(-3px);
+        }
+
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .status-receipt {
+            animation: none;
+        }
+    }
+
     .status-label {
         font-family: var(--font-mono);
         font-size: 10.5px;

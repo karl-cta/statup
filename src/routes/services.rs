@@ -24,6 +24,8 @@ struct ServiceListTemplate {
     unread_count: i64,
     last_admin_action: Option<String>,
     services: Vec<crate::models::Service>,
+    /// Never a receipt here: the list renders the control at rest.
+    previous: Option<ServiceStatus>,
     i18n: I18n,
 }
 
@@ -134,6 +136,7 @@ pub async fn list(
         unread_count,
         last_admin_action,
         services,
+        previous: None,
         i18n,
     };
     render(&tpl)
@@ -360,6 +363,10 @@ pub async fn delete(
 #[derive(Deserialize)]
 pub struct StatusInput {
     status: String,
+    /// Sent by the receipt's undo button, so putting a status back does not
+    /// itself offer to put it back again.
+    #[serde(default)]
+    undo: Option<String>,
 }
 
 #[derive(Template)]
@@ -367,6 +374,10 @@ pub struct StatusInput {
 struct StatusSelectorFragment {
     csrf_token: String,
     service: crate::models::Service,
+    /// The status this service held a moment ago. `Some` turns the fragment
+    /// into a receipt with an undo, which is the only way back from a
+    /// publication that reached every visitor.
+    previous: Option<ServiceStatus>,
     i18n: I18n,
 }
 
@@ -383,9 +394,10 @@ pub async fn update_status(
         .parse()
         .map_err(|e: String| AppError::Validation(e))?;
 
-    ServiceRepository::find_by_id(&state.pool, id)
+    let before = ServiceRepository::find_by_id(&state.pool, id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or(AppError::NotFound)?
+        .status;
 
     ServiceRepository::update_status(&state.pool, id, status).await?;
 
@@ -393,9 +405,11 @@ pub async fn update_status(
         .await?
         .ok_or(AppError::NotFound)?;
 
+    let is_undo = input.undo.is_some();
     let tpl = StatusSelectorFragment {
         csrf_token: csrf_token.0,
         service,
+        previous: (!is_undo && before != status).then_some(before),
         i18n,
     };
     let html = tpl

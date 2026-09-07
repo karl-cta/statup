@@ -278,6 +278,11 @@
   "common.status_label": "Status",
   "common.actions_label": "Actions",
   "common.next_page_aria": "Next page",
+  "services.publish_status": "Publish",
+  "services.status_published": "published",
+  "services.undo_status": "Undo",
+  "services.confirm_status_aria": "Confirm publishing the status",
+  "services.status_receipt_aria": "Status published",
   "services.change_status_aria": "Change status of",
   "icons.icon_alt": "Icon",
 
