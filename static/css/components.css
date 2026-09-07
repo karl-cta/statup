@@ -1393,8 +1393,17 @@
         .hero-title {
             font-size: 24px;
         }
+        /* The service name is the answer a visitor came for ("is mine down?"),
+           so it moves under the title instead of being dropped. Hiding it left
+           a phone with a list of incidents attached to nothing. */
+        .hero-list-item {
+            grid-template-columns: auto minmax(0, 1fr);
+            row-gap: 2px;
+        }
         .hero-list-svc {
-            display: none;
+            grid-column: 2;
+            justify-self: start;
+            max-width: 100%;
         }
     }
 
