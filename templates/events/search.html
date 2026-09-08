@@ -69,12 +69,21 @@
                   transition-colors hover-row cursor-pointer">
             <span class="flex-shrink-0 h-2 w-2 rounded-full {% if let Some(sev) = r.event.severity %}{{ sev.dot_class() }}{% else %}{{ r.event.kind.dot_class() }}{% endif %}"
                   aria-hidden="true"></span>
-            <span class="flex-shrink-0 font-mono text-[10.5px] tabular-nums text-ink/45 dark:text-sand-light/40">
-                {{ i18n.format_time(r.event.created_at) }}
+            {# Results span months, unlike the day-grouped list, so the day is
+               named on every row: "Today", "Yesterday", or the date. #}
+            <span class="flex-shrink-0 font-mono text-[10.5px] tabular-nums text-ink/45 dark:text-sand-light/40 whitespace-nowrap">
+                {{ i18n.day_label(r.event.created_at) }} {{ i18n.format_time(r.event.created_at) }}
             </span>
             <span class="truncate min-w-0 flex-1 text-sm
                 {% if let Some(lc) = r.event.lifecycle %}{% if lc.is_active() %}font-medium text-ink dark:text-sand-light{% else %}text-ink/70 dark:text-sand-light/60{% endif %}{% else %}text-ink/70 dark:text-sand-light/60{% endif %}">{{ r.highlighted_title|safe }}</span>
-            <span class="flex-shrink-0 text-[10.5px] text-ink/45 dark:text-sand-light/40 whitespace-nowrap">
+            {% match r.event.lifecycle %}
+            {% when Some with (lc) %}
+            <span class="flex-shrink-0 log-right log-right-{{ lc.as_str() }}">{{ i18n.t(lc.i18n_key()) }}</span>
+            {% when None %}
+            {% endmatch %}
+            {# On a phone the title gives way first, so the kind, already told by
+               the dot, steps aside and the state keeps its place. #}
+            <span class="hidden sm:inline flex-shrink-0 text-[10.5px] text-ink/45 dark:text-sand-light/40 whitespace-nowrap">
                 {{ i18n.t(r.event.kind.i18n_key()) }}
             </span>
         </a>

@@ -157,6 +157,11 @@ impl I18n {
         }
     }
 
+    /// `date_label` for a full timestamp, for rows that are not grouped by day.
+    pub fn day_label(&self, dt: &DateTime<Utc>) -> String {
+        self.date_label(&dt.date_naive())
+    }
+
     /// Countdown string (e.g. "3d 2h" or "45min").
     pub fn format_countdown(&self, days: i64, hours: i64, minutes: i64) -> String {
         match self.locale.as_str() {
