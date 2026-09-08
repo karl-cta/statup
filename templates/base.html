@@ -18,6 +18,8 @@
     <script src="/static/js/status-publish.js?v={{ crate::css_version() }}" defer></script>
     <script>
     (function(){
+        // Scroll reveal only hides content when a script is there to show it.
+        document.documentElement.classList.add('js');
         var t = localStorage.getItem('theme');
         if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
@@ -207,10 +209,24 @@
             var diffD = Math.round(diffSec / 86400);
             return rtf.format(-diffD, 'day');
         }
+        // Bare form, "3 days" rather than "3 days ago", for phrases that
+        // already carry the preposition ("ongoing for ...").
+        function fmtElapsed(iso) {
+            var then = Date.parse(iso);
+            if (isNaN(then)) return '';
+            var lang = document.documentElement.lang || 'fr';
+            var diffSec = Math.max(0, Math.round((Date.now() - then) / 1000));
+            var unit = 'minute', value = Math.max(1, Math.round(diffSec / 60));
+            if (diffSec >= 86400) { unit = 'day'; value = Math.round(diffSec / 86400); }
+            else if (diffSec >= 3600) { unit = 'hour'; value = Math.round(diffSec / 3600); }
+            try { return new Intl.NumberFormat(lang, { style: 'unit', unit: unit, unitDisplay: 'long' }).format(value); }
+            catch (e) { return ''; }
+        }
         function updateRelatives() {
             document.querySelectorAll('[data-relative-from]').forEach(function(el) {
                 var iso = el.getAttribute('data-relative-from');
-                el.textContent = fmtRelative(iso);
+                var text = el.hasAttribute('data-relative-bare') ? fmtElapsed(iso) : fmtRelative(iso);
+                if (text) el.textContent = text;
             });
         }
         updateRelatives();
@@ -220,7 +236,10 @@
 
     // Scroll reveal, IntersectionObserver. Skips swaps targeted at the drawer.
     (function() {
-        if (!('IntersectionObserver' in window)) return;
+        if (!('IntersectionObserver' in window)) {
+            document.querySelectorAll('.reveal').forEach(function(el) { el.classList.add('is-visible'); });
+            return;
+        }
         var io = new IntersectionObserver(function(entries) {
             entries.forEach(function(e) {
                 if (e.isIntersecting) {

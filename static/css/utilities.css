@@ -7,21 +7,19 @@
         opacity: 0;
     }
 
-    @keyframes blur-in-up {
+    @keyframes rise-in {
         from {
             opacity: 0;
-            filter: blur(6px);
             transform: translateY(10px);
         }
         to {
             opacity: 1;
-            filter: blur(0);
             transform: translateY(0);
         }
     }
 
     .animate-in {
-        animation: blur-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+        animation: rise-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
 
     .delay-1 { animation-delay: 50ms; }
@@ -56,27 +54,25 @@
         }
     }
 
-    /* Observed by the IntersectionObserver registered in base.html. */
-    .reveal {
+    /* Observed by the IntersectionObserver registered in base.html. Gated on
+       the `js` class that script sets first, so without JavaScript the content
+       is simply there instead of hidden behind an animation nobody will run. */
+    .js .reveal {
         opacity: 0;
         transform: translateY(16px);
-        filter: blur(4px);
         transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
-                    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1),
-                    filter 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+                    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    .reveal.is-visible {
+    .js .reveal.is-visible {
         opacity: 1;
         transform: translateY(0);
-        filter: blur(0);
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .reveal {
+        .js .reveal {
             opacity: 1;
             transform: none;
-            filter: none;
             transition: none;
         }
     }

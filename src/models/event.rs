@@ -294,9 +294,39 @@ impl Event {
             diff.num_minutes() % 60,
         ))
     }
+    /// When the event actually began: its recorded start, else its creation.
+    pub fn began_at(&self) -> DateTime<Utc> {
+        self.started_at.unwrap_or(self.created_at)
+    }
+
+    /// Time elapsed since the event began, while it is still open. `None` once
+    /// it has ended or when its kind carries no lifecycle.
+    pub fn elapsed(&self) -> Option<(i64, i64, i64)> {
+        if self.ended_at.is_some() || !self.lifecycle.is_some_and(Lifecycle::is_active) {
+            return None;
+        }
+        let diff = Utc::now() - self.began_at();
+        Some((
+            diff.num_days().max(0),
+            (diff.num_hours() % 24).max(0),
+            (diff.num_minutes() % 60).max(0),
+        ))
+    }
+
     /// Chip style variant for log-rows, derived from kind + severity.
     pub fn chip_class(&self) -> &'static str {
         chip_class_for(self.kind, self.severity)
+    }
+
+    /// Same tone as the dashboard banner, so the page a shared link lands on
+    /// speaks the same colour as the page it was shared from.
+    pub fn hero_dot_class(&self) -> &'static str {
+        match banner_tone(self.kind, self.severity) {
+            "crit" => "hero-dot-crit",
+            "major" => "hero-dot-major",
+            "minor" => "hero-dot-minor",
+            _ => "hero-dot-info",
+        }
     }
 }
 

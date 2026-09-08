@@ -783,3 +783,59 @@ async fn feed_lists_events_with_their_updates() {
         "the banner should offer the subscription"
     );
 }
+
+#[tokio::test]
+async fn detail_page_says_an_incident_is_still_ongoing() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Search").await;
+
+    let path = app
+        .create_incident("Search is slow", "Latency above 2s", "major", &[service_id])
+        .await;
+    let event_id = event_id_from_path(&path);
+
+    let (_, body) = app.get(&path).await;
+    assert!(
+        body.contains("hero-dot hero-dot-major"),
+        "an open incident should carry the banner's tone on its own page"
+    );
+    assert!(
+        body.contains(r#"data-relative-from="#),
+        "the elapsed time should be shown for an open incident"
+    );
+    assert!(
+        body.contains(r#"<option value="" selected>"#),
+        "the transition list should open on a prompt, not on a state"
+    );
+
+    let (status, _, location) = app
+        .post_form_with_header_csrf(
+            &format!("/events/{event_id}/lifecycle"),
+            &[("lifecycle", "")],
+        )
+        .await;
+    assert_eq!(
+        status,
+        StatusCode::SEE_OTHER,
+        "an empty transition is a no-op"
+    );
+    assert_eq!(location.as_deref(), Some(path.as_str()));
+
+    let (status, _, _) = app
+        .post_form_with_header_csrf(
+            &format!("/events/{event_id}/lifecycle"),
+            &[
+                ("lifecycle", "resolved"),
+                ("resolution_comment", "Index rebuilt"),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let (_, body) = app.get(&path).await;
+    assert!(
+        !body.contains("hero-dot hero-dot-major"),
+        "a closed incident should not claim to be ongoing"
+    );
+}

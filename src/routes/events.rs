@@ -168,7 +168,10 @@ impl EventInput {
 
 #[derive(Deserialize)]
 pub struct LifecycleInput {
-    lifecycle: Lifecycle,
+    /// Empty when the form is posted with its prompt still selected, which
+    /// only happens without JavaScript: a no-op, not an error.
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    lifecycle: Option<Lifecycle>,
     #[serde(default)]
     resolution_comment: Option<String>,
 }
@@ -803,7 +806,10 @@ pub async fn update_lifecycle(
     Locale(i18n): Locale,
     Form(input): Form<LifecycleInput>,
 ) -> Result<Response, AppError> {
-    if requires_resolution_comment(input.lifecycle) {
+    let Some(lifecycle) = input.lifecycle else {
+        return Ok(Redirect::to(&format!("/events/{id}")).into_response());
+    };
+    if requires_resolution_comment(lifecycle) {
         let comment = input.resolution_comment.as_deref().unwrap_or("").trim();
         if comment.is_empty() {
             return Err(AppError::Validation(
@@ -812,9 +818,9 @@ pub async fn update_lifecycle(
         }
     }
 
-    EventService::update_lifecycle(&state.pool, id, input.lifecycle, user.role).await?;
+    EventService::update_lifecycle(&state.pool, id, lifecycle, user.role).await?;
 
-    if requires_resolution_comment(input.lifecycle)
+    if requires_resolution_comment(lifecycle)
         && let Some(ref comment) = input.resolution_comment
     {
         let trimmed = comment.trim();
