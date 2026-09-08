@@ -25,9 +25,7 @@
 
     {% match success %}
     {% when Some with (msg) %}
-    <div class="mt-6 rounded-sm border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30" role="status">
-        <p class="text-sm text-emerald-700 dark:text-emerald-400">{{ msg }}</p>
-    </div>
+    <div class="mt-6 form-notice" role="status">{{ msg }}</div>
     {% when None %}
     {% endmatch %}
 
@@ -72,9 +70,7 @@
 
         {% match password_success %}
         {% when Some with (msg) %}
-        <div class="mt-4 rounded-sm border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30" role="status">
-            <p class="text-sm text-emerald-700 dark:text-emerald-400">{{ msg }}</p>
-        </div>
+        <div class="mt-4 form-notice" role="status">{{ msg }}</div>
         {% when None %}
         {% endmatch %}
 

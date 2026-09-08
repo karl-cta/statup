@@ -2750,6 +2750,21 @@
         color: var(--sem-crit-text);
     }
 
+    /* A confirmation is not a status. It reads in ink on the page's own
+       surface and leaves green to the operational state. */
+    .form-notice {
+        border: 1px solid var(--line-strong);
+        background: var(--surface-subtle);
+        border-radius: 4px;
+        padding: 12px 16px;
+        font-size: 13px;
+        color: var(--color-ink);
+    }
+
+    :is(.dark *) .form-notice {
+        color: var(--color-sand-light);
+    }
+
     /* A failed load states the problem and offers the way out, rather than
        leaving an open dialog with nothing in it. */
     .drawer-error {

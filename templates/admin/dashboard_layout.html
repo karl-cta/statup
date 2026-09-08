@@ -30,7 +30,7 @@
     </header>
 
     {% if saved_flash %}
-    <div class="mt-6 rounded-sm border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200 animate-in delay-1">
+    <div class="mt-6 form-notice animate-in delay-1" role="status">
         {{ i18n.t("modules.layout_saved") }}
     </div>
     {% endif %}

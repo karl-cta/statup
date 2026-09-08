@@ -30,8 +30,8 @@
                     <div class="mt-0.5 truncate text-[12px] text-ink/45 dark:text-sand-light/40">{{ u.email }}</div>
                 </div>
                 {% if u.is_active %}
-                <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-success">
-                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
+                <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink dark:text-sand-light">
+                    <span class="h-1.5 w-1.5 rounded-full bg-ink dark:bg-sand-light" aria-hidden="true"></span>
                     {{ i18n.t("admin.active") }}
                 </span>
                 {% else %}
@@ -136,8 +136,8 @@
                     </td>
                     <td class="py-3.5 pr-4">
                         {% if u.is_active %}
-                        <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-success">
-                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
+                        <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink dark:text-sand-light">
+                            <span class="h-1.5 w-1.5 rounded-full bg-ink dark:bg-sand-light" aria-hidden="true"></span>
                             {{ i18n.t("admin.active") }}
                         </span>
                         {% else %}
