@@ -2,7 +2,6 @@
   "nav.dashboard": "Dashboard",
   "nav.events": "Events",
   "nav.services": "Services",
-  "nav.history": "History",
   "nav.admin": "Admin",
   "nav.search": "Search",
   "nav.login": "Sign in",
@@ -172,8 +171,6 @@
   "events.drawer_error": "Could not load the details.",
   "common.retry": "Retry",
 
-  "events.history_title": "History",
-  "events.history_heading": "History",
   "events.from": "From",
   "events.to": "To",
 

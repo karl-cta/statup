@@ -2,7 +2,6 @@
   "nav.dashboard": "Dashboard",
   "nav.events": "Événements",
   "nav.services": "Services",
-  "nav.history": "Historique",
   "nav.admin": "Admin",
   "nav.search": "Recherche",
   "nav.login": "Connexion",
@@ -172,8 +171,6 @@
   "events.drawer_error": "Impossible de charger le détail.",
   "common.retry": "Réessayer",
 
-  "events.history_title": "Historique",
-  "events.history_heading": "Historique",
   "events.from": "Du",
   "events.to": "Au",
 

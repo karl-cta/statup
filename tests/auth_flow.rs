@@ -303,7 +303,7 @@ async fn protected_route_without_auth_redirects() {
     let app = TestApp::spawn().await;
 
     // All these routes should redirect unauthenticated users to /login
-    let routes = ["/", "/events", "/history", "/search"];
+    let routes = ["/", "/events", "/search"];
     for route in routes {
         let (status, _body) = app.get(route).await;
         assert_eq!(
@@ -612,7 +612,7 @@ async fn public_mode_read_routes_accessible_without_auth() {
     let app = TestApp::spawn_public().await;
 
     // In public mode, read-only routes should be accessible
-    let read_routes = ["/", "/events", "/history", "/search"];
+    let read_routes = ["/", "/events", "/search"];
     for route in read_routes {
         let (status, _body) = app.get(route).await;
         assert_eq!(
@@ -621,4 +621,21 @@ async fn public_mode_read_routes_accessible_without_auth() {
             "GET {route} in public mode should be accessible without auth"
         );
     }
+}
+
+#[tokio::test]
+async fn history_bookmarks_land_on_the_events_list() {
+    let app = TestApp::spawn_public().await;
+
+    let resp = app
+        .client
+        .get(app.url("/history"))
+        .send()
+        .await
+        .expect("GET /history failed");
+    assert_eq!(resp.status(), StatusCode::PERMANENT_REDIRECT);
+    assert_eq!(
+        resp.headers().get("location").and_then(|v| v.to_str().ok()),
+        Some("/events")
+    );
 }

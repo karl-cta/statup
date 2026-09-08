@@ -6,7 +6,7 @@
 //!
 //! Permission mapping:
 //! - **Public**: `/login`, `/register`, `/health`, no auth required
-//! - **Authenticated** (`AuthUser`): `/`, `/events`, `/history`, `/search`, `/feed`
+//! - **Authenticated** (`AuthUser`): `/`, `/events`, `/search`, `/feed`
 //! - **Publisher** (`RequirePublisher`): `POST /events`, `POST /services`
 //! - **Admin** (`RequireAdmin`): `/admin/*`
 
@@ -26,6 +26,7 @@ use axum::Router;
 use axum::http::header::HeaderName;
 use axum::http::{HeaderValue, Response, StatusCode};
 use axum::middleware;
+use axum::response::Redirect;
 use axum::routing::{get, post};
 use tower_governor::GovernorLayer;
 use tower_governor::governor::GovernorConfigBuilder;
@@ -92,7 +93,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/events", get(events::list))
         .route("/events/:id", get(events::detail))
         .route("/events/:id/drawer", get(events::drawer_content))
-        .route("/history", get(events::history))
+        // The history page was folded into /events; bookmarks still land somewhere.
+        .route("/history", get(|| async { Redirect::permanent("/events") }))
         .route("/search", get(events::search))
         .route("/feed", get(feed::atom))
 

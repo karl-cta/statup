@@ -211,17 +211,6 @@ pub struct ListQuery {
 }
 
 #[derive(Deserialize)]
-pub struct HistoryQuery {
-    page: Option<i64>,
-    #[serde(default, deserialize_with = "empty_string_as_none")]
-    kind: Option<Kind>,
-    #[serde(default, deserialize_with = "empty_string_as_none")]
-    service_id: Option<i64>,
-    from: Option<String>,
-    to: Option<String>,
-}
-
-#[derive(Deserialize)]
 pub struct SearchQuery {
     q: Option<String>,
     page: Option<i64>,
@@ -230,34 +219,6 @@ pub struct SearchQuery {
     #[serde(default, deserialize_with = "empty_string_as_none")]
     service_id: Option<i64>,
 }
-
-/// Groups events sharing the same date label (e.g. "Today").
-pub struct DateGroup {
-    pub label: String,
-    pub events: Vec<EventSummary>,
-}
-
-#[derive(Template)]
-#[template(path = "events/history.html")]
-struct HistoryTemplate {
-    csrf_token: String,
-    user_display_name: String,
-    is_admin: bool,
-    is_authenticated: bool,
-    unread_count: i64,
-    last_admin_action: Option<String>,
-    groups: Vec<DateGroup>,
-    page: i64,
-    has_next: bool,
-    filter_kind: Option<String>,
-    filter_service: Option<String>,
-    filter_from: Option<String>,
-    filter_to: Option<String>,
-    services: Vec<Service>,
-    base_url: String,
-    i18n: I18n,
-}
-
 /// Search result enriched with a title highlighted on the matching terms.
 pub struct SearchResult {
     pub event: EventSummary,
@@ -877,112 +838,6 @@ fn parse_date_end_of_day(s: &str) -> Option<chrono::DateTime<Utc>> {
         .ok()
         .and_then(|d| d.and_hms_opt(23, 59, 59))
         .map(|dt| dt.and_utc())
-}
-
-fn date_label(date: chrono::NaiveDate, i18n: &I18n) -> String {
-    i18n.date_label(&date)
-}
-
-fn group_by_date(events: Vec<EventSummary>, i18n: &I18n) -> Vec<DateGroup> {
-    let mut groups: Vec<DateGroup> = Vec::new();
-
-    for event in events {
-        let date = event.created_at.date_naive();
-        let label = date_label(date, i18n);
-
-        if let Some(last) = groups.last_mut()
-            && last.label == label
-        {
-            last.events.push(event);
-            continue;
-        }
-        groups.push(DateGroup {
-            label,
-            events: vec![event],
-        });
-    }
-
-    groups
-}
-
-pub async fn history(
-    OptionalUser(user): OptionalUser,
-    State(state): State<AppState>,
-    Query(params): Query<HistoryQuery>,
-    csrf_token: CsrfToken,
-    Locale(i18n): Locale,
-) -> Result<Response, AppError> {
-    if user.is_none() && !state.is_public_mode() {
-        return Ok(Redirect::to("/login").into_response());
-    }
-
-    let page = params.page.unwrap_or(1).max(1);
-    let offset = (page - 1) * PAGE_SIZE;
-
-    let from = params.from.as_deref().and_then(parse_date);
-    let to = params.to.as_deref().and_then(parse_date_end_of_day);
-
-    let filters = crate::models::EventFilters {
-        kind: params.kind,
-        service_id: params.service_id,
-        from,
-        to,
-        limit: PAGE_SIZE + 1,
-        offset,
-        ..Default::default()
-    };
-
-    let mut events = EventRepository::list_by_filters(&state.pool, filters).await?;
-    #[allow(clippy::cast_possible_wrap)]
-    let has_next = events.len() as i64 > PAGE_SIZE;
-    #[allow(clippy::cast_possible_truncation)]
-    events.truncate(PAGE_SIZE as usize);
-
-    let groups = group_by_date(events, &i18n);
-    let services = ServiceRepository::list_all(&state.pool).await?;
-    let (user_display_name, is_admin, is_authenticated) = layout_fields(user.as_ref());
-    let unread_count = unread(&state.pool, user.as_ref()).await?;
-
-    let filter_kind = params.kind.map(|k| k.as_str().to_string());
-    let filter_service = params.service_id.map(|id| id.to_string());
-
-    let mut base_url = String::from("/history?");
-    {
-        use std::fmt::Write;
-        if let Some(ref t) = filter_kind {
-            let _ = write!(base_url, "kind={t}&");
-        }
-        if let Some(ref s) = filter_service {
-            let _ = write!(base_url, "service_id={s}&");
-        }
-        if let Some(ref f) = params.from {
-            let _ = write!(base_url, "from={f}&");
-        }
-        if let Some(ref t) = params.to {
-            let _ = write!(base_url, "to={t}&");
-        }
-    }
-
-    let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
-    let tpl = HistoryTemplate {
-        csrf_token: csrf_token.0,
-        user_display_name,
-        is_admin,
-        is_authenticated,
-        unread_count,
-        last_admin_action,
-        groups,
-        page,
-        has_next,
-        filter_kind,
-        filter_service,
-        filter_from: params.from,
-        filter_to: params.to,
-        services,
-        base_url,
-        i18n,
-    };
-    render(&tpl)
 }
 
 fn html_escape_char(ch: char, out: &mut String) {
