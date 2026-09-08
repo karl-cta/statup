@@ -22,6 +22,12 @@
         <span class="hero-dot hero-dot-ok" aria-hidden="true"></span>
         {{ i18n.t("dashboard.all_operational") }}
     </h2>
+    <a href="/feed" class="hero-subscribe" title="{{ i18n.t("feed.subscribe_hint") }}">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1" fill="currentColor"/>
+        </svg>
+        {{ i18n.t("feed.subscribe") }}
+    </a>
 </section>
 {% else %}
 {# The query hands back the worst incident first, so the head of the list sets
@@ -62,6 +68,12 @@
         {% endfor %}
     </ul>
     {% endif %}
+    <a href="/feed" class="hero-subscribe" title="{{ i18n.t("feed.subscribe_hint") }}">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1" fill="currentColor"/>
+        </svg>
+        {{ i18n.t("feed.subscribe") }}
+    </a>
 </section>
 {% when None %}
 {% endmatch %}

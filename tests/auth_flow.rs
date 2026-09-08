@@ -74,6 +74,7 @@ impl TestApp {
             upload_dir,
             public_mode: Arc::new(AtomicBool::new(public_mode)),
             trust_proxy_headers: false,
+            public_url: None,
         };
 
         let app = create_router(state).layer(session_layer);

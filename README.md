@@ -29,6 +29,7 @@ Statup is **pre-v1, under active development**. The core is usable and self-host
 - **Changelogs and announcements** to communicate releases and important changes
 - **Full-text search** across all events, filterable by type, service and date range
 - **Unread notifications** so nobody misses a critical event
+- **Atom feed** at `/feed`, so feed readers, Slack or Teams follow incidents without anyone opening the page
 - **Three roles** (Reader, Publisher, Admin) with optional public mode for guest access
 - **Dark mode** and full i18n (FR and EN), WCAG AA accessible
 
@@ -76,6 +77,7 @@ Everything lives in `.env`. Only `SESSION_SECRET` is required.
 | `LOG_LEVEL` | No | `info` | trace, debug, info, warn, error |
 | `PUBLIC_MODE` | No | `false` | Allow guest access to read-only pages |
 | `TRUST_PROXY_HEADERS` | No | `false` | Read the client IP from `Forwarded` / `X-Forwarded-For` when rate limiting. Enable it behind a reverse proxy, otherwise every visitor shares the proxy address and the limit becomes site wide. Never enable it without a proxy in front: the headers are then attacker controlled |
+| `PUBLIC_URL` | No | request host | Address visitors use to reach the instance, e.g. `https://status.example.com`. Feed entries link back with it |
 | `ADMIN_EMAIL` | No | | Initial admin email (first run only) |
 | `ADMIN_PASSWORD` | No | | Initial admin password (first run only) |
 

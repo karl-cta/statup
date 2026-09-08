@@ -442,5 +442,9 @@
 
   "lang.fr": "Français",
   "lang.en": "English",
-  "lang.switch": "Langue"
+  "lang.switch": "Langue",
+  "feed.title": "Mises à jour de la page de statut",
+  "feed.subscribe": "S'abonner aux mises à jour",
+  "feed.subscribe_hint": "Flux Atom : collez cette adresse dans votre lecteur de flux, Slack ou Teams pour être prévenu à chaque incident, mise à jour et maintenance.",
+  "feed.services": "Services concernés"
 }

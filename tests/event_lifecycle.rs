@@ -60,6 +60,7 @@ impl TestApp {
             upload_dir,
             public_mode: Arc::new(AtomicBool::new(false)),
             trust_proxy_headers: false,
+            public_url: None,
         };
 
         let app = create_router(state).layer(session_layer);
@@ -689,5 +690,96 @@ async fn rejected_service_creation_gives_the_input_back() {
     assert!(
         body.contains(r#"action="/services/new""#),
         "the form should still post to the creation route"
+    );
+}
+
+#[tokio::test]
+async fn feed_is_private_when_public_mode_is_off() {
+    let app = TestApp::spawn().await;
+
+    let (status, _) = app.get("/feed").await;
+    assert_eq!(
+        status,
+        StatusCode::SEE_OTHER,
+        "anonymous feed should redirect"
+    );
+}
+
+#[tokio::test]
+async fn feed_lists_events_with_their_updates() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Checkout API").await;
+
+    let path = app
+        .create_incident(
+            "Payments are failing",
+            "Cards are **declined** at checkout",
+            "critical",
+            &[service_id],
+        )
+        .await;
+    let event_id = event_id_from_path(&path);
+
+    let (_, detail_body) = app.get(&path).await;
+    let csrf = extract_csrf_token(&detail_body);
+    let (status, _, _) = app
+        .post_form(
+            &format!("/events/{event_id}/updates"),
+            &csrf,
+            &[("message", "Provider confirmed the outage")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let resp = app
+        .client
+        .get(app.url("/feed"))
+        .send()
+        .await
+        .expect("GET /feed failed");
+    assert_eq!(resp.status(), StatusCode::OK);
+    let content_type = resp
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default()
+        .to_string();
+    assert!(
+        content_type.starts_with("application/atom+xml"),
+        "feed should be served as Atom, got {content_type}"
+    );
+
+    let body = resp.text().await.expect("feed body");
+    assert!(body.starts_with("<?xml"), "feed should be an XML document");
+    assert!(
+        body.contains("<title>Payments are failing</title>"),
+        "the incident should be an entry"
+    );
+    assert!(
+        body.contains(&format!("http://{}/events/{event_id}", app.addr)),
+        "entry links should be absolute and point at the event page"
+    );
+    assert!(
+        body.contains("Checkout API"),
+        "the affected service should be named in the entry"
+    );
+    assert!(
+        body.contains("&lt;strong&gt;declined&lt;/strong&gt;"),
+        "the description should be rendered from Markdown and escaped for XML"
+    );
+    assert!(
+        body.contains("Provider confirmed the outage"),
+        "posted updates should be part of the entry"
+    );
+
+    let (_, home) = app.get("/").await;
+    assert!(
+        home.contains(r#"<link rel="alternate" type="application/atom+xml" href="/feed""#),
+        "pages should advertise the feed for auto discovery"
+    );
+    assert!(
+        home.contains(r#"href="/feed" class="hero-subscribe""#),
+        "the banner should offer the subscription"
     );
 }

@@ -1291,6 +1291,42 @@
         border-color: rgb(244 241 235 / 0.22);
     }
 
+    /* Quiet on purpose: the feed link is a standing offer, not a signal, and
+       it sits on the same banner as the incident it must not compete with. */
+    .hero-subscribe {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 16px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-muted-light);
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        text-underline-offset: 3px;
+        transition: color 0.15s ease, text-decoration-color 0.15s ease;
+    }
+
+    .hero-subscribe svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    .hero-subscribe:hover,
+    .hero-subscribe:focus-visible {
+        color: var(--color-ink);
+        text-decoration-color: currentColor;
+    }
+
+    :is(.dark *) .hero-subscribe {
+        color: var(--color-muted-dark);
+    }
+
+    :is(.dark *) .hero-subscribe:hover,
+    :is(.dark *) .hero-subscribe:focus-visible {
+        color: var(--color-sand-light);
+    }
+
     .hero-title {
         font-size: 28px;
         font-weight: 600;

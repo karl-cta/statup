@@ -442,5 +442,9 @@
 
   "lang.fr": "Français",
   "lang.en": "English",
-  "lang.switch": "Language"
+  "lang.switch": "Language",
+  "feed.title": "Status page updates",
+  "feed.subscribe": "Subscribe to updates",
+  "feed.subscribe_hint": "Atom feed: paste this address into your feed reader, Slack or Teams to be told about every incident, update and maintenance.",
+  "feed.services": "Affected services"
 }

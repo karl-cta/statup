@@ -348,6 +348,10 @@ pub struct EventSummary {
     /// Only populated by queries that target upcoming maintenances.
     #[sqlx(default)]
     pub planned_start: Option<DateTime<Utc>>,
+    /// Latest of the event's own update time and its last posted update.
+    /// Only populated by the feed query.
+    #[sqlx(default)]
+    pub last_activity_at: Option<DateTime<Utc>>,
 }
 
 impl EventSummary {

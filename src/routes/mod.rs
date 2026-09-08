@@ -6,7 +6,7 @@
 //!
 //! Permission mapping:
 //! - **Public**: `/login`, `/register`, `/health`, no auth required
-//! - **Authenticated** (`AuthUser`): `/`, `/events`, `/history`, `/search`
+//! - **Authenticated** (`AuthUser`): `/`, `/events`, `/history`, `/search`, `/feed`
 //! - **Publisher** (`RequirePublisher`): `POST /events`, `POST /services`
 //! - **Admin** (`RequireAdmin`): `/admin/*`
 
@@ -15,6 +15,7 @@ mod auth;
 mod dashboard;
 mod dashboard_layout;
 mod events;
+mod feed;
 mod health;
 mod icons;
 mod locale;
@@ -93,6 +94,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/events/:id/drawer", get(events::drawer_content))
         .route("/history", get(events::history))
         .route("/search", get(events::search))
+        .route("/feed", get(feed::atom))
 
         // Publisher routes (RequirePublisher extractor)
         .route("/events/new", get(events::new_form).post(events::create))

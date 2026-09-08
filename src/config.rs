@@ -44,6 +44,10 @@ pub struct Config {
     /// Only enable behind a reverse proxy that sets those headers: with no proxy
     /// in front, a client can forge them and walk around the rate limit.
     pub trust_proxy_headers: bool,
+    /// Address visitors use to reach the instance, without a trailing slash.
+    /// Feed readers need absolute links, and the `Host` header is not reliable
+    /// enough behind a proxy that rewrites it. Falls back to the request host.
+    pub public_url: Option<String>,
 }
 
 impl Config {
@@ -99,6 +103,11 @@ impl Config {
                 message: e.to_string(),
             })?;
 
+        let public_url = env::var("PUBLIC_URL")
+            .ok()
+            .map(|s| s.trim().trim_end_matches('/').to_string())
+            .filter(|s| !s.is_empty());
+
         let config = Self {
             database_url,
             host,
@@ -112,6 +121,7 @@ impl Config {
             upload_dir,
             public_mode,
             trust_proxy_headers,
+            public_url,
         };
 
         config.validate()?;

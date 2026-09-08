@@ -22,6 +22,8 @@ pub struct AppState {
     pub public_mode: Arc<AtomicBool>,
     /// Read the client IP from proxy headers when rate limiting.
     pub trust_proxy_headers: bool,
+    /// Absolute address of the instance for outbound links (feed entries).
+    pub public_url: Option<String>,
 }
 
 impl AppState {

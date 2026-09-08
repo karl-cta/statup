@@ -101,6 +101,31 @@ impl EventRepository {
         .await
     }
 
+    /// Newest events with their last activity time, for the Atom feed. A posted
+    /// update does not touch `events.updated_at`, so the subquery folds it in:
+    /// a reader sorting by update time must see a new message as a change.
+    pub async fn list_for_feed(
+        pool: &DbPool,
+        limit: i64,
+    ) -> Result<Vec<EventSummary>, sqlx::Error> {
+        sqlx::query_as::<_, EventSummary>(
+            "SELECT e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
+             e.title, e.description, e.created_at, e.updated_at, e.author_id, \
+             COALESCE(GROUP_CONCAT(s.name, ', '), '') as service_names, \
+             MAX(e.updated_at, COALESCE((SELECT MAX(eu.created_at) FROM event_updates eu \
+             WHERE eu.event_id = e.id), e.updated_at)) AS last_activity_at \
+             FROM events e \
+             LEFT JOIN event_services es ON es.event_id = e.id \
+             LEFT JOIN services s ON s.id = es.service_id \
+             GROUP BY e.id \
+             ORDER BY e.created_at DESC \
+             LIMIT ?",
+        )
+        .bind(limit)
+        .fetch_all(pool)
+        .await
+    }
+
     pub async fn list_by_filters(
         pool: &DbPool,
         filters: EventFilters,
@@ -449,6 +474,31 @@ impl EventRepository {
         .bind(event_id)
         .fetch_all(pool)
         .await
+    }
+
+    /// Updates of several events in one query, oldest first. `SQLite` has no
+    /// array binding, so the placeholder list is built from the id count.
+    pub async fn list_updates_for_events(
+        pool: &DbPool,
+        event_ids: &[i64],
+    ) -> Result<Vec<EventUpdateWithAuthor>, sqlx::Error> {
+        if event_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let placeholders = vec!["?"; event_ids.len()].join(", ");
+        let sql = format!(
+            "SELECT eu.id, eu.event_id, eu.message, eu.author_id, eu.created_at, \
+                    u.display_name AS author_name \
+             FROM event_updates eu \
+             INNER JOIN users u ON u.id = eu.author_id \
+             WHERE eu.event_id IN ({placeholders}) \
+             ORDER BY eu.created_at ASC"
+        );
+        let mut query = sqlx::query_as::<_, EventUpdateWithAuthor>(&sql);
+        for id in event_ids {
+            query = query.bind(id);
+        }
+        query.fetch_all(pool).await
     }
 
     /// Count of "important" events created since `since`, used for the

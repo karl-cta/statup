@@ -1,0 +1,13 @@
+{# Body of one Atom entry. Rendered to a string, then escaped into the feed. #}
+<p><strong>{{ i18n.t(event.kind.i18n_key()) }}{% match event.severity %}{% when Some with (sev) %} · {{ i18n.t(sev.i18n_key()) }}{% when None %}{% endmatch %}{% match event.lifecycle %}{% when Some with (lc) %} · {{ i18n.t(lc.i18n_key()) }}{% when None %}{% endmatch %}</strong></p>
+{% if !event.service_names.is_empty() %}
+<p>{{ i18n.t("feed.services") }} : {{ event.service_names }}</p>
+{% endif %}
+{{ description_html|safe }}
+{% if !updates.is_empty() %}
+<h4>{{ i18n.t("events.updates") }}</h4>
+{% for update in updates %}
+<p><em>{{ i18n.format_datetime(update.created_at) }} · {{ update.author_name }}</em></p>
+{{ update.message|safe }}
+{% endfor %}
+{% endif %}

@@ -70,6 +70,7 @@ async fn main() {
         upload_dir: config.upload_dir,
         public_mode: Arc::new(AtomicBool::new(public_mode)),
         trust_proxy_headers: config.trust_proxy_headers,
+        public_url: config.public_url,
     };
 
     let app = create_router(state).layer(session_layer);
