@@ -26,7 +26,6 @@ struct LayoutTemplate {
     unread_count: i64,
     last_admin_action: Option<String>,
     context: String,
-    context_label_key: &'static str,
     pinned: Option<LayoutRow>,
     rows: Vec<LayoutRow>,
     saved_flash: bool,
@@ -54,13 +53,6 @@ fn layout_fields(user: &User) -> (String, bool, bool) {
 fn parse_context(raw: &str) -> Result<ModuleContext, AppError> {
     ModuleContext::parse(raw)
         .ok_or_else(|| AppError::Validation("validation.unknown_dashboard_context".to_string()))
-}
-
-fn context_label_key(context: ModuleContext) -> &'static str {
-    match context {
-        ModuleContext::Public => "modules.layout_context_public",
-        ModuleContext::Admin => "modules.layout_context_admin",
-    }
 }
 
 #[derive(Deserialize)]
@@ -111,7 +103,6 @@ pub async fn layout_editor(
         unread_count,
         last_admin_action,
         context: context.as_str().to_string(),
-        context_label_key: context_label_key(context),
         pinned,
         rows,
         saved_flash: query.saved,
