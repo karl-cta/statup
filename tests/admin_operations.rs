@@ -624,3 +624,20 @@ async fn instance_name_replaces_the_brand_in_masthead_and_title() {
     let (_, body) = app.get("/").await;
     assert!(body.contains(r#"<span class="mast-word">Statu"#));
 }
+
+#[tokio::test]
+async fn icon_picker_exposes_its_choice_as_radios() {
+    let (app, _) = spawn_with_admin().await;
+
+    let (status, body) = app.get("/services/new").await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("role=\"radiogroup\""));
+    let cells = body.matches("role=\"radio\"").count();
+    assert!(cells > 0);
+    assert_eq!(
+        body.matches("aria-checked=\"false\"").count(),
+        cells,
+        "a new service has no icon chosen yet"
+    );
+}

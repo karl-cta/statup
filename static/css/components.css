@@ -2851,6 +2851,76 @@
     }
 
     /* Icon upload field, clickable label, auto-uploads on file selection. */
+    /* An icon cell is a radio. The chosen one is told by its border and by a
+       check in its corner, so the choice never rests on colour alone, and the
+       stylesheet reads aria-checked so the page and the script share one state. */
+    .icon-cell {
+        position: relative;
+        border: 1px solid var(--hairline);
+        background: var(--color-cream);
+        transition: border-color 0.15s ease-out, background-color 0.15s ease-out;
+    }
+
+    .icon-cell:hover {
+        border-color: var(--line-strong);
+        background: var(--color-sand-warm);
+    }
+
+    .icon-cell[aria-checked="true"] {
+        border-color: var(--color-ink);
+        background: var(--color-sand-warm);
+    }
+
+    /* The badge: an ink disc lifted off the cell by a ring of page colour,
+       and a check drawn as two edges of a small rotated box. */
+    .icon-cell[aria-checked="true"]::before {
+        content: "";
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--color-ink);
+        box-shadow: 0 0 0 2px var(--color-page);
+    }
+
+    .icon-cell[aria-checked="true"]::after {
+        content: "";
+        position: absolute;
+        top: -2px;
+        right: 0;
+        width: 3px;
+        height: 6px;
+        border-right: 1.5px solid var(--color-page);
+        border-bottom: 1.5px solid var(--color-page);
+        transform: rotate(45deg);
+    }
+
+    :is(.dark *) .icon-cell {
+        border-color: var(--hairline);
+        background: var(--color-surface-1);
+    }
+
+    :is(.dark *) .icon-cell:hover {
+        border-color: var(--line-strong);
+        background: var(--color-surface-2);
+    }
+
+    :is(.dark *) .icon-cell[aria-checked="true"] {
+        border-color: var(--color-sand-light);
+        background: var(--color-surface-2);
+    }
+
+    :is(.dark *) .icon-cell[aria-checked="true"]::before {
+        background: var(--color-sand-light);
+        box-shadow: 0 0 0 2px var(--color-surface-0);
+    }
+
+    :is(.dark *) .icon-cell[aria-checked="true"]::after {
+        border-color: var(--color-ink);
+    }
+
     .icon-upload-field {
         display: flex;
         flex-direction: column;

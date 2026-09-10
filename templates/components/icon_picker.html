@@ -47,15 +47,16 @@
 
     <div class="mt-4">
         <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45 mb-2">{{ i18n.t("icons.builtin") }}</p>
-        <div class="grid grid-cols-6 gap-1.5 sm:grid-cols-8">
+        <div class="grid grid-cols-6 gap-1.5 sm:grid-cols-8" role="radiogroup" aria-label="{{ i18n.t("icons.builtin") }}">
             {% for icon in builtin_icons %}
             <button type="button"
+                    role="radio"
+                    class="icon-cell flex h-11 w-11 items-center justify-center rounded-sm cursor-pointer"
                     data-icon-name="{{ icon.name }}"
                     data-icon-paths="{{ icon.paths }}"
                     onclick="selectBuiltinIcon(this)"
-                    class="icon-btn group flex h-11 w-11 items-center justify-center rounded-sm border transition-colors cursor-pointer
-                           {% match selected_icon_name %}{% when Some with (sel) %}{% if sel == icon.name %}border-ink bg-sand-warm dark:border-sand-light dark:bg-surface-2{% else %}border-ink/10 bg-cream hover:border-ink/25 hover:bg-sand-warm dark:border-sand-light/10 dark:bg-surface-1 dark:hover:border-sand-light/20 dark:hover:bg-surface-2{% endif %}{% when None %}border-ink/10 bg-cream hover:border-ink/25 hover:bg-sand-warm dark:border-sand-light/10 dark:bg-surface-1 dark:hover:border-sand-light/20 dark:hover:bg-surface-2{% endmatch %}"
                     title="{{ i18n.t(icon.i18n_key()) }}"
+                    aria-checked="{% match selected_icon_name %}{% when Some with (sel) %}{% if sel == icon.name %}true{% else %}false{% endif %}{% when None %}false{% endmatch %}"
                     aria-label="{{ i18n.t(icon.i18n_key()) }}">
                 <svg class="h-5 w-5 text-ink/70 dark:text-sand-light/60" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                     {% for path in icon.paths.split("|||") %}
@@ -99,6 +100,14 @@
 </div>
 
 <script>
+// The chosen cell is the one whose aria-checked is true: the stylesheet draws
+// the border and the check from that attribute, so there is one state to keep.
+function markChosen(btn) {
+    document.querySelectorAll('.icon-cell').forEach(function (b) {
+        b.setAttribute('aria-checked', b === btn ? 'true' : 'false');
+    });
+}
+
 function selectBuiltinIcon(btn) {
     var name = btn.dataset.iconName;
     var paths = btn.dataset.iconPaths;
@@ -109,12 +118,7 @@ function selectBuiltinIcon(btn) {
     }).join('');
     document.getElementById('icon-preview').innerHTML =
         '<svg class="h-6 w-6 text-ink/70 dark:text-sand-light/60" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">' + svgPaths + '</svg>';
-    document.querySelectorAll('.icon-btn, .icon-btn-custom').forEach(function(b) {
-        b.classList.remove('border-ink', 'bg-sand-warm', 'dark:border-sand-light', 'dark:bg-surface-2');
-        b.classList.add('border-ink/10', 'bg-cream', 'dark:border-sand-light/10', 'dark:bg-surface-1');
-    });
-    btn.classList.remove('border-ink/10', 'bg-cream', 'dark:border-sand-light/10', 'dark:bg-surface-1');
-    btn.classList.add('border-ink', 'bg-sand-warm', 'dark:border-sand-light', 'dark:bg-surface-2');
+    markChosen(btn);
     ensureRemoveButton();
 }
 
@@ -125,12 +129,7 @@ function selectCustomIcon(btn) {
     document.getElementById('icon-name-input').value = '';
     document.getElementById('icon-preview').innerHTML =
         '<img src="' + url + '" alt="{{ i18n.t("icons.icon_alt") }}" class="h-8 w-8 rounded-sm object-contain">';
-    document.querySelectorAll('.icon-btn, .icon-btn-custom').forEach(function(b) {
-        b.classList.remove('border-ink', 'bg-sand-warm', 'dark:border-sand-light', 'dark:bg-surface-2');
-        b.classList.add('border-ink/10', 'bg-cream', 'dark:border-sand-light/10', 'dark:bg-surface-1');
-    });
-    btn.classList.remove('border-ink/10', 'bg-cream', 'dark:border-sand-light/10', 'dark:bg-surface-1');
-    btn.classList.add('border-ink', 'bg-sand-warm', 'dark:border-sand-light', 'dark:bg-surface-2');
+    markChosen(btn);
     ensureRemoveButton();
 }
 
@@ -153,7 +152,7 @@ function ensureRemoveButton() {
 // looked made and was not saved.
 document.body.addEventListener('htmx:afterSwap', function (e) {
     if (!e.target || e.target.id !== 'custom-icons-grid') return;
-    var chosen = e.target.querySelector('.icon-btn-custom.border-ink');
+    var chosen = e.target.querySelector('.icon-cell[aria-checked="true"]');
     if (chosen) selectCustomIcon(chosen);
 });
 
@@ -170,10 +169,7 @@ function clearIcon() {
     document.getElementById('icon-id-input').value = '';
     document.getElementById('icon-preview').innerHTML =
         '<svg class="h-5 w-5 text-ink/25 dark:text-sand-light/20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" /></svg>';
-    document.querySelectorAll('.icon-btn, .icon-btn-custom').forEach(function(b) {
-        b.classList.remove('border-ink', 'bg-sand-warm', 'dark:border-sand-light', 'dark:bg-surface-2');
-        b.classList.add('border-ink/10', 'bg-cream', 'dark:border-sand-light/10', 'dark:bg-surface-1');
-    });
+    markChosen(null);
     var removeBtn = document.getElementById('icon-remove-btn');
     if (removeBtn) removeBtn.remove();
 }
