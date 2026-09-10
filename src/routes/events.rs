@@ -885,9 +885,7 @@ fn highlight_terms(title: &str, query: &str) -> String {
             if i + term_chars.len() <= chars_lower.len()
                 && chars_lower[i..i + term_chars.len()] == term_chars[..]
             {
-                result.push_str(
-                    "<mark class=\"bg-yellow-200 dark:bg-yellow-900/50 rounded px-0.5\">",
-                );
+                result.push_str("<mark class=\"search-hit\">");
                 for ch in &chars[i..i + term_chars.len()] {
                     html_escape_char(*ch, &mut result);
                 }

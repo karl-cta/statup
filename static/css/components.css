@@ -2765,6 +2765,19 @@
         color: var(--color-sand-light);
     }
 
+    /* A matched letter in a search result is named by weight and a hairline
+       underline, not by a painted box that cuts the word. It inherits its
+       colour, so it reads in both themes without a second rule. */
+    .search-hit {
+        background: transparent;
+        color: inherit;
+        font-weight: 600;
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+    }
+
     /* A failed load states the problem and offers the way out, rather than
        leaving an open dialog with nothing in it. */
     .drawer-error {
