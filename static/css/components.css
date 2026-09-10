@@ -273,32 +273,51 @@
         border: 1px solid var(--color-ink);
         border-radius: 6px;
         cursor: pointer;
-        transition:
-            background 0.15s ease,
-            border-color 0.15s ease,
-            color 0.15s ease,
-            transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+        overflow: hidden;
+        transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
 
-    /* The one tactile moment of the form: the button lifts a hair under the
-       pointer and settles back when pressed. Transform only, no shadow. */
+    /* The button never moves. Under the pointer a pale sheen sweeps across
+       it once, left to right, and slides back out when the pointer leaves.
+       Transform only, on a pseudo-element, so the label stays crisp. */
+    .btn-3d::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            100deg,
+            transparent 0%,
+            rgb(250 248 242 / 0.14) 45%,
+            rgb(250 248 242 / 0.14) 55%,
+            transparent 100%
+        );
+        transform: translateX(-101%);
+        transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+        pointer-events: none;
+    }
+
+    .btn-3d:hover::before {
+        transform: translateX(0);
+    }
+
+    .btn-3d > * {
+        position: relative;
+    }
+
     .btn-3d:hover {
         background: var(--color-ink-deep);
         border-color: var(--color-ink-deep);
-        transform: translateY(-1px);
     }
 
     .btn-3d:active {
         background: #000;
         border-color: #000;
-        transform: translateY(0) scale(0.985);
-        transition-duration: 0.15s, 0.15s, 0.15s, 0.06s;
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .btn-3d:hover,
-        .btn-3d:active {
-            transform: none;
+        .btn-3d::before {
+            transition: none;
         }
     }
 
@@ -312,6 +331,15 @@
             color: var(--color-ink);
             background: var(--color-sand);
             border-color: var(--color-sand);
+        }
+        .btn-3d::before {
+            background: linear-gradient(
+                100deg,
+                transparent 0%,
+                rgb(28 27 24 / 0.10) 45%,
+                rgb(28 27 24 / 0.10) 55%,
+                transparent 100%
+            );
         }
         .btn-3d:hover {
             background: var(--color-sand-light);

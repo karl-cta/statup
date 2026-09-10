@@ -295,8 +295,9 @@ fn extract_csrf_token(html: &str) -> String {
 }
 
 fn event_id_from_path(path: &str) -> i64 {
-    path.rsplit('/')
+    path.split('?')
         .next()
+        .and_then(|p| p.rsplit('/').next())
         .and_then(|s| s.parse().ok())
         .unwrap_or_else(|| panic!("could not parse event ID from path: {path}"))
 }
@@ -824,7 +825,10 @@ async fn detail_page_says_an_incident_is_still_ongoing() {
         StatusCode::SEE_OTHER,
         "an empty transition is a no-op"
     );
-    assert_eq!(location.as_deref(), Some(path.as_str()));
+    assert_eq!(
+        location.as_deref(),
+        Some(format!("/events/{event_id}").as_str())
+    );
 
     let (status, _, _) = app
         .post_form_with_header_csrf(

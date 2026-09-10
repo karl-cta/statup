@@ -268,6 +268,13 @@ var consequenceCopy = {
     and: {{ i18n.t("common.and")|json|safe }}
 };
 
+var titleCopy = {
+    incident_minor: {{ i18n.t("title.incident_minor")|json|safe }},
+    incident_major: {{ i18n.t("title.incident_major")|json|safe }},
+    incident_critical: {{ i18n.t("title.incident_critical")|json|safe }},
+    maintenance: {{ i18n.t("title.maintenance")|json|safe }}
+};
+
 var submitCopy = {
     incident: {{ i18n.t("events.submit_incident")|json|safe }},
     maintenance: {{ i18n.t("events.submit_maintenance")|json|safe }},
@@ -351,16 +358,32 @@ function consequenceFor(kind, severity, names) {
     return { text: effect + ' ' + consequenceCopy.for + ' ' + joinNames(names) + '.', dot: dot };
 }
 
+// The title writes itself from the choices above it ("Major outage on
+// Network") until the admin types in it, and never on an existing event.
+var titleTouched = false;
+document.getElementById('title').addEventListener('input', function () { titleTouched = true; });
+
+function proposeTitle(kind, severity, names) {
+    var title = document.getElementById('title');
+    if (titleTouched || document.getElementById('submit-btn').dataset.editing) return;
+    var lead = kind === 'maintenance' ? titleCopy.maintenance
+        : kind === 'incident' && severity ? titleCopy['incident_' + severity] : '';
+    var proposal = lead && names.length ? lead + ' ' + joinNames(names) : '';
+    if (proposal !== title.value) title.value = proposal;
+}
+
 function updateForm() {
     var kind = checkedValue('kind');
     var severity = checkedValue('severity');
+    var names = checkedServiceNames();
 
     setOpen(document.getElementById('severity-field'), kind === 'incident');
     setOpen(document.getElementById('planned-field'), kind === 'maintenance');
     setOpen(document.getElementById('planned-dates'), kind === 'maintenance');
     setOpen(document.getElementById('category-field'), kind === 'publication');
 
-    var outcome = consequenceFor(kind, severity, checkedServiceNames());
+    var outcome = consequenceFor(kind, severity, names);
+    proposeTitle(kind, severity, names);
     document.getElementById('consequence-text').textContent = outcome.text;
     var dot = document.getElementById('consequence-dot');
     dot.className = 'consequence-dot' + (outcome.dot ? ' ' + outcome.dot : '');

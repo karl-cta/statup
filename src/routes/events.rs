@@ -71,6 +71,9 @@ struct EventDetailTemplate {
     allowed_transitions: Vec<Lifecycle>,
     can_revert: bool,
     previous_lifecycle_label: Option<String>,
+    /// True right after creation: the page confirms that what was just
+    /// written is now on the public page.
+    just_published: bool,
     i18n: I18n,
 }
 
@@ -435,10 +438,17 @@ pub async fn list(
     render(&tpl)
 }
 
+#[derive(Deserialize)]
+pub struct DetailQuery {
+    #[serde(default)]
+    published: Option<String>,
+}
+
 pub async fn detail(
     OptionalUser(user): OptionalUser,
     State(state): State<AppState>,
     Path(id): Path<i64>,
+    Query(query): Query<DetailQuery>,
     csrf_token: CsrfToken,
     Locale(i18n): Locale,
 ) -> Result<Response, AppError> {
@@ -487,6 +497,7 @@ pub async fn detail(
         allowed_transitions,
         can_revert,
         previous_lifecycle_label,
+        just_published: query.published.is_some(),
         i18n,
     };
     render(&tpl)
@@ -602,7 +613,7 @@ pub async fn create(
             {
                 tracing::warn!(error = %e, "Failed to save event template");
             }
-            Ok(Redirect::to(&format!("/events/{}", event.id)).into_response())
+            Ok(Redirect::to(&format!("/events/{}?published=1", event.id)).into_response())
         }
         Err(AppError::Validation(msg)) => {
             render_event_form(&state, &user, csrf_token.0, i18n, None, &msg, input).await
