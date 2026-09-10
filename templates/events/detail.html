@@ -104,7 +104,8 @@
                               class="block w-full resize-y input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
                               placeholder="{{ i18n.t("events.describe_progress") }}"
                               aria-label="{{ i18n.t("events.update_message_aria") }}"></textarea>
-                    <div class="flex justify-end">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-[12px] text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.markdown_supported") }}</p>
                         <button type="submit" class="btn-3d text-sm"><span>{{ i18n.t("events.publish") }}</span></button>
                     </div>
                 </form>
@@ -164,6 +165,7 @@
                     <input type="hidden" id="resolve-lifecycle" name="lifecycle" value="resolved">
                     <label for="resolution_comment" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
                         {{ i18n.t("events.resolution_comment") }} <span class="text-danger" aria-hidden="true">*</span>
+                        <span class="text-ink/45 dark:text-sand-light/30">{{ i18n.t("events.markdown_supported") }}</span>
                     </label>
                     <textarea id="resolution_comment" name="resolution_comment" rows="3" required aria-required="true"
                               class="block w-full min-h-[80px] resize-y input-raised px-3 py-2 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
@@ -172,7 +174,7 @@
                     <div class="flex items-center justify-end gap-2">
                         <button type="button" id="resolve-cancel-btn"
                                 class="btn-3d-ghost text-[13px] !px-3 !py-1">{{ i18n.t("common.cancel") }}</button>
-                        <button type="submit" class="btn-3d-success text-[13px] !px-3 !py-1.5">{{ i18n.t("events.resolve_action") }}</button>
+                        <button type="submit" class="btn-3d text-[13px] !px-3 !py-1.5"><span>{{ i18n.t("events.resolve_action") }}</span></button>
                     </div>
                 </form>
                 <script>

@@ -99,7 +99,7 @@
                             class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm cursor-pointer"
                             aria-label="{{ i18n.t("events.severity") }}"
                         >
-                            <option value="">{{ i18n.t("common.all") }}</option>
+                            <option value="">{{ i18n.t("severity.none") }}</option>
                             <option value="minor" {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (s) %}{% if s.as_str() == "minor" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}selected{% endmatch %}>{{ i18n.t("severity.minor") }}</option>
                             <option value="major" {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (s) %}{% if s.as_str() == "major" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>{{ i18n.t("severity.major") }}</option>
                             <option value="critical" {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (s) %}{% if s.as_str() == "critical" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>{{ i18n.t("severity.critical") }}</option>
@@ -120,7 +120,7 @@
                 </div>
             </div>
 
-            <div class="collapse-row mt-5" id="planned-field">
+            <div class="collapse-row collapse-row-gap" id="planned-field">
                 <div class="collapse-inner">
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" id="planned" name="planned" value="on" class="checkbox-fancy"
@@ -131,7 +131,7 @@
                 </div>
             </div>
 
-            <div class="collapse-row mt-5" id="category-field">
+            <div class="collapse-row collapse-row-gap" id="category-field">
                 <div class="collapse-inner">
                     <label for="category" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
                         {{ i18n.t("events.category") }}
@@ -149,7 +149,7 @@
                 </div>
             </div>
 
-            <div class="collapse-row mt-5" id="planned-dates">
+            <div class="collapse-row collapse-row-gap" id="planned-dates">
                 <div class="collapse-inner grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                         <label for="planned_start" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">

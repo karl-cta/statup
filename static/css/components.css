@@ -324,43 +324,6 @@
         }
     }
 
-    /* Operational, and nothing else. This carried its own emerald until
-       2026-09-04, a second green sitting beside the brand sage on the same
-       screen. */
-    .btn-3d-success {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        padding: 10px 20px;
-        font-family: var(--font-sans);
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--color-sand-light);
-        background: var(--sem-ok-text);
-        border: 1px solid var(--sem-ok-text);
-        border-radius: 6px;
-        cursor: pointer;
-        transition: background 0.15s ease;
-    }
-
-    .btn-3d-success:hover {
-        background: color-mix(in oklch, var(--sem-ok-text), var(--color-ink) 22%);
-        border-color: color-mix(in oklch, var(--sem-ok-text), var(--color-ink) 22%);
-    }
-
-    :is(.dark *) {
-        .btn-3d-success {
-            color: var(--color-ink);
-            background: var(--sem-ok);
-            border-color: var(--sem-ok);
-        }
-        .btn-3d-success:hover {
-            background: color-mix(in oklch, var(--sem-ok), white 14%);
-            border-color: color-mix(in oklch, var(--sem-ok), white 14%);
-        }
-    }
-
     /* Destructive outline: readable as a button at rest, without competing
        with the primary action next to it. Fills only on hover. */
     .btn-outline-danger {
@@ -2842,6 +2805,13 @@
     .collapse-row > .collapse-inner {
         overflow: hidden;
         min-height: 0;
+    }
+
+    /* A folded row takes no room at all: its gap to the row above only
+       exists once it is open, otherwise three folded rows left sixty pixels
+       of nothing under the form. The gap is not animated, only the height. */
+    .collapse-row-gap.is-open {
+        margin-top: 20px;
     }
 
     @media (prefers-reduced-motion: reduce) {

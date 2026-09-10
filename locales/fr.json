@@ -298,6 +298,7 @@
   "severity.minor": "Mineure",
   "severity.major": "Majeure",
   "severity.critical": "Critique",
+  "severity.none": "Aucune",
 
   "category.changelog": "Changement",
   "category.info": "Information",
