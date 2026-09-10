@@ -652,9 +652,13 @@ async fn rejected_event_creation_gives_the_input_back() {
         body.contains("2026-09-07T02:14"),
         "planned start should survive the rejection"
     );
+    let critical = body
+        .find(r#"value="critical""#)
+        .expect("severity choice rendered");
+    let tag_end = critical + body[critical..].find('>').expect("tag closes");
     assert!(
-        body.contains(r#"value="critical" selected"#),
-        "severity should stay selected"
+        body[critical..tag_end].contains("checked"),
+        "severity should stay checked"
     );
     assert!(
         body.contains(r#"action="/events/new""#),

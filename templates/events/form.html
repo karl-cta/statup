@@ -32,209 +32,207 @@
     <form
         method="post"
         action="{% match edit_id %}{% when Some with (id) %}/events/{{ id }}/edit{% when None %}/events/new{% endmatch %}"
-        class="mt-8 animate-in delay-1 grid gap-8 lg:gap-0 lg:grid-cols-[minmax(0,1fr)_280px]"
+        class="mt-8 animate-in delay-1 max-w-[720px]"
         {% match error %}{% when Some with (_msg) %}aria-describedby="form-error"{% when None %}{% endmatch %}
     >
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-        {# The action bar is not inside this column: on a phone the columns
-           stack, and a submit that came before the service checkboxes let an
-           incident be published before its services were even on screen. #}
-        <div class="min-w-0 lg:pr-10">
-            <div class="relative">
-                <label for="title" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-                    {{ i18n.t("events.title_label") }}
+        {# One column, in the order an admin thinks at 3am: what kind of thing,
+           how bad, which services, and only then the words. #}
+        <fieldset class="choice-group">
+            <legend class="field-label">{{ i18n.t("events.kind") }}</legend>
+            <div class="choice-row">
+                <label class="choice">
+                    <input type="radio" name="kind" value="incident" class="sr-only" required
+                           {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "incident" %}checked{% endif %}{% when None %}checked{% endmatch %}>
+                    <span>{{ i18n.t("kind.incident") }}</span>
                 </label>
-                <input
-                    id="title"
-                    name="title"
-                    type="text"
-                    required
-                    aria-required="true"
-                    maxlength="200"
-                    autocomplete="off"
-                    role="combobox"
-                    aria-autocomplete="list"
-                    aria-expanded="false"
-                    aria-controls="template-suggestions-container"
-                    value="{% match event %}{% when Some with (e) %}{{ e.title }}{% when None %}{% endmatch %}"
-                    class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
-                    placeholder="{{ i18n.t("events.title_placeholder") }}"
-                    hx-get="/events/templates/search"
-                    hx-trigger="keyup changed delay:300ms"
-                    hx-target="#template-suggestions-container"
-                    hx-swap="innerHTML"
-                    hx-params="title"
-                >
-                <div id="template-suggestions-container"></div>
-            </div>
-
-            <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                    <label for="kind" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-                        {{ i18n.t("events.kind") }}
-                    </label>
-                    <select
-                        id="kind"
-                        name="kind"
-                        data-custom-select
-                        required
-                        aria-required="true"
-                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm cursor-pointer"
-                    >
-                        <option value="incident" {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "incident" %}selected{% endif %}{% when None %}selected{% endmatch %}>{{ i18n.t("kind.incident") }}</option>
-                        <option value="maintenance" {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "maintenance" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("kind.maintenance") }}</option>
-                        <option value="publication" {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "publication" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("kind.publication") }}</option>
-                    </select>
-                </div>
-
-                <div class="collapse-row" id="severity-field">
-                    <div class="collapse-inner">
-                        <label for="severity" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-                            {{ i18n.t("events.severity") }} <span class="text-ink/45 dark:text-sand-light/30">{{ i18n.t("events.optional") }}</span>
-                        </label>
-                        <select
-                            id="severity"
-                            name="severity"
-                            data-custom-select
-                            class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm cursor-pointer"
-                        >
-                            <option value="">{{ i18n.t("severity.none") }}</option>
-                            <option value="minor" {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (s) %}{% if s.as_str() == "minor" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}selected{% endmatch %}>{{ i18n.t("severity.minor") }}</option>
-                            <option value="major" {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (s) %}{% if s.as_str() == "major" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>{{ i18n.t("severity.major") }}</option>
-                            <option value="critical" {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (s) %}{% if s.as_str() == "critical" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>{{ i18n.t("severity.critical") }}</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-4">
-                <p class="text-[10.5px] font-mono uppercase tracking-[0.12em] text-ink/50 dark:text-sand-light/40">
-                    {{ i18n.t("events.preview") }}
-                </p>
-                <div class="mt-2 flex items-start gap-3">
-                    <span id="chip-preview" class="log-chip log-chip-minor mt-0.5">INCIDENT</span>
-                    <p id="severity-hint" class="text-[12px] text-ink/60 dark:text-sand-light/55 leading-relaxed">
-                        <span id="severity-hint-text"></span>
-                    </p>
-                </div>
-            </div>
-
-            <div class="collapse-row collapse-row-gap" id="planned-field">
-                <div class="collapse-inner">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="planned" name="planned" value="on" class="checkbox-fancy"
-                               {% match event %}{% when Some with (e) %}{% if e.planned %}checked{% endif %}{% when None %}{% endmatch %}>
-                        <span class="text-sm font-medium text-ink/85 dark:text-sand-light/85">{{ i18n.t("events.planned_label") }}</span>
-                    </label>
-                    <p class="mt-1 text-[12px] text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.planned_hint") }}</p>
-                </div>
-            </div>
-
-            <div class="collapse-row collapse-row-gap" id="category-field">
-                <div class="collapse-inner">
-                    <label for="category" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-                        {{ i18n.t("events.category") }}
-                    </label>
-                    <select
-                        id="category"
-                        name="category"
-                        data-custom-select
-                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm cursor-pointer"
-                    >
-                        <option value="changelog" {% match event %}{% when Some with (e) %}{% match e.category %}{% when Some with (c) %}{% if c.as_str() == "changelog" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}selected{% endmatch %}>{{ i18n.t("category.changelog") }}</option>
-                        <option value="info" {% match event %}{% when Some with (e) %}{% match e.category %}{% when Some with (c) %}{% if c.as_str() == "info" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>{{ i18n.t("category.info") }}</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="collapse-row collapse-row-gap" id="planned-dates">
-                <div class="collapse-inner grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                        <label for="planned_start" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-                            {{ i18n.t("events.planned_start_short") }}
-                        </label>
-                        <input
-                            id="planned_start"
-                            name="planned_start"
-                            type="datetime-local"
-                            value="{% match event %}{% when Some with (e) %}{% match e.planned_start %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}{% when None %}{% endmatch %}"
-                            class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm"
-                        >
-                    </div>
-                    <div>
-                        <label for="planned_end" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-                            {{ i18n.t("events.planned_end_short") }} <span class="text-ink/45 dark:text-sand-light/30">{{ i18n.t("events.optional") }}</span>
-                        </label>
-                        <input
-                            id="planned_end"
-                            name="planned_end"
-                            type="datetime-local"
-                            value="{% match event %}{% when Some with (e) %}{% match e.planned_end %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}{% when None %}{% endmatch %}"
-                            class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm"
-                        >
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-5">
-                <label for="description" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-                    {{ i18n.t("events.description") }} <span class="text-ink/45 dark:text-sand-light/30">{{ i18n.t("events.markdown_supported") }}</span>
+                <label class="choice">
+                    <input type="radio" name="kind" value="maintenance" class="sr-only"
+                           {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "maintenance" %}checked{% endif %}{% when None %}{% endmatch %}>
+                    <span>{{ i18n.t("kind.maintenance") }}</span>
                 </label>
-                <textarea
-                    id="description"
-                    name="description"
-                    rows="8"
-                    required
-                    aria-required="true"
-                    class="mt-1.5 block w-full min-h-[200px] resize-y input-raised px-3.5 py-2.5 text-sm font-mono placeholder-ink/35 dark:placeholder-sand-light/30"
-                    placeholder="{{ i18n.t("events.description_placeholder") }}"
-                >{% match event %}{% when Some with (e) %}{{ e.description }}{% when None %}{% endmatch %}</textarea>
+                <label class="choice">
+                    <input type="radio" name="kind" value="publication" class="sr-only"
+                           {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "publication" %}checked{% endif %}{% when None %}{% endmatch %}>
+                    <span>{{ i18n.t("kind.publication") }}</span>
+                </label>
+            </div>
+        </fieldset>
+
+        <div class="collapse-row collapse-row-gap" id="severity-field">
+            <div class="collapse-inner">
+                <fieldset class="choice-group">
+                    <legend class="field-label">{{ i18n.t("events.severity") }}</legend>
+                    <div class="choice-row">
+                        <label class="choice">
+                            <input type="radio" name="severity" value="minor" class="sr-only" required
+                                   {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (sev) %}{% if sev.as_str() == "minor" %}checked{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>
+                            <span class="choice-dot status-dot-minor" aria-hidden="true"></span>
+                            <span>{{ i18n.t("severity.minor") }}</span>
+                        </label>
+                        <label class="choice">
+                            <input type="radio" name="severity" value="major" class="sr-only"
+                                   {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (sev) %}{% if sev.as_str() == "major" %}checked{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>
+                            <span class="choice-dot status-dot-major" aria-hidden="true"></span>
+                            <span>{{ i18n.t("severity.major") }}</span>
+                        </label>
+                        <label class="choice">
+                            <input type="radio" name="severity" value="critical" class="sr-only"
+                                   {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (sev) %}{% if sev.as_str() == "critical" %}checked{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>
+                            <span class="choice-dot status-dot-crit" aria-hidden="true"></span>
+                            <span>{{ i18n.t("severity.critical") }}</span>
+                        </label>
+                    </div>
+                </fieldset>
             </div>
         </div>
 
-        <aside class="lg:pl-10 min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:border-l lg:border-ink/10 lg:dark:border-sand-light/10" aria-label="{{ i18n.t("events.affected_services_sidebar") }}">
-            <div class="lg:sticky lg:top-8">
-                <p class="text-[10.5px] font-mono uppercase tracking-[0.12em] text-ink/55 dark:text-sand-light/45">
-                    {{ i18n.t("events.affected_services_sidebar") }}
-                </p>
-                <p class="mt-1 text-[12px] text-ink/55 dark:text-sand-light/45 leading-relaxed">
-                    {{ i18n.t("events.select_affected_hint") }}
-                </p>
-
-                {% if services.is_empty() %}
-                <p class="mt-4 text-sm text-ink/55 dark:text-sand-light/45">
-                    {{ i18n.t("events.no_services_available") }}
-                    <a href="/services/new" class="text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light">{{ i18n.t("events.create_service_link") }}</a>
-                </p>
-                {% else %}
-                <div class="mt-4 svc-pick-list" role="group" aria-label="{{ i18n.t("events.services_list_aria") }}">
-                    {% for svc in services %}
-                    <label class="svc-pick">
-                        <input
-                            type="checkbox"
-                            name="service_ids"
-                            value="{{ svc.id }}"
-                            {% match event %}
-                            {% when Some with (e) %}{% if e.has_service(svc.id) %}checked{% endif %}
-                            {% when None %}
-                            {% endmatch %}
-                            class="checkbox-fancy"
-                        >
-                        <span class="svc-pick-name">{{ svc.name }}</span>
-                        <span class="svc-pick-status" title="{{ i18n.t(svc.status.i18n_key()) }}">
-                            <span class="h-2 w-2 rounded-full {{ svc.status.dot_class() }}" aria-hidden="true"></span>
-                            <span class="text-[10.5px] font-mono uppercase tracking-[0.06em] text-ink/55 dark:text-sand-light/45">{{ i18n.t(svc.status.i18n_key()) }}</span>
-                        </span>
-                    </label>
-                    {% endfor %}
-                </div>
-                {% endif %}
+        <div class="collapse-row collapse-row-gap" id="planned-field">
+            <div class="collapse-inner">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="planned" name="planned" value="on" class="checkbox-fancy"
+                           {% match event %}{% when Some with (e) %}{% if e.planned %}checked{% endif %}{% when None %}{% endmatch %}>
+                    <span class="text-sm font-medium text-ink/85 dark:text-sand-light/85">{{ i18n.t("events.planned_label") }}</span>
+                </label>
+                <p class="mt-1 text-[12px] text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.planned_hint") }}</p>
             </div>
-        </aside>
+        </div>
 
-        {# Last in the source, so it reads last: fields, services, then submit. #}
-        <div class="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-ink/10 dark:border-sand-light/10 lg:col-start-1 lg:row-start-2 lg:mt-6 lg:pr-10">
+        <div class="collapse-row collapse-row-gap" id="planned-dates">
+            <div class="collapse-inner grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label for="planned_start" class="field-label">
+                        {{ i18n.t("events.planned_start_short") }}
+                    </label>
+                    <input
+                        id="planned_start"
+                        name="planned_start"
+                        type="datetime-local"
+                        value="{% match event %}{% when Some with (e) %}{% match e.planned_start %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}{% when None %}{% endmatch %}"
+                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm"
+                    >
+                </div>
+                <div>
+                    <label for="planned_end" class="field-label">
+                        {{ i18n.t("events.planned_end_short") }} <span class="field-note">{{ i18n.t("events.optional") }}</span>
+                    </label>
+                    <input
+                        id="planned_end"
+                        name="planned_end"
+                        type="datetime-local"
+                        value="{% match event %}{% when Some with (e) %}{% match e.planned_end %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}{% when None %}{% endmatch %}"
+                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm"
+                    >
+                </div>
+            </div>
+        </div>
+
+        <div class="collapse-row collapse-row-gap" id="category-field">
+            <div class="collapse-inner">
+                <fieldset class="choice-group">
+                    <legend class="field-label">{{ i18n.t("events.category") }}</legend>
+                    <div class="choice-row">
+                        <label class="choice">
+                            <input type="radio" name="category" value="changelog" class="sr-only"
+                                   {% match event %}{% when Some with (e) %}{% match e.category %}{% when Some with (c) %}{% if c.as_str() == "changelog" %}checked{% endif %}{% when None %}{% endmatch %}{% when None %}checked{% endmatch %}>
+                            <span>{{ i18n.t("category.changelog") }}</span>
+                        </label>
+                        <label class="choice">
+                            <input type="radio" name="category" value="info" class="sr-only"
+                                   {% match event %}{% when Some with (e) %}{% match e.category %}{% when Some with (c) %}{% if c.as_str() == "info" %}checked{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>
+                            <span>{{ i18n.t("category.info") }}</span>
+                        </label>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+
+        <section class="form-block" aria-labelledby="services-label">
+            <p id="services-label" class="field-label">{{ i18n.t("events.affected_services_sidebar") }}</p>
+            {% if services.is_empty() %}
+            <p class="mt-2 text-sm text-ink/55 dark:text-sand-light/45">
+                {{ i18n.t("events.no_services_available") }}
+                <a href="/services/new" class="text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light">{{ i18n.t("events.create_service_link") }}</a>
+            </p>
+            {% else %}
+            <div class="mt-2 svc-pick-list" role="group" aria-labelledby="services-label">
+                {% for svc in services %}
+                <label class="svc-pick">
+                    <input
+                        type="checkbox"
+                        name="service_ids"
+                        value="{{ svc.id }}"
+                        data-service-name="{{ svc.name }}"
+                        {% match event %}
+                        {% when Some with (e) %}{% if e.has_service(svc.id) %}checked{% endif %}
+                        {% when None %}
+                        {% endmatch %}
+                        class="checkbox-fancy"
+                    >
+                    <span class="svc-pick-name">{{ svc.name }}</span>
+                    <span class="svc-pick-status" title="{{ i18n.t(svc.status.i18n_key()) }}">
+                        <span class="h-2 w-2 rounded-full {{ svc.status.dot_class() }}" aria-hidden="true"></span>
+                        <span class="text-[10.5px] font-mono uppercase tracking-[0.06em] text-ink/55 dark:text-sand-light/45">{{ i18n.t(svc.status.i18n_key()) }}</span>
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </section>
+
+        <div class="form-block relative">
+            <label for="title" class="field-label">
+                {{ i18n.t("events.title_label") }}
+            </label>
+            <input
+                id="title"
+                name="title"
+                type="text"
+                required
+                aria-required="true"
+                maxlength="200"
+                autocomplete="off"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded="false"
+                aria-controls="template-suggestions-container"
+                value="{% match event %}{% when Some with (e) %}{{ e.title }}{% when None %}{% endmatch %}"
+                class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
+                placeholder="{{ i18n.t("events.title_placeholder") }}"
+                hx-get="/events/templates/search"
+                hx-trigger="keyup changed delay:300ms"
+                hx-target="#template-suggestions-container"
+                hx-swap="innerHTML"
+                hx-params="title"
+            >
+            <div id="template-suggestions-container"></div>
+        </div>
+
+        <div class="mt-5">
+            <label for="description" class="field-label">
+                {{ i18n.t("events.description") }} <span class="field-note">{{ i18n.t("events.markdown_supported") }}</span>
+            </label>
+            <textarea
+                id="description"
+                name="description"
+                rows="6"
+                required
+                aria-required="true"
+                class="mt-1.5 block w-full min-h-[160px] resize-y input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
+                placeholder="{{ i18n.t("events.description_placeholder") }}"
+            >{% match event %}{% when Some with (e) %}{{ e.description }}{% when None %}{% endmatch %}</textarea>
+        </div>
+
+        {# The consequence is the main sentence of the form: what the public
+           page will show once the button below is pressed. Announced to
+           assistive tech whenever it changes. #}
+        <div class="form-block consequence" id="consequence" role="status" aria-live="polite">
+            <span class="consequence-dot" id="consequence-dot" aria-hidden="true"></span>
+            <p class="consequence-text" id="consequence-text"></p>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-end gap-3 pt-5 border-t border-ink/10 dark:border-sand-light/10">
             {% match edit_id %}
             {% when None %}
             <label class="flex items-center gap-2 cursor-pointer mr-auto">
@@ -249,37 +247,41 @@
             >
                 {{ i18n.t("common.cancel") }}
             </a>
-            <button type="submit" class="btn-3d text-sm">
-                <span>{% match edit_id %}
-                {% when Some with (_id) %}{{ i18n.t("common.save") }}{% when None %}{{ i18n.t("events.submit_create") }}{% endmatch %}</span>
+            <button type="submit" class="btn-3d text-sm" id="submit-btn" {% match edit_id %}{% when Some with (_id) %}data-editing="true"{% when None %}{% endmatch %}>
+                <span id="submit-label">{% match edit_id %}
+                {% when Some with (_id) %}{{ i18n.t("common.save") }}{% when None %}{{ i18n.t("events.submit_incident") }}{% endmatch %}</span>
             </button>
         </div>
     </form>
 </div>
 
 <script>
-var severityHints = {
-    incident_critical: {{ i18n.t("hint.incident_critical")|json|safe }},
-    incident_major: {{ i18n.t("hint.incident_major")|json|safe }},
-    incident_minor: {{ i18n.t("hint.incident_minor")|json|safe }},
-    incident_no_severity: {{ i18n.t("hint.incident_no_severity")|json|safe }},
-    maintenance: {{ i18n.t("hint.maintenance")|json|safe }},
-    publication: {{ i18n.t("hint.publication")|json|safe }}
+var consequenceCopy = {
+    incident_minor: {{ i18n.t("consequence.incident_minor")|json|safe }},
+    incident_major: {{ i18n.t("consequence.incident_major")|json|safe }},
+    incident_critical: {{ i18n.t("consequence.incident_critical")|json|safe }},
+    pick_severity: {{ i18n.t("consequence.pick_severity")|json|safe }},
+    maintenance: {{ i18n.t("consequence.maintenance")|json|safe }},
+    publication: {{ i18n.t("consequence.publication")|json|safe }},
+    no_services: {{ i18n.t("consequence.no_services")|json|safe }},
+    for: {{ i18n.t("consequence.for")|json|safe }},
+    and: {{ i18n.t("common.and")|json|safe }}
 };
 
-var kindLabels = {
-    incident: {{ i18n.t("kind.incident")|json|safe }},
-    maintenance: {{ i18n.t("kind.maintenance")|json|safe }},
-    publication: {{ i18n.t("kind.publication")|json|safe }}
+var submitCopy = {
+    incident: {{ i18n.t("events.submit_incident")|json|safe }},
+    maintenance: {{ i18n.t("events.submit_maintenance")|json|safe }},
+    publication: {{ i18n.t("events.submit_publication")|json|safe }}
 };
 
-function chipClassFor(kind, severity) {
-    if (kind === 'incident' && severity === 'critical') return 'log-chip log-chip-crit';
-    if (kind === 'incident' && severity === 'major') return 'log-chip log-chip-major';
-    if (kind === 'incident') return 'log-chip log-chip-minor';
-    if (kind === 'maintenance') return 'log-chip log-chip-info';
-    if (kind === 'publication') return 'log-chip log-chip-pub';
-    return 'log-chip log-chip-minor';
+function checkedValue(name) {
+    var el = document.querySelector('input[name="' + name + '"]:checked');
+    return el ? el.value : '';
+}
+
+function checkRadio(name, value) {
+    var el = document.querySelector('input[name="' + name + '"][value="' + value + '"]');
+    if (el) el.checked = true;
 }
 
 function applyTemplate(templateId) {
@@ -288,24 +290,15 @@ function applyTemplate(templateId) {
         .then(function(data) {
             document.getElementById('title').value = data.title;
             document.getElementById('description').value = data.description;
-            if (data.kind) {
-                document.getElementById('kind').value = data.kind;
-            }
-            document.getElementById('severity').value = data.severity || '';
+            if (data.kind) checkRadio('kind', data.kind);
+            if (data.severity) checkRadio('severity', data.severity);
             document.getElementById('planned').checked = !!data.planned;
-            if (data.category) {
-                document.getElementById('category').value = data.category;
-            }
-            // The dressed selects relabel themselves only on cs:sync: without
-            // it the form held the template's values while the screen still
-            // showed the old ones.
-            ['kind', 'severity', 'category'].forEach(function (id) {
-                document.getElementById(id).dispatchEvent(new Event('cs:sync'));
-            });
+            if (data.category) checkRadio('category', data.category);
             document.getElementById('template-suggestions-container').innerHTML = '';
-            updateVisibilityAndHint();
+            updateForm();
         });
 }
+
 // The title is a combobox whose suggestions come and go by htmx swap and by
 // script: the observer keeps aria-expanded honest whichever way they move.
 (function () {
@@ -335,40 +328,53 @@ function setOpen(el, open) {
     });
 }
 
-function updateVisibilityAndHint() {
-    var kind = document.getElementById('kind').value;
-    var severity = document.getElementById('severity').value;
-    var hintText = document.getElementById('severity-hint-text');
-    var chip = document.getElementById('chip-preview');
-    var msg = '';
+function checkedServiceNames() {
+    return Array.prototype.map.call(
+        document.querySelectorAll('input[name="service_ids"]:checked'),
+        function (box) { return box.dataset.serviceName; }
+    );
+}
 
-    setOpen(document.getElementById('severity-field'), kind !== 'publication');
+function joinNames(names) {
+    if (names.length === 1) return names[0];
+    return names.slice(0, -1).join(', ') + ' ' + consequenceCopy.and + ' ' + names[names.length - 1];
+}
+
+function consequenceFor(kind, severity, names) {
+    if (kind === 'publication') return { text: consequenceCopy.publication, dot: 'status-dot-ok' };
+    if (kind === 'incident' && !severity) return { text: consequenceCopy.pick_severity, dot: '' };
+    if (names.length === 0) return { text: consequenceCopy.no_services, dot: '' };
+    var effect = kind === 'maintenance' ? consequenceCopy.maintenance : consequenceCopy['incident_' + severity];
+    var dot = kind === 'maintenance' ? 'status-dot-info'
+        : severity === 'critical' ? 'status-dot-crit'
+        : severity === 'major' ? 'status-dot-major' : 'status-dot-minor';
+    return { text: effect + ' ' + consequenceCopy.for + ' ' + joinNames(names) + '.', dot: dot };
+}
+
+function updateForm() {
+    var kind = checkedValue('kind');
+    var severity = checkedValue('severity');
+
+    setOpen(document.getElementById('severity-field'), kind === 'incident');
     setOpen(document.getElementById('planned-field'), kind === 'maintenance');
     setOpen(document.getElementById('planned-dates'), kind === 'maintenance');
     setOpen(document.getElementById('category-field'), kind === 'publication');
 
-    if (kind === 'incident') {
-        if (severity === 'critical') msg = severityHints.incident_critical;
-        else if (severity === 'major') msg = severityHints.incident_major;
-        else if (severity === 'minor') msg = severityHints.incident_minor;
-        else msg = severityHints.incident_no_severity;
-    } else if (kind === 'maintenance') {
-        msg = severityHints.maintenance;
-    } else {
-        msg = severityHints.publication;
-    }
+    var outcome = consequenceFor(kind, severity, checkedServiceNames());
+    document.getElementById('consequence-text').textContent = outcome.text;
+    var dot = document.getElementById('consequence-dot');
+    dot.className = 'consequence-dot' + (outcome.dot ? ' ' + outcome.dot : '');
+    dot.hidden = !outcome.dot;
 
-    hintText.textContent = msg;
-
-    if (chip) {
-        chip.className = chipClassFor(kind, severity);
-        chip.textContent = (kindLabels[kind] || '').toUpperCase();
+    var submit = document.getElementById('submit-btn');
+    if (!submit.dataset.editing) {
+        document.getElementById('submit-label').textContent = submitCopy[kind] || submitCopy.incident;
     }
 }
 
-document.getElementById('kind').addEventListener('change', updateVisibilityAndHint);
-document.getElementById('severity').addEventListener('change', updateVisibilityAndHint);
-document.getElementById('planned').addEventListener('change', updateVisibilityAndHint);
-updateVisibilityAndHint();
+document.querySelectorAll('input[name="kind"], input[name="severity"], input[name="category"], input[name="service_ids"], #planned').forEach(function (el) {
+    el.addEventListener('change', updateForm);
+});
+updateForm();
 </script>
 {% endblock %}

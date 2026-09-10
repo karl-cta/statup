@@ -273,17 +273,33 @@
         border: 1px solid var(--color-ink);
         border-radius: 6px;
         cursor: pointer;
-        transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        transition:
+            background 0.15s ease,
+            border-color 0.15s ease,
+            color 0.15s ease,
+            transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    /* The one tactile moment of the form: the button lifts a hair under the
+       pointer and settles back when pressed. Transform only, no shadow. */
     .btn-3d:hover {
         background: var(--color-ink-deep);
         border-color: var(--color-ink-deep);
+        transform: translateY(-1px);
     }
 
     .btn-3d:active {
         background: #000;
         border-color: #000;
+        transform: translateY(0) scale(0.985);
+        transition-duration: 0.15s, 0.15s, 0.15s, 0.06s;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .btn-3d:hover,
+        .btn-3d:active {
+            transform: none;
+        }
     }
 
     .btn-3d:focus-visible {
@@ -2826,6 +2842,141 @@
     .collapse-row > .collapse-inner {
         overflow: hidden;
         min-height: 0;
+    }
+
+    /* Event form. Labels share one voice, blocks separate generously while
+       a label stays tight against its control. */
+    .field-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: rgb(28 27 24 / 0.85);
+    }
+
+    :is(.dark *) .field-label {
+        color: rgb(250 248 242 / 0.85);
+    }
+
+    .field-note {
+        font-weight: 400;
+        color: var(--color-muted-light);
+    }
+
+    :is(.dark *) .field-note {
+        color: var(--color-muted-dark);
+    }
+
+    .form-block {
+        margin-top: 32px;
+    }
+
+    /* A choice with three options is three buttons in a row, not a menu:
+       every option in sight, one click, nothing picked in silence. The radio
+       stays native underneath, so keyboard and no-JS behave as radios do. */
+    .choice-group {
+        border: 0;
+        margin: 0;
+        padding: 0;
+        min-width: 0;
+    }
+
+    .choice-group legend {
+        padding: 0;
+        margin-bottom: 8px;
+    }
+
+    .choice-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .choice {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 16px;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        background: var(--color-cream);
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--color-ink);
+        cursor: pointer;
+        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .choice:hover {
+        border-color: var(--color-ink);
+    }
+
+    .choice:has(:checked) {
+        background: var(--color-ink);
+        border-color: var(--color-ink);
+        color: var(--color-sand-light);
+    }
+
+    .choice:has(:focus-visible) {
+        outline: 2px solid var(--color-ink);
+        outline-offset: 2px;
+    }
+
+    .choice-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex: none;
+    }
+
+    :is(.dark *) .choice {
+        background: var(--color-surface-1);
+        color: var(--color-sand-light);
+    }
+
+    :is(.dark *) .choice:hover {
+        border-color: var(--color-sand-light);
+    }
+
+    :is(.dark *) .choice:has(:checked) {
+        background: var(--color-sand-light);
+        border-color: var(--color-sand-light);
+        color: var(--color-ink);
+    }
+
+    :is(.dark *) .choice:has(:focus-visible) {
+        outline-color: var(--color-sand-light);
+    }
+
+    /* The consequence: the one sentence the admin must read before
+       publishing, in body size, with the dot of the state it announces. */
+    .consequence {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .consequence-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex: none;
+        margin-top: 7px;
+    }
+
+    .consequence-dot[hidden] {
+        display: none;
+    }
+
+    .consequence-text {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.6;
+        color: var(--color-ink);
+    }
+
+    :is(.dark *) .consequence-text {
+        color: var(--color-sand-light);
     }
 
     /* A folded row takes no room at all: its gap to the row above only
