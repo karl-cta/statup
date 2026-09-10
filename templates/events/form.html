@@ -222,33 +222,35 @@
             >{% match event %}{% when Some with (e) %}{{ e.description }}{% when None %}{% endmatch %}</textarea>
         </div>
 
-        {# The consequence is the main sentence of the form: what the public
-           page will show once the button below is pressed. Announced to
-           assistive tech whenever it changes. #}
-        <div class="form-block consequence" id="consequence" role="status" aria-live="polite">
-            <span class="consequence-dot" id="consequence-dot" aria-hidden="true"></span>
-            <p class="consequence-text" id="consequence-text"></p>
-        </div>
+        {# Saving as a template is a side wish, not part of the publishing
+           gesture: it lives under the description, away from the button. #}
+        {% match edit_id %}
+        {% when None %}
+        <label class="mt-4 flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="save_as_template" class="checkbox-fancy">
+            <span class="text-sm font-medium text-muted">{{ i18n.t("events.save_as_template_label") }}</span>
+        </label>
+        {% when Some with (_id) %}
+        {% endmatch %}
 
-        <div class="flex flex-wrap items-center justify-end gap-3 pt-5 border-t border-ink/10 dark:border-sand-light/10">
-            {% match edit_id %}
-            {% when None %}
-            <label class="flex items-center gap-2 cursor-pointer mr-auto">
-                <input type="checkbox" name="save_as_template" class="checkbox-fancy">
-                <span class="text-sm font-medium text-muted">{{ i18n.t("events.save_as_template_label") }}</span>
-            </label>
-            {% when Some with (_id) %}
-            {% endmatch %}
-            <a
-                href="/events"
-                class="text-sm font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors"
-            >
-                {{ i18n.t("common.cancel") }}
-            </a>
-            <button type="submit" class="btn-3d text-sm" id="submit-btn" {% match edit_id %}{% when Some with (_id) %}data-editing="true"{% when None %}{% endmatch %}>
-                <span id="submit-label">{% match edit_id %}
-                {% when Some with (_id) %}{{ i18n.t("common.save") }}{% when None %}{{ i18n.t("events.submit_incident") }}{% endmatch %}</span>
-            </button>
+        {# The consequence and the button travel together, pinned to the
+           bottom of the window while the form is filled: what the public
+           page will show is in sight at every click. Announced to assistive
+           tech whenever it changes. #}
+        <div class="action-bar">
+            <div class="consequence" id="consequence" role="status" aria-live="polite">
+                <span class="consequence-dot" id="consequence-dot" aria-hidden="true"></span>
+                <p class="consequence-text" id="consequence-text"></p>
+            </div>
+            <div class="action-bar-buttons">
+                <a href="/events" class="text-sm font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors">
+                    {{ i18n.t("common.cancel") }}
+                </a>
+                <button type="submit" class="btn-3d text-sm" id="submit-btn" {% match edit_id %}{% when Some with (_id) %}data-editing="true"{% when None %}{% endmatch %}>
+                    <span id="submit-label">{% match edit_id %}
+                    {% when Some with (_id) %}{{ i18n.t("common.save") }}{% when None %}{{ i18n.t("events.submit_incident") }}{% endmatch %}</span>
+                </button>
+            </div>
         </div>
     </form>
 </div>
@@ -263,6 +265,7 @@ var consequenceCopy = {
     publication: {{ i18n.t("consequence.publication")|json|safe }},
     no_services: {{ i18n.t("consequence.no_services")|json|safe }},
     for: {{ i18n.t("consequence.for")|json|safe }},
+    services: {{ i18n.t("consequence.services")|json|safe }},
     and: {{ i18n.t("common.and")|json|safe }}
 };
 
@@ -340,8 +343,11 @@ function checkedServiceNames() {
     );
 }
 
+// Up to three services are named; past that the count reads better than a
+// list, and a proposed title stays under the 200 characters the server takes.
 function joinNames(names) {
     if (names.length === 1) return names[0];
+    if (names.length > 3) return names.length + ' ' + consequenceCopy.services;
     return names.slice(0, -1).join(', ') + ' ' + consequenceCopy.and + ' ' + names[names.length - 1];
 }
 
@@ -366,7 +372,7 @@ function proposeTitle(kind, severity, names) {
     if (titleTouched || document.getElementById('submit-btn').dataset.editing) return;
     var lead = kind === 'maintenance' ? titleCopy.maintenance
         : kind === 'incident' && severity ? titleCopy['incident_' + severity] : '';
-    var proposal = lead && names.length ? lead + ' ' + joinNames(names) : '';
+    var proposal = lead && names.length ? (lead + ' ' + joinNames(names)).slice(0, 200) : '';
     if (proposal !== title.value) title.value = proposal;
 }
 

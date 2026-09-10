@@ -2989,6 +2989,48 @@
         display: flex;
         align-items: flex-start;
         gap: 10px;
+        min-width: 0;
+        flex: 1 1 320px;
+    }
+
+    /* Pinned to the bottom of the window until the form ends, then it
+       settles where it belongs. Page ground and a hairline, no shadow: it
+       does not float, it sits on the page. */
+    .action-bar {
+        position: sticky;
+        bottom: 0;
+        z-index: 5;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px 24px;
+        margin-top: 32px;
+        padding: 14px 0 16px;
+        border-top: 1px solid var(--line);
+        background: var(--color-page);
+    }
+
+    :is(.dark *) .action-bar {
+        background: var(--color-surface-0);
+    }
+
+    .action-bar-buttons {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-left: auto;
+    }
+
+    @media (max-width: 639px) {
+        .action-bar-buttons {
+            width: 100%;
+            margin-left: 0;
+        }
+
+        .action-bar-buttons .btn-3d {
+            flex: 1;
+        }
     }
 
     .consequence-dot {

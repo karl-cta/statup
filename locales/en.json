@@ -159,6 +159,7 @@
   "consequence.no_services": "No service checked: the public page will not change.",
   "consequence.pick_severity": "Pick a severity to see the effect on the public page.",
   "consequence.for": "for",
+  "consequence.services": "services",
   "common.and": "and",
   "events.save_as_template_label": "Save as template",
   "events.save_as_template_help": "Reuse this event as a base to quickly create new ones.",

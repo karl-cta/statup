@@ -159,6 +159,7 @@
   "consequence.no_services": "Aucun service coché : la page publique ne changera pas.",
   "consequence.pick_severity": "Choisissez une gravité pour voir l'effet sur la page publique.",
   "consequence.for": "pour",
+  "consequence.services": "services",
   "common.and": "et",
   "events.save_as_template_label": "Sauvegarder comme modèle",
   "events.save_as_template_help": "Réutilisez cet événement comme base pour en créer de nouveaux rapidement.",
