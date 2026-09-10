@@ -233,15 +233,40 @@
                        class="btn-3d-ghost text-[13px] !px-3 !py-1.5">
                         {{ i18n.t("common.edit") }}
                     </a>
-                    <form method="post" action="/events/{{ event.event.id }}/delete" class="inline">
+                    {# Deleting asks in the page, in the same bar as a status
+                       change, and names what it is about to delete. The <q>
+                       element quotes in the locale's own marks. #}
+                    <form id="delete-form" method="post" action="/events/{{ event.event.id }}/delete" class="flex flex-1 justify-end">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <button type="submit" onclick="return confirm('{{ i18n.t("events.confirm_delete_text") }}')"
+                        <button type="button" id="delete-btn"
                                 class="btn-outline-danger text-[13px]"
                                 aria-label="{{ i18n.t("events.confirm_delete") }}">
                             {{ i18n.t("common.delete") }}
                         </button>
+                        <div id="delete-confirm" class="status-confirm delete-confirm" hidden role="group" aria-label="{{ i18n.t("events.confirm_delete") }}">
+                            <span class="status-confirm-label">{{ i18n.t("common.delete") }} <q>{{ event.event.title }}</q></span>
+                            <button type="button" id="delete-cancel" class="status-confirm-cancel">{{ i18n.t("common.cancel") }}</button>
+                            <button type="submit" class="status-confirm-go">{{ i18n.t("common.delete") }}</button>
+                        </div>
                     </form>
                 </div>
+                <script>
+                (function () {
+                    var btn = document.getElementById('delete-btn');
+                    var box = document.getElementById('delete-confirm');
+                    var cancel = document.getElementById('delete-cancel');
+                    btn.addEventListener('click', function () {
+                        btn.hidden = true;
+                        box.hidden = false;
+                        cancel.focus();
+                    });
+                    cancel.addEventListener('click', function () {
+                        box.hidden = true;
+                        btn.hidden = false;
+                        btn.focus();
+                    });
+                })();
+                </script>
                 {% endif %}
             </div>
         </aside>

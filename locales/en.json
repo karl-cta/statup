@@ -141,7 +141,6 @@
   "events.publish": "Publish",
   "events.update_label": "Update",
   "events.describe_progress": "Describe the progress...",
-  "events.confirm_delete_text": "Are you sure you want to delete this event? This action cannot be undone.",
   "events.revert_to": "Revert to",
   "events.optional": "(optional)",
   "events.markdown_supported": "(Markdown supported)",

@@ -141,7 +141,6 @@
   "events.publish": "Publier",
   "events.update_label": "Mise à jour",
   "events.describe_progress": "Décrivez la progression...",
-  "events.confirm_delete_text": "Êtes-vous sûr de vouloir supprimer cet événement ? Cette action est irréversible.",
   "events.revert_to": "Revenir à",
   "events.optional": "(optionnel)",
   "events.markdown_supported": "(Markdown supporté)",

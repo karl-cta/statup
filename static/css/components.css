@@ -112,7 +112,8 @@
         min-width: 0;
     }
 
-    .status-cell [hidden] {
+    .status-cell [hidden],
+    .status-confirm[hidden] {
         display: none;
     }
 
@@ -192,6 +193,26 @@
     .status-receipt-undo:focus-visible {
         outline: 2px solid currentColor;
         outline-offset: 2px;
+    }
+
+    /* Deleting names its target: the title keeps its own case and letters,
+       quoted in the locale's marks, while the words around it keep the bar's
+       small mono voice. Cancel comes first and sits apart from the verb. */
+    .delete-confirm {
+        gap: 14px;
+        justify-content: flex-end;
+    }
+
+    .delete-confirm q {
+        font-family: var(--font-sans);
+        font-size: 13px;
+        letter-spacing: 0;
+        text-transform: none;
+        quotes: "\201C" "\201D";
+    }
+
+    .delete-confirm q:lang(fr) {
+        quotes: "\00AB\00A0" "\00A0\00BB";
     }
 
     /* Arrives once, so the receipt registers as new without looping. */
@@ -1841,8 +1862,8 @@
        sparklines without a stated meaning. */
     .svc-legend {
         margin: 0;
-        padding: 10px 16px 12px;
-        border-top: 1px solid var(--hairline);
+        padding: 8px 16px 10px;
+        border-bottom: 1px solid var(--hairline);
         font-size: 10.5px;
         font-weight: 500;
         letter-spacing: 0.1em;
