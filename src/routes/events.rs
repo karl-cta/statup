@@ -728,7 +728,7 @@ pub async fn update(
     let icon_id = parse_icon_id(input.icon_id);
     let (severity, planned, category) = input.normalized();
 
-    if let Some(key) = event_field_error(&input.title, &input.description) {
+    if let Some(key) = event_field_error(&input.title) {
         return render_event_form(&state, &user, csrf_token.0, i18n, Some(id), key, input).await;
     }
 

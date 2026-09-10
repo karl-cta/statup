@@ -176,5 +176,15 @@
         border-color: rgb(244 241 235 / 0.22);
     }
 
+    /* Secondary text in the theme's muted ink, which clears AA on both
+       grounds. An ink opacity below 60 percent does not on white. */
+    .text-muted {
+        color: var(--color-muted-light);
+    }
+
+    :is(.dark *) .text-muted {
+        color: var(--color-muted-dark);
+    }
+
 }
 

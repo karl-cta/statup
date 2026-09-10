@@ -1,6 +1,6 @@
 {# HTMX fragment, autocomplete suggestions for event templates #}
 {% if !templates.is_empty() %}
-<div id="template-suggestions" class="absolute z-20 mt-1 w-full card-raised shadow-lg" role="listbox" aria-label="{{ i18n.t("events.template_suggestions") }}">
+<div id="template-suggestions" class="absolute z-20 mt-1 w-full card-raised suggestions-panel" role="listbox" aria-label="{{ i18n.t("events.template_suggestions") }}">
     {% for tpl in templates %}
     <button type="button"
             role="option"
@@ -11,9 +11,9 @@
             onclick="applyTemplate({{ tpl.id }})">
         <div class="min-w-0 flex-1">
             <div class="font-medium text-ink dark:text-sand-light truncate">{{ tpl.title }}</div>
-            <div class="mt-0.5 text-[12px] text-ink/45 dark:text-sand-light/40">
+            <div class="mt-0.5 text-[12px] text-muted">
                 {{ i18n.t(tpl.kind.i18n_key()) }}{% if let Some(sev) = tpl.severity %} &middot; {{ i18n.t(sev.i18n_key()) }}{% endif %}{% if let Some(cat) = tpl.category %} &middot; {{ i18n.t(cat.i18n_key()) }}{% endif %}
-                {% if tpl.usage_count > 0 %}&middot; {{ tpl.usage_count }}x{% endif %}
+                {% if tpl.usage_count > 0 %}&middot; {{ i18n.t("events.template_used") }} {{ tpl.usage_count }} {{ i18n.t("events.template_times") }}{% endif %}
             </div>
         </div>
         <svg class="h-3.5 w-3.5 flex-shrink-0 text-ink/25 dark:text-sand-light/20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">

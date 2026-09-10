@@ -165,24 +165,22 @@ impl EventService {
     }
 }
 
-/// Title and description rules, returning the message key rather than an error
-/// so a route can re-render the form with what the author typed instead of
-/// bubbling up and losing it.
-pub fn event_field_error(title: &str, description: &str) -> Option<&'static str> {
+/// Title rules, returning the message key rather than an error so a route
+/// can re-render the form with what the author typed instead of bubbling up
+/// and losing it. The description is optional: at 3am a proposed title is
+/// enough to publish, the detail can follow in the first update.
+pub fn event_field_error(title: &str) -> Option<&'static str> {
     if title.trim().is_empty() {
         return Some("validation.title_empty");
     }
     if title.len() > 200 {
         return Some("validation.title_too_long");
     }
-    if description.trim().is_empty() {
-        return Some("validation.description_required");
-    }
     None
 }
 
 fn validate_event_input(input: &CreateEventInput) -> Result<(), AppError> {
-    match event_field_error(&input.title, &input.description) {
+    match event_field_error(&input.title) {
         Some(key) => Err(AppError::Validation(key.to_string())),
         None => Ok(()),
     }
@@ -263,8 +261,8 @@ mod tests {
     }
 
     #[test]
-    fn validate_rejects_empty_description() {
-        assert!(validate_event_input(&make_input("title", "", vec![1])).is_err());
+    fn validate_accepts_empty_description() {
+        assert!(validate_event_input(&make_input("title", "", vec![1])).is_ok());
     }
 
     #[test]

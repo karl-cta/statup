@@ -2872,6 +2872,14 @@
         min-height: 0;
     }
 
+    /* The suggestion panel floats over the form by a hairline, not a
+       shadow: the system separates surfaces with lines. */
+    .suggestions-panel,
+    :is(.dark *) .suggestions-panel {
+        border: 1px solid var(--line-strong);
+        box-shadow: none;
+    }
+
     /* Event form. Labels share one voice, blocks separate generously while
        a label stays tight against its control. */
     .field-label {

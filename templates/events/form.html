@@ -9,7 +9,7 @@
 <div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
 
     <header class="animate-in">
-        <a href="/events" class="inline-flex items-center gap-1.5 text-[10.5px] font-mono uppercase tracking-[0.12em] text-ink/55 dark:text-sand-light/45 hover:text-ink dark:hover:text-sand-light transition-colors">
+        <a href="/events" class="inline-flex items-center gap-1.5 text-[10.5px] font-mono uppercase tracking-[0.12em] text-muted hover:text-ink dark:hover:text-sand-light transition-colors">
             <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
@@ -92,10 +92,10 @@
             <div class="collapse-inner">
                 <label class="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" id="planned" name="planned" value="on" class="checkbox-fancy"
-                           {% match event %}{% when Some with (e) %}{% if e.planned %}checked{% endif %}{% when None %}{% endmatch %}>
+                           {% match event %}{% when Some with (e) %}{% if e.planned %}checked{% endif %}{% when None %}checked{% endmatch %}>
                     <span class="text-sm font-medium text-ink/85 dark:text-sand-light/85">{{ i18n.t("events.planned_label") }}</span>
                 </label>
-                <p class="mt-1 text-[12px] text-ink/45 dark:text-sand-light/40">{{ i18n.t("events.planned_hint") }}</p>
+                <p class="mt-1 text-[12px] text-muted">{{ i18n.t("events.planned_hint") }}</p>
             </div>
         </div>
 
@@ -151,7 +151,7 @@
         <section class="form-block" aria-labelledby="services-label">
             <p id="services-label" class="field-label">{{ i18n.t("events.affected_services_sidebar") }}</p>
             {% if services.is_empty() %}
-            <p class="mt-2 text-sm text-ink/55 dark:text-sand-light/45">
+            <p class="mt-2 text-sm text-muted">
                 {{ i18n.t("events.no_services_available") }}
                 <a href="/services/new" class="text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light">{{ i18n.t("events.create_service_link") }}</a>
             </p>
@@ -173,7 +173,7 @@
                     <span class="svc-pick-name">{{ svc.name }}</span>
                     <span class="svc-pick-status" title="{{ i18n.t(svc.status.i18n_key()) }}">
                         <span class="h-2 w-2 rounded-full {{ svc.status.dot_class() }}" aria-hidden="true"></span>
-                        <span class="text-[10.5px] font-mono uppercase tracking-[0.06em] text-ink/55 dark:text-sand-light/45">{{ i18n.t(svc.status.i18n_key()) }}</span>
+                        <span class="text-[10.5px] font-mono uppercase tracking-[0.06em] text-muted">{{ i18n.t(svc.status.i18n_key()) }}</span>
                     </span>
                 </label>
                 {% endfor %}
@@ -211,14 +211,12 @@
 
         <div class="mt-5">
             <label for="description" class="field-label">
-                {{ i18n.t("events.description") }} <span class="field-note">{{ i18n.t("events.markdown_supported") }}</span>
+                {{ i18n.t("events.description") }} <span class="field-note">{{ i18n.t("events.optional") }} · {{ i18n.t("events.markdown_plain") }}</span>
             </label>
             <textarea
                 id="description"
                 name="description"
                 rows="6"
-                required
-                aria-required="true"
                 class="mt-1.5 block w-full min-h-[160px] resize-y input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
                 placeholder="{{ i18n.t("events.description_placeholder") }}"
             >{% match event %}{% when Some with (e) %}{{ e.description }}{% when None %}{% endmatch %}</textarea>
@@ -237,13 +235,13 @@
             {% when None %}
             <label class="flex items-center gap-2 cursor-pointer mr-auto">
                 <input type="checkbox" name="save_as_template" class="checkbox-fancy">
-                <span class="text-sm font-medium text-ink/55 dark:text-sand-light/55">{{ i18n.t("events.save_as_template_label") }}</span>
+                <span class="text-sm font-medium text-muted">{{ i18n.t("events.save_as_template_label") }}</span>
             </label>
             {% when Some with (_id) %}
             {% endmatch %}
             <a
                 href="/events"
-                class="text-sm font-medium text-ink/55 hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light transition-colors"
+                class="text-sm font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors"
             >
                 {{ i18n.t("common.cancel") }}
             </a>
@@ -348,7 +346,7 @@ function joinNames(names) {
 }
 
 function consequenceFor(kind, severity, names) {
-    if (kind === 'publication') return { text: consequenceCopy.publication, dot: 'status-dot-ok' };
+    if (kind === 'publication') return { text: consequenceCopy.publication, dot: '' };
     if (kind === 'incident' && !severity) return { text: consequenceCopy.pick_severity, dot: '' };
     if (names.length === 0) return { text: consequenceCopy.no_services, dot: '' };
     var effect = kind === 'maintenance' ? consequenceCopy.maintenance : consequenceCopy['incident_' + severity];
