@@ -296,6 +296,12 @@ function applyTemplate(templateId) {
             if (data.category) {
                 document.getElementById('category').value = data.category;
             }
+            // The dressed selects relabel themselves only on cs:sync: without
+            // it the form held the template's values while the screen still
+            // showed the old ones.
+            ['kind', 'severity', 'category'].forEach(function (id) {
+                document.getElementById(id).dispatchEvent(new Event('cs:sync'));
+            });
             document.getElementById('template-suggestions-container').innerHTML = '';
             updateVisibilityAndHint();
         });
@@ -317,9 +323,16 @@ document.addEventListener('click', function(e) {
     }
 });
 
+// A folded row is out of the form entirely: inert keeps the keyboard and
+// assistive tech from reaching fields nobody can see, and disabling them keeps
+// their values out of the request.
 function setOpen(el, open) {
     if (!el) return;
     el.classList.toggle('is-open', open);
+    el.inert = !open;
+    el.querySelectorAll('input, select, textarea').forEach(function (field) {
+        field.disabled = !open;
+    });
 }
 
 function updateVisibilityAndHint() {
