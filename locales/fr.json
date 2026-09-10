@@ -22,6 +22,7 @@
   "auth.submit_login": "Se connecter",
   "auth.no_account": "Pas encore de compte ?",
   "auth.create_account": "Créer un compte",
+  "auth.have_account": "Déjà un compte ?",
   "auth.register_title": "Créer un compte",
   "auth.register_heading": "Créer un compte",
   "auth.submit_register": "Créer mon compte",
