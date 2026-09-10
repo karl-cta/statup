@@ -1018,6 +1018,9 @@ struct TemplateSuggestionsTemplate {
 
 #[derive(Deserialize)]
 pub struct TemplateSearchQuery {
+    /// The title field sends itself under its own name: htmx cannot build a
+    /// custom payload without eval, which the content security policy forbids.
+    #[serde(alias = "title")]
     q: Option<String>,
 }
 

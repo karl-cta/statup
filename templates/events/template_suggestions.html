@@ -1,8 +1,10 @@
 {# HTMX fragment, autocomplete suggestions for event templates #}
 {% if !templates.is_empty() %}
-<div class="absolute z-20 mt-1 w-full card-raised shadow-lg" id="template-suggestions">
+<div id="template-suggestions" class="absolute z-20 mt-1 w-full card-raised shadow-lg" role="listbox" aria-label="{{ i18n.t("events.template_suggestions") }}">
     {% for tpl in templates %}
     <button type="button"
+            role="option"
+            aria-selected="false"
             class="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm transition-colors
                    first:rounded-t-sm last:rounded-b-sm
                    hover-row"

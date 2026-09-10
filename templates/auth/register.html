@@ -30,8 +30,7 @@
                     <input id="display_name" name="display_name" type="text" required aria-required="true" autocomplete="name"
                            value="{{ display_name }}"
                            class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-[13px] placeholder-ink/35 dark:placeholder-sand-light/30"
-                           placeholder="{{ i18n.t("auth.display_name") }}"
-                           aria-label="{{ i18n.t("auth.display_name") }}">
+                           placeholder="{{ i18n.t("auth.display_name") }}">
                 </div>
 
                 <div>
@@ -41,8 +40,7 @@
                     <input id="email" name="email" type="email" required aria-required="true" autocomplete="email"
                            value="{{ email }}"
                            class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-[13px] placeholder-ink/35 dark:placeholder-sand-light/30"
-                           placeholder="you@example.com"
-                           aria-label="{{ i18n.t("auth.email") }}">
+                           placeholder="you@example.com">
                 </div>
 
                 <div>
@@ -52,7 +50,6 @@
                     <input id="password" name="password" type="password" required aria-required="true" autocomplete="new-password"
                            class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-[13px] placeholder-ink/35 dark:placeholder-sand-light/30"
                            placeholder="{{ i18n.t("validation.password_min_length") }}"
-                           aria-label="{{ i18n.t("auth.password") }}"
                            aria-describedby="password-hint">
                     <p id="password-hint" class="mt-1.5 text-[12px] text-ink/45 dark:text-sand-light/35">{{ i18n.t("validation.password_min_length") }}</p>
                 </div>
@@ -63,8 +60,7 @@
                     </label>
                     <input id="password_confirm" name="password_confirm" type="password" required aria-required="true" autocomplete="new-password"
                            class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-[13px] placeholder-ink/35 dark:placeholder-sand-light/30"
-                           placeholder="{{ i18n.t("auth.password_confirm") }}"
-                           aria-label="{{ i18n.t("auth.password_confirm") }}">
+                           placeholder="{{ i18n.t("auth.password_confirm") }}">
                 </div>
 
                 <button type="submit" class="btn-3d w-full text-[13px]">

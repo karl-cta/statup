@@ -40,8 +40,7 @@
             <input id="display_name" name="display_name" type="text" required aria-required="true"
                    autocomplete="name" maxlength="100" value="{{ display_name }}"
                    class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
-                   placeholder="{{ i18n.t("auth.display_name") }}"
-                   aria-label="{{ i18n.t("auth.display_name") }}">
+                   placeholder="{{ i18n.t("auth.display_name") }}">
         </div>
 
         <div>
@@ -50,8 +49,7 @@
             </label>
             <input id="email" name="email" type="email" required aria-required="true" autocomplete="email" value="{{ email }}"
                    class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
-                   placeholder="you@example.com"
-                   aria-label="{{ i18n.t("profile.email") }}">
+                   placeholder="you@example.com">
         </div>
 
         <button type="submit" class="btn-3d text-sm"><span>{{ i18n.t("common.save") }}</span></button>
@@ -83,8 +81,7 @@
                     {{ i18n.t("profile.current_password") }}
                 </label>
                 <input id="current_password" name="current_password" type="password" required aria-required="true" autocomplete="current-password"
-                       class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
-                       aria-label="{{ i18n.t("profile.current_password") }}">
+                       class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30">
             </div>
 
             <div>
@@ -94,7 +91,6 @@
                 <input id="new_password" name="new_password" type="password" required aria-required="true" autocomplete="new-password"
                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
                        placeholder="{{ i18n.t("validation.password_min_length") }}"
-                       aria-label="{{ i18n.t("profile.new_password") }}"
                        aria-describedby="new-password-hint">
                 <p id="new-password-hint" class="mt-1.5 text-[12px] text-ink/45 dark:text-sand-light/35">{{ i18n.t("validation.password_min_length") }}</p>
             </div>
@@ -105,8 +101,7 @@
                 </label>
                 <input id="new_password_confirm" name="new_password_confirm" type="password" required aria-required="true" autocomplete="new-password"
                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
-                       placeholder="{{ i18n.t("profile.confirm_password") }}"
-                       aria-label="{{ i18n.t("profile.confirm_password") }}">
+                       placeholder="{{ i18n.t("profile.confirm_password") }}">
             </div>
 
             <button type="submit" class="btn-3d-ghost text-sm"><span>{{ i18n.t("profile.submit_password") }}</span></button>

@@ -42,8 +42,7 @@
             <input id="name" name="name" type="text" required aria-required="true" maxlength="100"
                    value="{% match service %}{% when Some with (s) %}{{ s.name }}{% when None %}{% endmatch %}"
                    class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
-                   placeholder="{{ i18n.t("services.name_placeholder") }}"
-                   aria-label="{{ i18n.t("services.name") }}">
+                   placeholder="{{ i18n.t("services.name_placeholder") }}">
         </div>
 
         <div class="mt-5">
@@ -52,8 +51,7 @@
             </label>
             <textarea id="description" name="description" rows="3"
                       class="mt-1.5 block w-full min-h-[80px] resize-y input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
-                      placeholder="{{ i18n.t("services.description_placeholder") }}"
-                      aria-label="{{ i18n.t("services.description") }}">{% match service %}{% when Some with (s) %}{{ s.description }}{% when None %}{% endmatch %}</textarea>
+                      placeholder="{{ i18n.t("services.description_placeholder") }}">{% match service %}{% when Some with (s) %}{{ s.description }}{% when None %}{% endmatch %}</textarea>
         </div>
 
         {# Edit only: a new service starts operational, and asking on creation
@@ -67,8 +65,7 @@
                 {{ i18n.t("common.status_label") }}
             </label>
             <select id="status" name="status" data-custom-select
-                    class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm cursor-pointer"
-                    aria-label="{{ i18n.t("common.status_label") }}">
+                    class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm cursor-pointer">
                 {% for st in crate::models::ServiceStatus::ALL %}
                 <option value="{{ st.as_str() }}" {% if st.as_str() == s.status.as_str() %}selected{% endif %}>{{ i18n.t(st.i18n_key()) }}</option>
                 {% endfor %}

@@ -53,16 +53,18 @@
                     aria-required="true"
                     maxlength="200"
                     autocomplete="off"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded="false"
+                    aria-controls="template-suggestions-container"
                     value="{% match event %}{% when Some with (e) %}{{ e.title }}{% when None %}{% endmatch %}"
                     class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
                     placeholder="{{ i18n.t("events.title_placeholder") }}"
-                    aria-label="{{ i18n.t("events.title_label") }}"
                     hx-get="/events/templates/search"
                     hx-trigger="keyup changed delay:300ms"
                     hx-target="#template-suggestions-container"
                     hx-swap="innerHTML"
-                    hx-params="none"
-                    hx-vals='js:{"q": document.getElementById("title").value}'
+                    hx-params="title"
                 >
                 <div id="template-suggestions-container"></div>
             </div>
@@ -79,7 +81,6 @@
                         required
                         aria-required="true"
                         class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm cursor-pointer"
-                        aria-label="{{ i18n.t("events.kind_label") }}"
                     >
                         <option value="incident" {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "incident" %}selected{% endif %}{% when None %}selected{% endmatch %}>{{ i18n.t("kind.incident") }}</option>
                         <option value="maintenance" {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "maintenance" %}selected{% endif %}{% when None %}{% endmatch %}>{{ i18n.t("kind.maintenance") }}</option>
@@ -97,7 +98,6 @@
                             name="severity"
                             data-custom-select
                             class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm cursor-pointer"
-                            aria-label="{{ i18n.t("events.severity") }}"
                         >
                             <option value="">{{ i18n.t("severity.none") }}</option>
                             <option value="minor" {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (s) %}{% if s.as_str() == "minor" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}selected{% endmatch %}>{{ i18n.t("severity.minor") }}</option>
@@ -141,7 +141,6 @@
                         name="category"
                         data-custom-select
                         class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm cursor-pointer"
-                        aria-label="{{ i18n.t("events.category_label") }}"
                     >
                         <option value="changelog" {% match event %}{% when Some with (e) %}{% match e.category %}{% when Some with (c) %}{% if c.as_str() == "changelog" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}selected{% endmatch %}>{{ i18n.t("category.changelog") }}</option>
                         <option value="info" {% match event %}{% when Some with (e) %}{% match e.category %}{% when Some with (c) %}{% if c.as_str() == "info" %}selected{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>{{ i18n.t("category.info") }}</option>
@@ -161,7 +160,6 @@
                             type="datetime-local"
                             value="{% match event %}{% when Some with (e) %}{% match e.planned_start %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}{% when None %}{% endmatch %}"
                             class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm"
-                            aria-label="{{ i18n.t("events.planned_start_label") }}"
                         >
                     </div>
                     <div>
@@ -174,7 +172,6 @@
                             type="datetime-local"
                             value="{% match event %}{% when Some with (e) %}{% match e.planned_end %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}{% when None %}{% endmatch %}"
                             class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm"
-                            aria-label="{{ i18n.t("events.planned_end_label") }}"
                         >
                     </div>
                 </div>
@@ -192,7 +189,6 @@
                     aria-required="true"
                     class="mt-1.5 block w-full min-h-[200px] resize-y input-raised px-3.5 py-2.5 text-sm font-mono placeholder-ink/35 dark:placeholder-sand-light/30"
                     placeholder="{{ i18n.t("events.description_placeholder") }}"
-                    aria-label="{{ i18n.t("events.description") }}"
                 >{% match event %}{% when Some with (e) %}{{ e.description }}{% when None %}{% endmatch %}</textarea>
             </div>
         </div>
@@ -304,6 +300,15 @@ function applyTemplate(templateId) {
             updateVisibilityAndHint();
         });
 }
+// The title is a combobox whose suggestions come and go by htmx swap and by
+// script: the observer keeps aria-expanded honest whichever way they move.
+(function () {
+    var title = document.getElementById('title');
+    var container = document.getElementById('template-suggestions-container');
+    new MutationObserver(function () {
+        title.setAttribute('aria-expanded', container.children.length > 0 ? 'true' : 'false');
+    }).observe(container, { childList: true });
+})();
 document.addEventListener('click', function(e) {
     var container = document.getElementById('template-suggestions-container');
     var title = document.getElementById('title');
@@ -320,14 +325,13 @@ function setOpen(el, open) {
 function updateVisibilityAndHint() {
     var kind = document.getElementById('kind').value;
     var severity = document.getElementById('severity').value;
-    var planned = document.getElementById('planned').checked;
     var hintText = document.getElementById('severity-hint-text');
     var chip = document.getElementById('chip-preview');
     var msg = '';
 
     setOpen(document.getElementById('severity-field'), kind !== 'publication');
     setOpen(document.getElementById('planned-field'), kind === 'maintenance');
-    setOpen(document.getElementById('planned-dates'), kind === 'maintenance' && planned);
+    setOpen(document.getElementById('planned-dates'), kind === 'maintenance');
     setOpen(document.getElementById('category-field'), kind === 'publication');
 
     if (kind === 'incident') {
