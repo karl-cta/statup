@@ -32,10 +32,8 @@ impl AppState {
         self.public_mode.load(Ordering::Relaxed)
     }
 
-    /// Toggles the public mode setting and returns the new value.
-    pub fn toggle_public_mode(&self) -> bool {
-        let prev = self.public_mode.fetch_xor(true, Ordering::Relaxed);
-        !prev
+    pub fn set_public_mode(&self, enabled: bool) {
+        self.public_mode.store(enabled, Ordering::Relaxed);
     }
 }
 

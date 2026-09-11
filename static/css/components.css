@@ -3599,7 +3599,7 @@
        the label, the field taking the row's width once the row wraps. */
     .set-inline-form {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 8px;
         flex-shrink: 0;
     }
@@ -3607,6 +3607,7 @@
     .set-inline-form .input-raised {
         width: 260px;
         max-width: 100%;
+        min-height: 42px;
     }
 
     .set-row-draggable {
@@ -3713,12 +3714,15 @@
         .set-row .row-actions {
             margin-left: auto;
         }
-        .set-row .set-inline-form {
+        .set-row .set-inline-form,
+        .set-row .set-choices {
             flex: 1 1 100%;
         }
-        .set-inline-form .input-raised {
+        .set-inline-form .set-field {
             flex: 1 1 auto;
-            width: auto;
+        }
+        .set-inline-form .input-raised {
+            width: 100%;
         }
         .set-row-draggable {
             padding-left: 12px;
@@ -3729,10 +3733,100 @@
     }
 
     .set-label {
+        display: block;
         font-size: 13px;
         font-weight: 500;
         color: var(--color-ink);
         line-height: 1.35;
+    }
+
+    /* A count qualifies the link it sits beside, in the row, not in the
+       card's heading. */
+    .set-count {
+        margin-left: 8px;
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--color-muted-light);
+        font-feature-settings: 'tnum' 1;
+        white-space: nowrap;
+    }
+
+    :is(.dark *) .set-count {
+        color: var(--color-muted-dark);
+    }
+
+    /* Two choices that are the state and the action at once: one control
+       in two equal segments, the marked one is the state. */
+    .set-choices {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    .set-choices .choice-row {
+        flex: 1 1 auto;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0;
+    }
+
+    .set-choices .choice {
+        justify-content: center;
+        text-align: center;
+        padding: 9px 14px;
+        border-radius: 0;
+        white-space: nowrap;
+    }
+
+    .set-choices .choice:first-child {
+        border-radius: 6px 0 0 6px;
+    }
+
+    .set-choices .choice:last-child {
+        border-radius: 0 6px 6px 0;
+        margin-left: -1px;
+    }
+
+    .set-choices .choice:has(:checked),
+    .set-choices .choice:has(:focus-visible) {
+        position: relative;
+        z-index: 1;
+    }
+
+    .set-link {
+        color: var(--color-ink);
+        font-weight: 500;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        text-decoration-color: var(--line-strong);
+        transition: text-decoration-color 0.15s ease;
+    }
+
+    .set-link:hover {
+        text-decoration-color: currentColor;
+    }
+
+    :is(.dark *) .set-link {
+        color: var(--color-sand-light);
+    }
+
+    /* A short field with its limit written under it, the button aligned on
+       the field, not on the note. */
+    .set-field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+    }
+
+    .set-limit {
+        font-size: 12px;
+        color: var(--color-muted-light);
+    }
+
+    :is(.dark *) .set-limit {
+        color: var(--color-muted-dark);
     }
 
     :is(.dark *) .set-label {
@@ -3767,19 +3861,6 @@
 
     :is(.dark *) .set-state {
         color: var(--color-muted-dark);
-    }
-
-    .set-state.is-on {
-        color: var(--sem-ok-text);
-    }
-
-    .set-state.is-on::before {
-        content: '';
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--sem-ok-text);
-        box-shadow: 0 0 0 3px var(--sem-ok-soft);
     }
 
     /* Magazine toggle switch. Transform-only animation. */

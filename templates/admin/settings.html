@@ -9,119 +9,118 @@
         <h1 class="text-[28px] font-semibold tracking-tight text-ink dark:text-sand-light">
             {{ i18n.t("admin.settings") }}
         </h1>
+        <p class="mt-2 text-sm text-muted">{{ i18n.t("admin.settings_intro") }}</p>
     </header>
+
+    {% match notice %}
+    {% when Some with (n) %}
+    <div class="mt-5 form-notice" role="status">
+        {% match n %}
+        {% when SettingsNotice::Renamed with (name) %}<q>{{ name }}</q> {{ i18n.t("admin.renamed_notice") }}
+        {% when SettingsNotice::NameReset %}{{ i18n.t("admin.name_reset_notice") }}
+        {% when SettingsNotice::PublicOpened %}{{ i18n.t("admin.public_opened_notice") }} <a href="/" class="set-link">{{ i18n.t("admin.public_view") }}</a>
+        {% when SettingsNotice::PublicClosed %}{{ i18n.t("admin.public_closed_notice") }}
+        {% endmatch %}
+    </div>
+    {% when None %}
+    {% endmatch %}
+    {% match error %}
+    {% when Some with (msg) %}
+    <div id="form-error" class="mt-5 form-error" role="alert">
+        <p>{{ msg }}</p>
+    </div>
+    {% when None %}
+    {% endmatch %}
 
     <section class="mt-8 card animate-in delay-1">
         <div class="card-head">
-            <h2>{{ i18n.t("admin.section_access") }}</h2>
+            <h2>{{ i18n.t("admin.section_public") }}</h2>
         </div>
         <div class="set-row">
             <div class="min-w-0">
-                <div class="set-label">{{ i18n.t("admin.public_mode") }}</div>
-                <p class="set-help">{{ i18n.t("admin.public_mode_help") }}</p>
-                <span class="set-state {% if public_mode %}is-on{% endif %}">
-                    {% if public_mode %}
-                    {{ i18n.t("admin.public_mode_on") }}
-                    {% else %}
-                    {{ i18n.t("admin.public_mode_off") }}
-                    {% endif %}
-                </span>
-            </div>
-            <form method="post" action="/admin/settings/public-mode"
-                  hx-post="/admin/settings/public-mode"
-                  hx-target="body" hx-swap="outerHTML">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                {% if public_mode %}
-                <button type="submit" class="toggle" role="switch"
-                        aria-checked="true"
-                        aria-label="{{ i18n.t("admin.disable_public") }}">
-                    <span class="toggle-thumb" aria-hidden="true"></span>
-                </button>
-                {% else %}
-                <button type="submit" class="toggle" role="switch"
-                        aria-checked="false"
-                        aria-label="{{ i18n.t("admin.enable_public") }}">
-                    <span class="toggle-thumb" aria-hidden="true"></span>
-                </button>
-                {% endif %}
-            </form>
-        </div>
-    </section>
-
-    <section class="mt-6 card animate-in delay-2">
-        <div class="card-head">
-            <h2>{{ i18n.t("admin.section_identity") }}</h2>
-        </div>
-        <div class="set-row">
-            <div class="min-w-0">
-                <div class="set-label">{{ i18n.t("admin.instance_name") }}</div>
+                <label for="instance-name" class="set-label">{{ i18n.t("admin.instance_name") }}</label>
                 <p class="set-help">{{ i18n.t("admin.instance_name_help") }}</p>
             </div>
             <form method="post" action="/admin/settings/instance-name" class="set-inline-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <label for="instance-name" class="sr-only">{{ i18n.t("admin.instance_name") }}</label>
-                <input id="instance-name" type="text" name="instance_name"
-                       value="{{ instance_name }}" maxlength="40"
-                       placeholder="{{ i18n.t("admin.instance_name_placeholder") }}"
-                       class="input-raised px-3 py-2 text-sm">
+                <div class="set-field">
+                    <input id="instance-name" type="text" name="instance_name"
+                           value="{{ instance_name }}" maxlength="40"
+                           placeholder="{{ i18n.t("admin.instance_name_placeholder") }}"
+                           class="input-raised px-3 py-2 text-sm"
+                           aria-describedby="instance-name-limit"{% if error.is_some() %} aria-invalid="true"{% endif %}>
+                    <span id="instance-name-limit" class="set-limit">{{ i18n.t("admin.instance_name_limit") }}</span>
+                </div>
                 <button type="submit" class="btn-3d text-sm"><span>{{ i18n.t("common.save") }}</span></button>
+            </form>
+        </div>
+        <div class="set-row">
+            <div class="min-w-0">
+                <div class="set-label" id="access-label">{{ i18n.t("admin.public_mode") }}</div>
+            </div>
+            <form method="post" action="/admin/settings/public-mode" class="set-choices">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="choice-row" role="radiogroup" aria-labelledby="access-label">
+                    <label class="choice">
+                        <input type="radio" name="access" value="everyone" class="sr-only"{% if public_mode %} checked{% endif %}
+                               onchange="this.form.requestSubmit()">
+                        <span>{{ i18n.t("admin.access_everyone") }}</span>
+                    </label>
+                    <label class="choice">
+                        <input type="radio" name="access" value="members" class="sr-only"{% if !public_mode %} checked{% endif %}
+                               onchange="this.form.requestSubmit()">
+                        <span>{{ i18n.t("admin.access_members") }}</span>
+                    </label>
+                </div>
+                <noscript><button type="submit" class="btn-3d-ghost text-[13px]"><span>{{ i18n.t("admin.access_apply") }}</span></button></noscript>
             </form>
         </div>
     </section>
 
-    <section class="mt-6 card animate-in delay-2">
+    <section class="mt-6 mb-8 card animate-in delay-2">
         <div class="card-head">
-            <h2>
-                {{ i18n.t("admin.section_team") }}
-                <span class="card-head-cnt">
-                    {{ users_count }} {% if users_count > 1 %}{{ i18n.t("admin.team_count_many") }}{% else %}{{ i18n.t("admin.team_count_one") }}{% endif %}
-                    ·
-                    {{ admins_count }} {% if admins_count > 1 %}{{ i18n.t("admin.team_admin_count_many") }}{% else %}{{ i18n.t("admin.team_admin_count_one") }}{% endif %}
-                </span>
-            </h2>
+            <h2>{{ i18n.t("admin.section_manage") }}</h2>
         </div>
         <div class="set-row">
             <div class="min-w-0">
-                <div class="set-label">{{ i18n.t("admin.team_label") }}</div>
+                <div class="set-label">
+                    {{ i18n.t("admin.section_team") }}
+                    <span class="set-count">{{ users_count }} {% if users_count > 1 %}{{ i18n.t("admin.team_count_many") }}{% else %}{{ i18n.t("admin.team_count_one") }}{% endif %} · {{ admins_count }} {% if admins_count > 1 %}{{ i18n.t("admin.team_admin_count_many") }}{% else %}{{ i18n.t("admin.team_admin_count_one") }}{% endif %}</span>
+                </div>
                 <p class="set-help">{{ i18n.t("admin.team_help") }}</p>
             </div>
             <a href="/admin/users" class="btn-3d-ghost text-[13px] shrink-0">
                 <span>{{ i18n.t("admin.team_manage") }}</span>
             </a>
         </div>
-    </section>
-
-    <section class="mt-6 card animate-in delay-3">
-        <div class="card-head">
-            <h2>
-                {{ i18n.t("admin.section_icons") }}
-                <span class="card-head-cnt">
-                    {{ icons_count }} {% if icons_count > 1 %}{{ i18n.t("admin.icons_count_many") }}{% else %}{{ i18n.t("admin.icons_count_one") }}{% endif %}
-                </span>
-            </h2>
-        </div>
         <div class="set-row">
             <div class="min-w-0">
-                <div class="set-label">{{ i18n.t("admin.icons_label") }}</div>
+                <div class="set-label">
+                    {{ i18n.t("admin.section_icons") }}
+                    <span class="set-count">{{ icons_count }} {% if icons_count > 1 %}{{ i18n.t("admin.icons_count_many") }}{% else %}{{ i18n.t("admin.icons_count_one") }}{% endif %}</span>
+                </div>
                 <p class="set-help">{{ i18n.t("admin.icons_help") }}</p>
             </div>
             <a href="/icons" class="btn-3d-ghost text-[13px] shrink-0">
                 <span>{{ i18n.t("admin.icons_manage") }}</span>
             </a>
         </div>
-    </section>
-
-    <section class="mt-6 mb-8 card animate-in delay-3">
-        <div class="card-head">
-            <h2>{{ i18n.t("admin.section_dashboard") }}</h2>
+        <div class="set-row">
+            <div class="min-w-0">
+                <div class="set-label">{{ i18n.t("admin.modules_public_label") }}</div>
+                <p class="set-help">{{ i18n.t("admin.modules_public_help") }}</p>
+            </div>
+            <a href="/admin/dashboard/public/layout" class="btn-3d-ghost text-[13px] shrink-0">
+                <span>{{ i18n.t("admin.modules_public_manage") }}</span>
+            </a>
         </div>
         <div class="set-row">
             <div class="min-w-0">
-                <div class="set-label">{{ i18n.t("modules.layout_title") }}</div>
-                <p class="set-help">{{ i18n.t("admin.dashboard_layout_help") }}</p>
+                <div class="set-label">{{ i18n.t("admin.modules_admin_label") }}</div>
+                <p class="set-help">{{ i18n.t("admin.modules_admin_help") }}</p>
             </div>
-            <a href="/admin/dashboard/public/layout" class="btn-3d-ghost text-[13px] shrink-0">
-                <span>{{ i18n.t("admin.edit_layout") }}</span>
+            <a href="/admin/dashboard/admin/layout" class="btn-3d-ghost text-[13px] shrink-0">
+                <span>{{ i18n.t("admin.modules_admin_manage") }}</span>
             </a>
         </div>
     </section>

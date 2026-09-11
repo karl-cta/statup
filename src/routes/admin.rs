@@ -26,11 +26,49 @@ struct SettingsPageTemplate {
     unread_count: i64,
     last_admin_action: Option<String>,
     public_mode: bool,
+    /// The value shown in the field: the saved name, or the refused one.
     instance_name: String,
+    /// What the previous action changed, said at the top of the page.
+    notice: Option<SettingsNotice>,
+    /// A refused name, said in the page rather than on the bare error page.
+    error: Option<String>,
     users_count: i64,
     admins_count: i64,
     icons_count: i64,
     i18n: I18n,
+}
+
+enum SettingsNotice {
+    Renamed(String),
+    NameReset,
+    PublicOpened,
+    PublicClosed,
+}
+
+#[derive(Deserialize, Default)]
+pub struct SettingsQuery {
+    renamed: Option<String>,
+    public: Option<String>,
+}
+
+impl SettingsQuery {
+    /// The name is read back from memory, not from the address bar, so the
+    /// receipt cannot be made to say anything the instance is not called.
+    fn notice(&self) -> Option<SettingsNotice> {
+        if self.renamed.is_some() {
+            let name = crate::instance_name();
+            return Some(if name.is_empty() {
+                SettingsNotice::NameReset
+            } else {
+                SettingsNotice::Renamed(name)
+            });
+        }
+        match self.public.as_deref() {
+            Some("on") => Some(SettingsNotice::PublicOpened),
+            Some("off") => Some(SettingsNotice::PublicClosed),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Template)]
@@ -166,9 +204,33 @@ pub async fn settings_page(
     State(state): State<AppState>,
     csrf_token: CsrfToken,
     Locale(i18n): Locale,
+    Query(query): Query<SettingsQuery>,
 ) -> Result<Response, AppError> {
-    let (user_display_name, is_admin, is_authenticated) = layout_fields(&user);
-    let unread_count = unread(&state.pool, &user).await?;
+    let notice = query.notice();
+    render_settings(
+        &state,
+        &user,
+        csrf_token.0,
+        i18n,
+        crate::instance_name(),
+        notice,
+        None,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn render_settings(
+    state: &AppState,
+    user: &User,
+    csrf_token: String,
+    i18n: I18n,
+    instance_name: String,
+    notice: Option<SettingsNotice>,
+    error: Option<String>,
+) -> Result<Response, AppError> {
+    let (user_display_name, is_admin, is_authenticated) = layout_fields(user);
+    let unread_count = unread(&state.pool, user).await?;
     let users_count = UserRepository::count_all(&state.pool).await?;
     let admins_count = UserRepository::count_admins(&state.pool).await?;
     let icons_count = IconRepository::count(&state.pool).await?;
@@ -177,14 +239,16 @@ pub async fn settings_page(
         .map(|dt| i18n.format_datetime_long(&dt));
 
     let tpl = SettingsPageTemplate {
-        csrf_token: csrf_token.0,
+        csrf_token,
         user_display_name,
         is_admin,
         is_authenticated,
         unread_count,
         last_admin_action,
         public_mode: state.is_public_mode(),
-        instance_name: crate::instance_name(),
+        instance_name,
+        notice,
+        error,
         users_count,
         admins_count,
         icons_count,
@@ -494,14 +558,23 @@ const INSTANCE_NAME_MAX_CHARS: usize = 40;
 pub async fn update_instance_name(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
-    Locale(_i18n): Locale,
+    csrf_token: CsrfToken,
+    Locale(i18n): Locale,
     axum::extract::Form(input): axum::extract::Form<InstanceNameInput>,
 ) -> Result<Response, AppError> {
     let name = input.instance_name.trim();
     if name.chars().count() > INSTANCE_NAME_MAX_CHARS {
-        return Err(AppError::Validation(
-            "validation.instance_name_too_long".to_string(),
-        ));
+        let error = i18n.t("validation.instance_name_too_long").to_string();
+        return render_settings(
+            &state,
+            &admin,
+            csrf_token.0,
+            i18n,
+            name.to_string(),
+            None,
+            Some(error),
+        )
+        .await;
     }
 
     SettingsRepository::set(&state.pool, "instance_name", name).await?;
@@ -513,23 +586,41 @@ pub async fn update_instance_name(
         "Instance name updated"
     );
 
-    Ok(Redirect::to("/admin/settings").into_response())
+    Ok(Redirect::to("/admin/settings?renamed=1").into_response())
 }
 
-pub async fn toggle_public_mode(
+#[derive(Deserialize)]
+pub struct AccessInput {
+    #[serde(default)]
+    access: String,
+}
+
+/// Who can read the page: the two choices are the state and the action at
+/// once, so the handler sets rather than toggles.
+pub async fn set_public_access(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
-    Locale(_i18n): Locale,
+    axum::extract::Form(input): axum::extract::Form<AccessInput>,
 ) -> Result<Response, AppError> {
-    let new_value = state.toggle_public_mode();
-    let value_str = if new_value { "true" } else { "false" };
+    let public = match input.access.as_str() {
+        "everyone" => true,
+        "members" => false,
+        _ => {
+            return Err(AppError::Validation(
+                "validation.unknown_access".to_string(),
+            ));
+        }
+    };
+    state.set_public_mode(public);
+    let value_str = if public { "true" } else { "false" };
     SettingsRepository::set(&state.pool, "public_mode", value_str).await?;
 
     tracing::info!(
         admin_id = admin.id,
-        public_mode = new_value,
-        "Public mode toggled"
+        public_mode = public,
+        "Public access updated"
     );
 
-    Ok(Redirect::to("/admin/settings").into_response())
+    let receipt = if public { "on" } else { "off" };
+    Ok(Redirect::to(&format!("/admin/settings?public={receipt}")).into_response())
 }

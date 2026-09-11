@@ -627,12 +627,16 @@ async fn instance_name_replaces_the_brand_in_masthead_and_title() {
         )
         .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
-    assert_eq!(location.as_deref(), Some("/admin/settings"));
+    assert_eq!(location.as_deref(), Some("/admin/settings?renamed=1"));
 
-    let (_, body) = app.get("/admin/settings").await;
+    let (_, body) = app.get("/admin/settings?renamed=1").await;
     assert!(
         body.contains("| Acme Status</title>"),
         "tab title should end with the instance name"
+    );
+    assert!(
+        body.contains("<q>Acme Status</q>"),
+        "the settings page should confirm the new name in a receipt"
     );
     assert!(
         body.contains(r#"<span class="mast-word mast-word-custom">Acme Status</span>"#),
@@ -657,6 +661,69 @@ async fn instance_name_replaces_the_brand_in_masthead_and_title() {
     .await;
     let (_, body) = app.get("/").await;
     assert!(body.contains(r#"<span class="mast-word">Statu"#));
+}
+
+/// A name past the limit comes back on the settings page with the field
+/// still holding it, not on a bare error page.
+#[tokio::test]
+async fn instance_name_too_long_is_refused_in_the_page() {
+    let (app, _admin_id) = spawn_with_admin().await;
+    let csrf = app.csrf().await;
+    let long_name = "a".repeat(41);
+
+    let (status, body, location) = app
+        .post_form(
+            "/admin/settings/instance-name",
+            &csrf,
+            &[("instance_name", long_name.as_str())],
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(location, None);
+    assert!(body.contains(r#"id="form-error""#));
+    assert!(body.contains(&format!(r#"value="{long_name}""#)));
+    assert!(body.contains(r#"aria-invalid="true""#));
+
+    let (_, body) = app.get("/").await;
+    assert!(
+        body.contains(r#"<span class="mast-word">Statu"#),
+        "a refused name must not replace the brand"
+    );
+}
+
+/// Choosing who can see the page says so on the settings page, keeps the
+/// chosen side marked, and the receipt for opening links to the page.
+#[tokio::test]
+async fn public_access_choice_confirms_its_new_state() {
+    let (app, _admin_id) = spawn_with_admin().await;
+    let csrf = app.csrf().await;
+
+    let (status, _, location) = app
+        .post_form(
+            "/admin/settings/public-mode",
+            &csrf,
+            &[("access", "everyone")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/admin/settings?public=on"));
+
+    let (_, body) = app.get("/admin/settings?public=on").await;
+    assert!(body.contains(r#"value="everyone" class="sr-only" checked"#));
+    assert!(body.contains(r#"href="/" class="set-link""#));
+
+    let csrf = app.csrf().await;
+    let (_, _, location) = app
+        .post_form(
+            "/admin/settings/public-mode",
+            &csrf,
+            &[("access", "members")],
+        )
+        .await;
+    assert_eq!(location.as_deref(), Some("/admin/settings?public=off"));
+    let (_, body) = app.get("/admin/settings").await;
+    assert!(body.contains(r#"value="members" class="sr-only" checked"#));
+    assert!(!body.contains(r#"href="/" class="set-link""#));
 }
 
 #[tokio::test]
