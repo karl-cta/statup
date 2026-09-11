@@ -1,8 +1,10 @@
 //! Admin routes - user management.
 
 use askama::Template;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::response::{Html, IntoResponse, Redirect, Response};
+use rand::Rng;
+use rand::distributions::Alphanumeric;
 use serde::Deserialize;
 use validator::Validate;
 
@@ -11,7 +13,7 @@ use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, RequireAdmin, ValidatedForm};
 use crate::models::{Role, User};
 use crate::repositories::{EventRepository, IconRepository, SettingsRepository, UserRepository};
-use crate::services::EventService;
+use crate::services::{AuthService, EventService};
 use crate::state::AppState;
 
 #[derive(Template)]
@@ -42,10 +44,18 @@ struct UsersListTemplate {
     last_admin_action: Option<String>,
     current_user_id: i64,
     users: Vec<UserRow>,
+    /// The member the previous action touched, and what happened to them.
+    notice: Option<Notice>,
+    /// A newly created account, with the temporary password shown this once.
+    created: Option<CreatedAccount>,
+    /// A refused action, said in the page rather than on the bare error page.
+    error: Option<String>,
+    add_form: AddMemberForm,
+    /// The add-member fold opens itself when its form came back refused.
+    add_open: bool,
     i18n: I18n,
 }
 
-#[allow(dead_code)]
 struct UserRow {
     id: i64,
     email: String,
@@ -53,7 +63,57 @@ struct UserRow {
     role: Role,
     is_active: bool,
     last_seen_at: Option<String>,
-    created_at: String,
+}
+
+struct Notice {
+    name: String,
+    kind: NoticeKind,
+}
+
+enum NoticeKind {
+    RoleUpdated(Role),
+    Disabled,
+    Enabled,
+}
+
+struct CreatedAccount {
+    name: String,
+    email: String,
+    password: String,
+}
+
+#[derive(Default)]
+struct AddMemberForm {
+    display_name: String,
+    email: String,
+    role: String,
+}
+
+#[derive(Deserialize)]
+pub struct UsersQuery {
+    role: Option<i64>,
+    toggled: Option<i64>,
+}
+
+#[derive(Deserialize, Validate)]
+pub struct AddMemberInput {
+    #[validate(length(min = 1, max = 100, message = "validation.display_name_required"))]
+    display_name: String,
+    #[validate(email(message = "validation.email_invalid"))]
+    email: String,
+    #[validate(length(min = 1, max = 20, message = "validation.invalid_role"))]
+    role: String,
+}
+
+/// Long enough to resist guessing, short enough to read out over a call.
+const TEMP_PASSWORD_LENGTH: usize = 16;
+
+fn temporary_password() -> String {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(TEMP_PASSWORD_LENGTH)
+        .map(char::from)
+        .collect()
 }
 
 #[derive(Deserialize, Validate)]
@@ -98,7 +158,6 @@ fn to_user_row(u: User, i18n: &I18n) -> UserRow {
         role: u.role,
         is_active: u.is_active,
         last_seen_at: u.last_seen_at.map(|dt| format_datetime(dt, i18n)),
-        created_at: format_datetime(u.created_at, i18n),
     }
 }
 
@@ -139,20 +198,83 @@ pub async fn users_list(
     State(state): State<AppState>,
     csrf_token: CsrfToken,
     Locale(i18n): Locale,
+    Query(query): Query<UsersQuery>,
 ) -> Result<Response, AppError> {
-    let (user_display_name, is_admin, is_authenticated) = layout_fields(&user);
-    let unread_count = unread(&state.pool, &user).await?;
-    let all_users = UserRepository::list_all(&state.pool).await?;
-    let users: Vec<UserRow> = all_users
+    let users = load_rows(&state, &i18n).await?;
+    let notice = query
+        .role
+        .and_then(|id| users.iter().find(|u| u.id == id))
+        .map(|u| Notice {
+            name: u.display_name.clone(),
+            kind: NoticeKind::RoleUpdated(u.role),
+        })
+        .or_else(|| {
+            query
+                .toggled
+                .and_then(|id| users.iter().find(|u| u.id == id))
+                .map(|u| Notice {
+                    name: u.display_name.clone(),
+                    kind: if u.is_active {
+                        NoticeKind::Enabled
+                    } else {
+                        NoticeKind::Disabled
+                    },
+                })
+        });
+    let page = ListPage {
+        notice,
+        created: None,
+        error: None,
+        add_form: AddMemberForm::default(),
+        add_open: false,
+    };
+    render_users(&state, &user, csrf_token.0, i18n, users, page).await
+}
+
+async fn load_rows(state: &AppState, i18n: &I18n) -> Result<Vec<UserRow>, AppError> {
+    Ok(UserRepository::list_all(&state.pool)
+        .await?
         .into_iter()
-        .map(|u| to_user_row(u, &i18n))
-        .collect();
+        .map(|u| to_user_row(u, i18n))
+        .collect())
+}
+
+/// What the list says on top of the rows themselves.
+struct ListPage {
+    notice: Option<Notice>,
+    created: Option<CreatedAccount>,
+    error: Option<String>,
+    add_form: AddMemberForm,
+    add_open: bool,
+}
+
+impl ListPage {
+    fn refused(error: String) -> Self {
+        Self {
+            notice: None,
+            created: None,
+            error: Some(error),
+            add_form: AddMemberForm::default(),
+            add_open: false,
+        }
+    }
+}
+
+async fn render_users(
+    state: &AppState,
+    user: &User,
+    csrf_token: String,
+    i18n: I18n,
+    users: Vec<UserRow>,
+    page: ListPage,
+) -> Result<Response, AppError> {
+    let (user_display_name, is_admin, is_authenticated) = layout_fields(user);
+    let unread_count = unread(&state.pool, user).await?;
     let last_admin_action = EventRepository::last_admin_action(&state.pool)
         .await?
         .map(|dt| i18n.format_datetime_long(&dt));
-
     let tpl = UsersListTemplate {
-        csrf_token: csrf_token.0,
+        csrf_token,
         user_display_name,
         is_admin,
         is_authenticated,
@@ -160,19 +282,106 @@ pub async fn users_list(
         last_admin_action,
         current_user_id: user.id,
         users,
+        notice: page.notice,
+        created: page.created,
+        error: page.error,
+        add_form: page.add_form,
+        add_open: page.add_open,
         i18n,
     };
     render(&tpl)
+}
+
+/// The admin creates the account and reads a temporary password off the
+/// page, once: there is no outgoing mail to carry an invitation.
+pub async fn add_member(
+    RequireAdmin(admin): RequireAdmin,
+    State(state): State<AppState>,
+    csrf_token: CsrfToken,
+    Locale(i18n): Locale,
+    ValidatedForm(input): ValidatedForm<AddMemberInput>,
+) -> Result<Response, AppError> {
+    let created = async {
+        let role = parse_role(&input.role)?;
+        let password = temporary_password();
+        let user = AuthService::register(
+            &state.pool,
+            &input.email,
+            &password,
+            &input.display_name,
+            role,
+        )
+        .await?;
+        Ok::<_, AppError>((user, password))
+    }
+    .await;
+
+    let page = match created {
+        Ok((user, password)) => {
+            tracing::info!(admin_id = admin.id, new_user_id = user.id, "Member added");
+            ListPage {
+                notice: None,
+                created: Some(CreatedAccount {
+                    name: user.display_name,
+                    email: user.email,
+                    password,
+                }),
+                error: None,
+                add_form: AddMemberForm::default(),
+                add_open: false,
+            }
+        }
+        Err(AppError::Validation(msg)) => ListPage {
+            notice: None,
+            created: None,
+            error: Some(i18n.t(&msg).to_string()),
+            add_form: AddMemberForm {
+                display_name: input.display_name,
+                email: input.email,
+                role: input.role,
+            },
+            add_open: true,
+        },
+        Err(e) => return Err(e),
+    };
+    let users = load_rows(&state, &i18n).await?;
+    render_users(&state, &admin, csrf_token.0, i18n, users, page).await
 }
 
 pub async fn update_role(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
     Path(user_id): Path<i64>,
+    csrf_token: CsrfToken,
     Locale(i18n): Locale,
     ValidatedForm(input): ValidatedForm<RoleInput>,
 ) -> Result<Response, AppError> {
-    let new_role = parse_role(&input.role)?;
+    match apply_role(&state, &admin, user_id, &input.role, &i18n).await {
+        Ok(()) => Ok(Redirect::to(&format!("/admin/users?role={user_id}")).into_response()),
+        Err(AppError::Validation(msg)) => {
+            let users = load_rows(&state, &i18n).await?;
+            render_users(
+                &state,
+                &admin,
+                csrf_token.0,
+                i18n,
+                users,
+                ListPage::refused(msg),
+            )
+            .await
+        }
+        Err(e) => Err(e),
+    }
+}
+
+async fn apply_role(
+    state: &AppState,
+    admin: &User,
+    user_id: i64,
+    role: &str,
+    i18n: &I18n,
+) -> Result<(), AppError> {
+    let new_role = parse_role(role)?;
 
     // Cannot change own role
     if user_id == admin.id {
@@ -201,19 +410,43 @@ pub async fn update_role(
     tracing::info!(
         admin_id = admin.id,
         target_user_id = user_id,
-        new_role = input.role,
+        new_role = role,
         "Role updated"
     );
-
-    Ok(Redirect::to("/admin/users").into_response())
+    Ok(())
 }
 
 pub async fn toggle_active(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
     Path(user_id): Path<i64>,
+    csrf_token: CsrfToken,
     Locale(i18n): Locale,
 ) -> Result<Response, AppError> {
+    match apply_toggle(&state, &admin, user_id, &i18n).await {
+        Ok(()) => Ok(Redirect::to(&format!("/admin/users?toggled={user_id}")).into_response()),
+        Err(AppError::Validation(msg)) => {
+            let users = load_rows(&state, &i18n).await?;
+            render_users(
+                &state,
+                &admin,
+                csrf_token.0,
+                i18n,
+                users,
+                ListPage::refused(msg),
+            )
+            .await
+        }
+        Err(e) => Err(e),
+    }
+}
+
+async fn apply_toggle(
+    state: &AppState,
+    admin: &User,
+    user_id: i64,
+    i18n: &I18n,
+) -> Result<(), AppError> {
     // Cannot disable yourself
     if user_id == admin.id {
         return Err(AppError::Validation(
@@ -245,8 +478,7 @@ pub async fn toggle_active(
         action,
         "User active status changed"
     );
-
-    Ok(Redirect::to("/admin/users").into_response())
+    Ok(())
 }
 
 #[derive(Deserialize)]

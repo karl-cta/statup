@@ -56,12 +56,14 @@ impl AuthService {
     /// Register a new user account.
     ///
     /// Validates email format and uniqueness, validates password, hashes it,
-    /// and creates the user with the `Reader` role.
+    /// and creates the user with the given role: `Reader` when someone signs
+    /// up, the role the admin picked when the account is created for them.
     pub async fn register(
         pool: &DbPool,
         email: &str,
         password: &str,
         display_name: &str,
+        role: Role,
     ) -> Result<User, AppError> {
         if !email.contains('@') || email.len() < 5 {
             return Err(AppError::Validation("validation.email_invalid".to_string()));
@@ -74,8 +76,7 @@ impl AuthService {
         Self::validate_password(password)?;
         let password_hash = Self::hash_password(password)?;
 
-        let user =
-            UserRepository::create(pool, email, &password_hash, display_name, Role::Reader).await?;
+        let user = UserRepository::create(pool, email, &password_hash, display_name, role).await?;
 
         tracing::info!(user_id = user.id, email = email, "New user registered");
         Ok(user)

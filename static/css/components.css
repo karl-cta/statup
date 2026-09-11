@@ -3337,6 +3337,146 @@
         gap: 8px 12px;
     }
 
+    /* Team page. One list that reflows: identity, status, role, action on a
+       line from 720px, stacked on a phone. Confirmations sit in the row. */
+    .member-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .member-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px 20px;
+        align-items: center;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .member-row:last-child {
+        border-bottom: 0;
+    }
+
+    .member-identity {
+        grid-column: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .member-status {
+        grid-column: 2;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--color-ink);
+        justify-self: end;
+    }
+
+    :is(.dark *) .member-status {
+        color: var(--color-sand-light);
+    }
+
+    .member-row.is-off .member-status {
+        color: var(--color-muted-light);
+    }
+
+    :is(.dark *) .member-row.is-off .member-status {
+        color: var(--color-muted-dark);
+    }
+
+    .member-role {
+        grid-column: 1;
+        width: 200px;
+        max-width: 100%;
+    }
+
+    .member-action {
+        grid-column: 2;
+        justify-self: end;
+    }
+
+    @media (min-width: 720px) {
+        .member-row {
+            grid-template-columns: minmax(0, 1fr) 110px 200px minmax(120px, auto);
+        }
+
+        .member-status { grid-column: 2; justify-self: start; }
+        .member-role { grid-column: 3; }
+        .member-action { grid-column: 4; }
+    }
+
+    .member-confirm {
+        margin-top: 8px;
+        gap: 6px 10px;
+    }
+
+    /* What the role allows, in plain words under the question. */
+    .status-confirm-desc {
+        flex-basis: 100%;
+        font-family: var(--font-sans);
+        font-size: 12px;
+        letter-spacing: 0;
+        text-transform: none;
+        color: var(--color-muted-light);
+    }
+
+    :is(.dark *) .status-confirm-desc {
+        color: var(--color-muted-dark);
+    }
+
+    /* Adding a member folds behind the primary button. */
+    .add-member {
+        margin-top: 24px;
+    }
+
+    .add-member-summary {
+        list-style: none;
+        cursor: pointer;
+        width: fit-content;
+    }
+
+    .add-member-summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .add-member-form {
+        margin-top: 16px;
+        padding: 20px;
+        max-width: 720px;
+        border: 1px solid var(--line-strong);
+        border-radius: 4px;
+    }
+
+    .add-member-fields {
+        display: grid;
+        gap: 16px;
+    }
+
+    @media (min-width: 640px) {
+        .add-member-fields {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    .temp-password {
+        font-family: var(--font-mono);
+        font-feature-settings: 'tnum' 1;
+        font-size: 14px;
+        letter-spacing: 0.06em;
+        padding: 2px 8px;
+        border: 1px solid var(--line-strong);
+        border-radius: 3px;
+        user-select: all;
+    }
+
+    .created-notice p {
+        margin: 0;
+    }
+
     .icon-upload-field {
         display: flex;
         flex-direction: column;

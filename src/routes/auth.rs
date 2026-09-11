@@ -221,6 +221,7 @@ pub async fn register(
         &input.email,
         &input.password,
         &input.display_name,
+        crate::models::Role::Reader,
     )
     .await
     {

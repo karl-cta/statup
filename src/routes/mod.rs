@@ -129,6 +129,7 @@ pub fn create_router(state: AppState) -> Router {
             post(admin::update_instance_name),
         )
         .route("/admin/users", get(admin::users_list))
+        .route("/admin/users/new", post(admin::add_member))
         .route("/admin/users/:id/role", post(admin::update_role))
         .route("/admin/users/:id/disable", post(admin::toggle_active))
         .route(

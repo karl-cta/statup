@@ -166,6 +166,7 @@ impl TestApp {
             "publisher@example.com",
             "publisher_pass_12",
             "Publisher",
+            statup::models::Role::Reader,
         )
         .await
         .expect("failed to create user");
@@ -515,6 +516,7 @@ async fn reader_cannot_create_events() {
         "reader@example.com",
         "reader_pass_1234",
         "Reader",
+        statup::models::Role::Reader,
     )
     .await
     .expect("failed to create user");

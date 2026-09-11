@@ -137,9 +137,15 @@ impl TestApp {
 
     /// Create a user directly in DB and return their id.
     async fn create_user(&self, email: &str, password: &str, name: &str) -> i64 {
-        let user = AuthService::register(&self.pool, email, password, name)
-            .await
-            .expect("failed to create user");
+        let user = AuthService::register(
+            &self.pool,
+            email,
+            password,
+            name,
+            statup::models::Role::Reader,
+        )
+        .await
+        .expect("failed to create user");
         user.id
     }
 
@@ -212,7 +218,11 @@ async fn admin_can_change_user_role_to_publisher() {
     let (status, _body, location) = app.post_form(&path, &csrf, &[("role", "publisher")]).await;
 
     assert_eq!(status, StatusCode::SEE_OTHER);
-    assert_eq!(location.as_deref(), Some("/admin/users"));
+    assert!(
+        location
+            .as_deref()
+            .is_some_and(|l| l.starts_with("/admin/users?"))
+    );
 
     let user = UserRepository::find_by_id(&app.pool, reader_id)
         .await
@@ -234,7 +244,11 @@ async fn admin_can_change_user_role_to_admin() {
     let (status, _body, location) = app.post_form(&path, &csrf, &[("role", "admin")]).await;
 
     assert_eq!(status, StatusCode::SEE_OTHER);
-    assert_eq!(location.as_deref(), Some("/admin/users"));
+    assert!(
+        location
+            .as_deref()
+            .is_some_and(|l| l.starts_with("/admin/users?"))
+    );
 
     let user = UserRepository::find_by_id(&app.pool, user_id)
         .await
@@ -282,7 +296,11 @@ async fn last_admin_cannot_be_demoted() {
     let path = format!("/admin/users/{other_id}/role");
     let (status, _body, location) = app.post_form(&path, &csrf, &[("role", "reader")]).await;
     assert_eq!(status, StatusCode::SEE_OTHER);
-    assert_eq!(location.as_deref(), Some("/admin/users"));
+    assert!(
+        location
+            .as_deref()
+            .is_some_and(|l| l.starts_with("/admin/users?"))
+    );
 
     // Now only one admin remains. Create a third user as admin, then try
     // to demote them, but we can't demote the logged-in admin (self-check).
@@ -334,7 +352,11 @@ async fn demoting_admin_when_two_admins_succeeds() {
     let path = format!("/admin/users/{other_id}/role");
     let (status, _body, location) = app.post_form(&path, &csrf, &[("role", "reader")]).await;
     assert_eq!(status, StatusCode::SEE_OTHER);
-    assert_eq!(location.as_deref(), Some("/admin/users"));
+    assert!(
+        location
+            .as_deref()
+            .is_some_and(|l| l.starts_with("/admin/users?"))
+    );
 
     let other = UserRepository::find_by_id(&app.pool, other_id)
         .await
@@ -356,7 +378,11 @@ async fn admin_can_disable_user() {
     let (status, _body, location) = app.post_form(&path, &csrf, &[]).await;
 
     assert_eq!(status, StatusCode::SEE_OTHER);
-    assert_eq!(location.as_deref(), Some("/admin/users"));
+    assert!(
+        location
+            .as_deref()
+            .is_some_and(|l| l.starts_with("/admin/users?"))
+    );
 
     let user = UserRepository::find_by_id(&app.pool, user_id)
         .await
@@ -384,7 +410,11 @@ async fn admin_can_reenable_user() {
     let (status, _body, location) = app.post_form(&path, &csrf, &[]).await;
 
     assert_eq!(status, StatusCode::SEE_OTHER);
-    assert_eq!(location.as_deref(), Some("/admin/users"));
+    assert!(
+        location
+            .as_deref()
+            .is_some_and(|l| l.starts_with("/admin/users?"))
+    );
 
     let user = UserRepository::find_by_id(&app.pool, user_id)
         .await
@@ -429,7 +459,11 @@ async fn last_active_admin_cannot_be_disabled() {
     let path = format!("/admin/users/{other_id}/disable");
     let (status, _body, location) = app.post_form(&path, &csrf, &[]).await;
     assert_eq!(status, StatusCode::SEE_OTHER);
-    assert_eq!(location.as_deref(), Some("/admin/users"));
+    assert!(
+        location
+            .as_deref()
+            .is_some_and(|l| l.starts_with("/admin/users?"))
+    );
 
     let other = UserRepository::find_by_id(&app.pool, other_id)
         .await

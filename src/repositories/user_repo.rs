@@ -17,11 +17,7 @@ impl UserRepository {
         display_name: &str,
         role: Role,
     ) -> Result<User, sqlx::Error> {
-        let role_str = match role {
-            Role::Reader => "reader",
-            Role::Publisher => "publisher",
-            Role::Admin => "admin",
-        };
+        let role_str = role.as_str();
 
         sqlx::query_as::<_, User>(
             "INSERT INTO users (email, password_hash, display_name, role) \

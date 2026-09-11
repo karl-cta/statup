@@ -559,6 +559,7 @@ async fn public_mode_reader_cannot_register() {
         "reader@example.com",
         "reader_pass_1234",
         "Reader",
+        statup::models::Role::Reader,
     )
     .await
     .expect("failed to create user");
@@ -580,9 +581,15 @@ async fn public_mode_admin_can_register_users() {
     let app = TestApp::spawn_public().await;
 
     // Create an admin user directly
-    AuthService::register(&app.pool, "admin@example.com", "admin_pass_12345", "Admin")
-        .await
-        .expect("failed to create user");
+    AuthService::register(
+        &app.pool,
+        "admin@example.com",
+        "admin_pass_12345",
+        "Admin",
+        statup::models::Role::Reader,
+    )
+    .await
+    .expect("failed to create user");
     let user = UserRepository::find_by_email(&app.pool, "admin@example.com")
         .await
         .expect("db error")

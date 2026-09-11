@@ -12,6 +12,25 @@ pub enum Role {
 }
 
 impl Role {
+    /// Every role, in the order a form lists them, least powerful first.
+    pub const ALL: [Role; 3] = [Role::Reader, Role::Publisher, Role::Admin];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Reader => "reader",
+            Self::Publisher => "publisher",
+            Self::Admin => "admin",
+        }
+    }
+
+    pub fn i18n_key(self) -> &'static str {
+        match self {
+            Self::Reader => "role.reader",
+            Self::Publisher => "role.publisher",
+            Self::Admin => "role.admin",
+        }
+    }
+
     /// Returns `true` if the role allows publishing events.
     pub fn can_publish(self) -> bool {
         matches!(self, Self::Publisher | Self::Admin)

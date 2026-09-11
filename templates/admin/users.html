@@ -9,173 +9,150 @@
             <h1 class="text-[28px] font-semibold tracking-tight text-ink dark:text-sand-light">
                 {{ i18n.t("admin.users_heading") }}
             </h1>
-            <a href="/admin/settings" class="text-[12px] font-medium text-ink/55 hover:text-ink dark:text-sand-light/45 dark:hover:text-sand-light transition-colors shrink-0">
+            <a href="/admin/settings" class="text-[12px] font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors shrink-0">
                 &larr; {{ i18n.t("admin.users_back") }}
             </a>
         </div>
+        <p class="mt-2 text-sm text-muted">{{ i18n.t("admin.users_intro") }}</p>
     </header>
 
-    {% if users.is_empty() %}
-    <div class="mt-12 text-center animate-in delay-2">
-        <p class="text-sm text-ink/55 dark:text-sand-light/45">{{ i18n.t("admin.no_users") }}</p>
+    {% match notice %}
+    {% when Some with (n) %}
+    <div class="mt-5 form-notice" role="status">
+        {% match n.kind %}
+        {% when NoticeKind::RoleUpdated with (role) %}<q>{{ n.name }}</q> {{ i18n.t("admin.notice_role") }} <strong>{{ i18n.t(role.i18n_key()) }}</strong>.
+        {% when NoticeKind::Disabled %}<q>{{ n.name }}</q> {{ i18n.t("admin.notice_disabled") }}
+        {% when NoticeKind::Enabled %}<q>{{ n.name }}</q> {{ i18n.t("admin.notice_enabled") }}
+        {% endmatch %}
     </div>
-    {% else %}
-    {# Mobile, flat list #}
-    <div class="mt-6 sm:hidden animate-in delay-2">
-        {% for u in users %}
-        <div class="py-3 border-b border-ink/10 dark:border-sand-light/10 last:border-b-0">
-            <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0 flex-1">
-                    <div class="truncate text-sm font-medium text-ink dark:text-sand-light">{{ u.display_name }}</div>
-                    <div class="mt-0.5 truncate text-[12px] text-ink/45 dark:text-sand-light/40">{{ u.email }}</div>
+    {% when None %}
+    {% endmatch %}
+
+    {# The temporary password is printed once, here, and nowhere else: no
+       mail leaves the instance, the admin hands it over. #}
+    {% match created %}
+    {% when Some with (c) %}
+    <div class="mt-5 form-notice created-notice" role="status">
+        <p>{{ i18n.t("admin.created_for") }} <strong>{{ c.name }}</strong> ({{ c.email }}).</p>
+        <p class="mt-2">{{ i18n.t("admin.created_password") }} <code class="temp-password">{{ c.password }}</code></p>
+        <p class="mt-2 text-muted">{{ i18n.t("admin.created_hint") }}</p>
+    </div>
+    {% when None %}
+    {% endmatch %}
+
+    {% match error %}
+    {% when Some with (msg) %}
+    <div class="mt-5 form-error" role="alert"><p>{{ msg }}</p></div>
+    {% when None %}
+    {% endmatch %}
+
+    {# Adding a member folds behind one verb, and opens itself when its form
+       came back refused, so the fields keep what was typed. #}
+    <details id="add-member" class="add-member animate-in delay-1"{% if add_open %} open{% endif %}>
+        <summary class="add-member-summary">
+            <span class="btn-3d text-sm"><span>{{ i18n.t("admin.add_member") }}</span></span>
+        </summary>
+        <form method="post" action="/admin/users/new" class="add-member-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="add-member-fields">
+                <div>
+                    <label for="member-name" class="field-label">{{ i18n.t("auth.display_name") }}</label>
+                    <input id="member-name" name="display_name" type="text" required maxlength="100" autocomplete="off"
+                           value="{{ add_form.display_name }}"
+                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm">
                 </div>
+                <div>
+                    <label for="member-email" class="field-label">{{ i18n.t("auth.email") }}</label>
+                    <input id="member-email" name="email" type="email" required autocomplete="off"
+                           value="{{ add_form.email }}"
+                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm">
+                </div>
+            </div>
+            <fieldset class="choice-group mt-5">
+                <legend class="field-label">{{ i18n.t("profile.role") }}</legend>
+                <div class="choice-row">
+                    {% for r in crate::models::Role::ALL %}
+                    <label class="choice">
+                        <input type="radio" name="role" value="{{ r.as_str() }}" class="sr-only" required
+                               {% if add_form.role == r.as_str() || (add_form.role.is_empty() && r.as_str() == "publisher") %}checked{% endif %}>
+                        <span>{{ i18n.t(r.i18n_key()) }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <p class="mt-2 text-[12px] text-muted">{{ i18n.t("role.reader_desc") }} {{ i18n.t("role.publisher_desc") }} {{ i18n.t("role.admin_desc") }}</p>
+            </fieldset>
+            <p class="mt-4 text-[12px] text-muted">{{ i18n.t("admin.add_member_hint") }}</p>
+            <div class="mt-4 flex items-center gap-4">
+                <button type="submit" class="btn-3d-ghost text-[13px]"><span>{{ i18n.t("admin.add_member_submit") }}</span></button>
+            </div>
+        </form>
+    </details>
+
+    <ul class="member-list mt-6 animate-in delay-1">
+        {% for u in users %}
+        <li class="member-row{% if !u.is_active %} is-off{% endif %}">
+            <div class="member-identity">
+                <div class="text-sm font-medium text-ink dark:text-sand-light wrap-anywhere">{{ u.display_name }}{% if u.id == current_user_id %} <span class="text-[12px] font-normal text-muted">{{ i18n.t("admin.you") }}</span>{% endif %}</div>
+                <div class="text-[12px] text-muted wrap-anywhere">{{ u.email }}</div>
+                <div class="text-[12px] text-muted">{{ i18n.t("admin.last_seen") }} : {% match u.last_seen_at %}{% when Some with (d) %}{{ d }}{% when None %}{{ i18n.t("admin.never") }}{% endmatch %}</div>
+            </div>
+
+            <div class="member-status">
                 {% if u.is_active %}
-                <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink dark:text-sand-light">
-                    <span class="h-1.5 w-1.5 rounded-full bg-ink dark:bg-sand-light" aria-hidden="true"></span>
-                    {{ i18n.t("admin.active") }}
-                </span>
+                <span class="h-1.5 w-1.5 rounded-full bg-ink dark:bg-sand-light" aria-hidden="true"></span>{{ i18n.t("admin.active") }}
                 {% else %}
-                <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink/55 dark:text-sand-light/45">
-                    <span class="h-1.5 w-1.5 rounded-full bg-ink/30 dark:bg-sand-light/25" aria-hidden="true"></span>
-                    {{ i18n.t("admin.disabled") }}
-                </span>
+                <span class="h-1.5 w-1.5 rounded-full bg-ink/30 dark:bg-sand-light/25" aria-hidden="true"></span>{{ i18n.t("admin.disabled") }}
                 {% endif %}
             </div>
-            <div class="mt-2 flex flex-wrap items-center gap-2">
+
+            <div class="member-role">
                 {% if u.id == current_user_id %}
-                {% match u.role %}
-                {% when crate::models::Role::Admin %}
-                <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10.5px] font-mono font-medium uppercase tracking-[0.08em] text-ink dark:text-sand-light border border-ink/30 dark:border-sand-light/30">{{ i18n.t("role.admin") }}</span>
-                {% when crate::models::Role::Publisher %}
-                <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10.5px] font-mono font-medium uppercase tracking-[0.08em] text-ink/75 dark:text-sand-light/75 border border-ink/20 dark:border-sand-light/20">{{ i18n.t("role.publisher") }}</span>
-                {% when crate::models::Role::Reader %}
-                <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10.5px] font-mono font-medium uppercase tracking-[0.08em] text-ink/55 dark:text-sand-light/45 border border-ink/15 dark:border-sand-light/15">{{ i18n.t("role.reader") }}</span>
-                {% endmatch %}
-                <span class="text-[10.5px] text-ink/45 dark:text-sand-light/30">{{ i18n.t("admin.you") }}</span>
+                <span class="text-sm text-ink dark:text-sand-light">{{ i18n.t(u.role.i18n_key()) }}</span>
                 {% else %}
-                <form method="post" action="/admin/users/{{ u.id }}/role"
-                      hx-post="/admin/users/{{ u.id }}/role" hx-target="body" hx-swap="outerHTML" class="inline">
+                <form method="post" action="/admin/users/{{ u.id }}/role" data-role-form>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <select name="role" data-custom-select
+                    <select name="role" data-custom-select data-committed="{{ u.role.as_str() }}"
                             aria-label="{{ i18n.t("profile.role") }} {{ u.display_name }}"
-                            class="input-raised px-2 py-1.5 text-[12px] font-medium cursor-pointer"
-                            onchange="this.form.requestSubmit()">
-                        <option value="reader"{% match u.role %}{% when crate::models::Role::Reader %} selected{% when crate::models::Role::Publisher %}{% when crate::models::Role::Admin %}{% endmatch %}>{{ i18n.t("role.reader") }}</option>
-                        <option value="publisher"{% match u.role %}{% when crate::models::Role::Publisher %} selected{% when crate::models::Role::Reader %}{% when crate::models::Role::Admin %}{% endmatch %}>{{ i18n.t("role.publisher") }}</option>
-                        <option value="admin"{% match u.role %}{% when crate::models::Role::Admin %} selected{% when crate::models::Role::Reader %}{% when crate::models::Role::Publisher %}{% endmatch %}>{{ i18n.t("role.admin") }}</option>
+                            data-name="{{ u.display_name }}"
+                            data-desc-reader="{{ i18n.t("role.reader_desc") }}"
+                            data-desc-publisher="{{ i18n.t("role.publisher_desc") }}"
+                            data-desc-admin="{{ i18n.t("role.admin_desc") }}">
+                        {% for r in crate::models::Role::ALL %}
+                        <option value="{{ r.as_str() }}"{% if u.role == r %} selected{% endif %}>{{ i18n.t(r.i18n_key()) }}</option>
+                        {% endfor %}
                     </select>
+                    <div class="status-confirm member-confirm" hidden data-confirm role="group" aria-label="{{ i18n.t("admin.confirm_role_aria") }}">
+                        <span class="status-confirm-label" data-confirm-label></span>
+                        <span class="status-confirm-desc" data-confirm-desc></span>
+                        <button type="submit" class="status-confirm-go">{{ i18n.t("common.confirm") }}</button>
+                        <button type="button" class="status-confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
+                    </div>
                 </form>
                 {% endif %}
+            </div>
+
+            <div class="member-action">
                 {% if u.id != current_user_id %}
-                <form method="post" action="/admin/users/{{ u.id }}/disable"
-                      hx-post="/admin/users/{{ u.id }}/disable" hx-target="body" hx-swap="outerHTML"
-                      {% if u.is_active %}hx-confirm="{{ i18n.t("admin.disable") }} {{ u.display_name }} ?"{% endif %}
-                      class="inline">
+                <form method="post" action="/admin/users/{{ u.id }}/disable" data-toggle-form>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     {% if u.is_active %}
-                    <button type="submit" class="text-[12px] font-medium text-danger-soft" aria-label="{{ i18n.t("admin.disable") }} {{ u.display_name }}">{{ i18n.t("admin.disable") }}</button>
+                    <button type="button" class="btn-outline-danger text-[12px]" data-disable-btn
+                            aria-label="{{ i18n.t("admin.disable") }} {{ u.display_name }}">{{ i18n.t("admin.disable") }}</button>
+                    <div class="status-confirm member-confirm" hidden data-confirm role="group" aria-label="{{ i18n.t("admin.confirm_disable_aria") }}">
+                        <span class="status-confirm-label">{{ i18n.t("admin.disable") }} <q>{{ u.display_name }}</q></span>
+                        <button type="submit" class="status-confirm-go">{{ i18n.t("admin.disable") }}</button>
+                        <button type="button" class="status-confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
+                    </div>
                     {% else %}
-                    <button type="submit" class="text-[12px] font-medium text-success-soft" aria-label="{{ i18n.t("admin.enable") }} {{ u.display_name }}">{{ i18n.t("admin.enable") }}</button>
+                    <button type="submit" class="btn-3d-ghost text-[12px] !px-3 !py-1.5"
+                            aria-label="{{ i18n.t("admin.enable") }} {{ u.display_name }}"><span>{{ i18n.t("admin.enable") }}</span></button>
                     {% endif %}
                 </form>
                 {% endif %}
             </div>
-        </div>
+        </li>
         {% endfor %}
-    </div>
-    {# Desktop, flat table #}
-    <div class="mt-6 hidden sm:block animate-in delay-2">
-        <table class="min-w-full">
-            <thead>
-                <tr class="border-b border-ink/15 dark:border-sand-light/15">
-                    <th scope="col" class="pb-2 text-left text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("admin.users") }}</th>
-                    <th scope="col" class="pb-2 text-left text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("profile.role") }}</th>
-                    <th scope="col" class="pb-2 text-left text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("common.status_label") }}</th>
-                    {# Named for assistive tech only, the column holds self-describing controls. #}
-                    <th scope="col" class="pb-2"><span class="sr-only">{{ i18n.t("common.actions_label") }}</span></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for u in users %}
-                <tr class="border-b border-ink/10 dark:border-sand-light/10 last:border-b-0 transition-colors hover-row">
-                    <td class="py-3.5 pr-4">
-                        <div class="text-sm font-medium text-ink dark:text-sand-light">{{ u.display_name }}</div>
-                        <div class="text-[12px] text-ink/45 dark:text-sand-light/40 mt-0.5">{{ u.email }}</div>
-                    </td>
-                    <td class="py-3.5 pr-4">
-                        {% if u.id == current_user_id %}
-                        {% match u.role %}
-                        {% when crate::models::Role::Admin %}
-                        <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10.5px] font-mono font-medium uppercase tracking-[0.08em] text-ink dark:text-sand-light border border-ink/30 dark:border-sand-light/30">
-                            {{ i18n.t("role.admin") }}
-                        </span>
-                        {% when crate::models::Role::Publisher %}
-                        <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10.5px] font-mono font-medium uppercase tracking-[0.08em] text-ink/75 dark:text-sand-light/75 border border-ink/20 dark:border-sand-light/20">
-                            {{ i18n.t("role.publisher") }}
-                        </span>
-                        {% when crate::models::Role::Reader %}
-                        <span class="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10.5px] font-mono font-medium uppercase tracking-[0.08em] text-ink/55 dark:text-sand-light/45 border border-ink/15 dark:border-sand-light/15">
-                            {{ i18n.t("role.reader") }}
-                        </span>
-                        {% endmatch %}
-                        <span class="ml-1 text-[10.5px] text-ink/45 dark:text-sand-light/30">{{ i18n.t("admin.you") }}</span>
-                        {% else %}
-                        <form method="post" action="/admin/users/{{ u.id }}/role"
-                              hx-post="/admin/users/{{ u.id }}/role" hx-target="body" hx-swap="outerHTML" class="inline">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            <select name="role" data-custom-select
-                                    aria-label="{{ i18n.t("profile.role") }} {{ u.display_name }}"
-                                    class="input-raised px-2 py-1 text-[12px] font-medium cursor-pointer"
-                                    onchange="this.form.requestSubmit()">
-                                <option value="reader"{% match u.role %}{% when crate::models::Role::Reader %} selected{% when crate::models::Role::Publisher %}{% when crate::models::Role::Admin %}{% endmatch %}>{{ i18n.t("role.reader") }}</option>
-                                <option value="publisher"{% match u.role %}{% when crate::models::Role::Publisher %} selected{% when crate::models::Role::Reader %}{% when crate::models::Role::Admin %}{% endmatch %}>{{ i18n.t("role.publisher") }}</option>
-                                <option value="admin"{% match u.role %}{% when crate::models::Role::Admin %} selected{% when crate::models::Role::Reader %}{% when crate::models::Role::Publisher %}{% endmatch %}>{{ i18n.t("role.admin") }}</option>
-                            </select>
-                        </form>
-                        {% endif %}
-                    </td>
-                    <td class="py-3.5 pr-4">
-                        {% if u.is_active %}
-                        <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink dark:text-sand-light">
-                            <span class="h-1.5 w-1.5 rounded-full bg-ink dark:bg-sand-light" aria-hidden="true"></span>
-                            {{ i18n.t("admin.active") }}
-                        </span>
-                        {% else %}
-                        <span class="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink/55 dark:text-sand-light/45">
-                            <span class="h-1.5 w-1.5 rounded-full bg-ink/30 dark:bg-sand-light/25" aria-hidden="true"></span>
-                            {{ i18n.t("admin.disabled") }}
-                        </span>
-                        {% endif %}
-                    </td>
-                    <td class="py-3.5 text-right">
-                        {% if u.id != current_user_id %}
-                        <form method="post" action="/admin/users/{{ u.id }}/disable"
-                              hx-post="/admin/users/{{ u.id }}/disable" hx-target="body" hx-swap="outerHTML"
-                              {% if u.is_active %}hx-confirm="{{ i18n.t("admin.disable") }} {{ u.display_name }} ?"{% endif %}
-                              class="inline">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            {% if u.is_active %}
-                            <button type="submit"
-                                    class="text-[12px] font-medium text-danger-soft"
-                                    aria-label="{{ i18n.t("admin.disable") }} {{ u.display_name }}">
-                                {{ i18n.t("admin.disable") }}
-                            </button>
-                            {% else %}
-                            <button type="submit"
-                                    class="text-[12px] font-medium text-success-soft"
-                                    aria-label="{{ i18n.t("admin.enable") }} {{ u.display_name }}">
-                                {{ i18n.t("admin.enable") }}
-                            </button>
-                            {% endif %}
-                        </form>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <p class="mt-3 text-[12px] text-ink/45 dark:text-sand-light/30">{{ users.len() }} utilisateur{% if users.len() > 1 %}s{% endif %}</p>
-    </div>
-    {% endif %}
+    </ul>
 </div>
+<script src="/static/js/team.js?v={{ crate::css_version() }}" defer></script>
 {% endblock %}
