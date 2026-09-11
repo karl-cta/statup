@@ -2902,6 +2902,17 @@
         color: var(--color-muted-dark);
     }
 
+    /* Placeholder text at 35 percent ink reads at 2.2:1. The muted ink is
+       the lightest value that still clears AA on the raised input ground. */
+    .input-raised::placeholder {
+        color: var(--color-muted-light);
+        opacity: 1;
+    }
+
+    :is(.dark *) .input-raised::placeholder {
+        color: var(--color-muted-dark);
+    }
+
     .form-block {
         margin-top: 32px;
     }

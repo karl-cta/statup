@@ -208,10 +208,12 @@
   "services.name_placeholder": "ex : API, Base de données, CDN",
   "services.description_placeholder": "Brève description du service",
   "services.icon": "Icône",
-  "services.icon_help": "Choisissez une icône pour identifier ce service.",
   "services.back_to_services": "Retour aux services",
   "services.confirm_delete": "Supprimer le service {name} ?",
   "services.submit_create": "Créer le service",
+  "services.status_now": "en ce moment.",
+  "services.status_change_link": "Changer le statut depuis la liste des services",
+  "services.consequence_new": "Ce service apparaîtra sur la page publique comme opérationnel.",
 
   "admin.title": "Paramètres",
   "admin.settings": "Paramètres",

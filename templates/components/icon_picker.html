@@ -2,10 +2,9 @@
    `selected_icon_url` (Option<String>), `builtin_icons` (&[BuiltinIcon]), `custom_icons` (Vec<Icon>),
    `csrf_token` (String), `i18n` (I18n) in scope. #}
 <div class="icon-picker-wrapper">
-    <label class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-        {{ i18n.t("services.icon") }} <span class="text-ink/45 dark:text-sand-light/30">{{ i18n.t("events.optional") }}</span>
-    </label>
-    <p class="mt-0.5 text-[12px] text-ink/45 dark:text-sand-light/40">{{ i18n.t("services.icon_help") }}</p>
+    <p class="field-label">
+        {{ i18n.t("services.icon") }} <span class="field-note">{{ i18n.t("events.optional") }}</span>
+    </p>
 
     <input type="hidden" name="icon_name" id="icon-name-input"
            value="{% match selected_icon_name %}{% when Some with (name) %}{{ name }}{% when None %}{% endmatch %}">
@@ -39,14 +38,14 @@
            nothing, so it does not wear the colour of destruction. #}
         {% if selected_icon_name.is_some() || selected_icon_id.is_some() %}
         <button type="button" id="icon-remove-btn" onclick="clearIcon()"
-                class="text-[13px] font-medium text-ink/55 hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light transition-colors cursor-pointer">
+                class="text-[13px] font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors cursor-pointer">
             {{ i18n.t("icons.remove") }}
         </button>
         {% endif %}
     </div>
 
     <div class="mt-4">
-        <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45 mb-2">{{ i18n.t("icons.builtin") }}</p>
+        <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-muted mb-2">{{ i18n.t("icons.builtin") }}</p>
         <div class="grid grid-cols-6 gap-1.5 sm:grid-cols-8" role="radiogroup" aria-label="{{ i18n.t("icons.builtin") }}">
             {% for icon in builtin_icons %}
             <button type="button"
@@ -70,8 +69,8 @@
 
     <div class="mt-5">
         <div class="flex items-baseline justify-between mb-2">
-            <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("icons.custom") }}</p>
-            <span id="icon-upload-status" class="text-[10.5px] font-mono text-ink/45 dark:text-sand-light/40 hidden">
+            <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-muted">{{ i18n.t("icons.custom") }}</p>
+            <span id="icon-upload-status" class="text-[10.5px] font-mono text-muted hidden">
                 {{ i18n.t("icons.uploading") }}
             </span>
         </div>
@@ -141,7 +140,7 @@ function ensureRemoveButton() {
         rb.type = 'button';
         rb.id = 'icon-remove-btn';
         rb.onclick = clearIcon;
-        rb.className = 'text-[13px] font-medium text-ink/55 hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light transition-colors cursor-pointer';
+        rb.className = 'text-[13px] font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors cursor-pointer';
         rb.textContent = '{{ i18n.t("icons.remove") }}';
         container.appendChild(rb);
     }

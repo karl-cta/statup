@@ -69,9 +69,6 @@ pub struct ServiceInput {
     description: Option<String>,
     icon_id: Option<i64>,
     icon_name: Option<String>,
-    /// Only submitted by the edit form: the status a service exists to publish
-    /// was reachable from the list alone, which is not where the reflex leads.
-    status: Option<String>,
 }
 
 fn render(tpl: &impl Template) -> Result<Response, AppError> {
@@ -198,7 +195,6 @@ pub async fn create(
             let form = ServiceFormData {
                 name: input.name,
                 description: input.description.unwrap_or_default(),
-                // Never read: the status control only renders when editing.
                 status: ServiceStatus::Operational,
             };
             render_service_form(
@@ -310,12 +306,6 @@ pub async fn update(
 ) -> Result<Response, AppError> {
     let icon_id = parse_icon_id(input.icon_id);
     let icon_name = parse_icon_name(input.icon_name);
-    let status = input
-        .status
-        .as_deref()
-        .map(str::parse::<ServiceStatus>)
-        .transpose()
-        .map_err(AppError::Validation)?;
     match ServiceService::update(
         &state.pool,
         id,
@@ -326,17 +316,18 @@ pub async fn update(
     )
     .await
     {
-        Ok(()) => {
-            if let Some(status) = status {
-                ServiceRepository::update_status(&state.pool, id, status).await?;
-            }
-            Ok(Redirect::to("/services").into_response())
-        }
+        Ok(()) => Ok(Redirect::to("/services").into_response()),
         Err(AppError::Validation(msg)) => {
+            // The status line under the title reads the stored value: this
+            // form no longer carries it.
+            let status = ServiceRepository::find_by_id(&state.pool, id)
+                .await?
+                .ok_or(AppError::NotFound)?
+                .status;
             let form = ServiceFormData {
                 name: input.name,
                 description: input.description.unwrap_or_default(),
-                status: status.unwrap_or(ServiceStatus::Operational),
+                status,
             };
             render_service_form(
                 &state,
