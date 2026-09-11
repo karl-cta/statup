@@ -215,6 +215,7 @@
   "services.saved_notice": "saved. Visible on the public page now.",
   "services.status_change_link": "Change the status from the services list",
   "services.consequence_new": "This service will appear on the public page as operational.",
+  "services.consequence_new_status": "The status is set afterwards from the services list.",
 
   "admin.title": "Settings",
   "admin.settings": "Settings",

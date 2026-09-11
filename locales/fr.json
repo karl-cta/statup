@@ -215,6 +215,7 @@
   "services.saved_notice": "enregistré. Visible sur la page publique dès maintenant.",
   "services.status_change_link": "Changer le statut depuis la liste des services",
   "services.consequence_new": "Ce service apparaîtra sur la page publique comme opérationnel.",
+  "services.consequence_new_status": "Le statut se règle ensuite depuis la liste des services.",
 
   "admin.title": "Paramètres",
   "admin.settings": "Paramètres",

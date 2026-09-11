@@ -72,15 +72,18 @@
             {% include "components/icon_picker.html" %}
         </div>
 
+        {# The sentence never changes on this form, so it lives in the flow:
+           pinned, it cost a row of icons on a phone for nothing. #}
+        {% match edit_id %}
+        {% when None %}
+        <div class="consequence form-block" role="status">
+            <span class="consequence-dot status-dot-ok" aria-hidden="true"></span>
+            <p class="consequence-text">{{ i18n.t("services.consequence_new") }} <span class="field-note">{{ i18n.t("services.consequence_new_status") }}</span></p>
+        </div>
+        {% when Some with (_id) %}
+        {% endmatch %}
+
         <div class="action-bar">
-            {% match edit_id %}
-            {% when None %}
-            <div class="consequence" role="status">
-                <span class="consequence-dot status-dot-ok" aria-hidden="true"></span>
-                <p class="consequence-text">{{ i18n.t("services.consequence_new") }}</p>
-            </div>
-            {% when Some with (_id) %}
-            {% endmatch %}
             <div class="action-bar-buttons">
                 <a href="/services" class="text-sm font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors">
                     {{ i18n.t("common.cancel") }}

@@ -10,7 +10,8 @@
 
     {# The grids fold behind the preview once an icon is chosen: an admin
        editing a name should not tab through twenty-four cells. A native
-       details keeps the fold reachable without script. #}
+       details keeps the fold reachable without script. Remove keeps its room
+       while invisible, so the grid does not shift the moment a cell is picked. #}
     {% let has_icon = selected_icon_name.is_some() || selected_icon_id.is_some() %}
     <div class="mt-2 flex items-start gap-3">
         <details id="icon-choices" class="icon-choices min-w-0 flex-1"{% if !has_icon %} open{% endif %}>
@@ -104,7 +105,7 @@
         {# Quiet and named for what it does: it clears the choice, it deletes
            nothing, so it does not wear the colour of destruction. #}
         <button type="button" id="icon-remove-btn" onclick="clearIcon()"
-                class="mt-3.5 text-[13px] font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors cursor-pointer"{% if !has_icon %} hidden{% endif %}>
+                class="mt-3.5 text-[13px] font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors cursor-pointer{% if !has_icon %} invisible{% endif %}">
             {{ i18n.t("icons.remove") }}
         </button>
     </div>
@@ -167,7 +168,7 @@ document.querySelector('.icon-picker-wrapper').addEventListener('keydown', funct
 function showChosen() {
     var label = document.getElementById('icon-choices-label');
     label.textContent = label.dataset.change;
-    document.getElementById('icon-remove-btn').hidden = false;
+    document.getElementById('icon-remove-btn').classList.remove('invisible');
 }
 
 function selectBuiltinIcon(btn) {
@@ -220,7 +221,7 @@ function clearIcon() {
     markChosen(null);
     var label = document.getElementById('icon-choices-label');
     label.textContent = label.dataset.choose;
-    document.getElementById('icon-remove-btn').hidden = true;
+    document.getElementById('icon-remove-btn').classList.add('invisible');
     document.getElementById('icon-choices').open = true;
 }
 </script>

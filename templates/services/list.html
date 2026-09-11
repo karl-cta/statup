@@ -19,6 +19,16 @@
     {% match saved_name %}
     {% when Some with (name) %}
     <div class="mt-5 form-notice animate-in delay-1" role="status"><q>{{ name }}</q> {{ i18n.t("services.saved_notice") }}</div>
+    {# The list is rendered twice, phone and desktop: the row to bring into
+       view is whichever copy is drawn, so there is no fixed id to jump to. #}
+    <script>
+    (function () {
+        var rows = document.querySelectorAll('.row-saved');
+        for (var i = 0; i < rows.length; i++) {
+            if (rows[i].offsetParent !== null) { rows[i].scrollIntoView({ block: 'center' }); break; }
+        }
+    })();
+    </script>
     {% when None %}
     {% endmatch %}
 
@@ -36,7 +46,7 @@
     {# Mobile, flat list #}
     <div class="mt-6 sm:hidden animate-in delay-1">
         {% for service in services %}
-        <div class="service-item py-3 border-b border-ink/10 dark:border-sand-light/10 last:border-b-0">
+        <div class="service-item py-3 border-b border-ink/10 dark:border-sand-light/10 last:border-b-0{% if let Some(id) = saved_id %}{% if id.eq(service.id) %} row-saved{% endif %}{% endif %}">
             <div class="flex items-start justify-between gap-3">
                 <div class="flex min-w-0 flex-1 items-center gap-2.5">
                     <span class="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full {{ service.status.dot_class() }}" aria-hidden="true"></span>
@@ -89,7 +99,7 @@
             </thead>
             <tbody>
                 {% for service in services %}
-                <tr class="border-b border-ink/10 dark:border-sand-light/10 last:border-b-0 transition-colors hover-row">
+                <tr class="border-b border-ink/10 dark:border-sand-light/10 last:border-b-0 transition-colors hover-row{% if let Some(id) = saved_id %}{% if id.eq(service.id) %} row-saved{% endif %}{% endif %}">
                     <td class="py-3.5 pl-4 pr-4 sm:pl-6 lg:pl-10">
                         <div class="flex items-center gap-2.5">
                             <span class="h-2 w-2 flex-shrink-0 rounded-full {{ service.status.dot_class() }}" aria-hidden="true"></span>

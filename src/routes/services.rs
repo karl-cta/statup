@@ -29,6 +29,7 @@ struct ServiceListTemplate {
     /// The service the form just saved, named so the admin does not have to
     /// find its row by eye.
     saved_name: Option<String>,
+    saved_id: Option<i64>,
     i18n: I18n,
 }
 
@@ -150,6 +151,7 @@ pub async fn list(
         services,
         previous: None,
         saved_name,
+        saved_id: query.saved,
         i18n,
     };
     render(&tpl)

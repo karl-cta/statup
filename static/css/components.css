@@ -222,6 +222,37 @@
         animation: status-receipt-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
 
+    /* The row the form just saved: a wash of the hover tint that fades out
+       once, so the eye lands on the line the receipt names. */
+    .row-saved {
+        animation: row-saved-out 2.4s ease-out both;
+    }
+
+    @keyframes row-saved-out {
+        0%, 40% { background-color: var(--color-sand-warm); }
+        100% { background-color: transparent; }
+    }
+
+    :is(.dark *) .row-saved {
+        animation-name: row-saved-out-dark;
+    }
+
+    @keyframes row-saved-out-dark {
+        0%, 40% { background-color: rgb(244 241 235 / 0.06); }
+        100% { background-color: transparent; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .row-saved {
+            animation: none;
+            background-color: var(--color-sand-warm);
+        }
+
+        :is(.dark *) .row-saved {
+            background-color: rgb(244 241 235 / 0.06);
+        }
+    }
+
     @keyframes status-receipt-in {
         from {
             opacity: 0;
