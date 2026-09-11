@@ -1,7 +1,7 @@
 //! Service routes - list, create, update, delete.
 
 use askama::Template;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use serde::Deserialize;
 use validator::Validate;
@@ -26,7 +26,15 @@ struct ServiceListTemplate {
     services: Vec<crate::models::Service>,
     /// Never a receipt here: the list renders the control at rest.
     previous: Option<ServiceStatus>,
+    /// The service the form just saved, named so the admin does not have to
+    /// find its row by eye.
+    saved_name: Option<String>,
     i18n: I18n,
+}
+
+#[derive(Deserialize)]
+pub struct ListQuery {
+    saved: Option<i64>,
 }
 
 #[derive(Template)]
@@ -122,10 +130,15 @@ pub async fn list(
     State(state): State<AppState>,
     csrf_token: CsrfToken,
     Locale(i18n): Locale,
+    Query(query): Query<ListQuery>,
 ) -> Result<Response, AppError> {
     let (user_display_name, is_admin, is_authenticated) = layout_fields(&user);
     let unread_count = unread(&state.pool, &user).await?;
     let services = ServiceRepository::list_all_with_icons(&state.pool).await?;
+    let saved_name = match query.saved {
+        Some(id) => services.iter().find(|s| s.id == id).map(|s| s.name.clone()),
+        None => None,
+    };
     let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
     let tpl = ServiceListTemplate {
         csrf_token: csrf_token.0,
@@ -136,6 +149,7 @@ pub async fn list(
         last_admin_action,
         services,
         previous: None,
+        saved_name,
         i18n,
     };
     render(&tpl)
@@ -190,7 +204,7 @@ pub async fn create(
     )
     .await
     {
-        Ok(_) => Ok(Redirect::to("/services").into_response()),
+        Ok(service) => Ok(Redirect::to(&format!("/services?saved={}", service.id)).into_response()),
         Err(AppError::Validation(msg)) => {
             let form = ServiceFormData {
                 name: input.name,
@@ -316,7 +330,7 @@ pub async fn update(
     )
     .await
     {
-        Ok(()) => Ok(Redirect::to("/services").into_response()),
+        Ok(()) => Ok(Redirect::to(&format!("/services?saved={id}")).into_response()),
         Err(AppError::Validation(msg)) => {
             // The status line under the title reads the stored value: this
             // form no longer carries it.

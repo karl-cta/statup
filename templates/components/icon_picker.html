@@ -1,6 +1,3 @@
-{# Icon picker component. Expects `selected_icon_name` (Option<String>), `selected_icon_id` (Option<i64>),
-   `selected_icon_url` (Option<String>), `builtin_icons` (&[BuiltinIcon]), `custom_icons` (Vec<Icon>),
-   `csrf_token` (String), `i18n` (I18n) in scope. #}
 <div class="icon-picker-wrapper">
     <p class="field-label">
         {{ i18n.t("services.icon") }} <span class="field-note">{{ i18n.t("events.optional") }}</span>
@@ -11,90 +8,105 @@
     <input type="hidden" name="icon_id" id="icon-id-input"
            value="{% match selected_icon_id %}{% when Some with (id) %}{{ id }}{% when None %}{% endmatch %}">
 
-    <div class="mt-2 flex items-center gap-3">
-        <div id="icon-preview" class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-sm border border-dashed border-ink/20 bg-cream dark:border-sand-light/20 dark:bg-surface-1">
-            {% match selected_icon_url %}
-            {% when Some with (url) %}
-            <img src="{{ url }}" alt="{{ i18n.t("icons.icon_alt") }}" class="h-8 w-8 rounded-sm object-contain">
-            {% when None %}
-            {# A built-in icon is a name, not a file, so it has no URL: the
-               preview used to show the placeholder while the grid showed a
-               selected cell. #}
-            {% match selected_icon_name.as_deref().and_then(crate::models::find_builtin_icon) %}
-            {% when Some with (icon) %}
-            <svg class="h-6 w-6 text-ink/70 dark:text-sand-light/60" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                {% for path in icon.paths.split("|||") %}
-                <path stroke-linecap="round" stroke-linejoin="round" d="{{ path }}" />
-                {% endfor %}
-            </svg>
-            {% when None %}
-            <svg class="h-5 w-5 text-ink/25 dark:text-sand-light/20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
-            </svg>
-            {% endmatch %}
-            {% endmatch %}
-        </div>
+    {# The grids fold behind the preview once an icon is chosen: an admin
+       editing a name should not tab through twenty-four cells. A native
+       details keeps the fold reachable without script. #}
+    {% let has_icon = selected_icon_name.is_some() || selected_icon_id.is_some() %}
+    <div class="mt-2 flex items-start gap-3">
+        <details id="icon-choices" class="icon-choices min-w-0 flex-1"{% if !has_icon %} open{% endif %}>
+            <summary class="icon-choices-summary">
+                <span id="icon-preview" class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-sm border border-dashed border-ink/20 bg-cream dark:border-sand-light/20 dark:bg-surface-1">
+                    {% match selected_icon_url %}
+                    {% when Some with (url) %}
+                    <img src="{{ url }}" alt="{{ i18n.t("icons.icon_alt") }}" class="h-8 w-8 rounded-sm object-contain">
+                    {% when None %}
+                    {# A built-in icon is a name, not a file, so it has no URL: the
+                       preview used to show the placeholder while the grid showed a
+                       selected cell. #}
+                    {% match selected_icon_name.as_deref().and_then(crate::models::find_builtin_icon) %}
+                    {% when Some with (icon) %}
+                    <svg class="h-6 w-6 text-ink/70 dark:text-sand-light/60" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                        {% for path in icon.paths.split("|||") %}
+                        <path stroke-linecap="round" stroke-linejoin="round" d="{{ path }}" />
+                        {% endfor %}
+                    </svg>
+                    {% when None %}
+                    <svg class="h-5 w-5 text-ink/25 dark:text-sand-light/20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
+                    </svg>
+                    {% endmatch %}
+                    {% endmatch %}
+                </span>
+                <span id="icon-choices-label" class="icon-choices-label"
+                      data-choose="{{ i18n.t("icons.choose") }}"
+                      data-change="{{ i18n.t("icons.change") }}">{% if has_icon %}{{ i18n.t("icons.change") }}{% else %}{{ i18n.t("icons.choose") }}{% endif %}</span>
+                <svg class="icon-choices-chevron h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+            </summary>
+
+            <div class="icon-choices-body">
+            <div class="mt-4">
+                <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-muted mb-2">{{ i18n.t("icons.builtin") }}</p>
+                <div class="grid grid-cols-6 gap-1.5 sm:grid-cols-8" role="radiogroup" aria-label="{{ i18n.t("icons.builtin") }}">
+                    {% for icon in builtin_icons %}
+                    <button type="button"
+                            role="radio"
+                            class="icon-cell flex h-11 w-11 items-center justify-center rounded-sm cursor-pointer"
+                            data-icon-name="{{ icon.name }}"
+                            data-icon-paths="{{ icon.paths }}"
+                            onclick="selectBuiltinIcon(this)"
+                            title="{{ i18n.t(icon.i18n_key()) }}"
+                            aria-checked="{% match selected_icon_name %}{% when Some with (sel) %}{% if sel == icon.name %}true{% else %}false{% endif %}{% when None %}false{% endmatch %}"
+                            tabindex="{% match selected_icon_name %}{% when Some with (sel) %}{% if sel == icon.name %}0{% else %}-1{% endif %}{% when None %}{% if loop.first %}0{% else %}-1{% endif %}{% endmatch %}"
+                            aria-label="{{ i18n.t(icon.i18n_key()) }}">
+                        <svg class="h-5 w-5 text-ink/70 dark:text-sand-light/60" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                            {% for path in icon.paths.split("|||") %}
+                            <path stroke-linecap="round" stroke-linejoin="round" d="{{ path }}" />
+                            {% endfor %}
+                        </svg>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="mt-5">
+                <div class="flex items-baseline justify-between mb-2">
+                    <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-muted">{{ i18n.t("icons.custom") }}</p>
+                    <span id="icon-upload-status" class="text-[10.5px] font-mono text-muted hidden">
+                        {{ i18n.t("icons.uploading") }}
+                    </span>
+                </div>
+
+                {# Auto-upload on file change. File input sits directly in the parent service form,
+                   hx-params filters to only these two fields so the service form doesn't get spammed. #}
+                <label class="icon-upload-field">
+                    <span class="icon-upload-cta">{{ i18n.t("icons.upload") }}</span>
+                    {# The cap is read from the constant that enforces it, so the hint
+                       cannot drift from the rule again. #}
+                    <span class="icon-upload-hint">{{ i18n.t("icons.upload_hint_short") }} {{ crate::models::MAX_ICON_SIZE / 1024 }} {{ i18n.t("units.kb") }}</span>
+                    <input type="file" name="file" id="icon-upload-file"
+                           accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                           class="sr-only"
+                           hx-post="/icons/upload-picker"
+                           hx-target="#custom-icons-grid"
+                           hx-swap="outerHTML"
+                           hx-trigger="change"
+                           hx-encoding="multipart/form-data"
+                           hx-params="file,csrf_token"
+                           hx-indicator="#icon-upload-status">
+                </label>
+
+                {% include "components/icon_grid.html" %}
+            </div>
+            </div>
+        </details>
         {# Quiet and named for what it does: it clears the choice, it deletes
            nothing, so it does not wear the colour of destruction. #}
-        {% if selected_icon_name.is_some() || selected_icon_id.is_some() %}
         <button type="button" id="icon-remove-btn" onclick="clearIcon()"
-                class="text-[13px] font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors cursor-pointer">
+                class="mt-3.5 text-[13px] font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors cursor-pointer"{% if !has_icon %} hidden{% endif %}>
             {{ i18n.t("icons.remove") }}
         </button>
-        {% endif %}
-    </div>
-
-    <div class="mt-4">
-        <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-muted mb-2">{{ i18n.t("icons.builtin") }}</p>
-        <div class="grid grid-cols-6 gap-1.5 sm:grid-cols-8" role="radiogroup" aria-label="{{ i18n.t("icons.builtin") }}">
-            {% for icon in builtin_icons %}
-            <button type="button"
-                    role="radio"
-                    class="icon-cell flex h-11 w-11 items-center justify-center rounded-sm cursor-pointer"
-                    data-icon-name="{{ icon.name }}"
-                    data-icon-paths="{{ icon.paths }}"
-                    onclick="selectBuiltinIcon(this)"
-                    title="{{ i18n.t(icon.i18n_key()) }}"
-                    aria-checked="{% match selected_icon_name %}{% when Some with (sel) %}{% if sel == icon.name %}true{% else %}false{% endif %}{% when None %}false{% endmatch %}"
-                    aria-label="{{ i18n.t(icon.i18n_key()) }}">
-                <svg class="h-5 w-5 text-ink/70 dark:text-sand-light/60" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                    {% for path in icon.paths.split("|||") %}
-                    <path stroke-linecap="round" stroke-linejoin="round" d="{{ path }}" />
-                    {% endfor %}
-                </svg>
-            </button>
-            {% endfor %}
-        </div>
-    </div>
-
-    <div class="mt-5">
-        <div class="flex items-baseline justify-between mb-2">
-            <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-muted">{{ i18n.t("icons.custom") }}</p>
-            <span id="icon-upload-status" class="text-[10.5px] font-mono text-muted hidden">
-                {{ i18n.t("icons.uploading") }}
-            </span>
-        </div>
-
-        {# Auto-upload on file change. File input sits directly in the parent service form,
-           hx-params filters to only these two fields so the service form doesn't get spammed. #}
-        <label class="icon-upload-field">
-            <span class="icon-upload-cta">{{ i18n.t("icons.upload") }}</span>
-            {# The cap is read from the constant that enforces it, so the hint
-               cannot drift from the rule again. #}
-            <span class="icon-upload-hint">{{ i18n.t("icons.upload_hint_short") }} {{ crate::models::MAX_ICON_SIZE / 1024 }} {{ i18n.t("units.kb") }}</span>
-            <input type="file" name="file" id="icon-upload-file"
-                   accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                   class="sr-only"
-                   hx-post="/icons/upload-picker"
-                   hx-target="#custom-icons-grid"
-                   hx-swap="outerHTML"
-                   hx-trigger="change"
-                   hx-encoding="multipart/form-data"
-                   hx-params="file,csrf_token"
-                   hx-indicator="#icon-upload-status">
-        </label>
-
-        {% include "components/icon_grid.html" %}
     </div>
 </div>
 
@@ -105,6 +117,57 @@ function markChosen(btn) {
     document.querySelectorAll('.icon-cell').forEach(function (b) {
         b.setAttribute('aria-checked', b === btn ? 'true' : 'false');
     });
+    initRoving();
+}
+
+// One tab stop per group, as a radio group promises: the chosen cell, or
+// the first one, is the only cell in the tab order. Arrows do the rest.
+function initRoving() {
+    document.querySelectorAll('.icon-picker-wrapper [role="radiogroup"]').forEach(function (group) {
+        var cells = group.querySelectorAll('.icon-cell');
+        var chosen = group.querySelector('.icon-cell[aria-checked="true"]') || cells[0];
+        cells.forEach(function (c) { c.tabIndex = c === chosen ? 0 : -1; });
+    });
+}
+
+document.querySelector('.icon-picker-wrapper').addEventListener('keydown', function (e) {
+    var cell = e.target.closest ? e.target.closest('.icon-cell') : null;
+    if (!cell) return;
+    var step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+    if (step === undefined && e.key !== 'Home' && e.key !== 'End') return;
+    e.preventDefault();
+    var cells = Array.prototype.slice.call(cell.closest('[role="radiogroup"]').querySelectorAll('.icon-cell'));
+    var i = cells.indexOf(cell);
+    var next = e.key === 'Home' ? 0 : e.key === 'End' ? cells.length - 1 : (i + step + cells.length) % cells.length;
+    cells[next].focus();
+    cells[next].click();
+});
+
+// The fold animates on opacity and a short slide, never on height. Opening
+// runs on the toggle event, so a fold opened by script animates too; closing
+// holds the native toggle back until the fade has run.
+(function () {
+    var details = document.getElementById('icon-choices');
+    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    details.addEventListener('toggle', function () {
+        if (details.open && !reduced.matches) details.classList.add('is-opening');
+    });
+    details.addEventListener('animationend', function () {
+        if (details.classList.contains('is-closing')) details.open = false;
+        details.classList.remove('is-opening', 'is-closing');
+    });
+    details.querySelector('summary').addEventListener('click', function (e) {
+        if (!details.open || reduced.matches || details.classList.contains('is-closing')) return;
+        e.preventDefault();
+        details.classList.remove('is-opening');
+        details.classList.add('is-closing');
+    });
+})();
+
+function showChosen() {
+    var label = document.getElementById('icon-choices-label');
+    label.textContent = label.dataset.change;
+    document.getElementById('icon-remove-btn').hidden = false;
 }
 
 function selectBuiltinIcon(btn) {
@@ -118,7 +181,7 @@ function selectBuiltinIcon(btn) {
     document.getElementById('icon-preview').innerHTML =
         '<svg class="h-6 w-6 text-ink/70 dark:text-sand-light/60" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">' + svgPaths + '</svg>';
     markChosen(btn);
-    ensureRemoveButton();
+    showChosen();
 }
 
 function selectCustomIcon(btn) {
@@ -129,21 +192,7 @@ function selectCustomIcon(btn) {
     document.getElementById('icon-preview').innerHTML =
         '<img src="' + url + '" alt="{{ i18n.t("icons.icon_alt") }}" class="h-8 w-8 rounded-sm object-contain">';
     markChosen(btn);
-    ensureRemoveButton();
-}
-
-function ensureRemoveButton() {
-    var removeBtn = document.getElementById('icon-remove-btn');
-    if (!removeBtn) {
-        var container = document.getElementById('icon-preview').parentNode;
-        var rb = document.createElement('button');
-        rb.type = 'button';
-        rb.id = 'icon-remove-btn';
-        rb.onclick = clearIcon;
-        rb.className = 'text-[13px] font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors cursor-pointer';
-        rb.textContent = '{{ i18n.t("icons.remove") }}';
-        container.appendChild(rb);
-    }
+    showChosen();
 }
 
 // The upload swaps the grid with the new icon marked selected, but the hidden
@@ -152,7 +201,7 @@ function ensureRemoveButton() {
 document.body.addEventListener('htmx:afterSwap', function (e) {
     if (!e.target || e.target.id !== 'custom-icons-grid') return;
     var chosen = e.target.querySelector('.icon-cell[aria-checked="true"]');
-    if (chosen) selectCustomIcon(chosen);
+    if (chosen) selectCustomIcon(chosen); else initRoving();
 });
 
 // Clears the file input once the upload has been answered, so the same file
@@ -169,7 +218,9 @@ function clearIcon() {
     document.getElementById('icon-preview').innerHTML =
         '<svg class="h-5 w-5 text-ink/25 dark:text-sand-light/20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" /></svg>';
     markChosen(null);
-    var removeBtn = document.getElementById('icon-remove-btn');
-    if (removeBtn) removeBtn.remove();
+    var label = document.getElementById('icon-choices-label');
+    label.textContent = label.dataset.choose;
+    document.getElementById('icon-remove-btn').hidden = true;
+    document.getElementById('icon-choices').open = true;
 }
 </script>

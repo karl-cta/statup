@@ -212,6 +212,7 @@
   "services.confirm_delete": "Supprimer le service {name} ?",
   "services.submit_create": "Créer le service",
   "services.status_now": "en ce moment.",
+  "services.saved_notice": "enregistré. Visible sur la page publique dès maintenant.",
   "services.status_change_link": "Changer le statut depuis la liste des services",
   "services.consequence_new": "Ce service apparaîtra sur la page publique comme opérationnel.",
 
@@ -276,6 +277,8 @@
   "icons.uploading": "Téléversement",
   "icons.upload_hint_short": "PNG, JPG, WebP ou SVG, jusqu'à",
   "icons.remove": "Retirer",
+  "icons.choose": "Choisir une icône",
+  "icons.change": "Changer d'icône",
   "units.kb": "Ko",
   "icons.choose_file": "Choisir un fichier",
 

@@ -203,7 +203,8 @@
         justify-content: flex-end;
     }
 
-    .delete-confirm q {
+    .delete-confirm q,
+    .form-notice q {
         font-family: var(--font-sans);
         font-size: 13px;
         letter-spacing: 0;
@@ -211,7 +212,8 @@
         quotes: "\201C" "\201D";
     }
 
-    .delete-confirm q:lang(fr) {
+    .delete-confirm q:lang(fr),
+    .form-notice q:lang(fr) {
         quotes: "\00AB\00A0" "\00A0\00BB";
     }
 
@@ -3085,6 +3087,81 @@
     /* An icon cell is a radio. The chosen one is told by its border and by a
        check in its corner, so the choice never rests on colour alone, and the
        stylesheet reads aria-checked so the page and the script share one state. */
+    /* The icon grids fold behind the preview. The summary is the preview
+       plus one verb, no native marker, a chevron that turns when open. */
+    .icon-choices-summary {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        list-style: none;
+        width: fit-content;
+    }
+
+    .icon-choices-summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .icon-choices-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-muted-light);
+        transition: color 0.15s ease;
+    }
+
+    :is(.dark *) .icon-choices-label {
+        color: var(--color-muted-dark);
+    }
+
+    .icon-choices-summary:hover .icon-choices-label {
+        color: var(--color-ink);
+    }
+
+    :is(.dark *) .icon-choices-summary:hover .icon-choices-label {
+        color: var(--color-sand-light);
+    }
+
+    .icon-choices-chevron {
+        color: var(--color-muted-light);
+        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    :is(.dark *) .icon-choices-chevron {
+        color: var(--color-muted-dark);
+    }
+
+    .icon-choices[open] .icon-choices-chevron {
+        transform: rotate(180deg);
+    }
+
+    .icon-choices.is-opening .icon-choices-body {
+        animation: icon-choices-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .icon-choices.is-closing .icon-choices-body {
+        animation: icon-choices-out 0.16s ease-in forwards;
+    }
+
+    @keyframes icon-choices-in {
+        from { opacity: 0; transform: translateY(-6px); }
+        to { opacity: 1; transform: none; }
+    }
+
+    @keyframes icon-choices-out {
+        to { opacity: 0; transform: translateY(-6px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .icon-choices.is-opening .icon-choices-body,
+        .icon-choices.is-closing .icon-choices-body {
+            animation: none;
+        }
+
+        .icon-choices-chevron {
+            transition: none;
+        }
+    }
+
     .icon-cell {
         position: relative;
         border: 1px solid var(--hairline);

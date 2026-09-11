@@ -16,6 +16,12 @@
         </a>
     </div>
 
+    {% match saved_name %}
+    {% when Some with (name) %}
+    <div class="mt-5 form-notice animate-in delay-1" role="status"><q>{{ name }}</q> {{ i18n.t("services.saved_notice") }}</div>
+    {% when None %}
+    {% endmatch %}
+
     {% if services.is_empty() %}
     <div class="mt-12 text-center animate-in delay-1">
         <svg class="mx-auto h-12 w-12 text-ink/20 dark:text-sand-light/15" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" aria-hidden="true">

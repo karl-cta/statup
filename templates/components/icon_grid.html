@@ -23,6 +23,7 @@
                 onclick="selectCustomIcon(this)"
                 title="{{ icon.original_name }}"
                 aria-checked="{% if let Some(sel) = selected_icon_id %}{% if sel.eq(icon.id) %}true{% else %}false{% endif %}{% else %}false{% endif %}"
+                tabindex="{% if let Some(sel) = selected_icon_id %}{% if sel.eq(icon.id) %}0{% else %}-1{% endif %}{% else %}{% if loop.first %}0{% else %}-1{% endif %}{% endif %}"
                 aria-label="{{ i18n.t("icons.select") }} {{ icon.original_name }}">
             <img src="{{ icon.url() }}" alt="{{ icon.original_name }}" class="h-6 w-6 rounded-sm object-contain" loading="lazy">
         </button>
