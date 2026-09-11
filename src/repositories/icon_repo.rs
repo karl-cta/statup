@@ -45,6 +45,35 @@ impl IconRepository {
             .await
     }
 
+    /// Number of icons in the library.
+    pub async fn count(pool: &DbPool) -> Result<i64, sqlx::Error> {
+        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM icons")
+            .fetch_one(pool)
+            .await?;
+        Ok(row.0)
+    }
+
+    /// Every (icon id, service name) pair, so the library can say which
+    /// service wears which icon.
+    pub async fn service_names_by_icon(pool: &DbPool) -> Result<Vec<(i64, String)>, sqlx::Error> {
+        sqlx::query_as("SELECT icon_id, name FROM services WHERE icon_id IS NOT NULL ORDER BY name")
+            .fetch_all(pool)
+            .await
+    }
+
+    /// Uses outside services (events and templates), counted per icon.
+    pub async fn other_use_counts(pool: &DbPool) -> Result<Vec<(i64, i64)>, sqlx::Error> {
+        sqlx::query_as(
+            "SELECT icon_id, COUNT(*) FROM (\
+                SELECT icon_id FROM events WHERE icon_id IS NOT NULL \
+                UNION ALL \
+                SELECT icon_id FROM event_templates WHERE icon_id IS NOT NULL \
+             ) GROUP BY icon_id",
+        )
+        .fetch_all(pool)
+        .await
+    }
+
     /// Check if an icon is referenced by any service, event, or template.
     pub async fn is_referenced(pool: &DbPool, id: i64) -> Result<bool, sqlx::Error> {
         let row: (bool,) = sqlx::query_as(

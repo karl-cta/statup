@@ -95,7 +95,7 @@
             var p = a.getAttribute('data-nav');
             if (p === '/' && path === '/') {
                 if (bestLen < 1) { best = a; bestLen = 1; }
-            } else if (p !== '/' && path.indexOf(p) === 0 && p.length > bestLen) {
+            } else if (p !== '/' && (path.indexOf(p) === 0 || path.indexOf(a.getAttribute('data-nav-alias') || '\u0000') === 0) && p.length > bestLen) {
                 best = a; bestLen = p.length;
             }
         });

@@ -10,7 +10,7 @@ use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, RequireAdmin, ValidatedForm};
 use crate::models::{Role, User};
-use crate::repositories::{EventRepository, SettingsRepository, UserRepository};
+use crate::repositories::{EventRepository, IconRepository, SettingsRepository, UserRepository};
 use crate::services::EventService;
 use crate::state::AppState;
 
@@ -27,6 +27,7 @@ struct SettingsPageTemplate {
     instance_name: String,
     users_count: i64,
     admins_count: i64,
+    icons_count: i64,
     i18n: I18n,
 }
 
@@ -111,6 +112,7 @@ pub async fn settings_page(
     let unread_count = unread(&state.pool, &user).await?;
     let users_count = UserRepository::count_all(&state.pool).await?;
     let admins_count = UserRepository::count_admins(&state.pool).await?;
+    let icons_count = IconRepository::count(&state.pool).await?;
     let last_admin_action = EventRepository::last_admin_action(&state.pool)
         .await?
         .map(|dt| i18n.format_datetime_long(&dt));
@@ -126,6 +128,7 @@ pub async fn settings_page(
         instance_name: crate::instance_name(),
         users_count,
         admins_count,
+        icons_count,
         i18n,
     };
     render(&tpl)

@@ -65,14 +65,18 @@ impl IconService {
             .await?
             .ok_or(AppError::NotFound)?;
 
-        if IconRepository::is_referenced(pool, id).await? {
+        // A row whose file is gone shows a broken image wherever it is used;
+        // removing it clears those references (ON DELETE SET NULL), which is
+        // the only way to clean up. A row with a file stays protected.
+        let file_path = format!("{upload_dir}/icons/{}", icon.filename);
+        let file_exists = Path::new(&file_path).exists();
+        if file_exists && IconRepository::is_referenced(pool, id).await? {
             return Err(AppError::Validation("validation.icon_in_use".to_string()));
         }
 
         IconRepository::delete(pool, id).await?;
 
-        let file_path = format!("{upload_dir}/icons/{}", icon.filename);
-        if Path::new(&file_path).exists() {
+        if file_exists {
             let _ = tokio::fs::remove_file(&file_path).await;
         }
 

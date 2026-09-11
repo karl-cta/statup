@@ -3260,6 +3260,83 @@
         border-color: var(--color-ink);
     }
 
+    /* Icon library card: fixed width so one, two or thirty icons read the
+       same, the file name in ink, its usage under it, the action last. */
+    .icon-card {
+        display: flex;
+        flex-direction: column;
+        width: 188px;
+        padding: 14px 14px 12px;
+        border: 1px solid var(--color-sand-warm);
+        border-radius: 4px;
+        background: var(--color-cream);
+    }
+
+    :is(.dark *) .icon-card {
+        border-color: rgb(244 241 235 / 0.1);
+        background: var(--color-surface-1);
+    }
+
+    .icon-card-figure {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 56px;
+    }
+
+    .icon-card-name {
+        margin: 10px 0 0;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-ink);
+    }
+
+    :is(.dark *) .icon-card-name {
+        color: var(--color-sand-light);
+    }
+
+    .icon-card-use {
+        margin: 2px 0 0;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--color-muted-light);
+    }
+
+    :is(.dark *) .icon-card-use {
+        color: var(--color-muted-dark);
+    }
+
+    .icon-card-actions {
+        margin-top: auto;
+        padding-top: 10px;
+    }
+
+    /* Visible at rest, quiet, and only red once the hand is on it. */
+    .icon-delete {
+        padding: 3px 0;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--color-muted-light);
+        background: none;
+        border: 0;
+        cursor: pointer;
+        transition: color 0.12s;
+    }
+
+    :is(.dark *) .icon-delete {
+        color: var(--color-muted-dark);
+    }
+
+    .icon-delete:hover,
+    .icon-delete:focus-visible {
+        color: var(--sem-crit-text);
+    }
+
+    .icon-card-confirm {
+        justify-content: flex-start;
+        gap: 8px 12px;
+    }
+
     .icon-upload-field {
         display: flex;
         flex-direction: column;

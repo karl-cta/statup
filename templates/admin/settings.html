@@ -91,6 +91,26 @@
         </div>
     </section>
 
+    <section class="mt-6 card animate-in delay-3">
+        <div class="card-head">
+            <h2>
+                {{ i18n.t("admin.section_icons") }}
+                <span class="card-head-cnt">
+                    {{ icons_count }} {% if icons_count > 1 %}{{ i18n.t("admin.icons_count_many") }}{% else %}{{ i18n.t("admin.icons_count_one") }}{% endif %}
+                </span>
+            </h2>
+        </div>
+        <div class="set-row">
+            <div class="min-w-0">
+                <div class="set-label">{{ i18n.t("admin.icons_label") }}</div>
+                <p class="set-help">{{ i18n.t("admin.icons_help") }}</p>
+            </div>
+            <a href="/icons" class="btn-3d-ghost text-[13px] shrink-0">
+                <span>{{ i18n.t("admin.icons_manage") }}</span>
+            </a>
+        </div>
+    </section>
+
     <section class="mt-6 mb-8 card animate-in delay-3">
         <div class="card-head">
             <h2>{{ i18n.t("admin.section_dashboard") }}</h2>

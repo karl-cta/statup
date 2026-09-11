@@ -3,10 +3,11 @@
 //! Generates a random token per session and validates it on state-changing
 //! requests (POST, PUT, DELETE). The token is checked from:
 //! 1. `X-CSRF-Token` header (for HTMX / AJAX requests)
-//! 2. `csrf_token` form field (for regular form submissions)
+//! 2. `csrf_token` form field (for regular form submissions, URL-encoded
+//!    or multipart, so a file upload form works without script)
 
 use async_trait::async_trait;
-use axum::body::Body;
+use axum::body::{Body, Bytes};
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use axum::http::{Method, Request};
@@ -29,6 +30,11 @@ const CSRF_HEADER: &str = "x-csrf-token";
 
 /// Form field name for CSRF token submission.
 const CSRF_FORM_FIELD: &str = "csrf_token";
+
+/// Largest multipart body the middleware will buffer to find the token.
+/// Uploads are capped far below this by the handlers; the margin only has
+/// to let an oversized file reach the handler that names the limit.
+const MULTIPART_BUFFER_LIMIT: usize = 8 * 1024 * 1024;
 
 /// CSRF token injected into request extensions by the middleware.
 ///
@@ -170,8 +176,37 @@ async fn extract_submitted_token(
         return Ok((parts, body, token));
     }
 
-    // 3. Other content types, no token found
+    // 3. For multipart bodies (file uploads), parse the csrf_token part
+    let boundary = parts
+        .headers
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|ct| multer::parse_boundary(ct).ok());
+
+    if let Some(boundary) = boundary {
+        let bytes = axum::body::to_bytes(body, MULTIPART_BUFFER_LIMIT)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("failed to read request body: {e}")))?;
+
+        let token = extract_field_from_multipart(bytes.clone(), boundary).await;
+        let body = Body::from(bytes);
+        return Ok((parts, body, token));
+    }
+
+    // 4. Other content types, no token found
     Ok((parts, body, None))
+}
+
+/// Find the `csrf_token` part of a buffered multipart body.
+async fn extract_field_from_multipart(bytes: Bytes, boundary: String) -> Option<String> {
+    let stream = Body::from(bytes).into_data_stream();
+    let mut multipart = multer::Multipart::new(stream, boundary);
+    while let Ok(Some(field)) = multipart.next_field().await {
+        if field.name() == Some(CSRF_FORM_FIELD) {
+            return field.text().await.ok();
+        }
+    }
+    None
 }
 
 /// Parse a `csrf_token` value from URL-encoded form bytes.
@@ -242,6 +277,23 @@ mod tests {
     fn extract_csrf_missing_from_form_body() {
         let body = b"email=test%40example.com&password=secret";
         assert_eq!(extract_field_from_form(body), None);
+    }
+
+    #[tokio::test]
+    async fn extract_csrf_from_multipart_body() {
+        let body = "--b\r\nContent-Disposition: form-data; name=\"csrf_token\"\r\n\r\nabc123\r\n\
+                    --b\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.png\"\r\n\
+                    Content-Type: image/png\r\n\r\nPNG\r\n--b--\r\n";
+        let token = extract_field_from_multipart(Bytes::from(body), "b".to_owned()).await;
+        assert_eq!(token, Some("abc123".to_owned()));
+    }
+
+    #[tokio::test]
+    async fn extract_csrf_missing_from_multipart_body() {
+        let body = "--b\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.png\"\r\n\
+                    Content-Type: image/png\r\n\r\nPNG\r\n--b--\r\n";
+        let token = extract_field_from_multipart(Bytes::from(body), "b".to_owned()).await;
+        assert_eq!(token, None);
     }
 
     #[test]
