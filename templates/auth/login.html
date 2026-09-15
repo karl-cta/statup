@@ -1,79 +1,35 @@
-{% extends "base.html" %}
+{% extends "auth/_shell.html" %}
 
-{% block title %}{{ i18n.t("auth.login_title") }} | {{ crate::brand_name() }}{% endblock %}
+{% block title %}{{ i18n.t("auth.login_title") }} | {{ instance }}{% endblock %}
 
-{% block body %}
-<div class="flex min-h-full items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-    <div class="w-full max-w-sm animate-in">
-        <div class="relative rounded-sm border border-ink/10 bg-cream px-8 py-10 dark:border-sand-light/10 dark:bg-surface-1">
-            <div class="absolute right-3 top-3">
-                <button type="button" onclick="toggleTheme()"
-                        class="p-1.5 text-ink/45 transition-colors hover:text-ink dark:text-sand-light/45 dark:hover:text-sand-light"
-                        aria-label="{{ i18n.t("nav.toggle_theme") }}">
-                    <svg class="h-4 w-4 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                    </svg>
-                    <svg class="h-4 w-4 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                    </svg>
-                </button>
-            </div>
+{% block auth_head %}
+<h1 class="auth-title">{{ i18n.t("auth.login_heading") }} {{ instance }}</h1>
+{% endblock %}
 
-            <div class="text-center">
-                {% let logo_size = "mx-auto mb-6 h-14 w-auto text-ink dark:text-sand-light" %}
-                {% include "components/logo.html" %}
-                <h1 class="text-xl font-medium tracking-tight text-ink dark:text-sand-light">{{ i18n.t("auth.login_heading") }}</h1>
-                <p class="mt-1.5 text-[13px] text-ink/55 dark:text-sand-light/45">{{ i18n.t("auth.login_subtitle") }}</p>
-            </div>
-
-            {% match error %}
-            {% when Some with (msg) %}
-            <div id="form-error" class="mt-6 form-error" role="alert">
-        <p>{{ msg }}</p>
+{% block auth_body %}
+<form method="post" action="/login" class="auth-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% if let Some(msg) = error %}
+    <div id="form-error" class="form-error" role="alert"><p>{{ msg }}</p></div>
+    {% endif %}
+    <div class="auth-field">
+        <label for="email" class="field-label">{{ i18n.t("auth.email") }}</label>
+        <input id="email" class="input-raised" name="email" type="email" required aria-required="true" autocomplete="email"
+               value="{{ email }}" placeholder="you@example.com"{% if error.is_some() %} aria-invalid="true" aria-describedby="form-error"{% else %} autofocus{% endif %}>
     </div>
-            {% when None %}
-            {% endmatch %}
-
-            <form method="post" action="/login" class="mt-8 space-y-5"{% match error %}{% when Some with (_msg) %} aria-describedby="form-error"{% when None %}{% endmatch %}>
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <div>
-                    <label for="email" class="block text-[13px] font-medium text-ink/85 dark:text-sand-light/85">
-                        {{ i18n.t("auth.email") }}
-                    </label>
-                    <input id="email" name="email" type="email" required aria-required="true" autocomplete="email"
-                           value="{{ email }}"
-                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-[13px] placeholder-ink/35 dark:placeholder-sand-light/30"
-                           placeholder="you@example.com">
-                </div>
-
-                <div>
-                    <label for="password" class="block text-[13px] font-medium text-ink/85 dark:text-sand-light/85">
-                        {{ i18n.t("auth.password") }}
-                    </label>
-                    <input id="password" name="password" type="password" required aria-required="true" autocomplete="current-password"
-                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-[13px] placeholder-ink/35 dark:placeholder-sand-light/30"
-                           placeholder="{{ i18n.t("auth.password") }}">
-                </div>
-
-                <div class="flex items-center gap-2">
-                    <input id="remember_me" name="remember_me" type="checkbox" value="on" class="checkbox-fancy">
-                    <label for="remember_me" class="text-[13px] text-ink/70 dark:text-sand-light/60 cursor-pointer select-none">
-                        {{ i18n.t("auth.remember_me") }}
-                    </label>
-                </div>
-
-                <button type="submit" class="btn-3d w-full text-[13px]">
-                    <span>{{ i18n.t("auth.submit_login") }}</span>
-                </button>
-            </form>
-
-            <p class="mt-6 text-center text-[13px] text-ink/55 dark:text-sand-light/45">
-                {{ i18n.t("auth.no_account") }}
-                <a href="/register" class="font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors">
-                    {{ i18n.t("auth.create_account") }}
-                </a>
-            </p>
-        </div>
+    <div class="auth-field">
+        <label for="password" class="field-label">{{ i18n.t("auth.password") }}</label>
+        <input id="password" class="input-raised" name="password" type="password" required aria-required="true" autocomplete="current-password"{% if error.is_some() %} aria-invalid="true" aria-describedby="form-error" autofocus{% endif %}>
     </div>
-</div>
+    <label class="auth-check" for="remember_me">
+        <input id="remember_me" class="checkbox-fancy" name="remember_me" type="checkbox" value="on" checked>
+        <span>{{ i18n.t("auth.remember_me") }}</span>
+    </label>
+    <button type="submit" class="btn-3d auth-submit"><span>{{ i18n.t("auth.submit_login") }}</span></button>
+</form>
+{% if door.is_first_account() %}
+<p class="auth-alt text-muted">{{ i18n.t("auth.first_account_hint") }} <a href="/register" class="auth-link">{{ i18n.t("auth.first_account_link") }}</a></p>
+{% else if door.is_members() %}
+<p class="auth-alt text-muted">{{ i18n.t("auth.no_account") }} <a href="/register" class="auth-link">{{ i18n.t("auth.create_account") }}</a></p>
+{% endif %}
 {% endblock %}

@@ -1,80 +1,60 @@
-{% extends "base.html" %}
+{% extends "auth/_shell.html" %}
 
-{% block title %}{{ i18n.t("auth.register_title") }} | {{ crate::brand_name() }}{% endblock %}
+{% block title %}{{ i18n.t("auth.register_title") }} | {{ instance }}{% endblock %}
 
-{% block body %}
-<div class="flex min-h-full items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-    <div class="w-full max-w-sm animate-in">
-        <div class="rounded-sm border border-ink/10 bg-cream px-8 py-10 dark:border-sand-light/10 dark:bg-surface-1">
-            <div class="text-center">
-                {% let logo_size = "mx-auto mb-6 h-14 w-auto text-ink dark:text-sand-light" %}
-                {% include "components/logo.html" %}
-                <h1 class="text-2xl font-medium tracking-tight text-ink dark:text-sand-light">{{ i18n.t("auth.register_heading") }}</h1>
-                <p class="mt-1.5 text-[13px] text-ink/55 dark:text-sand-light/45">{{ i18n.t("auth.register_subtitle") }}</p>
-            </div>
+{% block auth_head %}
+{% if door.is_first_account() %}
+<h1 class="auth-title">{{ i18n.t("auth.first_account_heading") }} {{ instance }}</h1>
+<p class="auth-intro">{{ i18n.t("auth.first_account_intro") }}</p>
+{% else %}
+<h1 class="auth-title">{{ i18n.t("auth.join_heading") }} {{ instance }}</h1>
+<p class="auth-intro text-muted">{{ i18n.t("auth.join_intro") }}</p>
+{% endif %}
+{% endblock %}
 
-            {% match error %}
-            {% when Some with (msg) %}
-            <div id="form-error" class="mt-6 form-error" role="alert">
-        <p>{{ msg }}</p>
+{% block auth_body %}
+<form method="post" action="/register" class="auth-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% if let Some(msg) = errors.form %}
+    <div id="form-error" class="form-error" role="alert"><p>{{ msg }}</p></div>
+    {% endif %}
+    <div class="auth-field">
+        <label for="display_name" class="field-label">{{ i18n.t("auth.display_name") }}</label>
+        <input id="display_name" class="input-raised" name="display_name" type="text" required aria-required="true" autocomplete="name" maxlength="100"
+               value="{{ display_name }}"{% if errors.name.is_some() %} aria-invalid="true" aria-describedby="name-error"{% endif %}{% if errors.focus() == "display_name" %} autofocus{% endif %}>
+        {% if let Some(msg) = errors.name %}
+        <p id="name-error" class="field-error" role="alert">{{ msg }}</p>
+        {% endif %}
     </div>
-            {% when None %}
-            {% endmatch %}
-
-            <form method="post" action="/register" class="mt-8 space-y-5"{% match error %}{% when Some with (_msg) %} aria-describedby="form-error"{% when None %}{% endmatch %}>
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <div>
-                    <label for="display_name" class="block text-[13px] font-medium text-ink/85 dark:text-sand-light/85">
-                        {{ i18n.t("auth.display_name") }}
-                    </label>
-                    <input id="display_name" name="display_name" type="text" required aria-required="true" autocomplete="name"
-                           value="{{ display_name }}"
-                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-[13px] placeholder-ink/35 dark:placeholder-sand-light/30"
-                           placeholder="{{ i18n.t("auth.display_name") }}">
-                </div>
-
-                <div>
-                    <label for="email" class="block text-[13px] font-medium text-ink/85 dark:text-sand-light/85">
-                        {{ i18n.t("auth.email") }}
-                    </label>
-                    <input id="email" name="email" type="email" required aria-required="true" autocomplete="email"
-                           value="{{ email }}"
-                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-[13px] placeholder-ink/35 dark:placeholder-sand-light/30"
-                           placeholder="you@example.com">
-                </div>
-
-                <div>
-                    <label for="password" class="block text-[13px] font-medium text-ink/85 dark:text-sand-light/85">
-                        {{ i18n.t("auth.password") }}
-                    </label>
-                    <input id="password" name="password" type="password" required aria-required="true" autocomplete="new-password"
-                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-[13px] placeholder-ink/35 dark:placeholder-sand-light/30"
-                           placeholder="{{ i18n.t("validation.password_min_length") }}"
-                           aria-describedby="password-hint">
-                    <p id="password-hint" class="mt-1.5 text-[12px] text-ink/45 dark:text-sand-light/35">{{ i18n.t("validation.password_min_length") }}</p>
-                </div>
-
-                <div>
-                    <label for="password_confirm" class="block text-[13px] font-medium text-ink/85 dark:text-sand-light/85">
-                        {{ i18n.t("auth.password_confirm") }}
-                    </label>
-                    <input id="password_confirm" name="password_confirm" type="password" required aria-required="true" autocomplete="new-password"
-                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-[13px] placeholder-ink/35 dark:placeholder-sand-light/30"
-                           placeholder="{{ i18n.t("auth.password_confirm") }}">
-                </div>
-
-                <button type="submit" class="btn-3d w-full text-[13px]">
-                    <span>{{ i18n.t("auth.submit_register") }}</span>
-                </button>
-            </form>
-
-            <p class="mt-6 text-center text-[13px] text-ink/55 dark:text-sand-light/45">
-                {{ i18n.t("auth.have_account") }}
-                <a href="/login" class="font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors">
-                    {{ i18n.t("auth.submit_login") }}
-                </a>
-            </p>
-        </div>
+    <div class="auth-field">
+        <label for="email" class="field-label">{{ i18n.t("auth.email") }}</label>
+        <input id="email" class="input-raised" name="email" type="email" required aria-required="true" autocomplete="email"
+               value="{{ email }}" placeholder="you@example.com"{% if errors.email.is_some() %} aria-invalid="true" aria-describedby="email-error"{% endif %}{% if errors.focus() == "email" %} autofocus{% endif %}>
+        {% if let Some(msg) = errors.email %}
+        <p id="email-error" class="field-error" role="alert">{{ msg }}</p>
+        {% endif %}
     </div>
-</div>
+    <div class="auth-field">
+        <label for="password" class="field-label">{{ i18n.t("auth.password") }}</label>
+        <input id="password" class="input-raised" name="password" type="password" required aria-required="true" autocomplete="new-password" minlength="12"
+               aria-describedby="password-hint{% if errors.password.is_some() %} password-error{% endif %}"{% if errors.password.is_some() %} aria-invalid="true"{% endif %}{% if errors.focus() == "password" %} autofocus{% endif %}>
+        <p id="password-hint" class="field-hint text-muted">{{ i18n.t("auth.password_hint") }}</p>
+        {% if let Some(msg) = errors.password %}
+        <p id="password-error" class="field-error" role="alert">{{ msg }}</p>
+        {% endif %}
+    </div>
+    <div class="auth-field">
+        <label for="password_confirm" class="field-label">{{ i18n.t("auth.password_confirm") }}</label>
+        <input id="password_confirm" class="input-raised" name="password_confirm" type="password" required aria-required="true" autocomplete="new-password" minlength="12"{% if errors.confirm.is_some() %} aria-invalid="true" aria-describedby="confirm-error"{% endif %}{% if errors.focus() == "password_confirm" %} autofocus{% endif %}>
+        {% if let Some(msg) = errors.confirm %}
+        <p id="confirm-error" class="field-error" role="alert">{{ msg }}</p>
+        {% endif %}
+    </div>
+    <button type="submit" class="btn-3d auth-submit">
+        <span>{% if door.is_first_account() %}{{ i18n.t("auth.first_account_submit") }}{% else %}{{ i18n.t("auth.submit_register") }}{% endif %}</span>
+    </button>
+</form>
+{% if door.is_members() %}
+<p class="auth-alt text-muted">{{ i18n.t("auth.have_account") }} <a href="/login" class="auth-link">{{ i18n.t("auth.submit_login") }}</a></p>
+{% endif %}
 {% endblock %}

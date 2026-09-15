@@ -147,8 +147,9 @@ impl TestApp {
         (status, body, location)
     }
 
-    /// Register a user via the HTTP form flow. Returns the CSRF token for reuse.
-    async fn register_user(&self, email: &str, password: &str, display_name: &str) -> String {
+    /// Create an account through the form. The person is signed in on
+    /// success, so the helper lands on the dashboard. Returns the CSRF token.
+    async fn create_account(&self, email: &str, password: &str, display_name: &str) -> String {
         let (status, body) = self.get("/register").await;
         assert_eq!(status, StatusCode::OK);
         let csrf = extract_csrf_token(&body);
@@ -167,8 +168,32 @@ impl TestApp {
             .await;
 
         assert_eq!(status, StatusCode::SEE_OTHER, "register should redirect");
+        assert_eq!(location.as_deref(), Some("/"));
+        csrf
+    }
+
+    /// Create an account, then sign out, for tests that exercise the
+    /// sign-in form themselves.
+    async fn register_user(&self, email: &str, password: &str, display_name: &str) -> String {
+        let csrf = self.create_account(email, password, display_name).await;
+        let (status, _body, location) = self.post_form("/logout", &csrf, &[]).await;
+        assert_eq!(status, StatusCode::SEE_OTHER, "logout should redirect");
         assert_eq!(location.as_deref(), Some("/login"));
         csrf
+    }
+
+    /// Seed an administrator directly, so that the next account created
+    /// through the form is an ordinary reader rather than the first account.
+    async fn seed_admin(&self) {
+        AuthService::register(
+            &self.pool,
+            "owner@example.com",
+            "owner_password_12",
+            "Owner",
+            Role::Admin,
+        )
+        .await
+        .expect("failed to seed admin");
     }
 
     /// Login a user via the HTTP form flow. Panics on failure.
@@ -318,7 +343,8 @@ async fn protected_route_without_auth_redirects() {
 async fn reader_cannot_access_publisher_routes() {
     let app = TestApp::spawn().await;
 
-    // Register and login as a reader (default role)
+    // Register and login as a reader (the role every account after the first gets)
+    app.seed_admin().await;
     app.register_user("reader@example.com", "reader_password_12", "Reader")
         .await;
     app.login_user("reader@example.com", "reader_password_12")
@@ -339,6 +365,7 @@ async fn reader_cannot_access_publisher_routes() {
 async fn reader_cannot_access_admin_routes() {
     let app = TestApp::spawn().await;
 
+    app.seed_admin().await;
     app.register_user("viewer@example.com", "viewer_password_12", "Viewer")
         .await;
     app.login_user("viewer@example.com", "viewer_password_12")
@@ -451,10 +478,14 @@ async fn register_password_too_short() {
         )
         .await;
 
-    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(status, StatusCode::OK, "should re-render the form");
     assert!(
-        body.contains("12 caractères") || body.contains("12 caract"),
-        "should show password length error, got: {body}"
+        body.contains(r#"id="password-error""#) && body.contains("12 caract"),
+        "should show the password length error under the field"
+    );
+    assert!(
+        body.contains("short@example.com") && body.contains(r#"value="Short""#),
+        "should keep the other fields filled in"
     );
 }
 
@@ -537,23 +568,95 @@ async fn disabled_user_session_is_rejected() {
 }
 
 #[tokio::test]
-async fn public_mode_register_requires_admin() {
+async fn public_mode_register_is_closed_for_visitors() {
     let app = TestApp::spawn_public().await;
+    app.seed_admin().await;
 
-    // Unauthenticated user should not be able to access /register
-    let (status, _body) = app.get("/register").await;
+    let resp = app
+        .client
+        .get(app.url("/register"))
+        .send()
+        .await
+        .expect("GET /register failed");
+    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
     assert_eq!(
-        status,
-        StatusCode::UNAUTHORIZED,
-        "GET /register in public mode without auth should be 401"
+        resp.headers().get("location").and_then(|v| v.to_str().ok()),
+        Some("/login")
+    );
+
+    let (_, body) = app.get("/login").await;
+    assert!(
+        !body.contains(r#"href="/register""#),
+        "the sign-in page must not offer a closed door"
     );
 }
 
 #[tokio::test]
-async fn public_mode_reader_cannot_register() {
+async fn public_mode_fresh_instance_offers_the_first_account() {
     let app = TestApp::spawn_public().await;
 
-    // Create a reader user directly in DB
+    let (status, body) = app.get("/register").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("administrateur"));
+
+    let (_, body) = app.get("/login").await;
+    assert!(body.contains(r#"href="/register""#));
+}
+
+#[tokio::test]
+async fn members_instance_offers_sign_up_once_an_account_exists() {
+    let app = TestApp::spawn().await;
+    app.seed_admin().await;
+
+    let (status, body) = app.get("/register").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("Rejoindre") && !body.contains("administrateur"));
+
+    let (_, body) = app.get("/login").await;
+    assert!(body.contains(r#"href="/register""#));
+}
+
+#[tokio::test]
+async fn first_account_is_admin_and_signed_in() {
+    let app = TestApp::spawn().await;
+
+    app.create_account("first@example.com", "first_password_12", "First")
+        .await;
+
+    let user = UserRepository::find_by_email(&app.pool, "first@example.com")
+        .await
+        .expect("db error")
+        .expect("user not found");
+    assert_eq!(user.role, Role::Admin);
+
+    let (status, _body) = app.get("/admin/users").await;
+    assert_eq!(status, StatusCode::OK, "signed in straight after creation");
+}
+
+#[tokio::test]
+async fn signed_in_user_is_sent_home_from_login() {
+    let app = TestApp::spawn().await;
+    app.create_account("home@example.com", "home_password_123", "Home")
+        .await;
+
+    let resp = app
+        .client
+        .get(app.url("/login"))
+        .send()
+        .await
+        .expect("GET /login failed");
+    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
+    assert_eq!(
+        resp.headers().get("location").and_then(|v| v.to_str().ok()),
+        Some("/")
+    );
+}
+
+#[tokio::test]
+async fn public_mode_reader_is_sent_home_from_register() {
+    let app = TestApp::spawn_public().await;
+    app.seed_admin().await;
+
     AuthService::register(
         &app.pool,
         "reader@example.com",
@@ -567,50 +670,36 @@ async fn public_mode_reader_cannot_register() {
     app.login_user("reader@example.com", "reader_pass_1234")
         .await;
 
-    // Reader should be forbidden from /register in public mode
-    let (status, _body) = app.get("/register").await;
+    let resp = app
+        .client
+        .get(app.url("/register"))
+        .send()
+        .await
+        .expect("GET /register failed");
+    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
     assert_eq!(
-        status,
-        StatusCode::FORBIDDEN,
-        "GET /register in public mode as reader should be 403"
+        resp.headers().get("location").and_then(|v| v.to_str().ok()),
+        Some("/")
     );
 }
 
 #[tokio::test]
-async fn public_mode_admin_can_register_users() {
+async fn public_mode_admin_is_sent_to_the_team_page_from_register() {
     let app = TestApp::spawn_public().await;
-
-    // Create an admin user directly
-    AuthService::register(
-        &app.pool,
-        "admin@example.com",
-        "admin_pass_12345",
-        "Admin",
-        statup::models::Role::Reader,
-    )
-    .await
-    .expect("failed to create user");
-    let user = UserRepository::find_by_email(&app.pool, "admin@example.com")
-        .await
-        .expect("db error")
-        .expect("user not found");
-    UserRepository::update_role(&app.pool, user.id, Role::Admin)
-        .await
-        .expect("failed to update role");
-
-    app.login_user("admin@example.com", "admin_pass_12345")
+    app.seed_admin().await;
+    app.login_user("owner@example.com", "owner_password_12")
         .await;
 
-    // Admin should be able to access /register in public mode
-    let (status, body) = app.get("/register").await;
+    let resp = app
+        .client
+        .get(app.url("/register"))
+        .send()
+        .await
+        .expect("GET /register failed");
+    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
     assert_eq!(
-        status,
-        StatusCode::OK,
-        "GET /register in public mode as admin should be 200"
-    );
-    assert!(
-        body.contains("csrf_token"),
-        "register form should contain CSRF token"
+        resp.headers().get("location").and_then(|v| v.to_str().ok()),
+        Some("/admin/users")
     );
 }
 

@@ -359,6 +359,11 @@
         outline-offset: 2px;
     }
 
+    /* The dark button sits on the ink ground: an ink outline there measured 1.1:1. */
+    :is(.dark *) .btn-3d:focus-visible {
+        outline-color: var(--color-sand);
+    }
+
     :is(.dark *) {
         .btn-3d {
             color: var(--color-ink);
@@ -757,6 +762,10 @@
         .checkbox-fancy:hover {
             border-color: var(--color-sand);
             box-shadow: 0 0 0 3px rgb(244 241 235 / 0.14);
+        }
+        .checkbox-fancy:focus-visible {
+            border-color: var(--color-sand);
+            box-shadow: 0 0 0 3px rgb(244 241 235 / 0.18);
         }
         .checkbox-fancy:checked {
             background: var(--color-sand);
@@ -2944,6 +2953,175 @@
 
     :is(.dark *) .input-raised::placeholder {
         color: var(--color-muted-dark);
+    }
+
+    /* Sign-in and account creation: the door of the instance. One column on
+       the page itself, no card. A cream card on the white page and cream
+       fields on that card were three planes that measured under 1.25:1
+       against each other, so none of them read as an edge. */
+    .auth-page {
+        position: relative;
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 56px 16px 48px;
+    }
+
+    .auth-panel {
+        width: 100%;
+        max-width: 360px;
+    }
+
+    .auth-head {
+        margin-bottom: 28px;
+    }
+
+    .auth-mark {
+        height: 40px;
+        width: auto;
+        margin-bottom: 20px;
+    }
+
+    .auth-title {
+        font-size: 20px;
+        font-weight: 500;
+        line-height: 1.3;
+        letter-spacing: -0.01em;
+        color: var(--color-ink);
+    }
+
+    .auth-intro {
+        margin-top: 8px;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .auth-field .field-label {
+        display: block;
+        margin-bottom: 6px;
+    }
+
+    .auth-form .input-raised {
+        width: 100%;
+        padding: 10px 14px;
+        font-size: 14px;
+        border-color: var(--color-surface-3);
+    }
+
+    .field-hint {
+        margin-top: 6px;
+        font-size: 12px;
+    }
+
+    /* The message sits under the field it concerns, in the critical text
+       colour, and is announced on its own. */
+    .field-error {
+        margin-top: 6px;
+        font-size: 13px;
+        color: var(--sem-crit-text);
+    }
+
+    .auth-check {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        color: var(--color-ink);
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .auth-submit {
+        width: 100%;
+        font-size: 13px;
+    }
+
+    .auth-alt {
+        margin-top: 24px;
+        font-size: 13px;
+    }
+
+    .auth-link {
+        color: var(--color-ink);
+        font-weight: 500;
+        text-decoration: underline;
+        text-underline-offset: 4px;
+        text-decoration-color: var(--color-surface-3);
+        transition: text-decoration-color 0.15s ease;
+    }
+
+    .auth-link:hover,
+    .auth-link:focus-visible {
+        text-decoration-color: var(--color-ink);
+    }
+
+    .auth-link:focus-visible {
+        outline: 2px solid var(--color-ink);
+        outline-offset: 2px;
+        border-radius: 2px;
+    }
+
+    .auth-foot {
+        margin-top: 32px;
+        font-size: 12px;
+    }
+
+    .auth-theme {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border-radius: 6px;
+        color: var(--color-muted-light);
+        transition: color 0.15s ease;
+    }
+
+    .auth-theme:hover {
+        color: var(--color-ink);
+    }
+
+    .auth-theme:focus-visible {
+        outline: 2px solid var(--color-ink);
+        outline-offset: 2px;
+    }
+
+    :is(.dark *) {
+        .auth-title,
+        .auth-check,
+        .auth-link {
+            color: var(--color-sand-light);
+        }
+        .auth-form .input-raised {
+            border-color: rgb(244 241 235 / 0.22);
+        }
+        .auth-link {
+            text-decoration-color: rgb(244 241 235 / 0.3);
+        }
+        .auth-link:hover,
+        .auth-link:focus-visible {
+            text-decoration-color: var(--color-sand-light);
+        }
+        .auth-link:focus-visible,
+        .auth-theme:focus-visible {
+            outline-color: var(--color-sand);
+        }
+        .auth-theme {
+            color: var(--color-muted-dark);
+        }
+        .auth-theme:hover {
+            color: var(--color-sand-light);
+        }
     }
 
     .form-block {
