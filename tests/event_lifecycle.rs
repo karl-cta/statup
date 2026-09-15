@@ -698,6 +698,10 @@ async fn rejected_service_creation_gives_the_input_back() {
         body.contains(r#"action="/services/new""#),
         "the form should still post to the creation route"
     );
+    assert!(
+        body.contains(r#"id="name-error""#) && !body.contains(r#"id="form-error""#),
+        "a refused name is said under the name field, not above the form"
+    );
 }
 
 #[tokio::test]

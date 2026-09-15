@@ -56,7 +56,10 @@
             <input id="name" name="name" type="text" required aria-required="true" maxlength="100"
                    value="{% match service %}{% when Some with (s) %}{{ s.name }}{% when None %}{% endmatch %}"
                    class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm"
-                   placeholder="{{ i18n.t("services.name_placeholder") }}">
+                   placeholder="{{ i18n.t("services.name_placeholder") }}"{% if name_error.is_some() %} aria-invalid="true" aria-describedby="name-error" autofocus{% endif %}>
+            {% if let Some(msg) = name_error %}
+            <p id="name-error" class="field-error" role="alert">{{ msg }}</p>
+            {% endif %}
         </div>
 
         <div class="mt-5">

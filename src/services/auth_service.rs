@@ -106,7 +106,7 @@ impl AuthService {
 
         let user = UserRepository::create(pool, email, &password_hash, display_name, role).await?;
 
-        tracing::info!(user_id = user.id, email = email, "New user registered");
+        tracing::info!(user_id = user.id, "New user registered");
         Ok(user)
     }
 
@@ -150,11 +150,7 @@ impl AuthService {
         let user =
             UserRepository::create(pool, email, &password_hash, display_name, Role::Admin).await?;
 
-        tracing::info!(
-            user_id = user.id,
-            email = email,
-            "Initial admin user created"
-        );
+        tracing::info!(user_id = user.id, "Initial admin user created");
         Ok(())
     }
 
@@ -172,7 +168,7 @@ impl AuthService {
                 tracing::info!(user_id = user.id, "User logged in");
                 Ok(user)
             } else {
-                tracing::warn!(email = email, "Failed login attempt: wrong password");
+                tracing::warn!(user_id = user.id, "Failed login attempt: wrong password");
                 Err(AppError::Validation(
                     "validation.invalid_credentials".to_string(),
                 ))
@@ -180,7 +176,7 @@ impl AuthService {
         } else {
             // Dummy hash to prevent timing-based user enumeration
             let _ = Self::hash_password("dummy_password_for_timing");
-            tracing::warn!(email = email, "Failed login attempt: user not found");
+            tracing::warn!("Failed login attempt: unknown account");
             Err(AppError::Validation(
                 "validation.invalid_credentials".to_string(),
             ))

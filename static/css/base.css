@@ -141,20 +141,20 @@
     }
 
     ::-webkit-scrollbar-thumb {
-        background: rgb(27 33 26 / 0.18);
+        background: color-mix(in srgb, var(--color-ink) 18%, transparent);
         border-radius: 3px;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-        background: rgb(27 33 26 / 0.32);
+        background: color-mix(in srgb, var(--color-ink) 32%, transparent);
     }
 
     :is(.dark *) {
         ::-webkit-scrollbar-thumb {
-            background: rgb(244 241 235 / 0.18);
+            background: color-mix(in srgb, var(--color-sand) 18%, transparent);
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: rgb(244 241 235 / 0.34);
+            background: color-mix(in srgb, var(--color-sand) 34%, transparent);
         }
     }
 }

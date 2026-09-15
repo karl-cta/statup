@@ -125,11 +125,11 @@
 }
 
 :is(.dark *) {
-    --hairline:       rgb(244 241 235 / 0.08);
-    --line:           rgb(244 241 235 / 0.12);
-    --line-strong:    rgb(244 241 235 / 0.18);
-    --surface-hover:  rgb(244 241 235 / 0.04);
-    --surface-subtle: rgb(244 241 235 / 0.06);
+    --hairline:       color-mix(in srgb, var(--color-sand) 8%, transparent);
+    --line:           color-mix(in srgb, var(--color-sand) 12%, transparent);
+    --line-strong:    color-mix(in srgb, var(--color-sand) 18%, transparent);
+    --surface-hover:  color-mix(in srgb, var(--color-sand) 4%, transparent);
+    --surface-subtle: color-mix(in srgb, var(--color-sand) 6%, transparent);
 }
 
 

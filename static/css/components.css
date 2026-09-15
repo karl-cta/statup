@@ -238,7 +238,7 @@
     }
 
     @keyframes row-saved-out-dark {
-        0%, 40% { background-color: rgb(244 241 235 / 0.06); }
+        0%, 40% { background-color: var(--surface-subtle); }
         100% { background-color: transparent; }
     }
 
@@ -249,7 +249,7 @@
         }
 
         :is(.dark *) .row-saved {
-            background-color: rgb(244 241 235 / 0.06);
+            background-color: var(--surface-subtle);
         }
     }
 
@@ -285,10 +285,10 @@
         font-weight: 500;
         letter-spacing: 0.16em;
         text-transform: uppercase;
-        color: rgb(27 33 26 / 0.6);
+        color: var(--color-muted-light);
     }
 
-    :is(.dark *) .eyebrow { color: rgb(244 241 235 / 0.6); }
+    :is(.dark *) .eyebrow { color: var(--color-muted-dark); }
 
     /* Primary is Ink inverse, flat and grounded, no gradient or shadow stack. */
     .btn-3d {
@@ -418,12 +418,12 @@
     :is(.dark *) {
         .btn-3d-ghost {
             color: var(--color-sand-light);
-            background: rgb(244 241 235 / 0.06);
-            border-color: rgb(244 241 235 / 0.14);
+            background: var(--surface-subtle);
+            border-color: color-mix(in srgb, var(--color-sand) 14%, transparent);
         }
         .btn-3d-ghost:hover {
-            background: rgb(244 241 235 / 0.1);
-            border-color: rgb(244 241 235 / 0.22);
+            background: color-mix(in srgb, var(--color-sand) 10%, transparent);
+            border-color: color-mix(in srgb, var(--color-sand) 22%, transparent);
         }
     }
 
@@ -469,10 +469,10 @@
     :is(.dark *) {
         .card-raised {
             background: #242823;
-            border-color: rgb(244 241 235 / 0.1);
+            border-color: color-mix(in srgb, var(--color-sand) 10%, transparent);
         }
         .card-raised:hover {
-            border-color: rgb(244 241 235 / 0.2);
+            border-color: color-mix(in srgb, var(--color-sand) 20%, transparent);
         }
     }
 
@@ -487,19 +487,19 @@
 
     .input-raised:focus {
         border-color: var(--color-ink);
-        box-shadow: 0 0 0 3px rgb(27 33 26 / 0.12);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ink) 12%, transparent);
         outline: none;
     }
 
     :is(.dark *) {
         .input-raised {
-            background: rgb(244 241 235 / 0.05);
-            border-color: rgb(244 241 235 / 0.14);
+            background: color-mix(in srgb, var(--color-sand) 5%, transparent);
+            border-color: color-mix(in srgb, var(--color-sand) 14%, transparent);
             color: var(--color-sand-light);
         }
         .input-raised:focus {
             border-color: var(--color-sand);
-            box-shadow: 0 0 0 3px rgb(244 241 235 / 0.18);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-sand) 18%, transparent);
         }
     }
 
@@ -556,7 +556,7 @@
        every form. */
     .cs-trigger:focus-visible {
         border-color: var(--color-ink);
-        box-shadow: 0 0 0 3px rgb(27 33 26 / 0.12);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ink) 12%, transparent);
         outline: none;
     }
 
@@ -632,14 +632,14 @@
     }
 
     :is(.dark *) .cs-trigger {
-        background: rgb(244 241 235 / 0.05);
-        border-color: rgb(244 241 235 / 0.14);
+        background: color-mix(in srgb, var(--color-sand) 5%, transparent);
+        border-color: color-mix(in srgb, var(--color-sand) 14%, transparent);
         color: var(--color-sand-light);
     }
 
     :is(.dark *) .cs-trigger:focus-visible {
         border-color: var(--color-sand);
-        box-shadow: 0 0 0 3px rgb(244 241 235 / 0.18);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-sand) 18%, transparent);
     }
 
     :is(.dark *) .cs-trigger:hover {
@@ -648,12 +648,12 @@
 
     :is(.dark *) .cs-wrap.cs-open .cs-trigger {
         border-color: var(--color-sand);
-        box-shadow: 0 0 0 3px rgb(244 241 235 / 0.16);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-sand) 16%, transparent);
     }
 
     :is(.dark *) .cs-list {
         background: var(--color-surface-2);
-        border-color: rgb(244 241 235 / 0.12);
+        border-color: var(--line);
         box-shadow: 0 12px 32px -14px rgb(0 0 0 / 0.7), 0 3px 8px -2px rgb(0 0 0 / 0.45);
     }
 
@@ -662,7 +662,7 @@
     }
 
     :is(.dark *) .cs-option.cs-active {
-        background: rgb(244 241 235 / 0.1);
+        background: color-mix(in srgb, var(--color-sand) 10%, transparent);
     }
 
     .nav-pill {
@@ -672,7 +672,7 @@
         font-family: var(--font-sans);
         font-size: 14px;
         font-weight: 500;
-        color: rgb(27 33 26 / 0.65);
+        color: color-mix(in srgb, var(--color-ink) 65%, transparent);
         border-bottom: 2px solid transparent;
         transition: color 0.15s ease, border-color 0.15s ease;
     }
@@ -689,7 +689,7 @@
 
     :is(.dark *) {
         .nav-pill {
-            color: rgb(244 241 235 / 0.6);
+            color: color-mix(in srgb, var(--color-sand) 60%, transparent);
         }
         .nav-pill:hover {
             color: var(--color-sand-light);
@@ -716,13 +716,13 @@
 
     .checkbox-fancy:hover {
         border-color: var(--color-ink);
-        box-shadow: 0 0 0 3px rgb(27 33 26 / 0.1);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ink) 10%, transparent);
     }
 
     .checkbox-fancy:focus-visible {
         outline: none;
         border-color: var(--color-ink);
-        box-shadow: 0 0 0 3px rgb(27 33 26 / 0.18);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ink) 18%, transparent);
     }
 
     .checkbox-fancy:checked {
@@ -756,16 +756,16 @@
 
     :is(.dark *) {
         .checkbox-fancy {
-            background: rgb(244 241 235 / 0.05);
-            border-color: rgb(244 241 235 / 0.22);
+            background: color-mix(in srgb, var(--color-sand) 5%, transparent);
+            border-color: color-mix(in srgb, var(--color-sand) 22%, transparent);
         }
         .checkbox-fancy:hover {
             border-color: var(--color-sand);
-            box-shadow: 0 0 0 3px rgb(244 241 235 / 0.14);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-sand) 14%, transparent);
         }
         .checkbox-fancy:focus-visible {
             border-color: var(--color-sand);
-            box-shadow: 0 0 0 3px rgb(244 241 235 / 0.18);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-sand) 18%, transparent);
         }
         .checkbox-fancy:checked {
             background: var(--color-sand);
@@ -894,7 +894,7 @@
 
     :is(.dark *) .mast-top {
         color: var(--color-muted-dark);
-        border-bottom-color: rgb(244 241 235 / 0.12);
+        border-bottom-color: var(--line);
     }
 
     .mast-top a {
@@ -953,7 +953,7 @@
 
     :is(.dark *) .mnav {
         color: var(--color-muted-dark);
-        border-right-color: rgb(244 241 235 / 0.12);
+        border-right-color: var(--line);
     }
 
     .mnav:first-child {
@@ -976,7 +976,7 @@
 
     :is(.dark *) .mnav.active {
         color: var(--color-sand-light);
-        background: rgb(244 241 235 / 0.06);
+        background: var(--surface-subtle);
     }
 
     .mnav .mnav-badge {
@@ -1008,7 +1008,7 @@
     }
 
     :is(.dark *) .mnav-tools {
-        border-left-color: rgb(244 241 235 / 0.12);
+        border-left-color: var(--line);
     }
 
     .mnav-tool {
@@ -1027,7 +1027,7 @@
 
     :is(.dark *) .mnav-tool {
         color: var(--color-muted-dark);
-        border-right-color: rgb(244 241 235 / 0.12);
+        border-right-color: var(--line);
     }
 
     .mnav-tool:last-of-type {
@@ -1041,7 +1041,7 @@
 
     :is(.dark *) .mnav-tool:hover {
         color: var(--color-sand-light);
-        background: rgb(244 241 235 / 0.04);
+        background: var(--surface-hover);
     }
 
     .mnav-tool svg {
@@ -1064,7 +1064,7 @@
 
     :is(.dark *) .mnav-user {
         color: var(--color-sand-light);
-        border-left-color: rgb(244 241 235 / 0.12);
+        border-left-color: var(--line);
     }
 
     .mnav-user .who {
@@ -1104,7 +1104,7 @@
 
     :is(.dark *) .mast-burger {
         color: var(--color-muted-dark);
-        border-left-color: rgb(244 241 235 / 0.12);
+        border-left-color: var(--line);
     }
 
     .mast-burger:hover {
@@ -1239,8 +1239,8 @@
        alert tint disappears in dark mode, leaving an outage indistinguishable
        from a healthy page. The --sem-* tokens already carry their dark values. */
     :is(.dark *) .hero:not(.hero-incident) {
-        border-color: rgb(244 241 235 / 0.12);
-        background: rgb(244 241 235 / 0.03);
+        border-color: var(--line);
+        background: color-mix(in srgb, var(--color-sand) 3%, transparent);
     }
 
     /* The ground takes the hue of the worst active incident, not a fixed red.
@@ -1353,12 +1353,12 @@
 
     :is(.dark *) .hero-action {
         color: var(--color-sand-light);
-        border-color: rgb(244 241 235 / 0.14);
+        border-color: color-mix(in srgb, var(--color-sand) 14%, transparent);
     }
 
     :is(.dark *) .hero-action:hover {
-        background: rgb(244 241 235 / 0.06);
-        border-color: rgb(244 241 235 / 0.22);
+        background: var(--surface-subtle);
+        border-color: color-mix(in srgb, var(--color-sand) 22%, transparent);
     }
 
     /* Quiet on purpose: the feed link is a standing offer, not a signal, and
@@ -1427,7 +1427,7 @@
     }
 
     :is(.dark *) .hero-meta b {
-        color: rgb(244 241 235 / 0.85);
+        color: color-mix(in srgb, var(--color-sand) 85%, transparent);
     }
 
     .hero-meta-sep {
@@ -1437,7 +1437,7 @@
     }
 
     :is(.dark *) .hero-meta-sep {
-        color: rgb(244 241 235 / 0.28);
+        color: color-mix(in srgb, var(--color-sand) 28%, transparent);
     }
 
     .hero-list {
@@ -1534,8 +1534,8 @@
     }
 
     :is(.dark *) .card {
-        background: rgb(244 241 235 / 0.02);
-        border-color: rgb(244 241 235 / 0.1);
+        background: color-mix(in srgb, var(--color-sand) 2%, transparent);
+        border-color: color-mix(in srgb, var(--color-sand) 10%, transparent);
     }
 
     .card-head {
@@ -1547,7 +1547,7 @@
     }
 
     :is(.dark *) .card-head {
-        border-bottom-color: rgb(244 241 235 / 0.08);
+        border-bottom-color: var(--hairline);
     }
 
     .card-head h2 {
@@ -1596,7 +1596,7 @@
 
     :is(.dark *) .card-action:hover {
         color: var(--color-sand-light);
-        background: rgb(244 241 235 / 0.05);
+        background: color-mix(in srgb, var(--color-sand) 5%, transparent);
     }
 
     .card-empty {
@@ -1653,7 +1653,7 @@
     }
 
     :is(.dark *) .svc:hover {
-        background: rgb(244 241 235 / 0.03);
+        background: color-mix(in srgb, var(--color-sand) 3%, transparent);
     }
 
     /* Wraps rather than squeezes: in the narrow dashboard column the state word
@@ -2006,7 +2006,7 @@
     }
 
     :is(.dark *) .log-row {
-        border-top-color: rgb(244 241 235 / 0.06);
+        border-top-color: color-mix(in srgb, var(--color-sand) 6%, transparent);
     }
 
     .log-row:hover {
@@ -2014,7 +2014,7 @@
     }
 
     :is(.dark *) .log-row:hover {
-        background: rgb(244 241 235 / 0.04);
+        background: var(--surface-hover);
     }
 
     .log-time {
@@ -2230,9 +2230,9 @@
 
     :is(.dark *) .mnt-group-h {
         color: var(--color-muted-dark);
-        background: rgb(244 241 235 / 0.03);
-        border-top-color: rgb(244 241 235 / 0.06);
-        border-bottom-color: rgb(244 241 235 / 0.06);
+        background: color-mix(in srgb, var(--color-sand) 3%, transparent);
+        border-top-color: color-mix(in srgb, var(--color-sand) 6%, transparent);
+        border-bottom-color: color-mix(in srgb, var(--color-sand) 6%, transparent);
     }
 
     .mnt-group-h:first-child {
@@ -2247,7 +2247,7 @@
     }
 
     :is(.dark *) .mnt {
-        border-bottom-color: rgb(244 241 235 / 0.06);
+        border-bottom-color: color-mix(in srgb, var(--color-sand) 6%, transparent);
     }
 
     .mnt:hover {
@@ -2255,7 +2255,7 @@
     }
 
     :is(.dark *) .mnt:hover {
-        background: rgb(244 241 235 / 0.04);
+        background: var(--surface-hover);
     }
 
     .mnt-top {
@@ -2360,7 +2360,7 @@
     }
 
     :is(.dark *) .mnt-chip {
-        background: rgb(244 241 235 / 0.06);
+        background: var(--surface-subtle);
         color: var(--color-muted-dark);
     }
 
@@ -2375,7 +2375,7 @@
     }
 
     :is(.dark *) .mnt-past {
-        border-bottom-color: rgb(244 241 235 / 0.06);
+        border-bottom-color: color-mix(in srgb, var(--color-sand) 6%, transparent);
     }
 
     .mnt-past:last-of-type {
@@ -2387,7 +2387,7 @@
     }
 
     :is(.dark *) .mnt-past:hover {
-        background: rgb(244 241 235 / 0.04);
+        background: var(--surface-hover);
     }
 
     .mnt-past-title {
@@ -2456,7 +2456,7 @@
 
     :is(.dark *) .drawer {
         background: #1E1D1A;
-        border-left-color: rgb(244 241 235 / 0.1);
+        border-left-color: color-mix(in srgb, var(--color-sand) 10%, transparent);
     }
 
     .drawer.open {
@@ -2490,7 +2490,7 @@
     }
 
     :is(.dark *) .drawer-head {
-        border-bottom-color: rgb(244 241 235 / 0.08);
+        border-bottom-color: var(--hairline);
     }
 
     .drawer-kicker {
@@ -2533,7 +2533,7 @@
     }
 
     :is(.dark *) .drawer-close:hover {
-        background: rgb(244 241 235 / 0.06);
+        background: var(--surface-subtle);
         color: var(--color-sand-light);
     }
 
@@ -2568,7 +2568,7 @@
     }
 
     :is(.dark *) .drawer-section {
-        border-top-color: rgb(244 241 235 / 0.06);
+        border-top-color: color-mix(in srgb, var(--color-sand) 6%, transparent);
     }
 
     .drawer-section-first {
@@ -2629,7 +2629,7 @@
     }
 
     :is(.dark *) .rich-text {
-        color: rgb(244 241 235 / 0.85);
+        color: color-mix(in srgb, var(--color-sand) 85%, transparent);
     }
 
     .rich-text > * + * {
@@ -2668,7 +2668,7 @@
     }
 
     :is(.dark *) .rich-text a {
-        text-decoration-color: rgb(244 241 235 / 0.35);
+        text-decoration-color: color-mix(in srgb, var(--color-sand) 35%, transparent);
     }
 
     .rich-text code {
@@ -2707,7 +2707,7 @@
     }
 
     :is(.dark *) .drawer-update {
-        border-top-color: rgb(244 241 235 / 0.08);
+        border-top-color: var(--hairline);
     }
 
     .drawer-update:first-child {
@@ -2745,7 +2745,7 @@
     }
 
     :is(.dark *) .drawer-update-msg {
-        color: rgb(244 241 235 / 0.82);
+        color: color-mix(in srgb, var(--color-sand) 82%, transparent);
     }
 
     .drawer-foot {
@@ -2759,7 +2759,7 @@
     }
 
     :is(.dark *) .drawer-foot {
-        border-top-color: rgb(244 241 235 / 0.08);
+        border-top-color: var(--hairline);
     }
 
     .drawer-foot-link {
@@ -2794,7 +2794,7 @@
     }
 
     :is(.dark *) .drawer-foot-link:hover {
-        background: rgb(244 241 235 / 0.06);
+        background: var(--surface-subtle);
     }
 
     .drawer-loader {
@@ -2879,7 +2879,7 @@
     }
 
     :is(.dark *) .drawer-spinner {
-        border-color: rgb(244 241 235 / 0.15);
+        border-color: color-mix(in srgb, var(--color-sand) 15%, transparent);
         border-top-color: var(--color-sand-light);
     }
 
@@ -3108,10 +3108,10 @@
             color: var(--color-sand-light);
         }
         .auth-form .input-raised {
-            border-color: rgb(244 241 235 / 0.22);
+            border-color: color-mix(in srgb, var(--color-sand) 22%, transparent);
         }
         .auth-link {
-            text-decoration-color: rgb(244 241 235 / 0.3);
+            text-decoration-color: color-mix(in srgb, var(--color-sand) 30%, transparent);
         }
         .auth-link:hover,
         .auth-link:focus-visible {
@@ -3456,7 +3456,7 @@
     }
 
     :is(.dark *) .icon-card {
-        border-color: rgb(244 241 235 / 0.1);
+        border-color: color-mix(in srgb, var(--color-sand) 10%, transparent);
         background: var(--color-surface-1);
     }
 
@@ -3793,26 +3793,70 @@
         min-height: 42px;
     }
 
+    /* Neighbours glide into place while a module is moved (the layout
+       script sets a transform and releases it onto this transition). The
+       dragged row follows the pointer above them on the card's own ground,
+       and the gap it leaves shows where it will land. */
     .set-row-draggable {
-        cursor: move;
+        transition: transform 180ms cubic-bezier(0.25, 1, 0.5, 1);
     }
 
     .set-row.is-dragging {
-        opacity: 0.5;
+        position: relative;
+        z-index: 1;
+        background: var(--color-surface-1);
+        outline: 1px solid var(--line-strong);
+        border-radius: 4px;
+        user-select: none;
     }
 
+    @media (prefers-reduced-motion: reduce) {
+        .set-row-draggable {
+            transition: none;
+        }
+    }
+
+    /* The only way to reorder, so it reads as a control: a real button with
+       a finger-sized target around a small glyph, which keeps the page from
+       scrolling while it is dragged. */
     .row-handle {
         flex-shrink: 0;
-        color: rgb(28 27 24 / 0.35);
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        height: 24px;
-        width: 16px;
+        width: 32px;
+        height: 40px;
+        margin: -8px;
+        border-radius: 4px;
+        color: var(--color-muted-light);
+        cursor: grab;
+        touch-action: none;
+        transition: color 0.15s ease;
+    }
+
+    .row-handle:hover {
+        color: var(--color-ink);
+    }
+
+    .row-handle:focus-visible {
+        outline: 2px solid var(--color-ink);
+        outline-offset: -2px;
+    }
+
+    .set-row.is-dragging .row-handle {
+        cursor: grabbing;
     }
 
     :is(.dark *) .row-handle {
-        color: rgb(244 241 235 / 0.3);
+        color: var(--color-muted-dark);
+    }
+
+    :is(.dark *) .row-handle:hover {
+        color: var(--color-sand-light);
+    }
+
+    :is(.dark *) .row-handle:focus-visible {
+        outline-color: var(--color-sand-light);
     }
 
     .row-actions {
@@ -3820,68 +3864,6 @@
         align-items: center;
         gap: 12px;
         flex-shrink: 0;
-    }
-
-    .row-move {
-        display: inline-flex;
-        align-items: stretch;
-        border: 1px solid rgb(28 27 24 / 0.14);
-        border-radius: 4px;
-        overflow: hidden;
-        background: var(--color-sand-light);
-    }
-
-    :is(.dark *) .row-move {
-        border-color: rgb(244 241 235 / 0.12);
-        background: rgb(244 241 235 / 0.04);
-    }
-
-    .row-move-btn {
-        height: 36px;
-        width: 36px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--color-muted-light);
-        background: transparent;
-        cursor: pointer;
-        transition: background-color 0.15s ease, color 0.15s ease;
-    }
-
-    .row-move-btn + .row-move-btn {
-        border-left: 1px solid rgb(28 27 24 / 0.14);
-    }
-
-    :is(.dark *) .row-move-btn + .row-move-btn {
-        border-left-color: rgb(244 241 235 / 0.12);
-    }
-
-    .row-move-btn:hover:not(:disabled) {
-        background: rgb(28 27 24 / 0.05);
-        color: var(--color-ink);
-    }
-
-    :is(.dark *) .row-move-btn {
-        color: var(--color-muted-dark);
-    }
-
-    :is(.dark *) .row-move-btn:hover:not(:disabled) {
-        background: rgb(244 241 235 / 0.06);
-        color: var(--color-sand-light);
-    }
-
-    .row-move-btn:focus-visible {
-        outline: 2px solid var(--color-ink);
-        outline-offset: -2px;
-    }
-
-    :is(.dark *) .row-move-btn:focus-visible {
-        outline-color: var(--color-sand-light);
-    }
-
-    .row-move-btn:disabled {
-        opacity: 0.3;
-        cursor: not-allowed;
     }
 
     @media (max-width: 720px) {
@@ -4098,16 +4080,16 @@
     }
 
     :is(.dark *) .toggle {
-        background: rgb(244 241 235 / 0.08);
-        border-color: rgb(244 241 235 / 0.18);
+        background: color-mix(in srgb, var(--color-sand) 8%, transparent);
+        border-color: var(--line-strong);
     }
 
     :is(.dark *) .toggle:hover {
-        background: rgb(244 241 235 / 0.12);
+        background: color-mix(in srgb, var(--color-sand) 12%, transparent);
     }
 
     :is(.dark *) .toggle:focus-visible {
-        box-shadow: 0 0 0 3px rgb(244 241 235 / 0.18);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-sand) 18%, transparent);
     }
 
     :is(.dark *) .toggle[aria-checked="true"] {
@@ -4116,7 +4098,7 @@
     }
 
     :is(.dark *) .toggle[aria-checked="true"]:hover {
-        background: rgb(244 241 235 / 0.88);
+        background: color-mix(in srgb, var(--color-sand) 88%, transparent);
     }
 
     :is(.dark *) .toggle-thumb {

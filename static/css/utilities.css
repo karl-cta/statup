@@ -164,7 +164,7 @@
     }
 
     :is(.dark *) .hover-row:hover {
-        background-color: rgb(244 241 235 / 0.04);
+        background-color: var(--surface-hover);
     }
 
     a.card-raised:hover {
@@ -173,7 +173,7 @@
     }
 
     :is(.dark *) a.card-raised:hover {
-        border-color: rgb(244 241 235 / 0.22);
+        border-color: color-mix(in srgb, var(--color-sand) 22%, transparent);
     }
 
     /* Secondary text in the theme's muted ink, which clears AA on both

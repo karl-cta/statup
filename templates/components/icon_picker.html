@@ -47,8 +47,11 @@
             </summary>
 
             <div class="icon-choices-body">
-            <div class="mt-4">
-                <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-muted mb-2">{{ i18n.t("icons.builtin") }}</p>
+            <div class="mt-4" data-icon-group>
+                <div class="mb-2 flex min-w-0 items-baseline gap-2">
+                    <p class="shrink-0 text-[10.5px] font-medium uppercase tracking-[0.14em] text-muted">{{ i18n.t("icons.builtin") }}</p>
+                    <span class="icon-name-echo min-w-0 truncate text-[12px] text-muted" aria-hidden="true"></span>
+                </div>
                 <div class="grid grid-cols-6 gap-1.5 sm:grid-cols-8" role="radiogroup" aria-label="{{ i18n.t("icons.builtin") }}">
                     {% for icon in builtin_icons %}
                     <button type="button"
@@ -71,9 +74,12 @@
                 </div>
             </div>
 
-            <div class="mt-5">
-                <div class="flex items-baseline justify-between mb-2">
-                    <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-muted">{{ i18n.t("icons.custom") }}</p>
+            <div class="mt-5" data-icon-group>
+                <div class="flex items-baseline justify-between gap-2 mb-2">
+                    <div class="flex min-w-0 items-baseline gap-2">
+                        <p class="shrink-0 text-[10.5px] font-medium uppercase tracking-[0.14em] text-muted">{{ i18n.t("icons.custom") }}</p>
+                        <span class="icon-name-echo min-w-0 truncate text-[12px] text-muted" aria-hidden="true"></span>
+                    </div>
                     <span id="icon-upload-status" class="text-[10.5px] font-mono text-muted hidden">
                         {{ i18n.t("icons.uploading") }}
                     </span>
@@ -119,7 +125,41 @@ function markChosen(btn) {
         b.setAttribute('aria-checked', b === btn ? 'true' : 'false');
     });
     initRoving();
+    restoreNames();
 }
+
+// A cell's name lived only in its tooltip and its accessible name, which a
+// sighted keyboard or touch user never gets. It is echoed beside the group
+// title on hover and focus, and the chosen cell keeps its name there.
+function setEcho(group, cell) {
+    group.querySelector('.icon-name-echo').textContent = cell ? '· ' + cell.title : '';
+}
+
+function restoreNames() {
+    document.querySelectorAll('.icon-picker-wrapper [data-icon-group]').forEach(function (group) {
+        setEcho(group, group.querySelector('.icon-cell[aria-checked="true"]'));
+    });
+}
+
+(function () {
+    var picker = document.querySelector('.icon-picker-wrapper');
+    ['mouseover', 'focusin'].forEach(function (type) {
+        picker.addEventListener(type, function (e) {
+            var cell = e.target.closest ? e.target.closest('.icon-cell') : null;
+            if (cell) setEcho(cell.closest('[data-icon-group]'), cell);
+        });
+    });
+    // Leaving a cell for its neighbour keeps the echo: only leaving the grid
+    // puts the chosen name back, so the text does not flicker across gaps.
+    ['mouseout', 'focusout'].forEach(function (type) {
+        picker.addEventListener(type, function (e) {
+            var grid = e.target.closest ? e.target.closest('[role="radiogroup"]') : null;
+            var into = e.relatedTarget && e.relatedTarget.closest ? e.relatedTarget.closest('[role="radiogroup"]') : null;
+            if (grid && grid !== into) restoreNames();
+        });
+    });
+    restoreNames();
+})();
 
 // One tab stop per group, as a radio group promises: the chosen cell, or
 // the first one, is the only cell in the tab order. Arrows do the rest.
@@ -202,7 +242,12 @@ function selectCustomIcon(btn) {
 document.body.addEventListener('htmx:afterSwap', function (e) {
     if (!e.target || e.target.id !== 'custom-icons-grid') return;
     var chosen = e.target.querySelector('.icon-cell[aria-checked="true"]');
-    if (chosen) selectCustomIcon(chosen); else initRoving();
+    if (chosen) {
+        selectCustomIcon(chosen);
+    } else {
+        initRoving();
+        restoreNames();
+    }
 });
 
 // Clears the file input once the upload has been answered, so the same file

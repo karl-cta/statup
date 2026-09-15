@@ -610,6 +610,20 @@ async fn member_added_by_an_admin_must_replace_the_temporary_password() {
 }
 
 #[tokio::test]
+async fn modules_are_reordered_by_their_handle_alone() {
+    let (app, _admin_id) = spawn_with_admin().await;
+
+    let (status, body) = app.get("/admin/dashboard/public/layout").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("data-drag-handle"), "each row has a handle");
+    assert!(
+        !body.contains("data-move"),
+        "the arrow buttons that duplicated the handle are gone"
+    );
+    assert!(body.contains(r#"id="layout-saved""#) && body.contains(" hidden>"));
+}
+
+#[tokio::test]
 async fn role_change_with_invalid_role_is_rejected() {
     let (app, _admin_id) = spawn_with_admin().await;
 

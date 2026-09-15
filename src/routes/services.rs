@@ -48,6 +48,8 @@ struct ServiceFormTemplate {
     unread_count: i64,
     last_admin_action: Option<String>,
     error: Option<String>,
+    /// A refused name is said under the name field, not above the form.
+    name_error: Option<String>,
     /// Set only when editing, and kept apart from `service` so that a rejected
     /// creation can hand the author their input back without the form turning
     /// into an edit form pointed at a service that does not exist.
@@ -175,6 +177,7 @@ pub async fn new_form(
         unread_count,
         last_admin_action,
         error: None,
+        name_error: None,
         edit_id: None,
         service: None,
         selected_icon_id: None,
@@ -249,6 +252,12 @@ async fn render_service_form(
     let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
     let icon_url = resolve_icon_url(&state.pool, icon_id).await?;
     let custom_icons = IconRepository::list_all(&state.pool).await?;
+    let message = Some(i18n.t(error_key).to_string());
+    let (error, name_error) = if error_key.starts_with("validation.service_name") {
+        (None, message)
+    } else {
+        (message, None)
+    };
     let tpl = ServiceFormTemplate {
         csrf_token,
         user_display_name,
@@ -256,7 +265,8 @@ async fn render_service_form(
         is_authenticated,
         unread_count,
         last_admin_action,
-        error: Some(i18n.t(error_key).to_string()),
+        error,
+        name_error,
         edit_id,
         service: Some(service),
         selected_icon_id: icon_id,
@@ -295,6 +305,7 @@ pub async fn edit_form(
         unread_count,
         last_admin_action,
         error: None,
+        name_error: None,
         edit_id: Some(service.id),
         selected_icon_id: service.icon_id,
         selected_icon_url: icon_url,
