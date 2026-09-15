@@ -2984,6 +2984,11 @@
         margin-bottom: 20px;
     }
 
+    .auth-kicker {
+        margin-bottom: 6px;
+        font-size: 13px;
+    }
+
     .auth-title {
         font-size: 20px;
         font-weight: 500;

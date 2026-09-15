@@ -1,0 +1,12 @@
+{% extends "auth/_shell.html" %}
+
+{% block title %}{{ i18n.t("error.title") }} {{ code }} | {{ instance }}{% endblock %}
+
+{% block auth_head %}
+<p class="auth-kicker text-muted">{{ i18n.t("error.title") }} {{ code }}</p>
+<h1 class="auth-title">{{ message }}</h1>
+{% endblock %}
+
+{% block auth_body %}
+<p class="auth-alt"><a href="{{ back_href }}" class="auth-link">{{ back_label }}</a></p>
+{% endblock %}

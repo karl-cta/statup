@@ -735,3 +735,41 @@ async fn history_bookmarks_land_on_the_events_list() {
         Some("/events")
     );
 }
+
+#[tokio::test]
+async fn missing_event_renders_a_styled_error_page_in_the_request_language() {
+    let app = TestApp::spawn_public().await;
+
+    let (status, body) = app.get("/events/999999").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(body.contains("Page non trouvée") && body.contains("style.css"));
+    assert!(body.contains(r#"href="/""#), "offers a way back");
+
+    let resp = app
+        .client
+        .get(app.url("/events/999999"))
+        .header("Cookie", "lang=en")
+        .send()
+        .await
+        .expect("GET failed");
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    let body = resp.text().await.unwrap_or_default();
+    assert!(body.contains("Page not found"));
+}
+
+#[tokio::test]
+async fn htmx_request_gets_an_error_fragment_instead_of_a_page() {
+    let app = TestApp::spawn_public().await;
+
+    let resp = app
+        .client
+        .get(app.url("/events/999999"))
+        .header("HX-Request", "true")
+        .send()
+        .await
+        .expect("GET failed");
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    let body = resp.text().await.unwrap_or_default();
+    assert!(body.contains(r#"class="form-error""#) && body.contains("Page non trouvée"));
+    assert!(!body.contains("<html"), "a fragment, not a page");
+}

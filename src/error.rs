@@ -1,7 +1,12 @@
 //! Application error types and conversions.
 
+use askama::Template;
+use axum::extract::Request;
 use axum::http::{HeaderMap, StatusCode};
+use axum::middleware::Next;
 use axum::response::{Html, IntoResponse, Response};
+
+use crate::i18n::{I18n, Locale};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
@@ -42,14 +47,15 @@ impl From<validator::ValidationErrors> for AppError {
 }
 
 impl AppError {
-    fn status_and_message(&self) -> (StatusCode, &str) {
+    /// The status and the translation key of the message shown to the person.
+    fn status_and_key(&self) -> (StatusCode, &str) {
         match self {
-            Self::NotFound => (StatusCode::NOT_FOUND, "Resource not found"),
-            Self::Unauthorized => (StatusCode::UNAUTHORIZED, "Please log in"),
-            Self::Forbidden => (StatusCode::FORBIDDEN, "Permission denied"),
-            Self::Validation(msg) => (StatusCode::BAD_REQUEST, msg.as_str()),
+            Self::NotFound => (StatusCode::NOT_FOUND, "error.not_found"),
+            Self::Unauthorized => (StatusCode::UNAUTHORIZED, "error.unauthorized"),
+            Self::Forbidden => (StatusCode::FORBIDDEN, "error.forbidden"),
+            Self::Validation(key) => (StatusCode::BAD_REQUEST, key.as_str()),
             Self::Database(_) | Self::Internal(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
+                (StatusCode::INTERNAL_SERVER_ERROR, "error.internal")
             }
         }
     }
@@ -75,70 +81,89 @@ impl AppError {
     }
 }
 
-/// Check if the request originates from HTMX (partial request).
-fn is_htmx_request(headers: &HeaderMap) -> bool {
-    headers.contains_key("hx-request")
-}
-
-/// Render an HTMX error fragment.
-fn htmx_error_response(status: StatusCode, message: &str) -> Response {
-    let html = format!(
-        r#"<div id="error-message" class="alert alert-error" role="alert">{message}</div>"#
-    );
-    (status, Html(html)).into_response()
-}
-
-/// Render a full HTML error page.
-fn html_error_response(status: StatusCode, message: &str) -> Response {
-    let code = status.as_u16();
-    let i18n = crate::i18n::I18n::default();
-    let translated_message = i18n.t(message);
-    let title = i18n.t("error.title");
-    let back = i18n.t("error.back_home");
-    let html = format!(
-        r#"<!DOCTYPE html>
-<html lang="{lang}">
-<head><meta charset="utf-8"><title>{title} {code}</title></head>
-<body>
-<div class="error-page">
-    <h1>{code}</h1>
-    <p>{translated_message}</p>
-    <a href="/">{back}</a>
-</div>
-</body>
-</html>"#,
-        lang = i18n.locale(),
-    );
-    (status, Html(html)).into_response()
+/// What an error response carries until `render_error_pages` turns it into
+/// a page in the visitor's language. `IntoResponse` has no access to the
+/// request, so the rendering happens one layer up.
+#[derive(Clone)]
+struct ErrorPayload {
+    status: StatusCode,
+    key: String,
 }
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         self.log();
-        let (status, message) = self.status_and_message();
-
-        // We don't have access to the request headers in IntoResponse directly.
-        // Return a plain HTML error page for now; HTMX detection will be handled
-        // once we have a middleware or extractor that captures the HX-Request header.
-        html_error_response(status, message)
+        let (status, key) = self.status_and_key();
+        let payload = ErrorPayload {
+            status,
+            key: key.to_string(),
+        };
+        let mut response = (status, I18n::default().t(key).to_string()).into_response();
+        response.extensions_mut().insert(payload);
+        response
     }
 }
 
-/// Convert an `AppError` into a response, with HTMX-aware formatting.
-///
-/// Use this in handlers where you have access to request headers:
-/// ```ignore
-/// let response = error.into_response_for(&headers);
-/// ```
-impl AppError {
-    pub fn into_response_for(self, headers: &HeaderMap) -> Response {
-        self.log();
-        let (status, message) = self.status_and_message();
+#[derive(Template)]
+#[template(path = "error.html")]
+struct ErrorTemplate {
+    csrf_token: String,
+    instance: String,
+    powered_by: bool,
+    code: u16,
+    message: String,
+    back_href: &'static str,
+    back_label: String,
+    i18n: I18n,
+}
 
-        if is_htmx_request(headers) {
-            htmx_error_response(status, message)
-        } else {
-            html_error_response(status, message)
+#[derive(Template)]
+#[template(path = "components/error_fragment.html")]
+struct ErrorFragment {
+    message: String,
+}
+
+/// Middleware that renders every `AppError` as a page in the language of
+/// the request, or as a form banner when htmx asked for a fragment.
+pub async fn render_error_pages(
+    Locale(i18n): Locale,
+    headers: HeaderMap,
+    request: Request,
+    next: Next,
+) -> Response {
+    let response = next.run(request).await;
+    let Some(payload) = response.extensions().get::<ErrorPayload>().cloned() else {
+        return response;
+    };
+    let message = i18n.t(&payload.key).to_string();
+    let rendered = if headers.contains_key("hx-request") {
+        ErrorFragment { message }.render()
+    } else {
+        error_page(payload.status, message, i18n).render()
+    };
+    match rendered {
+        Ok(html) => (payload.status, Html(html)).into_response(),
+        Err(e) => {
+            tracing::error!("error page render failed: {e}");
+            response
         }
+    }
+}
+
+fn error_page(status: StatusCode, message: String, i18n: I18n) -> ErrorTemplate {
+    let (back_href, back_label) = if status == StatusCode::UNAUTHORIZED {
+        ("/login", i18n.t("auth.submit_login").to_string())
+    } else {
+        ("/", i18n.t("error.back_home").to_string())
+    };
+    ErrorTemplate {
+        csrf_token: String::new(),
+        instance: crate::brand_name(),
+        powered_by: !crate::instance_name().is_empty(),
+        code: status.as_u16(),
+        message,
+        back_href,
+        back_label,
+        i18n,
     }
 }

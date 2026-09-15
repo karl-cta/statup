@@ -152,7 +152,8 @@ pub fn create_router(state: AppState) -> Router {
         // Logout (authenticated)
         .route("/logout", post(auth::logout))
 
-        .layer(middleware::from_fn(csrf_middleware));
+        .layer(middleware::from_fn(csrf_middleware))
+        .layer(middleware::from_fn(crate::error::render_error_pages));
 
     // 100 requests per minute per client, dynamic routes only. Behind a reverse
     // proxy every visitor shares the proxy address, which would turn a per
