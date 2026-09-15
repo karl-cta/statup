@@ -585,6 +585,31 @@ async fn admin_users_page_lists_all_users() {
 }
 
 #[tokio::test]
+async fn member_added_by_an_admin_must_replace_the_temporary_password() {
+    let (app, _admin_id) = spawn_with_admin().await;
+    let csrf = app.csrf().await;
+
+    let (status, _body, _) = app
+        .post_form(
+            "/admin/users/new",
+            &csrf,
+            &[
+                ("display_name", "Paul"),
+                ("email", "paul@test.com"),
+                ("role", "reader"),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let member = UserRepository::find_by_email(&app.pool, "paul@test.com")
+        .await
+        .expect("db error")
+        .expect("member not created");
+    assert!(member.must_change_password);
+}
+
+#[tokio::test]
 async fn role_change_with_invalid_role_is_rejected() {
     let (app, _admin_id) = spawn_with_admin().await;
 

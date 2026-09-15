@@ -19,6 +19,7 @@ mod feed;
 mod health;
 mod icons;
 mod locale;
+mod password;
 mod profile;
 mod services;
 
@@ -37,6 +38,7 @@ use tower_http::services::ServeDir;
 use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::middleware::csrf::csrf_middleware;
+use crate::middleware::require_password_change;
 use crate::state::AppState;
 
 // Sub-modules are accessed via qualified paths (e.g. auth::login) in the router.
@@ -148,10 +150,15 @@ pub fn create_router(state: AppState) -> Router {
         // Profile routes (authenticated)
         .route("/profile", get(profile::edit_form).post(profile::update_profile))
         .route("/profile/password", post(profile::update_password))
+        .route("/password/new", get(password::form).post(password::update))
 
         // Logout (authenticated)
         .route("/logout", post(auth::logout))
 
+        .layer(middleware::from_fn_with_state(
+            state.pool.clone(),
+            require_password_change,
+        ))
         .layer(middleware::from_fn(csrf_middleware))
         .layer(middleware::from_fn(crate::error::render_error_pages));
 

@@ -633,6 +633,133 @@ async fn first_account_is_admin_and_signed_in() {
     assert_eq!(status, StatusCode::OK, "signed in straight after creation");
 }
 
+/// Status and `Location` of a GET, for pages expected to redirect.
+async fn redirect_of(app: &TestApp, path: &str) -> (StatusCode, Option<String>) {
+    let resp = app
+        .client
+        .get(app.url(path))
+        .send()
+        .await
+        .expect("GET request failed");
+    let location = resp
+        .headers()
+        .get("location")
+        .and_then(|v| v.to_str().ok())
+        .map(ToOwned::to_owned);
+    (resp.status(), location)
+}
+
+#[tokio::test]
+async fn temporary_password_must_be_replaced_before_anything_else() {
+    let app = TestApp::spawn().await;
+    app.seed_admin().await;
+    let member = AuthService::register(
+        &app.pool,
+        "member@example.com",
+        "temporary_pass_1",
+        "Member",
+        Role::Reader,
+    )
+    .await
+    .expect("failed to create member");
+    UserRepository::require_password_change(&app.pool, member.id)
+        .await
+        .expect("failed to flag member");
+
+    let (_, body) = app.get("/login").await;
+    let csrf = extract_csrf_token(&body);
+    let (status, _body, location) = app
+        .post_form(
+            "/login",
+            &csrf,
+            &[
+                ("email", "member@example.com"),
+                ("password", "temporary_pass_1"),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/password/new"));
+
+    let (status, location) = redirect_of(&app, "/events").await;
+    assert_eq!(
+        status,
+        StatusCode::SEE_OTHER,
+        "every other page is held back"
+    );
+    assert_eq!(location.as_deref(), Some("/password/new"));
+
+    let (status, body) = app.get("/password/new").await;
+    assert_eq!(status, StatusCode::OK);
+    let csrf = extract_csrf_token(&body);
+
+    let (status, body, _) = app
+        .post_form(
+            "/password/new",
+            &csrf,
+            &[
+                ("password", "temporary_pass_1"),
+                ("password_confirm", "temporary_pass_1"),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains(r#"id="password-error""#),
+        "the temporary password cannot be kept"
+    );
+
+    let (status, body, _) = app
+        .post_form(
+            "/password/new",
+            &csrf,
+            &[
+                ("password", "my_own_password_42"),
+                ("password_confirm", "my_own_password_43"),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains(r#"id="confirm-error""#));
+
+    let (status, _body, location) = app
+        .post_form(
+            "/password/new",
+            &csrf,
+            &[
+                ("password", "my_own_password_42"),
+                ("password_confirm", "my_own_password_42"),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/"));
+
+    let (status, _body) = app.get("/events").await;
+    assert_eq!(status, StatusCode::OK, "the instance opens once replaced");
+
+    let user = UserRepository::find_by_id(&app.pool, member.id)
+        .await
+        .expect("db error")
+        .expect("user not found");
+    assert!(!user.must_change_password);
+    assert!(
+        AuthService::verify_password("my_own_password_42", &user.password_hash)
+            .expect("hash error")
+    );
+}
+
+#[tokio::test]
+async fn account_created_by_its_owner_is_not_asked_for_a_new_password() {
+    let app = TestApp::spawn().await;
+    app.create_account("owner@example.com", "owner_password_12", "Owner")
+        .await;
+
+    let (status, location) = redirect_of(&app, "/password/new").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/"));
+}
+
 #[tokio::test]
 async fn signed_in_user_is_sent_home_from_login() {
     let app = TestApp::spawn().await;

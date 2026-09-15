@@ -124,14 +124,24 @@ impl UserRepository {
         Ok(())
     }
 
-    /// Update a user's password hash.
+    /// Update a user's password hash. A password the person chose clears any
+    /// pending request to replace it.
     pub async fn update_password(
         pool: &DbPool,
         user_id: i64,
         password_hash: &str,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE users SET password_hash = ? WHERE id = ?")
+        sqlx::query("UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?")
             .bind(password_hash)
+            .bind(user_id)
+            .execute(pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Ask the person to replace their password at their next request.
+    pub async fn require_password_change(pool: &DbPool, user_id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE users SET must_change_password = 1 WHERE id = ?")
             .bind(user_id)
             .execute(pool)
             .await?;

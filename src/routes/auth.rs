@@ -190,7 +190,7 @@ fn render(tpl: &impl Template) -> Result<Response, AppError> {
 
 /// The name the door is titled with, and whether it is the host's own name
 /// (in which case the page also says who built the product).
-fn instance_title() -> (String, bool) {
+pub(super) fn instance_title() -> (String, bool) {
     let powered_by = !crate::instance_name().is_empty();
     (crate::brand_name(), powered_by)
 }
@@ -254,7 +254,15 @@ pub async fn login(
             };
             open_session(&session, &user, expiry).await?;
 
-            Ok(redirect_with_locale("/", user.preferred_locale.as_deref()))
+            let target = if user.must_change_password {
+                "/password/new"
+            } else {
+                "/"
+            };
+            Ok(redirect_with_locale(
+                target,
+                user.preferred_locale.as_deref(),
+            ))
         }
         Err(e) => {
             state.login_limiter.record_failure(&ip);

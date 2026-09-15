@@ -4,9 +4,10 @@
 use std::convert::Infallible;
 
 use async_trait::async_trait;
-use axum::extract::{FromRef, FromRequestParts};
+use axum::extract::{FromRef, FromRequestParts, Request, State};
 use axum::http::request::Parts;
-use axum::response::Redirect;
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Redirect, Response};
 use tower_sessions::Session;
 
 use crate::db::DbPool;
@@ -81,6 +82,36 @@ where
     }
 
     Some(user)
+}
+
+/// Where a person with a temporary password can still go: the page that
+/// replaces it, and the ways out.
+const PASSWORD_CHANGE_PATHS: [&str; 5] = ["/password/new", "/login", "/logout", "/i18n", "/health"];
+
+/// Sends a signed-in person whose password was chosen by someone else to the
+/// page that replaces it, whatever page they asked for.
+pub async fn require_password_change(
+    State(pool): State<DbPool>,
+    session: Session,
+    request: Request,
+    next: Next,
+) -> Response {
+    if !PASSWORD_CHANGE_PATHS.contains(&request.uri().path())
+        && must_change_password(&session, &pool).await
+    {
+        return Redirect::to("/password/new").into_response();
+    }
+    next.run(request).await
+}
+
+async fn must_change_password(session: &Session, pool: &DbPool) -> bool {
+    let Ok(Some(user_id)) = session.get::<i64>(USER_ID_KEY).await else {
+        return false;
+    };
+    matches!(
+        UserRepository::find_by_id(pool, user_id).await,
+        Ok(Some(user)) if user.is_active && user.must_change_password
+    )
 }
 
 /// Extractor that requires the authenticated user to have the `Publisher` or `Admin` role.

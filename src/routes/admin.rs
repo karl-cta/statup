@@ -376,6 +376,7 @@ pub async fn add_member(
             role,
         )
         .await?;
+        UserRepository::require_password_change(&state.pool, user.id).await?;
         Ok::<_, AppError>((user, password))
     }
     .await;
