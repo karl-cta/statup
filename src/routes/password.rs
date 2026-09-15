@@ -5,6 +5,7 @@ use askama::Template;
 use axum::extract::State;
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use serde::Deserialize;
+use tower_sessions::Session;
 
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
@@ -12,6 +13,7 @@ use crate::middleware::{AuthUser, CsrfToken, HtmlForm};
 use crate::models::User;
 use crate::repositories::UserRepository;
 use crate::services::AuthService;
+use crate::session::stamp_credential;
 use crate::state::AppState;
 
 use super::auth::instance_title;
@@ -98,6 +100,7 @@ fn check_new_password(
 pub async fn update(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
+    session: Session,
     csrf_token: CsrfToken,
     Locale(i18n): Locale,
     HtmlForm(input): HtmlForm<NewPasswordInput>,
@@ -113,6 +116,7 @@ pub async fn update(
 
     let hash = AuthService::hash_password(&input.password)?;
     UserRepository::update_password(&state.pool, user.id, &hash).await?;
+    stamp_credential(&session, &hash).await?;
     tracing::info!(user_id = user.id, "Temporary password replaced");
 
     Ok(Redirect::to("/").into_response())

@@ -14,6 +14,11 @@ use statup::state::AppState;
 
 #[tokio::main]
 async fn main() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if !args.is_empty() {
+        std::process::exit(statup::cli::run(&args).await);
+    }
+
     let config = Config::from_env().expect("Failed to load configuration");
 
     init_logging(config.log_level);

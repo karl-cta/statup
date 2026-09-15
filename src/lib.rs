@@ -60,6 +60,7 @@ pub fn init_css_version() {
     let _ = CSS_VERSION.set(version);
 }
 
+pub mod cli;
 pub mod config;
 pub mod db;
 pub mod error;

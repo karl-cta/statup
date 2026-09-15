@@ -3,8 +3,6 @@
 use askama::Template;
 use axum::extract::{Path, Query, State};
 use axum::response::{Html, IntoResponse, Redirect, Response};
-use rand::Rng;
-use rand::distributions::Alphanumeric;
 use serde::Deserialize;
 use validator::Validate;
 
@@ -141,17 +139,6 @@ pub struct AddMemberInput {
     email: String,
     #[validate(length(min = 1, max = 20, message = "validation.invalid_role"))]
     role: String,
-}
-
-/// Long enough to resist guessing, short enough to read out over a call.
-const TEMP_PASSWORD_LENGTH: usize = 16;
-
-fn temporary_password() -> String {
-    rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(TEMP_PASSWORD_LENGTH)
-        .map(char::from)
-        .collect()
 }
 
 #[derive(Deserialize, Validate)]
@@ -367,7 +354,7 @@ pub async fn add_member(
 ) -> Result<Response, AppError> {
     let created = async {
         let role = parse_role(&input.role)?;
-        let password = temporary_password();
+        let password = AuthService::temporary_password();
         let user = AuthService::register(
             &state.pool,
             &input.email,

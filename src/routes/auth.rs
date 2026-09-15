@@ -18,7 +18,7 @@ use crate::middleware::{CsrfToken, HtmlForm, OptionalUser, ValidatedForm};
 use crate::models::{Role, User};
 use crate::repositories::UserRepository;
 use crate::services::AuthService;
-use crate::session::USER_ID_KEY;
+use crate::session::{USER_ID_KEY, stamp_credential};
 use crate::state::AppState;
 
 /// Who the registration page is for. Decided from the database and the
@@ -281,7 +281,8 @@ async fn open_session(session: &Session, user: &User, expiry: Expiry) -> Result<
     session
         .insert(USER_ID_KEY, user.id)
         .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("session insert failed: {e}")))
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("session insert failed: {e}")))?;
+    stamp_credential(session, &user.password_hash).await
 }
 
 /// Where a visitor lands when the registration page is closed: the team

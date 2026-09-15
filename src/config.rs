@@ -16,6 +16,9 @@ pub enum ConfigError {
     InvalidValue { key: String, message: String },
 }
 
+/// Where the database lives when `DATABASE_URL` is not set.
+pub const DEFAULT_DATABASE_URL: &str = "./statup.db";
+
 /// Application configuration.
 pub struct Config {
     /// `SQLite` database path.
@@ -59,7 +62,7 @@ impl Config {
     pub fn from_env() -> Result<Self, ConfigError> {
         dotenvy::dotenv().ok();
 
-        let database_url = get_env_or("DATABASE_URL", "./statup.db");
+        let database_url = get_env_or("DATABASE_URL", DEFAULT_DATABASE_URL);
         let host = get_env_or("HOST", "0.0.0.0")
             .parse::<IpAddr>()
             .map_err(|e| ConfigError::InvalidValue {

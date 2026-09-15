@@ -4,6 +4,7 @@ use askama::Template;
 use axum::extract::State;
 use axum::response::{Html, IntoResponse, Response};
 use serde::Deserialize;
+use tower_sessions::Session;
 use validator::Validate;
 
 use crate::error::AppError;
@@ -12,6 +13,7 @@ use crate::middleware::{AuthUser, CsrfToken, ValidatedForm};
 use crate::models::User;
 use crate::repositories::{EventRepository, UserRepository};
 use crate::services::{AuthService, EventService};
+use crate::session::stamp_credential;
 use crate::state::AppState;
 
 #[derive(Template)]
@@ -186,6 +188,7 @@ pub async fn update_profile(
 pub async fn update_password(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
+    session: Session,
     csrf_token: CsrfToken,
     Locale(i18n): Locale,
     ValidatedForm(input): ValidatedForm<PasswordInput>,
@@ -226,6 +229,7 @@ pub async fn update_password(
 
     let hash = AuthService::hash_password(&input.new_password)?;
     UserRepository::update_password(&state.pool, user.id, &hash).await?;
+    stamp_credential(&session, &hash).await?;
 
     tracing::info!(user_id = user.id, "Password changed");
 

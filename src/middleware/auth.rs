@@ -14,7 +14,7 @@ use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::User;
 use crate::repositories::UserRepository;
-use crate::session::USER_ID_KEY;
+use crate::session::{USER_ID_KEY, credential_matches};
 
 /// Extractor that provides the authenticated user.
 ///
@@ -60,23 +60,26 @@ where
 }
 
 /// Try to load the authenticated user from the session.
-///
-/// Returns `None` if anything fails (no session, no `user_id`, user not found,
-/// or user inactive).
 async fn load_user_from_session<S>(parts: &mut Parts, state: &S) -> Option<User>
 where
     S: Send + Sync,
     DbPool: FromRef<S>,
 {
     let session = Session::from_request_parts(parts, state).await.ok()?;
-    let user_id: i64 = session.get(USER_ID_KEY).await.ok().flatten()?;
     let pool = DbPool::from_ref(state);
-    let user = UserRepository::find_by_id(&pool, user_id)
+    session_user(&session, &pool).await
+}
+
+/// The signed-in user, or `None` when the session is empty, the account is
+/// gone or disabled, or its password changed since the session was opened.
+async fn session_user(session: &Session, pool: &DbPool) -> Option<User> {
+    let user_id: i64 = session.get(USER_ID_KEY).await.ok().flatten()?;
+    let user = UserRepository::find_by_id(pool, user_id)
         .await
         .ok()
         .flatten()?;
 
-    if !user.is_active {
+    if !user.is_active || !credential_matches(session, &user.password_hash).await {
         session.flush().await.ok();
         return None;
     }
@@ -105,13 +108,9 @@ pub async fn require_password_change(
 }
 
 async fn must_change_password(session: &Session, pool: &DbPool) -> bool {
-    let Ok(Some(user_id)) = session.get::<i64>(USER_ID_KEY).await else {
-        return false;
-    };
-    matches!(
-        UserRepository::find_by_id(pool, user_id).await,
-        Ok(Some(user)) if user.is_active && user.must_change_password
-    )
+    session_user(session, pool)
+        .await
+        .is_some_and(|user| user.must_change_password)
 }
 
 /// Extractor that requires the authenticated user to have the `Publisher` or `Admin` role.

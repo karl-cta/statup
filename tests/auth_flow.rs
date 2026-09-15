@@ -761,6 +761,78 @@ async fn account_created_by_its_owner_is_not_asked_for_a_new_password() {
 }
 
 #[tokio::test]
+async fn host_reset_signs_the_account_out_and_asks_for_a_new_password() {
+    let app = TestApp::spawn().await;
+    app.create_account("reset@example.com", "forgotten_password_1", "Reset")
+        .await;
+    let (status, _body) = app.get("/profile").await;
+    assert_eq!(status, StatusCode::OK);
+
+    let temporary = AuthService::reset_password(&app.pool, "reset@example.com")
+        .await
+        .expect("reset failed");
+
+    let (status, location) = redirect_of(&app, "/profile").await;
+    assert_eq!(
+        status,
+        StatusCode::SEE_OTHER,
+        "the open session no longer matches the password"
+    );
+    assert_eq!(location.as_deref(), Some("/login"));
+
+    let (_, body) = app.get("/login").await;
+    let csrf = extract_csrf_token(&body);
+    let (status, _body, location) = app
+        .post_form(
+            "/login",
+            &csrf,
+            &[
+                ("email", "reset@example.com"),
+                ("password", temporary.as_str()),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/password/new"));
+}
+
+#[tokio::test]
+async fn resetting_an_unknown_account_is_refused() {
+    let app = TestApp::spawn().await;
+    let result = AuthService::reset_password(&app.pool, "nobody@example.com").await;
+    assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn changing_the_password_from_the_profile_keeps_this_session() {
+    let app = TestApp::spawn().await;
+    app.create_account("profile@example.com", "first_password_12", "Profile")
+        .await;
+
+    let (_, body) = app.get("/profile").await;
+    let csrf = extract_csrf_token(&body);
+    let (status, _body, _) = app
+        .post_form(
+            "/profile/password",
+            &csrf,
+            &[
+                ("current_password", "first_password_12"),
+                ("new_password", "second_password_34"),
+                ("new_password_confirm", "second_password_34"),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _body) = app.get("/profile").await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "the session that changed the password stays open"
+    );
+}
+
+#[tokio::test]
 async fn signed_in_user_is_sent_home_from_login() {
     let app = TestApp::spawn().await;
     app.create_account("home@example.com", "home_password_123", "Home")

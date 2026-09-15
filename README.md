@@ -85,6 +85,17 @@ See [`.env.example`](.env.example) for the full reference.
 
 </details>
 
+### Forgotten password
+
+Give the account a temporary password from the server:
+
+```bash
+docker compose exec statup /app/statup reset-password you@example.com
+# From source: ./target/release/statup reset-password you@example.com
+```
+
+Hand it over. The person signs in with it and is asked to choose their own, and any session still open on that account is signed out.
+
 ### Health check
 
 `GET /health` → `200 OK`

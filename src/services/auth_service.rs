@@ -3,6 +3,8 @@
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use argon2::{Algorithm, Argon2, Params, Version};
+use rand::Rng;
+use rand::distributions::Alphanumeric;
 
 use crate::db::DbPool;
 use crate::error::AppError;
@@ -11,6 +13,9 @@ use crate::repositories::UserRepository;
 
 /// Minimum password length.
 const MIN_PASSWORD_LENGTH: usize = 12;
+
+/// Long enough to resist guessing, short enough to read out over a call.
+const TEMP_PASSWORD_LENGTH: usize = 16;
 
 pub struct AuthService;
 
@@ -51,6 +56,29 @@ impl AuthService {
             ));
         }
         Ok(())
+    }
+
+    /// A password chosen by someone else, to be handed over and replaced.
+    pub fn temporary_password() -> String {
+        rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(TEMP_PASSWORD_LENGTH)
+            .map(char::from)
+            .collect()
+    }
+
+    /// Give an active account a new temporary password, for the host to hand
+    /// over. The person replaces it at next sign-in, and their open sessions
+    /// no longer match the password, so they are signed out.
+    pub async fn reset_password(pool: &DbPool, email: &str) -> Result<String, AppError> {
+        let user = UserRepository::find_by_email(pool, email.trim())
+            .await?
+            .ok_or(AppError::NotFound)?;
+        let password = Self::temporary_password();
+        let hash = Self::hash_password(&password)?;
+        UserRepository::set_temporary_password(pool, user.id, &hash).await?;
+        tracing::info!(user_id = user.id, "Password reset by the host");
+        Ok(password)
     }
 
     /// Register a new user account.

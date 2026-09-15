@@ -3,14 +3,44 @@
 use time::Duration;
 use tokio::task::AbortHandle;
 use tower_sessions::cookie::SameSite;
-use tower_sessions::{Expiry, SessionManagerLayer};
+use tower_sessions::{Expiry, Session, SessionManagerLayer};
 use tower_sessions_sqlx_store::SqliteStore;
 
 use crate::config::Config;
 use crate::db::DbPool;
+use crate::error::AppError;
 
 /// Session cookie key for the authenticated user ID.
 pub const USER_ID_KEY: &str = "user_id";
+
+/// Session key for the stamp of the password the session was opened with.
+const CREDENTIAL_KEY: &str = "credential";
+
+/// The tail of the Argon2 hash output. It changes with every new password
+/// (fresh salt), and is too short to be worth anything outside the database.
+fn credential_stamp(password_hash: &str) -> &str {
+    let start = password_hash.len().saturating_sub(16);
+    password_hash.get(start..).unwrap_or(password_hash)
+}
+
+/// Ties the session to the current password, so that a password set
+/// elsewhere (a reset by the host, a change on another device) signs it out.
+pub async fn stamp_credential(session: &Session, password_hash: &str) -> Result<(), AppError> {
+    session
+        .insert(CREDENTIAL_KEY, credential_stamp(password_hash))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("session insert failed: {e}")))
+}
+
+/// Whether the session was opened with the password the account has now.
+pub async fn credential_matches(session: &Session, password_hash: &str) -> bool {
+    session
+        .get::<String>(CREDENTIAL_KEY)
+        .await
+        .ok()
+        .flatten()
+        .is_some_and(|stamp| stamp == credential_stamp(password_hash))
+}
 
 /// Create the session store backed by `SQLite`.
 ///

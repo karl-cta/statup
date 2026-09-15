@@ -139,6 +139,20 @@ impl UserRepository {
         Ok(())
     }
 
+    /// Replace the password with a temporary one the person must change.
+    pub async fn set_temporary_password(
+        pool: &DbPool,
+        user_id: i64,
+        password_hash: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?")
+            .bind(password_hash)
+            .bind(user_id)
+            .execute(pool)
+            .await?;
+        Ok(())
+    }
+
     /// Ask the person to replace their password at their next request.
     pub async fn require_password_change(pool: &DbPool, user_id: i64) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE users SET must_change_password = 1 WHERE id = ?")
