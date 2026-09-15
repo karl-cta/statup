@@ -1,11 +1,11 @@
 # Build stage
-FROM rust:1.84-alpine AS builder
+FROM rust:1.93-alpine AS builder
 
 RUN apk add --no-cache musl-dev
 
 WORKDIR /app
 
-# Download tailwindcss standalone CLI, multi-arch
+# Tailwind CSS v4 standalone CLI, the musl build since the image is Alpine
 ARG TARGETARCH
 RUN case "${TARGETARCH:-amd64}" in \
       amd64) TW_ARCH=x64 ;; \
@@ -13,7 +13,7 @@ RUN case "${TARGETARCH:-amd64}" in \
       *) echo "unsupported arch: ${TARGETARCH}" && exit 1 ;; \
     esac && \
     wget -O /usr/local/bin/tailwindcss \
-      "https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/tailwindcss-linux-${TW_ARCH}" && \
+      "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.18/tailwindcss-linux-${TW_ARCH}-musl" && \
     chmod +x /usr/local/bin/tailwindcss
 
 # Copy manifests first for dependency caching
@@ -27,6 +27,7 @@ RUN rm -rf src
 # Copy actual source code
 COPY src ./src
 COPY templates ./templates
+COPY locales ./locales
 COPY migrations ./migrations
 COPY static ./static
 
@@ -50,7 +51,10 @@ COPY --from=builder --chown=statup:statup /app/target/release/statup /app/statup
 COPY --from=builder --chown=statup:statup /app/static /app/static
 COPY --from=builder --chown=statup:statup /app/migrations /app/migrations
 
+# Uploaded icons live in the data volume beside the database, where the app
+# user may write and where an image update does not wipe them.
 ENV DATABASE_URL=/data/statup.db
+ENV UPLOAD_DIR=/data/uploads
 ENV HOST=0.0.0.0
 ENV PORT=3000
 

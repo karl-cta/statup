@@ -5,17 +5,16 @@ services:
       - "3000:3000"
     volumes:
       - statup_data:/data
+    # Every value in .env reaches the container. The paths and the listen
+    # address below belong to the image and take precedence.
+    env_file:
+      - path: .env
+        required: false
     environment:
       - DATABASE_URL=/data/statup.db
+      - UPLOAD_DIR=/data/uploads
       - HOST=0.0.0.0
       - PORT=3000
-      - SESSION_SECRET=${SESSION_SECRET}
-      - SESSION_EXPIRY=${SESSION_EXPIRY:-604800}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - RUST_LOG=${RUST_LOG:-statup=info,tower_http=info}
-      - PUBLIC_MODE=${PUBLIC_MODE:-false}
-      - ADMIN_EMAIL=${ADMIN_EMAIL}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s

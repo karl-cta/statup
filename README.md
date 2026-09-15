@@ -44,21 +44,22 @@ Statup is **pre-v1, under active development**. The core is usable and self-host
 ### Quick start
 
 ```bash
-git clone <repo-url> && cd statup
-cp .env.example .env
-# Edit .env → SESSION_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD
+git clone https://github.com/karl-cta/statup.git && cd statup
 docker compose up -d
-# → http://localhost:3000
+# → http://localhost:3000, create the administrator account on the first visit
 ```
+
+No setting is required. To change one, copy `.env.example` to `.env` and edit it.
 
 <details>
 <summary><strong>Build from source</strong></summary>
 
-Requires Rust 1.84+ and [Tailwind CLI](https://github.com/tailwindlabs/tailwindcss/releases).
+Requires Rust 1.88 or newer and the [Tailwind CSS v4 standalone CLI](https://github.com/tailwindlabs/tailwindcss/releases), saved at the repository root as `tailwindcss`.
 
 ```bash
-./scripts/build-css.sh --minify && cargo build --release
-# Binary is at target/release/statup
+./scripts/build-css.sh && cargo build --release
+# Run it from the repository root, which holds the static/ directory it serves
+./target/release/statup
 ```
 
 </details>
@@ -66,20 +67,20 @@ Requires Rust 1.84+ and [Tailwind CLI](https://github.com/tailwindlabs/tailwindc
 <details>
 <summary><strong>Configuration</strong></summary>
 
-Everything lives in `.env`. Only `SESSION_SECRET` is required.
+Everything lives in `.env`, and nothing is required: each setting falls back to its default. With Docker Compose, the database and the icons stay in the `statup_data` volume whatever `DATABASE_URL` and `UPLOAD_DIR` say.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `SESSION_SECRET` | Yes | | Session encryption key (min 32 chars) |
 | `DATABASE_URL` | No | `./statup.db` | Path to SQLite database |
+| `UPLOAD_DIR` | No | `data/uploads` | Where uploaded icons are stored |
 | `HOST` | No | `0.0.0.0` | Listen address |
 | `PORT` | No | `3000` | Listen port |
 | `LOG_LEVEL` | No | `info` | trace, debug, info, warn, error |
 | `PUBLIC_MODE` | No | `false` | Allow guest access to read-only pages |
 | `TRUST_PROXY_HEADERS` | No | `false` | Read the client IP from `Forwarded` / `X-Forwarded-For` when rate limiting. Enable it behind a reverse proxy, otherwise every visitor shares the proxy address and the limit becomes site wide. Never enable it without a proxy in front: the headers are then attacker controlled |
-| `PUBLIC_URL` | No | request host | Address visitors use to reach the instance, e.g. `https://status.example.com`. Feed entries link back with it |
-| `ADMIN_EMAIL` | No | | Initial admin email (first run only) |
-| `ADMIN_PASSWORD` | No | | Initial admin password (first run only) |
+| `PUBLIC_URL` | No | request host | Address visitors use to reach the instance, e.g. `https://status.example.com`. Feed entries link back with it, and an `https://` address marks the session cookie Secure |
+| `ADMIN_EMAIL` | No | | Creates an administrator on first run. Without it, the first account created from the sign-in page is the administrator |
+| `ADMIN_PASSWORD` | No | | Password of that administrator, first run only |
 
 See [`.env.example`](.env.example) for the full reference.
 

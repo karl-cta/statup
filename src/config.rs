@@ -9,9 +9,6 @@ use tracing::level_filters::LevelFilter;
 /// Errors that can occur when loading or validating configuration.
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
-    #[error("missing environment variable: {0}")]
-    MissingVar(String),
-
     #[error("invalid value for {key}: {message}")]
     InvalidValue { key: String, message: String },
 }
@@ -27,8 +24,6 @@ pub struct Config {
     pub host: IpAddr,
     /// Server listen port.
     pub port: u16,
-    /// Secret key for session encryption (min 32 chars).
-    pub session_secret: String,
     /// Session lifetime.
     pub session_expiry: Duration,
     /// Logging level filter.
@@ -58,7 +53,7 @@ impl Config {
     ///
     /// # Errors
     ///
-    /// Returns `ConfigError` if required variables are missing or values are invalid.
+    /// Returns `ConfigError` if a value is invalid. Every setting has a default.
     pub fn from_env() -> Result<Self, ConfigError> {
         dotenvy::dotenv().ok();
 
@@ -76,7 +71,6 @@ impl Config {
                     key: "PORT".into(),
                     message: e.to_string(),
                 })?;
-        let session_secret = get_env_required("SESSION_SECRET")?;
         let session_expiry_secs = get_env_or("SESSION_EXPIRY", "604800")
             .parse::<u64>()
             .map_err(|e| ConfigError::InvalidValue {
@@ -115,7 +109,6 @@ impl Config {
             database_url,
             host,
             port,
-            session_secret,
             session_expiry: Duration::from_secs(session_expiry_secs),
             log_level,
             db_max_connections,
@@ -137,13 +130,6 @@ impl Config {
     ///
     /// Returns `ConfigError::InvalidValue` if any value fails validation.
     pub fn validate(&self) -> Result<(), ConfigError> {
-        if self.session_secret.len() < 32 {
-            return Err(ConfigError::InvalidValue {
-                key: "SESSION_SECRET".into(),
-                message: "must be at least 32 characters".into(),
-            });
-        }
-
         if self.port == 0 {
             return Err(ConfigError::InvalidValue {
                 key: "PORT".into(),
@@ -158,24 +144,22 @@ impl Config {
     pub fn bind_addr(&self) -> String {
         format!("{}:{}", self.host, self.port)
     }
+
+    /// Whether the session cookie is marked `Secure`. Only when visitors reach
+    /// the instance over HTTPS: a browser refuses a secure cookie on a plain
+    /// HTTP page, and nobody could sign in to a local install.
+    pub fn secure_cookies(&self) -> bool {
+        serves_https(self.public_url.as_deref())
+    }
+}
+
+fn serves_https(public_url: Option<&str>) -> bool {
+    public_url.is_some_and(|url| url.to_ascii_lowercase().starts_with("https://"))
 }
 
 /// Read an env var or return a default.
 fn get_env_or(key: &str, default: &str) -> String {
     env::var(key).unwrap_or_else(|_| default.to_string())
-}
-
-/// Read a required env var.
-fn get_env_required(key: &str) -> Result<String, ConfigError> {
-    env::var(key)
-        .map_err(|_| ConfigError::MissingVar(key.into()))
-        .and_then(|v| {
-            if v.is_empty() {
-                Err(ConfigError::MissingVar(key.into()))
-            } else {
-                Ok(v)
-            }
-        })
 }
 
 /// Initialize the tracing subscriber with the given log level.
@@ -211,5 +195,18 @@ fn parse_log_level(s: &str) -> Result<LevelFilter, ConfigError> {
             key: "LOG_LEVEL".into(),
             message: format!("unknown level '{s}', expected trace|debug|info|warn|error|off"),
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn session_cookie_is_secure_only_behind_an_https_address() {
+        assert!(serves_https(Some("https://status.example.com")));
+        assert!(serves_https(Some("HTTPS://status.example.com")));
+        assert!(!serves_https(Some("http://status.example.com")));
+        assert!(!serves_https(None));
     }
 }

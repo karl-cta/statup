@@ -61,7 +61,7 @@ pub async fn create_session_store(pool: &DbPool) -> Result<SqliteStore, sqlx::Er
 /// Cookie settings:
 /// - `HttpOnly`: true (no JS access)
 /// - `SameSite`: Lax (CSRF protection)
-/// - `Secure`: false for dev, should be true behind HTTPS in prod
+/// - `Secure`: when `PUBLIC_URL` is an https address
 /// - Expiry: `OnInactivity` with the configured session lifetime
 pub fn session_layer(store: SqliteStore, config: &Config) -> SessionManagerLayer<SqliteStore> {
     let expiry_secs = config.session_expiry.as_secs();
@@ -70,7 +70,7 @@ pub fn session_layer(store: SqliteStore, config: &Config) -> SessionManagerLayer
     let expiry = Expiry::OnInactivity(Duration::seconds(expiry_secs as i64));
 
     SessionManagerLayer::new(store)
-        .with_secure(false) // Set to true when behind HTTPS reverse proxy
+        .with_secure(config.secure_cookies())
         .with_same_site(SameSite::Lax)
         .with_http_only(true)
         .with_expiry(expiry)
