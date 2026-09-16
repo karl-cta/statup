@@ -61,7 +61,7 @@ WORKDIR /app
 
 COPY --from=builder /app/target/release/statup /app/statup
 COPY --from=styles /app/static /app/static
-COPY LICENSE /app/LICENSE
+COPY LICENSE THIRD_PARTY_NOTICES.md /app/
 
 # Uploaded icons live in the data volume beside the database, where the app
 # user may write and where an image update does not wipe them.
