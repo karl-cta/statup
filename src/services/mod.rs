@@ -1,4 +1,4 @@
-//! Business logic layer - Authentication, events, services, icons, templates.
+//! Business logic layer: authentication, events, services, icons, templates.
 
 mod auth_service;
 mod dashboard_layout_service;

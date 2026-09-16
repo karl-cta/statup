@@ -1,262 +1,71 @@
-//! Integration tests for the authentication flow.
-//!
-//! Tests the full HTTP cycle: Register → Login → Access protected → Logout.
-//! Also tests permission denial and error cases.
+//! Integration tests for the authentication flow: first account, sign-in,
+//! protected pages and sign-out, sessions, CSRF, and permission denials.
 
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
+mod common;
 
 use reqwest::StatusCode;
-use reqwest::redirect::Policy;
-use time::Duration;
-use tower_sessions::cookie::SameSite;
-use tower_sessions::{Expiry, SessionManagerLayer};
-use tower_sessions_sqlx_store::SqliteStore;
 
-use statup::db;
+use common::{Options, TestApp, extract_csrf_token};
 use statup::models::Role;
 use statup::repositories::UserRepository;
-use statup::routes::create_router;
-use statup::services::{AuthService, LoginRateLimiter};
-use statup::state::AppState;
+use statup::services::AuthService;
 
-// ---------------------------------------------------------------------------
-// Test application helper
-// ---------------------------------------------------------------------------
+const OWNER_EMAIL: &str = "owner@example.com";
+const OWNER_PASSWORD: &str = "owner_password_12";
 
-struct TestApp {
-    addr: SocketAddr,
-    client: reqwest::Client,
-    pool: sqlx::SqlitePool,
-}
+/// Create the first account through the form. The person is signed in on
+/// success. Returns the CSRF token of the form.
+async fn create_first_account(app: &TestApp, email: &str, password: &str, name: &str) -> String {
+    let (status, body) = app.get("/register").await;
+    assert_eq!(status, StatusCode::OK);
+    let csrf = extract_csrf_token(&body);
 
-impl TestApp {
-    /// Spawn the full Statup application on a random local port.
-    async fn spawn() -> Self {
-        Self::spawn_with_options(false).await
-    }
-
-    /// Spawn the application with public mode enabled.
-    async fn spawn_public() -> Self {
-        Self::spawn_with_options(true).await
-    }
-
-    async fn spawn_with_options(public_mode: bool) -> Self {
-        let pool = db::create_pool("sqlite::memory:", 1)
-            .await
-            .expect("failed to create test pool");
-        db::run_migrations(&pool)
-            .await
-            .expect("failed to run migrations");
-
-        let session_store = SqliteStore::new(pool.clone());
-        session_store
-            .migrate()
-            .await
-            .expect("failed to migrate session store");
-
-        let session_layer = SessionManagerLayer::new(session_store)
-            .with_secure(false)
-            .with_same_site(SameSite::Lax)
-            .with_http_only(true)
-            .with_expiry(Expiry::OnInactivity(Duration::seconds(3600)));
-
-        let upload_dir = std::env::temp_dir()
-            .join("statup-test-uploads")
-            .to_string_lossy()
-            .to_string();
-        std::fs::create_dir_all(format!("{upload_dir}/icons")).ok();
-
-        let state = AppState {
-            pool: pool.clone(),
-            login_limiter: Arc::new(LoginRateLimiter::default()),
-            upload_dir,
-            public_mode: Arc::new(AtomicBool::new(public_mode)),
-            trust_proxy_headers: false,
-            public_url: None,
-        };
-
-        let app = create_router(state).layer(session_layer);
-
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("failed to bind test listener");
-        let addr = listener.local_addr().expect("failed to get local addr");
-
-        tokio::spawn(async move {
-            axum::serve(
-                listener,
-                app.into_make_service_with_connect_info::<SocketAddr>(),
-            )
-            .await
-            .expect("server error");
-        });
-
-        let client = reqwest::Client::builder()
-            .cookie_store(true)
-            .redirect(Policy::none())
-            .build()
-            .expect("failed to build reqwest client");
-
-        Self { addr, client, pool }
-    }
-
-    fn url(&self, path: &str) -> String {
-        format!("http://{}{path}", self.addr)
-    }
-
-    /// GET a page and return (status, body text).
-    async fn get(&self, path: &str) -> (StatusCode, String) {
-        let resp = self
-            .client
-            .get(self.url(path))
-            .send()
-            .await
-            .expect("GET request failed");
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        (status, body)
-    }
-
-    /// POST a form with CSRF token extracted from a prior GET response body.
-    async fn post_form(
-        &self,
-        path: &str,
-        csrf_token: &str,
-        fields: &[(&str, &str)],
-    ) -> (StatusCode, String, Option<String>) {
-        let mut form: Vec<(&str, &str)> = vec![("csrf_token", csrf_token)];
-        form.extend_from_slice(fields);
-
-        let resp = self
-            .client
-            .post(self.url(path))
-            .form(&form)
-            .send()
-            .await
-            .expect("POST request failed");
-
-        let status = resp.status();
-        let location = resp
-            .headers()
-            .get("location")
-            .and_then(|v| v.to_str().ok())
-            .map(ToOwned::to_owned);
-        let body = resp.text().await.unwrap_or_default();
-        (status, body, location)
-    }
-
-    /// Create an account through the form. The person is signed in on
-    /// success, so the helper lands on the dashboard. Returns the CSRF token.
-    async fn create_account(&self, email: &str, password: &str, display_name: &str) -> String {
-        let (status, body) = self.get("/register").await;
-        assert_eq!(status, StatusCode::OK);
-        let csrf = extract_csrf_token(&body);
-
-        let (status, _body, location) = self
-            .post_form(
-                "/register",
-                &csrf,
-                &[
-                    ("email", email),
-                    ("password", password),
-                    ("password_confirm", password),
-                    ("display_name", display_name),
-                ],
-            )
-            .await;
-
-        assert_eq!(status, StatusCode::SEE_OTHER, "register should redirect");
-        assert_eq!(location.as_deref(), Some("/"));
-        csrf
-    }
-
-    /// Create an account, then sign out, for tests that exercise the
-    /// sign-in form themselves.
-    async fn register_user(&self, email: &str, password: &str, display_name: &str) -> String {
-        let csrf = self.create_account(email, password, display_name).await;
-        let (status, _body, location) = self.post_form("/logout", &csrf, &[]).await;
-        assert_eq!(status, StatusCode::SEE_OTHER, "logout should redirect");
-        assert_eq!(location.as_deref(), Some("/login"));
-        csrf
-    }
-
-    /// Seed an administrator directly, so that the next account created
-    /// through the form is an ordinary reader rather than the first account.
-    async fn seed_admin(&self) {
-        AuthService::register(
-            &self.pool,
-            "owner@example.com",
-            "owner_password_12",
-            "Owner",
-            Role::Admin,
+    let (status, _body, location) = app
+        .post_form(
+            "/register",
+            &csrf,
+            &[
+                ("email", email),
+                ("password", password),
+                ("password_confirm", password),
+                ("display_name", name),
+            ],
         )
+        .await;
+
+    assert_eq!(status, StatusCode::SEE_OTHER, "register should redirect");
+    assert_eq!(location.as_deref(), Some("/"));
+    csrf
+}
+
+/// Seed the administrator directly, so the instance is no longer empty.
+async fn seed_admin(app: &TestApp) -> i64 {
+    app.create_user(OWNER_EMAIL, OWNER_PASSWORD, "Owner", Role::Admin)
         .await
-        .expect("failed to seed admin");
-    }
-
-    /// Login a user via the HTTP form flow. Panics on failure.
-    async fn login_user(&self, email: &str, password: &str) {
-        let (status, body) = self.get("/login").await;
-        assert_eq!(status, StatusCode::OK);
-        let csrf = extract_csrf_token(&body);
-
-        let (status, _body, location) = self
-            .post_form("/login", &csrf, &[("email", email), ("password", password)])
-            .await;
-
-        assert_eq!(status, StatusCode::SEE_OTHER, "login should redirect");
-        assert_eq!(location.as_deref(), Some("/"));
-    }
 }
 
-/// Extract the CSRF token from an HTML response body.
-fn extract_csrf_token(html: &str) -> String {
-    let marker = r#"name="csrf_token" value=""#;
-    let start = html
-        .find(marker)
-        .unwrap_or_else(|| panic!("csrf_token not found in HTML"))
-        + marker.len();
-    let end = html[start..]
-        .find('"')
-        .unwrap_or_else(|| panic!("closing quote for csrf_token not found"))
-        + start;
-    html[start..end].to_string()
+async fn logout(app: &TestApp) {
+    let csrf = app.csrf_from("/profile").await;
+    let (status, _body, location) = app.post_form("/logout", &csrf, &[]).await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "logout should redirect");
+    assert_eq!(location.as_deref(), Some("/login"));
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 #[tokio::test]
-async fn register_then_login_then_protected_then_logout() {
+async fn first_account_then_login_then_protected_then_logout() {
     let app = TestApp::spawn().await;
 
-    // 1. Register
-    app.register_user("alice@example.com", "secure_password_123", "Alice")
-        .await;
+    create_first_account(&app, "alice@example.com", "secure_password_123", "Alice").await;
+    logout(&app).await;
 
-    // 2. Login
-    app.login_user("alice@example.com", "secure_password_123")
-        .await;
+    app.login("alice@example.com", "secure_password_123").await;
 
-    // 3. Access protected route (dashboard)
     let (status, body) = app.get("/").await;
     assert_eq!(status, StatusCode::OK);
-    assert!(
-        body.contains("Alice") || body.contains("alice"),
-        "dashboard should show user info"
-    );
+    assert!(body.contains("Alice"), "dashboard should show user info");
 
-    // 4. Logout
-    let (_, csrf_body) = app.get("/").await;
-    let csrf = extract_csrf_token(&csrf_body);
-    let (status, _body, location) = app.post_form("/logout", &csrf, &[]).await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
-    assert_eq!(location.as_deref(), Some("/login"));
+    logout(&app).await;
 
-    // 5. After logout, protected route should redirect to /login
     let (status, _body) = app.get("/").await;
     assert_eq!(
         status,
@@ -269,9 +78,7 @@ async fn register_then_login_then_protected_then_logout() {
 async fn register_password_mismatch() {
     let app = TestApp::spawn().await;
 
-    let (_, body) = app.get("/register").await;
-    let csrf = extract_csrf_token(&body);
-
+    let csrf = app.csrf_from("/register").await;
     let (status, body, location) = app
         .post_form(
             "/register",
@@ -296,23 +103,14 @@ async fn register_password_mismatch() {
 #[tokio::test]
 async fn login_wrong_password() {
     let app = TestApp::spawn().await;
+    seed_admin(&app).await;
 
-    // Register first
-    app.register_user("charlie@example.com", "correct_password_12", "Charlie")
-        .await;
-
-    // Try login with wrong password
-    let (_, body) = app.get("/login").await;
-    let csrf = extract_csrf_token(&body);
-
+    let csrf = app.csrf_from("/login").await;
     let (status, body, _location) = app
         .post_form(
             "/login",
             &csrf,
-            &[
-                ("email", "charlie@example.com"),
-                ("password", "wrong_password_12"),
-            ],
+            &[("email", OWNER_EMAIL), ("password", "wrong_password_12")],
         )
         .await;
 
@@ -324,12 +122,25 @@ async fn login_wrong_password() {
 }
 
 #[tokio::test]
+async fn an_empty_sign_in_field_is_refused_in_the_page() {
+    let app = TestApp::spawn().await;
+    seed_admin(&app).await;
+
+    let csrf = app.csrf_from("/login").await;
+    let (status, body, _location) = app
+        .post_form("/login", &csrf, &[("email", OWNER_EMAIL)])
+        .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains(r#"id="form-error""#));
+    assert!(body.contains(OWNER_EMAIL), "the email is kept in the field");
+}
+
+#[tokio::test]
 async fn protected_route_without_auth_redirects() {
     let app = TestApp::spawn().await;
 
-    // All these routes should redirect unauthenticated users to /login
-    let routes = ["/", "/events", "/search"];
-    for route in routes {
+    for route in ["/", "/events", "/search"] {
         let (status, _body) = app.get(route).await;
         assert_eq!(
             status,
@@ -342,21 +153,22 @@ async fn protected_route_without_auth_redirects() {
 #[tokio::test]
 async fn reader_cannot_access_publisher_routes() {
     let app = TestApp::spawn().await;
+    seed_admin(&app).await;
+    app.create_user(
+        "reader@example.com",
+        "reader_password_12",
+        "Reader",
+        Role::Reader,
+    )
+    .await;
+    app.login("reader@example.com", "reader_password_12").await;
 
-    // Register and login as a reader (the role every account after the first gets)
-    app.seed_admin().await;
-    app.register_user("reader@example.com", "reader_password_12", "Reader")
-        .await;
-    app.login_user("reader@example.com", "reader_password_12")
-        .await;
-
-    // GET publisher routes should return 401 (extractor chain: AuthUser OK, RequirePublisher fails → Unauthorized)
-    let publisher_get_routes = ["/events/new", "/services", "/services/new"];
-    for route in publisher_get_routes {
+    for route in ["/events/new", "/services", "/services/new"] {
         let (status, _body) = app.get(route).await;
-        assert!(
-            status == StatusCode::FORBIDDEN || status == StatusCode::UNAUTHORIZED,
-            "GET {route} as reader should be 401 or 403, got {status}"
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "GET {route} as reader should be 403"
         );
     }
 }
@@ -364,36 +176,32 @@ async fn reader_cannot_access_publisher_routes() {
 #[tokio::test]
 async fn reader_cannot_access_admin_routes() {
     let app = TestApp::spawn().await;
-
-    app.seed_admin().await;
-    app.register_user("viewer@example.com", "viewer_password_12", "Viewer")
-        .await;
-    app.login_user("viewer@example.com", "viewer_password_12")
-        .await;
+    seed_admin(&app).await;
+    app.create_user(
+        "viewer@example.com",
+        "viewer_password_12",
+        "Viewer",
+        Role::Reader,
+    )
+    .await;
+    app.login("viewer@example.com", "viewer_password_12").await;
 
     let (status, _body) = app.get("/admin/users").await;
-    assert!(
-        status == StatusCode::FORBIDDEN || status == StatusCode::UNAUTHORIZED,
-        "GET /admin/users as reader should be 401 or 403, got {status}"
-    );
+    assert_eq!(status, StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
 async fn publisher_can_access_publisher_routes() {
     let app = TestApp::spawn().await;
-
-    // Register, then promote to publisher via DB
-    app.register_user("pub@example.com", "publisher_pass_12", "Publisher")
-        .await;
-    let user = UserRepository::find_by_email(&app.pool, "pub@example.com")
-        .await
-        .expect("db error")
-        .expect("user not found");
-    UserRepository::update_role(&app.pool, user.id, Role::Publisher)
-        .await
-        .expect("failed to update role");
-
-    app.login_user("pub@example.com", "publisher_pass_12").await;
+    seed_admin(&app).await;
+    app.create_user(
+        "pub@example.com",
+        "publisher_pass_12",
+        "Publisher",
+        Role::Publisher,
+    )
+    .await;
+    app.login("pub@example.com", "publisher_pass_12").await;
 
     let (status, _body) = app.get("/events/new").await;
     assert_eq!(
@@ -407,7 +215,6 @@ async fn publisher_can_access_publisher_routes() {
 async fn post_without_csrf_token_is_rejected() {
     let app = TestApp::spawn().await;
 
-    // POST /login without CSRF token should be rejected
     let resp = app
         .client
         .post(app.url("/login"))
@@ -415,56 +222,38 @@ async fn post_without_csrf_token_is_rejected() {
         .send()
         .await
         .expect("request failed");
-
     assert_eq!(
         resp.status(),
         StatusCode::FORBIDDEN,
-        "POST without CSRF should be 403"
+        "POST without a session should be 403"
     );
-}
 
-#[tokio::test]
-async fn register_duplicate_email() {
-    let app = TestApp::spawn().await;
-
-    app.register_user("dup@example.com", "password_12345678", "First")
-        .await;
-
-    // Try to register again with the same email
-    let (_, body) = app.get("/register").await;
-    let csrf = extract_csrf_token(&body);
-
-    let (status, body, _location) = app
-        .post_form(
-            "/register",
-            &csrf,
-            &[
-                ("email", "dup@example.com"),
-                ("password", "password_12345678"),
-                ("password_confirm", "password_12345678"),
-                ("display_name", "Second"),
-            ],
-        )
-        .await;
-
+    let (status, _body) = app.get("/login").await;
+    assert_eq!(status, StatusCode::OK);
+    let resp = app
+        .client
+        .post(app.url("/login"))
+        .form(&[("email", "a@b.com"), ("password", "test")])
+        .send()
+        .await
+        .expect("request failed");
     assert_eq!(
-        status,
-        StatusCode::OK,
-        "should re-render form on duplicate email"
+        resp.status(),
+        StatusCode::FORBIDDEN,
+        "POST with a session but no token should be 403"
     );
-    assert!(
-        body.contains("déjà utilisée"),
-        "should show duplicate email error"
-    );
+
+    let (status, _body, _) = app
+        .post_form("/login", "not-the-token", &[("email", "a@b.com")])
+        .await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "a wrong token is refused");
 }
 
 #[tokio::test]
 async fn register_password_too_short() {
     let app = TestApp::spawn().await;
 
-    let (_, body) = app.get("/register").await;
-    let csrf = extract_csrf_token(&body);
-
+    let csrf = app.csrf_from("/register").await;
     let (status, body, _location) = app
         .post_form(
             "/register",
@@ -490,12 +279,119 @@ async fn register_password_too_short() {
 }
 
 #[tokio::test]
-async fn health_check_is_public() {
+async fn health_check_is_public_sessionless_and_not_rate_limited() {
     let app = TestApp::spawn().await;
 
-    let (status, body) = app.get("/health").await;
-    assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("ok") || body.contains("healthy"));
+    for _ in 0..150 {
+        let resp = app.get_response("/health").await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert!(resp.headers().get("set-cookie").is_none());
+        let body = resp.text().await.unwrap_or_default();
+        assert!(body.contains("ok"));
+    }
+    assert_eq!(app.session_rows().await, 0);
+}
+
+/// What a burst keeps of each response.
+struct Answer {
+    status: StatusCode,
+    retry_after: Option<String>,
+    body: String,
+}
+
+/// Sends one page request per entry, 16 at a time, each with that entry as
+/// its `X-Forwarded-For` header when there is one. Together, because the
+/// budget refills every 600 ms and a slow sequence would never run out.
+async fn burst(app: &TestApp, forwarded_for: Vec<Option<String>>) -> Vec<Answer> {
+    let in_flight = std::sync::Arc::new(tokio::sync::Semaphore::new(16));
+    let mut requests = tokio::task::JoinSet::new();
+    for header in forwarded_for {
+        let mut request = app.client.get(app.url("/i18n?locale=xx"));
+        if let Some(value) = header {
+            request = request.header("x-forwarded-for", value);
+        }
+        let in_flight = std::sync::Arc::clone(&in_flight);
+        requests.spawn(async move {
+            let _slot = in_flight.acquire_owned().await.expect("semaphore closed");
+            let resp = request.send().await.expect("GET failed");
+            let retry_after = resp
+                .headers()
+                .get("retry-after")
+                .and_then(|v| v.to_str().ok())
+                .map(ToOwned::to_owned);
+            Answer {
+                status: resp.status(),
+                retry_after,
+                body: resp.text().await.unwrap_or_default(),
+            }
+        });
+    }
+    let mut answers = Vec::new();
+    while let Some(answer) = requests.join_next().await {
+        answers.push(answer.expect("request task failed"));
+    }
+    answers
+}
+
+fn limited(answers: &[Answer]) -> Vec<&Answer> {
+    answers
+        .iter()
+        .filter(|answer| answer.status == StatusCode::TOO_MANY_REQUESTS)
+        .collect()
+}
+
+#[tokio::test]
+async fn pages_are_rate_limited_per_client() {
+    let app = TestApp::spawn_public().await;
+
+    let answers = burst(&app, vec![None; 130]).await;
+    let refused = limited(&answers);
+    let answer = refused
+        .first()
+        .expect("a burst past 100 requests is limited");
+    assert!(answer.retry_after.is_some());
+    assert!(
+        answer.body.contains(r#"<html lang="fr">"#) && answer.body.contains("Trop de requêtes")
+    );
+}
+
+#[tokio::test]
+async fn a_proxy_header_only_counts_when_the_proxy_is_trusted() {
+    let app = TestApp::spawn_with(Options {
+        public_mode: true,
+        trust_proxy_headers: true,
+        ..Options::default()
+    })
+    .await;
+
+    let two_clients = (0..140)
+        .map(|i| Some(format!("1.2.3.4, 198.51.100.{}", i % 2)))
+        .collect();
+    assert!(
+        limited(&burst(&app, two_clients).await).is_empty(),
+        "two clients behind the proxy share nothing"
+    );
+
+    let one_client = (0..130)
+        .map(|i| Some(format!("10.9.{}.{}, 198.51.100.9", i / 200, i % 200)))
+        .collect();
+    assert!(
+        !limited(&burst(&app, one_client).await).is_empty(),
+        "a client cannot escape the limit by rotating the leftmost address"
+    );
+}
+
+#[tokio::test]
+async fn proxy_headers_are_ignored_when_not_trusted() {
+    let app = TestApp::spawn_public().await;
+
+    let spoofed = (0..130)
+        .map(|i| Some(format!("203.0.{}.{}", i / 200, i % 200)))
+        .collect();
+    assert!(
+        !limited(&burst(&app, spoofed).await).is_empty(),
+        "every request counts against the connection's address"
+    );
 }
 
 #[tokio::test]
@@ -505,8 +401,8 @@ async fn login_form_is_public() {
     let (status, body) = app.get("/login").await;
     assert_eq!(status, StatusCode::OK);
     assert!(
-        body.contains("csrf_token"),
-        "login form should contain CSRF token"
+        !extract_csrf_token(&body).is_empty(),
+        "login form should carry a CSRF token"
     );
     assert!(
         body.contains("Connexion"),
@@ -517,20 +413,8 @@ async fn login_form_is_public() {
 #[tokio::test]
 async fn admin_can_access_admin_routes() {
     let app = TestApp::spawn().await;
-
-    // Register, promote to admin, login
-    app.register_user("admin@example.com", "admin_password_12", "Admin")
-        .await;
-    let user = UserRepository::find_by_email(&app.pool, "admin@example.com")
-        .await
-        .expect("db error")
-        .expect("user not found");
-    UserRepository::update_role(&app.pool, user.id, Role::Admin)
-        .await
-        .expect("failed to update role");
-
-    app.login_user("admin@example.com", "admin_password_12")
-        .await;
+    seed_admin(&app).await;
+    app.login(OWNER_EMAIL, OWNER_PASSWORD).await;
 
     let (status, _body) = app.get("/admin/users").await;
     assert_eq!(status, StatusCode::OK, "admin should access /admin/users");
@@ -539,26 +423,26 @@ async fn admin_can_access_admin_routes() {
 #[tokio::test]
 async fn disabled_user_session_is_rejected() {
     let app = TestApp::spawn().await;
-
-    app.register_user("disabled@example.com", "disabled_pass_12", "Disabled")
+    seed_admin(&app).await;
+    let user_id = app
+        .create_user(
+            "disabled@example.com",
+            "disabled_pass_12",
+            "Disabled",
+            Role::Reader,
+        )
         .await;
-    app.login_user("disabled@example.com", "disabled_pass_12")
-        .await;
+    app.login("disabled@example.com", "disabled_pass_12").await;
 
-    // Verify access works before disabling
     let (status, _body) = app.get("/").await;
     assert_eq!(status, StatusCode::OK);
 
-    // Disable the user via DB while they have an active session
-    let user = UserRepository::find_by_email(&app.pool, "disabled@example.com")
-        .await
-        .expect("db error")
-        .expect("user not found");
-    UserRepository::set_active(&app.pool, user.id, false)
-        .await
-        .expect("failed to disable user");
+    assert!(
+        UserRepository::set_active(&app.pool, user_id, false)
+            .await
+            .expect("failed to disable user")
+    );
 
-    // The AuthUser extractor checks is_active, disabled user should be rejected
     let (status, _body) = app.get("/").await;
     assert_eq!(
         status,
@@ -568,31 +452,53 @@ async fn disabled_user_session_is_rejected() {
 }
 
 #[tokio::test]
-async fn public_mode_register_is_closed_for_visitors() {
-    let app = TestApp::spawn_public().await;
-    app.seed_admin().await;
+async fn registration_is_closed_once_an_account_exists() {
+    for options in [
+        Options::default(),
+        Options {
+            public_mode: true,
+            ..Options::default()
+        },
+    ] {
+        let app = TestApp::spawn_with(options).await;
+        seed_admin(&app).await;
 
-    let resp = app
-        .client
-        .get(app.url("/register"))
-        .send()
-        .await
-        .expect("GET /register failed");
-    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
-    assert_eq!(
-        resp.headers().get("location").and_then(|v| v.to_str().ok()),
-        Some("/login")
-    );
+        let (status, location) = app.redirect_of("/register").await;
+        assert_eq!(status, StatusCode::SEE_OTHER);
+        assert_eq!(location.as_deref(), Some("/login"));
+        assert_eq!(
+            app.session_rows().await,
+            0,
+            "a closed door opens no session"
+        );
 
-    let (_, body) = app.get("/login").await;
-    assert!(
-        !body.contains(r#"href="/register""#),
-        "the sign-in page must not offer a closed door"
-    );
+        let (_, body) = app.get("/login").await;
+        assert!(
+            !body.contains(r#"href="/register""#),
+            "the sign-in page must not offer a closed door"
+        );
+
+        let csrf = extract_csrf_token(&body);
+        let (status, _body, location) = app
+            .post_form(
+                "/register",
+                &csrf,
+                &[
+                    ("email", "intruder@example.com"),
+                    ("password", "intruder_password"),
+                    ("password_confirm", "intruder_password"),
+                    ("display_name", "Intruder"),
+                ],
+            )
+            .await;
+        assert_eq!(status, StatusCode::SEE_OTHER);
+        assert_eq!(location.as_deref(), Some("/login"));
+        assert_eq!(UserRepository::count_all(&app.pool).await.unwrap(), 1);
+    }
 }
 
 #[tokio::test]
-async fn public_mode_fresh_instance_offers_the_first_account() {
+async fn fresh_instance_offers_the_first_account() {
     let app = TestApp::spawn_public().await;
 
     let (status, body) = app.get("/register").await;
@@ -604,84 +510,170 @@ async fn public_mode_fresh_instance_offers_the_first_account() {
 }
 
 #[tokio::test]
-async fn members_instance_offers_sign_up_once_an_account_exists() {
-    let app = TestApp::spawn().await;
-    app.seed_admin().await;
-
-    let (status, body) = app.get("/register").await;
-    assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("Rejoindre") && !body.contains("administrateur"));
-
-    let (_, body) = app.get("/login").await;
-    assert!(body.contains(r#"href="/register""#));
-}
-
-#[tokio::test]
 async fn first_account_is_admin_and_signed_in() {
     let app = TestApp::spawn().await;
 
-    app.create_account("first@example.com", "first_password_12", "First")
-        .await;
+    create_first_account(&app, "First@Example.com", "first_password_12", "  First  ").await;
 
     let user = UserRepository::find_by_email(&app.pool, "first@example.com")
         .await
         .expect("db error")
         .expect("user not found");
     assert_eq!(user.role, Role::Admin);
+    assert_eq!(
+        user.email, "first@example.com",
+        "emails are stored lowercase"
+    );
+    assert_eq!(user.display_name, "First", "names are trimmed");
 
     let (status, _body) = app.get("/admin/users").await;
     assert_eq!(status, StatusCode::OK, "signed in straight after creation");
 }
 
-/// Status and `Location` of a GET, for pages expected to redirect.
-async fn redirect_of(app: &TestApp, path: &str) -> (StatusCode, Option<String>) {
-    let resp = app
-        .client
-        .get(app.url(path))
+#[tokio::test]
+async fn signing_in_gives_a_new_session_id_and_token() {
+    let app = TestApp::spawn().await;
+    seed_admin(&app).await;
+
+    let (_, body) = app.get("/login").await;
+    let form_token = extract_csrf_token(&body);
+    let before = app.session_cookie().expect("the form opened a session");
+
+    app.login(OWNER_EMAIL, OWNER_PASSWORD).await;
+
+    let after = app.session_cookie().expect("signed in");
+    assert_ne!(before, after, "the session id is rotated at sign-in");
+    let token = app.csrf_from("/profile").await;
+    assert!(!token.is_empty());
+    assert_ne!(token, form_token, "the form token is replaced at sign-in");
+
+    let (status, _, _) = app.post_form("/logout", &form_token, &[]).await;
+    assert_eq!(
+        status,
+        StatusCode::FORBIDDEN,
+        "a token from before the sign-in no longer works"
+    );
+    let (status, _body) = app.get("/profile").await;
+    assert_eq!(status, StatusCode::OK, "still signed in");
+}
+
+/// The `Max-Age` of the session cookie a response sets, if it sets one.
+fn session_max_age(resp: &reqwest::Response) -> Option<String> {
+    resp.headers()
+        .get_all("set-cookie")
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .find(|cookie| cookie.starts_with("id="))
+        .and_then(|cookie| {
+            cookie
+                .split(';')
+                .map(str::trim)
+                .find_map(|part| part.strip_prefix("Max-Age="))
+                .map(ToOwned::to_owned)
+        })
+}
+
+async fn sign_in_response(app: &TestApp, remember: bool) -> reqwest::Response {
+    let csrf = app.csrf_from("/login").await;
+    let mut form = vec![
+        ("csrf_token", csrf.as_str()),
+        ("email", OWNER_EMAIL),
+        ("password", OWNER_PASSWORD),
+    ];
+    if remember {
+        form.push(("remember_me", "on"));
+    }
+    app.client
+        .post(app.url("/login"))
+        .form(&form)
         .send()
         .await
-        .expect("GET request failed");
-    let location = resp
-        .headers()
-        .get("location")
-        .and_then(|v| v.to_str().ok())
-        .map(ToOwned::to_owned);
-    (resp.status(), location)
+        .expect("POST /login failed")
+}
+
+#[tokio::test]
+async fn signed_in_sessions_keep_their_own_lifetime() {
+    let app = TestApp::spawn().await;
+    seed_admin(&app).await;
+
+    let resp = sign_in_response(&app, false).await;
+    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
+    assert_eq!(session_max_age(&resp).as_deref(), Some("86400"));
+    logout(&app).await;
+
+    let resp = sign_in_response(&app, true).await;
+    assert_eq!(session_max_age(&resp).as_deref(), Some("2592000"));
+
+    let resp = app.get_response("/admin/users").await;
+    assert_eq!(
+        session_max_age(&resp),
+        None,
+        "a page view within the hour writes nothing"
+    );
+
+    let csrf = extract_csrf_token(&resp.text().await.unwrap_or_default());
+    let resp = app
+        .client
+        .post(app.url("/admin/users/new"))
+        .form(&[
+            ("csrf_token", csrf.as_str()),
+            ("display_name", "Member"),
+            ("email", "member@example.com"),
+            ("role", "reader"),
+        ])
+        .send()
+        .await
+        .expect("POST failed");
+    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
+    assert_eq!(
+        session_max_age(&resp).as_deref(),
+        Some("2592000"),
+        "a later session write keeps the lifetime chosen at sign-in"
+    );
+}
+
+#[tokio::test]
+async fn anonymous_pages_open_no_session() {
+    let app = TestApp::spawn_public().await;
+
+    for path in ["/", "/events", "/feed", "/health", "/wp-login.php"] {
+        let resp = app.get_response(path).await;
+        assert!(
+            resp.headers().get("set-cookie").is_none(),
+            "GET {path} should not set a cookie"
+        );
+    }
+    assert_eq!(app.session_rows().await, 0);
+
+    let (status, _body) = app.get("/login").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(app.session_rows().await, 1, "a form needs a session");
 }
 
 #[tokio::test]
 async fn temporary_password_must_be_replaced_before_anything_else() {
     let app = TestApp::spawn().await;
-    app.seed_admin().await;
-    let member = AuthService::register(
-        &app.pool,
-        "member@example.com",
-        "temporary_pass_1",
-        "Member",
-        Role::Reader,
-    )
-    .await
-    .expect("failed to create member");
-    UserRepository::require_password_change(&app.pool, member.id)
-        .await
-        .expect("failed to flag member");
+    seed_admin(&app).await;
+    let (member, temporary) =
+        AuthService::add_member(&app.pool, "member@example.com", "Member", Role::Reader)
+            .await
+            .expect("failed to create member");
 
-    let (_, body) = app.get("/login").await;
-    let csrf = extract_csrf_token(&body);
+    let csrf = app.csrf_from("/login").await;
     let (status, _body, location) = app
         .post_form(
             "/login",
             &csrf,
             &[
                 ("email", "member@example.com"),
-                ("password", "temporary_pass_1"),
+                ("password", temporary.as_str()),
             ],
         )
         .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
     assert_eq!(location.as_deref(), Some("/password/new"));
 
-    let (status, location) = redirect_of(&app, "/events").await;
+    let (status, location) = app.redirect_of("/events").await;
     assert_eq!(
         status,
         StatusCode::SEE_OTHER,
@@ -689,17 +681,23 @@ async fn temporary_password_must_be_replaced_before_anything_else() {
     );
     assert_eq!(location.as_deref(), Some("/password/new"));
 
-    let (status, body) = app.get("/password/new").await;
-    assert_eq!(status, StatusCode::OK);
-    let csrf = extract_csrf_token(&body);
+    let resp = app.get_response("/password/new").await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        resp.headers()
+            .get("cache-control")
+            .and_then(|v| v.to_str().ok()),
+        Some("no-store")
+    );
+    let csrf = extract_csrf_token(&resp.text().await.unwrap_or_default());
 
     let (status, body, _) = app
         .post_form(
             "/password/new",
             &csrf,
             &[
-                ("password", "temporary_pass_1"),
-                ("password_confirm", "temporary_pass_1"),
+                ("password", temporary.as_str()),
+                ("password_confirm", temporary.as_str()),
             ],
         )
         .await;
@@ -722,6 +720,7 @@ async fn temporary_password_must_be_replaced_before_anything_else() {
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains(r#"id="confirm-error""#));
 
+    let before = app.session_cookie();
     let (status, _body, location) = app
         .post_form(
             "/password/new",
@@ -734,6 +733,11 @@ async fn temporary_password_must_be_replaced_before_anything_else() {
         .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
     assert_eq!(location.as_deref(), Some("/"));
+    assert_ne!(
+        before,
+        app.session_cookie(),
+        "a new password, a new session id"
+    );
 
     let (status, _body) = app.get("/events").await;
     assert_eq!(status, StatusCode::OK, "the instance opens once replaced");
@@ -745,6 +749,7 @@ async fn temporary_password_must_be_replaced_before_anything_else() {
     assert!(!user.must_change_password);
     assert!(
         AuthService::verify_password("my_own_password_42", &user.password_hash)
+            .await
             .expect("hash error")
     );
 }
@@ -752,10 +757,9 @@ async fn temporary_password_must_be_replaced_before_anything_else() {
 #[tokio::test]
 async fn account_created_by_its_owner_is_not_asked_for_a_new_password() {
     let app = TestApp::spawn().await;
-    app.create_account("owner@example.com", "owner_password_12", "Owner")
-        .await;
+    create_first_account(&app, OWNER_EMAIL, OWNER_PASSWORD, "Owner").await;
 
-    let (status, location) = redirect_of(&app, "/password/new").await;
+    let (status, location) = app.redirect_of("/password/new").await;
     assert_eq!(status, StatusCode::SEE_OTHER);
     assert_eq!(location.as_deref(), Some("/"));
 }
@@ -763,8 +767,7 @@ async fn account_created_by_its_owner_is_not_asked_for_a_new_password() {
 #[tokio::test]
 async fn host_reset_signs_the_account_out_and_asks_for_a_new_password() {
     let app = TestApp::spawn().await;
-    app.create_account("reset@example.com", "forgotten_password_1", "Reset")
-        .await;
+    create_first_account(&app, "reset@example.com", "forgotten_password_1", "Reset").await;
     let (status, _body) = app.get("/profile").await;
     assert_eq!(status, StatusCode::OK);
 
@@ -772,7 +775,7 @@ async fn host_reset_signs_the_account_out_and_asks_for_a_new_password() {
         .await
         .expect("reset failed");
 
-    let (status, location) = redirect_of(&app, "/profile").await;
+    let (status, location) = app.redirect_of("/profile").await;
     assert_eq!(
         status,
         StatusCode::SEE_OTHER,
@@ -780,8 +783,7 @@ async fn host_reset_signs_the_account_out_and_asks_for_a_new_password() {
     );
     assert_eq!(location.as_deref(), Some("/login"));
 
-    let (_, body) = app.get("/login").await;
-    let csrf = extract_csrf_token(&body);
+    let csrf = app.csrf_from("/login").await;
     let (status, _body, location) = app
         .post_form(
             "/login",
@@ -806,12 +808,19 @@ async fn resetting_an_unknown_account_is_refused() {
 #[tokio::test]
 async fn changing_the_password_from_the_profile_keeps_this_session() {
     let app = TestApp::spawn().await;
-    app.create_account("profile@example.com", "first_password_12", "Profile")
-        .await;
+    create_first_account(&app, "profile@example.com", "first_password_12", "Profile").await;
 
-    let (_, body) = app.get("/profile").await;
-    let csrf = extract_csrf_token(&body);
-    let (status, _body, _) = app
+    let resp = app.get_response("/profile").await;
+    assert_eq!(
+        resp.headers()
+            .get("cache-control")
+            .and_then(|v| v.to_str().ok()),
+        Some("no-store")
+    );
+    let csrf = extract_csrf_token(&resp.text().await.unwrap_or_default());
+    let before = app.session_cookie();
+
+    let (status, body, _) = app
         .post_form(
             "/profile/password",
             &csrf,
@@ -823,6 +832,23 @@ async fn changing_the_password_from_the_profile_keeps_this_session() {
         )
         .await;
     assert_eq!(status, StatusCode::OK);
+    assert_ne!(before, app.session_cookie(), "the session id is rotated");
+
+    let (status, _body, _) = app
+        .post_form(
+            "/profile",
+            &extract_csrf_token(&body),
+            &[
+                ("email", "profile@example.com"),
+                ("display_name", "Profile"),
+            ],
+        )
+        .await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "the page rendered after the change carries the new token"
+    );
 
     let (status, _body) = app.get("/profile").await;
     assert_eq!(
@@ -833,82 +859,92 @@ async fn changing_the_password_from_the_profile_keeps_this_session() {
 }
 
 #[tokio::test]
+async fn a_short_new_password_is_refused_in_the_profile_page() {
+    let app = TestApp::spawn().await;
+    create_first_account(&app, "short@example.com", "first_password_12", "Short").await;
+
+    let csrf = app.csrf_from("/profile").await;
+    let (status, body, _) = app
+        .post_form(
+            "/profile/password",
+            &csrf,
+            &[
+                ("current_password", "first_password_12"),
+                ("new_password", "short"),
+                ("new_password_confirm", "short"),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains(r#"id="password-form-error""#));
+}
+
+#[tokio::test]
+async fn a_blank_display_name_is_refused_in_the_profile_page() {
+    let app = TestApp::spawn().await;
+    create_first_account(&app, "blank@example.com", "first_password_12", "Blank").await;
+
+    let csrf = app.csrf_from("/profile").await;
+    let (status, body, _) = app
+        .post_form(
+            "/profile",
+            &csrf,
+            &[("email", "blank@example.com"), ("display_name", "   ")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains(r#"id="profile-error""#));
+    let user = UserRepository::find_by_email(&app.pool, "blank@example.com")
+        .await
+        .expect("db error")
+        .expect("user not found");
+    assert_eq!(user.display_name, "Blank");
+}
+
+#[tokio::test]
 async fn signed_in_user_is_sent_home_from_login() {
     let app = TestApp::spawn().await;
-    app.create_account("home@example.com", "home_password_123", "Home")
-        .await;
+    create_first_account(&app, "home@example.com", "home_password_123", "Home").await;
 
-    let resp = app
-        .client
-        .get(app.url("/login"))
-        .send()
-        .await
-        .expect("GET /login failed");
-    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
-    assert_eq!(
-        resp.headers().get("location").and_then(|v| v.to_str().ok()),
-        Some("/")
-    );
+    let (status, location) = app.redirect_of("/login").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/"));
 }
 
 #[tokio::test]
 async fn public_mode_reader_is_sent_home_from_register() {
     let app = TestApp::spawn_public().await;
-    app.seed_admin().await;
-
-    AuthService::register(
-        &app.pool,
+    seed_admin(&app).await;
+    app.create_user(
         "reader@example.com",
         "reader_pass_1234",
         "Reader",
-        statup::models::Role::Reader,
+        Role::Reader,
     )
-    .await
-    .expect("failed to create user");
+    .await;
+    app.login("reader@example.com", "reader_pass_1234").await;
 
-    app.login_user("reader@example.com", "reader_pass_1234")
-        .await;
-
-    let resp = app
-        .client
-        .get(app.url("/register"))
-        .send()
-        .await
-        .expect("GET /register failed");
-    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
-    assert_eq!(
-        resp.headers().get("location").and_then(|v| v.to_str().ok()),
-        Some("/")
-    );
+    let (status, location) = app.redirect_of("/register").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/"));
 }
 
 #[tokio::test]
-async fn public_mode_admin_is_sent_to_the_team_page_from_register() {
+async fn admin_is_sent_to_the_team_page_from_register() {
     let app = TestApp::spawn_public().await;
-    app.seed_admin().await;
-    app.login_user("owner@example.com", "owner_password_12")
-        .await;
+    seed_admin(&app).await;
+    app.login(OWNER_EMAIL, OWNER_PASSWORD).await;
 
-    let resp = app
-        .client
-        .get(app.url("/register"))
-        .send()
-        .await
-        .expect("GET /register failed");
-    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
-    assert_eq!(
-        resp.headers().get("location").and_then(|v| v.to_str().ok()),
-        Some("/admin/users")
-    );
+    let (status, location) = app.redirect_of("/register").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/admin/users"));
 }
 
 #[tokio::test]
 async fn public_mode_read_routes_accessible_without_auth() {
     let app = TestApp::spawn_public().await;
 
-    // In public mode, read-only routes should be accessible
-    let read_routes = ["/", "/events", "/search"];
-    for route in read_routes {
+    for route in ["/", "/events", "/search"] {
         let (status, _body) = app.get(route).await;
         assert_eq!(
             status,
@@ -922,17 +958,9 @@ async fn public_mode_read_routes_accessible_without_auth() {
 async fn history_bookmarks_land_on_the_events_list() {
     let app = TestApp::spawn_public().await;
 
-    let resp = app
-        .client
-        .get(app.url("/history"))
-        .send()
-        .await
-        .expect("GET /history failed");
-    assert_eq!(resp.status(), StatusCode::PERMANENT_REDIRECT);
-    assert_eq!(
-        resp.headers().get("location").and_then(|v| v.to_str().ok()),
-        Some("/events")
-    );
+    let (status, location) = app.redirect_of("/history").await;
+    assert_eq!(status, StatusCode::PERMANENT_REDIRECT);
+    assert_eq!(location.as_deref(), Some("/events"));
 }
 
 #[tokio::test]
@@ -957,6 +985,25 @@ async fn missing_event_renders_a_styled_error_page_in_the_request_language() {
 }
 
 #[tokio::test]
+async fn unknown_paths_render_the_error_page() {
+    let app = TestApp::spawn().await;
+
+    let resp = app.get_response("/wp-login.php").await;
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        resp.headers()
+            .get("cache-control")
+            .and_then(|v| v.to_str().ok()),
+        Some("no-cache, private")
+    );
+    let body = resp.text().await.unwrap_or_default();
+    assert!(body.contains("Page non trouvée") && body.contains("style.css"));
+
+    let (status, _body) = app.get("/uploads/statup.db").await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "only icons are served");
+}
+
+#[tokio::test]
 async fn htmx_request_gets_an_error_fragment_instead_of_a_page() {
     let app = TestApp::spawn_public().await;
 
@@ -971,4 +1018,168 @@ async fn htmx_request_gets_an_error_fragment_instead_of_a_page() {
     let body = resp.text().await.unwrap_or_default();
     assert!(body.contains(r#"class="form-error""#) && body.contains("Page non trouvée"));
     assert!(!body.contains("<html"), "a fragment, not a page");
+}
+
+#[tokio::test]
+async fn an_oversized_form_gets_the_error_page() {
+    let app = TestApp::spawn().await;
+    let csrf = app.csrf_from("/login").await;
+    let padding = "a".repeat(70 * 1024);
+
+    let (status, body, _) = app
+        .post_form("/login", &csrf, &[("email", padding.as_str())])
+        .await;
+    assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
+    assert!(body.contains("trop volumineux"), "{body}");
+}
+
+#[tokio::test]
+async fn security_headers_are_sent() {
+    let app = TestApp::spawn().await;
+
+    let resp = app.get_response("/login").await;
+    let header = |name| {
+        resp.headers()
+            .get(name)
+            .and_then(|v| v.to_str().ok())
+            .map(ToOwned::to_owned)
+    };
+    assert_eq!(header("x-frame-options").as_deref(), Some("DENY"));
+    assert_eq!(header("x-content-type-options").as_deref(), Some("nosniff"));
+    assert_eq!(
+        header("referrer-policy").as_deref(),
+        Some("strict-origin-when-cross-origin")
+    );
+    assert_eq!(
+        header("cross-origin-opener-policy").as_deref(),
+        Some("same-origin")
+    );
+    assert!(header("permissions-policy").is_some());
+    assert!(header("content-security-policy").is_some());
+    assert!(header("x-xss-protection").is_none());
+    assert!(
+        header("strict-transport-security").is_none(),
+        "no HSTS without an https address"
+    );
+}
+
+#[tokio::test]
+async fn an_https_instance_asks_for_https_and_secure_cookies() {
+    let app = TestApp::spawn_with(Options {
+        public_url: Some("https://status.example.com"),
+        ..Options::default()
+    })
+    .await;
+
+    let resp = app.get_response("/login").await;
+    let header = |name| {
+        resp.headers()
+            .get_all(name)
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(header("strict-transport-security"), ["max-age=31536000"]);
+    let session_cookie = header("set-cookie")
+        .into_iter()
+        .find(|cookie| cookie.starts_with("id="))
+        .expect("the form opens a session");
+    assert!(session_cookie.contains("Secure"), "{session_cookie}");
+
+    let resp = app.get_response("/i18n?locale=en").await;
+    let lang_cookie = resp
+        .headers()
+        .get("set-cookie")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default();
+    assert!(lang_cookie.ends_with("; Secure"), "{lang_cookie}");
+
+    let resp = app.get_response("/health").await;
+    assert!(resp.headers().get("strict-transport-security").is_some());
+}
+
+/// Status, `Location`, `Set-Cookie` and body of a language switch sent
+/// from `referer`.
+async fn switch_language(
+    app: &TestApp,
+    query: &str,
+    referer: Option<&str>,
+) -> (StatusCode, Option<String>, Option<String>, String) {
+    let mut request = app.client.get(app.url(&format!("/i18n{query}")));
+    if let Some(referer) = referer {
+        request = request.header("referer", referer);
+    }
+    let resp = request.send().await.expect("GET /i18n failed");
+    let header = |name| {
+        resp.headers()
+            .get(name)
+            .and_then(|v| v.to_str().ok())
+            .map(ToOwned::to_owned)
+    };
+    let (location, cookie) = (header("location"), header("set-cookie"));
+    let status = resp.status();
+    (
+        status,
+        location,
+        cookie,
+        resp.text().await.unwrap_or_default(),
+    )
+}
+
+#[tokio::test]
+async fn language_switch_returns_to_a_page_of_this_site() {
+    let app = TestApp::spawn_public().await;
+    let origin = app.url("");
+
+    let (status, location, cookie, _) = switch_language(
+        &app,
+        "?locale=en",
+        Some(&format!("{origin}/events?kind=incident")),
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/events?kind=incident"));
+    let cookie = cookie.expect("the choice is kept in a cookie");
+    assert!(cookie.starts_with("lang=en;") && !cookie.contains("Secure"));
+    assert_eq!(app.session_rows().await, 0, "a visitor gets no session");
+
+    let referer = format!("{origin}/admin/users/3/role");
+    let (_, location, _, _) = switch_language(&app, "?locale=fr", Some(&referer)).await;
+    assert_eq!(
+        location.as_deref(),
+        Some("/admin/users"),
+        "action paths map to their page"
+    );
+
+    for foreign in ["https://evil.example/events", "not a url"] {
+        let (_, location, _, _) = switch_language(&app, "?locale=fr", Some(foreign)).await;
+        assert_eq!(location.as_deref(), Some("/"), "{foreign}");
+    }
+    let (_, location, _, _) = switch_language(&app, "?locale=fr", None).await;
+    assert_eq!(location.as_deref(), Some("/"));
+
+    let (status, _, cookie, body) = switch_language(&app, "?locale=de", None).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(cookie.is_none());
+    assert!(body.contains("Langue non prise en charge"), "{body}");
+
+    let (status, _, _, _) = switch_language(&app, "", None).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn language_switch_is_saved_on_the_account() {
+    let app = TestApp::spawn().await;
+    let admin_id = seed_admin(&app).await;
+    app.login(OWNER_EMAIL, OWNER_PASSWORD).await;
+
+    let (status, _, _, _) = switch_language(&app, "?locale=en", None).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let user = UserRepository::find_by_id(&app.pool, admin_id)
+        .await
+        .expect("db error")
+        .expect("user not found");
+    assert_eq!(user.preferred_locale.as_deref(), Some("en"));
 }

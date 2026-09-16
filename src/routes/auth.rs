@@ -1,58 +1,31 @@
-//! Authentication routes - login, register, logout.
+//! Sign-in, creation of the first account, and sign-out.
+//!
+//! Self-registration only exists on an empty instance: its first account is
+//! the administrator, who then adds everyone else from the team page.
 
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use askama::Template;
 use axum::extract::{ConnectInfo, State};
-use axum::http::header::{HeaderValue, LOCATION, SET_COOKIE};
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::{Html, IntoResponse, Redirect, Response};
+use axum::http::HeaderMap;
+use axum::http::header::{LOCATION, SET_COOKIE};
+use axum::http::{HeaderValue, StatusCode};
+use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
-use time::Duration;
-use tower_sessions::{Expiry, Session};
-use validator::{Validate, ValidationErrors};
+use tower_sessions::Session;
 
+use super::locale::locale_cookie;
+use super::render;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
-use crate::middleware::{CsrfToken, HtmlForm, OptionalUser, ValidatedForm};
-use crate::models::{Role, User};
+use crate::middleware::client_ip::client_ip;
+use crate::middleware::csrf::{form_token, renew_token};
+use crate::middleware::{FormCsrfToken, HtmlForm, OptionalUser};
+use crate::models::{User, check_display_name};
 use crate::repositories::UserRepository;
 use crate::services::AuthService;
-use crate::session::{USER_ID_KEY, stamp_credential};
+use crate::session::{USER_ID_KEY, rotate_id, stamp_credential, start_signed_in, write_value};
 use crate::state::AppState;
-
-/// Who the registration page is for. Decided from the database and the
-/// public mode, never from the visitor.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum RegisterDoor {
-    /// No account exists yet: the form creates the first administrator.
-    FirstAccount,
-    /// Members-only instance: anyone may create a reader account.
-    Members,
-    /// Public instance with accounts: the team page creates accounts.
-    Closed,
-}
-
-impl RegisterDoor {
-    async fn resolve(state: &AppState) -> Result<Self, AppError> {
-        if UserRepository::count_all(&state.pool).await? == 0 {
-            return Ok(Self::FirstAccount);
-        }
-        if state.is_public_mode() {
-            Ok(Self::Closed)
-        } else {
-            Ok(Self::Members)
-        }
-    }
-
-    fn is_first_account(self) -> bool {
-        matches!(self, Self::FirstAccount)
-    }
-
-    fn is_members(self) -> bool {
-        matches!(self, Self::Members)
-    }
-}
 
 /// Messages placed under the field they concern; `form` is for anything
 /// that is not about one field.
@@ -89,20 +62,6 @@ impl RegisterErrors {
         }
     }
 
-    fn absorb(&mut self, errors: &ValidationErrors, i18n: &I18n) {
-        for (field, errs) in errors.field_errors() {
-            let Some(message) = errs.first().and_then(|e| e.message.as_deref()) else {
-                continue;
-            };
-            let message = i18n.t(message).to_string();
-            match field {
-                "email" => self.email = Some(message),
-                "password" => self.password = Some(message),
-                _ => self.form = Some(message),
-            }
-        }
-    }
-
     fn from_service(key: &str, i18n: &I18n) -> Self {
         let message = Some(i18n.t(key).to_string());
         let mut errors = Self::default();
@@ -123,7 +82,8 @@ struct LoginTemplate {
     email: String,
     instance: String,
     powered_by: bool,
-    door: RegisterDoor,
+    /// An empty instance offers to create its administrator.
+    offer_first_account: bool,
     i18n: I18n,
 }
 
@@ -136,56 +96,28 @@ struct RegisterTemplate {
     display_name: String,
     instance: String,
     powered_by: bool,
-    door: RegisterDoor,
     i18n: I18n,
 }
 
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize)]
 pub struct LoginInput {
-    #[validate(length(min = 1, message = "validation.email_required"))]
+    #[serde(default)]
     email: String,
-    #[validate(length(min = 1, message = "validation.password_required"))]
+    #[serde(default)]
     password: String,
     remember_me: Option<String>,
 }
 
-/// Validated in the handler, not by the extractor: a short password must
-/// come back into the form with the other fields kept, not as a bare 400.
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize)]
 pub struct RegisterInput {
-    #[validate(email(message = "validation.email_invalid"))]
+    #[serde(default)]
     email: String,
+    #[serde(default)]
     display_name: String,
-    #[validate(length(min = 12, message = "validation.password_min_length"))]
+    #[serde(default)]
     password: String,
+    #[serde(default)]
     password_confirm: String,
-}
-
-const DISPLAY_NAME_MAX: usize = 100;
-
-/// 303 redirect with an optional `lang` cookie sync. Used after login so the
-/// authenticated user lands on a page already rendered in their saved locale.
-fn redirect_with_locale(target: &str, locale: Option<&str>) -> Response {
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        LOCATION,
-        HeaderValue::from_str(target).unwrap_or_else(|_| HeaderValue::from_static("/")),
-    );
-    if let Some(loc) = locale {
-        let cookie = format!("lang={loc}; Path=/; Max-Age=31536000; SameSite=Lax");
-        if let Ok(value) = HeaderValue::from_str(&cookie) {
-            headers.insert(SET_COOKIE, value);
-        }
-    }
-    (StatusCode::SEE_OTHER, headers).into_response()
-}
-
-/// Render an Askama template into an HTML response.
-fn render(tpl: &impl Template) -> Result<Response, AppError> {
-    let html = tpl
-        .render()
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("template render error: {e}")))?;
-    Ok(Html(html).into_response())
 }
 
 /// The name the door is titled with, and whether it is the host's own name
@@ -193,6 +125,10 @@ fn render(tpl: &impl Template) -> Result<Response, AppError> {
 pub(super) fn instance_title() -> (String, bool) {
     let powered_by = !crate::instance_name().is_empty();
     (crate::brand_name(), powered_by)
+}
+
+async fn instance_is_empty(state: &AppState) -> Result<bool, AppError> {
+    Ok(UserRepository::count_all(&state.pool).await? == 0)
 }
 
 async fn render_login(
@@ -203,86 +139,110 @@ async fn render_login(
     email: String,
 ) -> Result<Response, AppError> {
     let (instance, powered_by) = instance_title();
-    let tpl = LoginTemplate {
+    render(&LoginTemplate {
         csrf_token,
         error,
         email,
         instance,
         powered_by,
-        door: RegisterDoor::resolve(state).await?,
+        offer_first_account: instance_is_empty(state).await?,
         i18n,
-    };
-    render(&tpl)
+    })
 }
 
 pub async fn login_form(
     State(state): State<AppState>,
     OptionalUser(user): OptionalUser,
-    csrf_token: CsrfToken,
+    session: Session,
     Locale(i18n): Locale,
 ) -> Result<Response, AppError> {
     if user.is_some() {
         return Ok(Redirect::to("/").into_response());
     }
-    render_login(&state, csrf_token.0, i18n, None, String::new()).await
+    let csrf_token = form_token(&session).await?;
+    render_login(&state, csrf_token, i18n, None, String::new()).await
 }
 
 pub async fn login(
     State(state): State<AppState>,
     session: Session,
-    csrf_token: CsrfToken,
+    FormCsrfToken(csrf_token): FormCsrfToken,
+    headers: HeaderMap,
     connect_info: Option<ConnectInfo<SocketAddr>>,
     Locale(i18n): Locale,
-    ValidatedForm(input): ValidatedForm<LoginInput>,
+    HtmlForm(input): HtmlForm<LoginInput>,
 ) -> Result<Response, AppError> {
-    let ip = connect_info.map_or_else(|| [127, 0, 0, 1].into(), |ci| ci.0.ip());
+    let peer = connect_info.map(|info| info.0.ip());
+    let ip = client_ip(&headers, peer, state.trust_proxy_headers)
+        .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
 
-    if state.login_limiter.is_blocked(&ip) {
-        tracing::warn!(ip = %ip, "Login blocked by rate limiter");
-        let message = i18n.t("validation.rate_limited").to_string();
-        return render_login(&state, csrf_token.0, i18n, Some(message), input.email).await;
+    let refusal = missing_credentials(&input).or_else(|| blocked(&state, &ip));
+    if let Some(key) = refusal {
+        let message = Some(i18n.t(key).to_string());
+        return render_login(&state, csrf_token, i18n, message, input.email).await;
     }
 
     match AuthService::login(&state.pool, &input.email, &input.password).await {
         Ok(user) => {
             state.login_limiter.clear(&ip);
-
-            let expiry = if input.remember_me.is_some() {
-                Expiry::OnInactivity(Duration::days(30))
-            } else {
-                Expiry::OnInactivity(Duration::hours(24))
-            };
-            open_session(&session, &user, expiry).await?;
-
-            let target = if user.must_change_password {
-                "/password/new"
-            } else {
-                "/"
-            };
-            Ok(redirect_with_locale(
-                target,
-                user.preferred_locale.as_deref(),
-            ))
+            open_session(&session, &user, input.remember_me.is_some()).await?;
+            Ok(signed_in_redirect(&user, state.serves_https()))
         }
-        Err(e) => {
+        Err(AppError::Validation(key)) => {
             state.login_limiter.record_failure(&ip);
-
-            let message = match &e {
-                AppError::Validation(msg) => i18n.t(msg).to_string(),
-                _ => i18n.t("validation.generic_error").to_string(),
-            };
-            render_login(&state, csrf_token.0, i18n, Some(message), input.email).await
+            let message = Some(i18n.t(&key).to_string());
+            render_login(&state, csrf_token, i18n, message, input.email).await
         }
+        Err(e) => Err(e),
     }
 }
 
-async fn open_session(session: &Session, user: &User, expiry: Expiry) -> Result<(), AppError> {
-    session.set_expiry(Some(expiry));
-    session
-        .insert(USER_ID_KEY, user.id)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("session insert failed: {e}")))?;
-    stamp_credential(session, &user.password_hash).await
+fn blocked(state: &AppState, ip: &IpAddr) -> Option<&'static str> {
+    if !state.login_limiter.is_blocked(ip) {
+        return None;
+    }
+    tracing::warn!(ip = %ip, "Login blocked by rate limiter");
+    Some("validation.rate_limited")
+}
+
+fn missing_credentials(input: &LoginInput) -> Option<&'static str> {
+    if input.email.trim().is_empty() {
+        Some("validation.email_required")
+    } else if input.password.is_empty() {
+        Some("validation.password_required")
+    } else {
+        None
+    }
+}
+
+/// Signs the person in on a new session id, with a new form token, for 30
+/// days of inactivity when they asked to stay signed in, 24 hours otherwise.
+async fn open_session(session: &Session, user: &User, remember: bool) -> Result<(), AppError> {
+    rotate_id(session).await?;
+    write_value(session, USER_ID_KEY, user.id).await?;
+    stamp_credential(session, &user.password_hash).await?;
+    start_signed_in(session, remember).await?;
+    renew_token(session).await?;
+    Ok(())
+}
+
+/// Home, or the page that replaces a temporary password, with the saved
+/// language so the first page is already in it.
+fn signed_in_redirect(user: &User, secure: bool) -> Response {
+    let target = if user.must_change_password {
+        "/password/new"
+    } else {
+        "/"
+    };
+    let mut response = (StatusCode::SEE_OTHER, [(LOCATION, target)]).into_response();
+    if let Some(cookie) = user
+        .preferred_locale
+        .as_deref()
+        .and_then(|locale| HeaderValue::from_str(&locale_cookie(locale, secure)).ok())
+    {
+        response.headers_mut().insert(SET_COOKIE, cookie);
+    }
+    response
 }
 
 /// Where a visitor lands when the registration page is closed: the team
@@ -299,45 +259,40 @@ fn closed_door_redirect(user: Option<&User>) -> Response {
 fn render_register(
     csrf_token: String,
     i18n: I18n,
-    door: RegisterDoor,
     errors: RegisterErrors,
-    email: String,
-    display_name: String,
+    input: RegisterInput,
 ) -> Result<Response, AppError> {
     let (instance, powered_by) = instance_title();
-    let tpl = RegisterTemplate {
+    render(&RegisterTemplate {
         csrf_token,
         errors,
-        email,
-        display_name,
+        email: input.email,
+        display_name: input.display_name,
         instance,
         powered_by,
-        door,
         i18n,
-    };
-    render(&tpl)
+    })
 }
 
-/// The first account of an empty instance, or a reader account on a
-/// members-only instance. Closed on a public instance that has accounts.
+/// The form that creates the administrator of an empty instance. Closed as
+/// soon as one account exists; no session is opened for a closed door.
 pub async fn register_form(
     State(state): State<AppState>,
     OptionalUser(user): OptionalUser,
-    csrf_token: CsrfToken,
+    session: Session,
     Locale(i18n): Locale,
 ) -> Result<Response, AppError> {
-    let door = RegisterDoor::resolve(&state).await?;
-    if door == RegisterDoor::Closed {
+    if !instance_is_empty(&state).await? {
         return Ok(closed_door_redirect(user.as_ref()));
     }
-    render_register(
-        csrf_token.0,
-        i18n,
-        door,
-        RegisterErrors::default(),
-        String::new(),
-        String::new(),
-    )
+    let csrf_token = form_token(&session).await?;
+    let blank = RegisterInput {
+        email: String::new(),
+        display_name: String::new(),
+        password: String::new(),
+        password_confirm: String::new(),
+    };
+    render_register(csrf_token, i18n, RegisterErrors::default(), blank)
 }
 
 pub async fn logout(session: Session) -> Result<Response, AppError> {
@@ -345,75 +300,56 @@ pub async fn logout(session: Session) -> Result<Response, AppError> {
     Ok(Redirect::to("/login").into_response())
 }
 
-fn check_register_input(input: &RegisterInput, i18n: &I18n) -> RegisterErrors {
+/// The field rules, checked together so every message shows at once.
+/// Returns the trimmed display name when everything passes.
+fn check_register_input(input: &RegisterInput, i18n: &I18n) -> Result<String, RegisterErrors> {
+    let message = |key: &str| Some(i18n.t(key).to_string());
     let mut errors = RegisterErrors::default();
-    let name = input.display_name.trim();
-    if name.is_empty() {
-        errors.name = Some(i18n.t("validation.display_name_required").to_string());
-    } else if name.chars().count() > DISPLAY_NAME_MAX {
-        errors.name = Some(i18n.t("validation.display_name_too_long").to_string());
+    let name = check_display_name(&input.display_name).unwrap_or_else(|key| {
+        errors.name = message(key);
+        String::new()
+    });
+    if AuthService::normalize_email(&input.email).is_err() {
+        errors.email = message("validation.email_invalid");
     }
-    if let Err(e) = input.validate() {
-        errors.absorb(&e, i18n);
+    if AuthService::validate_password(&input.password).is_err() {
+        errors.password = message("validation.password_min_length");
+    } else if input.password != input.password_confirm {
+        errors.confirm = message("validation.passwords_mismatch");
     }
-    if errors.password.is_none() && input.password != input.password_confirm {
-        errors.confirm = Some(i18n.t("validation.passwords_mismatch").to_string());
+    if errors.is_empty() {
+        Ok(name)
+    } else {
+        Err(errors)
     }
-    errors
 }
 
 pub async fn register(
     State(state): State<AppState>,
     OptionalUser(user): OptionalUser,
     session: Session,
-    csrf_token: CsrfToken,
+    FormCsrfToken(csrf_token): FormCsrfToken,
     Locale(i18n): Locale,
     HtmlForm(input): HtmlForm<RegisterInput>,
 ) -> Result<Response, AppError> {
-    let door = RegisterDoor::resolve(&state).await?;
-    if door == RegisterDoor::Closed {
+    if !instance_is_empty(&state).await? {
         return Ok(closed_door_redirect(user.as_ref()));
     }
-
-    let errors = check_register_input(&input, &i18n);
-    if !errors.is_empty() {
-        return render_register(
-            csrf_token.0,
-            i18n,
-            door,
-            errors,
-            input.email,
-            input.display_name,
-        );
-    }
-
-    let role = if door.is_first_account() {
-        Role::Admin
-    } else {
-        Role::Reader
+    let name = match check_register_input(&input, &i18n) {
+        Ok(name) => name,
+        Err(errors) => return render_register(csrf_token, i18n, errors, input),
     };
-    let name = input.display_name.trim();
-
-    match AuthService::register(&state.pool, &input.email, &input.password, name, role).await {
-        Ok(created) => {
-            open_session(
-                &session,
-                &created,
-                Expiry::OnInactivity(Duration::hours(24)),
-            )
-            .await?;
+    let created =
+        AuthService::create_first_admin(&state.pool, &input.email, &input.password, &name).await;
+    match created {
+        Ok(Some(admin)) => {
+            open_session(&session, &admin, false).await?;
             Ok(Redirect::to("/").into_response())
         }
+        Ok(None) => Ok(closed_door_redirect(user.as_ref())),
         Err(AppError::Validation(key)) => {
             let errors = RegisterErrors::from_service(&key, &i18n);
-            render_register(
-                csrf_token.0,
-                i18n,
-                door,
-                errors,
-                input.email,
-                input.display_name,
-            )
+            render_register(csrf_token, i18n, errors, input)
         }
         Err(e) => Err(e),
     }

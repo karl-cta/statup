@@ -3,20 +3,22 @@
 
 use askama::Template;
 use axum::extract::State;
-use axum::response::{Html, IntoResponse, Redirect, Response};
+use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 use tower_sessions::Session;
 
+use super::auth::instance_title;
+use super::render;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
+use crate::middleware::csrf::renew_token;
+use crate::middleware::headers::no_store;
 use crate::middleware::{AuthUser, CsrfToken, HtmlForm};
 use crate::models::User;
 use crate::repositories::UserRepository;
 use crate::services::AuthService;
-use crate::session::stamp_credential;
+use crate::session::{rotate_id, stamp_credential};
 use crate::state::AppState;
-
-use super::auth::instance_title;
 
 #[derive(Default)]
 struct NewPasswordErrors {
@@ -43,8 +45,22 @@ struct NewPasswordTemplate {
 
 #[derive(Deserialize)]
 pub struct NewPasswordInput {
+    #[serde(default)]
     password: String,
+    #[serde(default)]
     password_confirm: String,
+}
+
+/// Gives the session a new id, the new password stamp and a new form
+/// token, so a copy of the old cookie is worth nothing. Returns the token
+/// for a page rendered in the same response.
+pub(super) async fn reopen_session(
+    session: &Session,
+    password_hash: &str,
+) -> Result<String, AppError> {
+    rotate_id(session).await?;
+    stamp_credential(session, password_hash).await?;
+    renew_token(session).await
 }
 
 fn render_page(
@@ -54,34 +70,31 @@ fn render_page(
     errors: NewPasswordErrors,
 ) -> Result<Response, AppError> {
     let (instance, powered_by) = instance_title();
-    let tpl = NewPasswordTemplate {
+    let page = render(&NewPasswordTemplate {
         csrf_token,
         email: user.email.clone(),
         errors,
         instance,
         powered_by,
         i18n,
-    };
-    let html = tpl
-        .render()
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("template render error: {e}")))?;
-    Ok(Html(html).into_response())
+    })?;
+    Ok(no_store(page))
 }
 
 pub async fn form(
     AuthUser(user): AuthUser,
-    csrf_token: CsrfToken,
+    CsrfToken(csrf_token): CsrfToken,
     Locale(i18n): Locale,
 ) -> Result<Response, AppError> {
     if !user.must_change_password {
         return Ok(Redirect::to("/").into_response());
     }
-    render_page(&user, csrf_token.0, i18n, NewPasswordErrors::default())
+    render_page(&user, csrf_token, i18n, NewPasswordErrors::default())
 }
 
 /// The temporary password itself is refused, otherwise typing it again
 /// would pass the step.
-fn check_new_password(
+async fn check_new_password(
     user: &User,
     input: &NewPasswordInput,
     i18n: &I18n,
@@ -89,7 +102,7 @@ fn check_new_password(
     let mut errors = NewPasswordErrors::default();
     if let Err(AppError::Validation(key)) = AuthService::validate_password(&input.password) {
         errors.password = Some(i18n.t(&key).to_string());
-    } else if AuthService::verify_password(&input.password, &user.password_hash)? {
+    } else if AuthService::verify_password(&input.password, &user.password_hash).await? {
         errors.password = Some(i18n.t("validation.password_unchanged").to_string());
     } else if input.password != input.password_confirm {
         errors.confirm = Some(i18n.t("validation.passwords_mismatch").to_string());
@@ -101,7 +114,7 @@ pub async fn update(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
     session: Session,
-    csrf_token: CsrfToken,
+    CsrfToken(csrf_token): CsrfToken,
     Locale(i18n): Locale,
     HtmlForm(input): HtmlForm<NewPasswordInput>,
 ) -> Result<Response, AppError> {
@@ -109,14 +122,14 @@ pub async fn update(
         return Ok(Redirect::to("/").into_response());
     }
 
-    let errors = check_new_password(&user, &input, &i18n)?;
+    let errors = check_new_password(&user, &input, &i18n).await?;
     if !errors.is_empty() {
-        return render_page(&user, csrf_token.0, i18n, errors);
+        return render_page(&user, csrf_token, i18n, errors);
     }
 
-    let hash = AuthService::hash_password(&input.password)?;
+    let hash = AuthService::hash_password(&input.password).await?;
     UserRepository::update_password(&state.pool, user.id, &hash).await?;
-    stamp_credential(&session, &hash).await?;
+    reopen_session(&session, &hash).await?;
     tracing::info!(user_id = user.id, "Temporary password replaced");
 
     Ok(Redirect::to("/").into_response())

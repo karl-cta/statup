@@ -3,143 +3,22 @@
 //! Validates the full HTTP flow: creation, transitions, updates, closure.
 //! Also exercises service status recalculation.
 
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
+mod common;
 
 use reqwest::StatusCode;
-use reqwest::redirect::Policy;
-use time::Duration;
-use tower_sessions::cookie::SameSite;
-use tower_sessions::{Expiry, SessionManagerLayer};
-use tower_sessions_sqlx_store::SqliteStore;
 
-use statup::db;
+use common::{TestApp, extract_csrf_token};
 use statup::models::{Role, ServiceStatus};
-use statup::repositories::{ServiceRepository, UserRepository};
-use statup::routes::create_router;
-use statup::services::{AuthService, LoginRateLimiter};
-use statup::state::AppState;
-
-struct TestApp {
-    addr: SocketAddr,
-    client: reqwest::Client,
-    pool: sqlx::SqlitePool,
-}
+use statup::repositories::ServiceRepository;
 
 impl TestApp {
-    async fn spawn() -> Self {
-        let pool = db::create_pool("sqlite::memory:", 1)
-            .await
-            .expect("failed to create test pool");
-        db::run_migrations(&pool)
-            .await
-            .expect("failed to run migrations");
-
-        let session_store = SqliteStore::new(pool.clone());
-        session_store
-            .migrate()
-            .await
-            .expect("failed to migrate session store");
-
-        let session_layer = SessionManagerLayer::new(session_store)
-            .with_secure(false)
-            .with_same_site(SameSite::Lax)
-            .with_http_only(true)
-            .with_expiry(Expiry::OnInactivity(Duration::seconds(3600)));
-
-        let upload_dir = std::env::temp_dir()
-            .join("statup-test-uploads")
-            .to_string_lossy()
-            .to_string();
-        std::fs::create_dir_all(format!("{upload_dir}/icons")).ok();
-
-        let state = AppState {
-            pool: pool.clone(),
-            login_limiter: Arc::new(LoginRateLimiter::default()),
-            upload_dir,
-            public_mode: Arc::new(AtomicBool::new(false)),
-            trust_proxy_headers: false,
-            public_url: None,
-        };
-
-        let app = create_router(state).layer(session_layer);
-
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("failed to bind test listener");
-        let addr = listener.local_addr().expect("failed to get local addr");
-
-        tokio::spawn(async move {
-            axum::serve(
-                listener,
-                app.into_make_service_with_connect_info::<SocketAddr>(),
-            )
-            .await
-            .expect("server error");
-        });
-
-        let client = reqwest::Client::builder()
-            .cookie_store(true)
-            .redirect(Policy::none())
-            .build()
-            .expect("failed to build reqwest client");
-
-        Self { addr, client, pool }
-    }
-
-    fn url(&self, path: &str) -> String {
-        format!("http://{}{path}", self.addr)
-    }
-
-    async fn get(&self, path: &str) -> (StatusCode, String) {
-        let resp = self
-            .client
-            .get(self.url(path))
-            .send()
-            .await
-            .expect("GET request failed");
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        (status, body)
-    }
-
-    async fn post_form(
-        &self,
-        path: &str,
-        csrf_token: &str,
-        fields: &[(&str, &str)],
-    ) -> (StatusCode, String, Option<String>) {
-        let mut form: Vec<(&str, &str)> = vec![("csrf_token", csrf_token)];
-        form.extend_from_slice(fields);
-
-        let resp = self
-            .client
-            .post(self.url(path))
-            .form(&form)
-            .send()
-            .await
-            .expect("POST request failed");
-
-        let status = resp.status();
-        let location = resp
-            .headers()
-            .get("location")
-            .and_then(|v| v.to_str().ok())
-            .map(ToOwned::to_owned);
-        let body = resp.text().await.unwrap_or_default();
-        (status, body, location)
-    }
-
-    /// POST via the `X-CSRF-Token` header, for endpoints that do not accept
-    /// a `csrf_token` form field but still go through the CSRF middleware.
+    /// POST via the `X-CSRF-Token` header, the way htmx sends it.
     async fn post_form_with_header_csrf(
         &self,
         path: &str,
         fields: &[(&str, &str)],
     ) -> (StatusCode, String, Option<String>) {
-        let (_, body) = self.get("/").await;
-        let csrf = extract_csrf_token(&body);
+        let csrf = self.csrf_from("/").await;
 
         let resp = self
             .client
@@ -161,35 +40,15 @@ impl TestApp {
     }
 
     async fn setup_publisher(&self) {
-        AuthService::register(
-            &self.pool,
+        self.create_user(
             "publisher@example.com",
             "publisher_pass_12",
             "Publisher",
-            statup::models::Role::Reader,
+            Role::Publisher,
         )
-        .await
-        .expect("failed to create user");
-
-        let user = UserRepository::find_by_email(&self.pool, "publisher@example.com")
-            .await
-            .expect("db error")
-            .expect("user not found");
-        UserRepository::update_role(&self.pool, user.id, Role::Publisher)
-            .await
-            .expect("failed to update role");
-
+        .await;
         self.login("publisher@example.com", "publisher_pass_12")
             .await;
-    }
-
-    async fn login(&self, email: &str, password: &str) {
-        let (_, body) = self.get("/login").await;
-        let csrf = extract_csrf_token(&body);
-        let (status, _body, _location) = self
-            .post_form("/login", &csrf, &[("email", email), ("password", password)])
-            .await;
-        assert_eq!(status, StatusCode::SEE_OTHER, "login should redirect");
     }
 
     async fn create_service(&self, name: &str) -> i64 {
@@ -205,8 +64,7 @@ impl TestApp {
         base_fields: Vec<(&str, String)>,
         service_ids: &[i64],
     ) -> String {
-        let (_, body) = self.get("/events/new").await;
-        let csrf = extract_csrf_token(&body);
+        let csrf = self.csrf_from("/events/new").await;
 
         let mut fields = base_fields;
         for id in service_ids {
@@ -280,19 +138,6 @@ impl TestApp {
         )
         .await
     }
-}
-
-fn extract_csrf_token(html: &str) -> String {
-    let marker = r#"name="csrf_token" value=""#;
-    let start = html
-        .find(marker)
-        .unwrap_or_else(|| panic!("csrf_token not found in HTML"))
-        + marker.len();
-    let end = html[start..]
-        .find('"')
-        .unwrap_or_else(|| panic!("closing quote for csrf_token not found"))
-        + start;
-    html[start..end].to_string()
 }
 
 fn event_id_from_path(path: &str) -> i64 {
@@ -511,21 +356,20 @@ async fn invalid_lifecycle_transition_is_rejected() {
 async fn reader_cannot_create_events() {
     let app = TestApp::spawn().await;
 
-    AuthService::register(
-        &app.pool,
+    app.create_user(
         "reader@example.com",
         "reader_pass_1234",
         "Reader",
-        statup::models::Role::Reader,
+        Role::Reader,
     )
-    .await
-    .expect("failed to create user");
+    .await;
     app.login("reader@example.com", "reader_pass_1234").await;
 
     let (status, _) = app.get("/events/new").await;
-    assert!(
-        status == StatusCode::FORBIDDEN || status == StatusCode::UNAUTHORIZED,
-        "reader should not access /events/new, got {status}"
+    assert_eq!(
+        status,
+        StatusCode::FORBIDDEN,
+        "reader should not access /events/new"
     );
 }
 
@@ -618,9 +462,7 @@ async fn publication_does_not_affect_service_status() {
     );
 }
 
-/// A rejected creation used to come back with an empty form, so the author lost
-/// the incident they had just written. The edit handler repopulated correctly,
-/// which is what proved the creation path was an oversight rather than a policy.
+/// A refused creation re-renders the form with everything the author typed.
 #[tokio::test]
 async fn rejected_event_creation_gives_the_input_back() {
     let app = TestApp::spawn().await;
@@ -669,7 +511,7 @@ async fn rejected_event_creation_gives_the_input_back() {
     );
 }
 
-/// Same defect on the service form, where only the icon used to survive.
+/// The same rule on the service form.
 #[tokio::test]
 async fn rejected_service_creation_gives_the_input_back() {
     let app = TestApp::spawn().await;

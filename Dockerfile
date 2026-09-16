@@ -1,9 +1,28 @@
-# Build stage
+# Binary
 FROM rust:1.93-alpine AS builder
 
 RUN apk add --no-cache musl-dev
 
 WORKDIR /app
+
+COPY Cargo.toml Cargo.lock ./
+
+# Builds the dependencies alone, for the layer cache. The stub is not the
+# crate, so this step may fail without consequence: it only warms the cache.
+RUN mkdir src && echo "fn main() {}" > src/main.rs && \
+    (cargo build --release || true) && \
+    rm -rf src
+
+COPY src ./src
+COPY templates ./templates
+COPY locales ./locales
+COPY migrations ./migrations
+
+# Newer than the stub, so cargo rebuilds the crate itself.
+RUN touch src/main.rs src/lib.rs && cargo build --release --locked
+
+# Stylesheet, built apart so a change in static/ does not rebuild the binary
+FROM alpine:3.21 AS styles
 
 # Tailwind CSS v4 standalone CLI, the musl build since the image is Alpine
 ARG TARGETARCH
@@ -16,40 +35,34 @@ RUN case "${TARGETARCH:-amd64}" in \
       "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.18/tailwindcss-linux-${TW_ARCH}-musl" && \
     chmod +x /usr/local/bin/tailwindcss
 
-# Copy manifests first for dependency caching
-COPY Cargo.toml Cargo.lock ./
+WORKDIR /app
 
-# Create dummy src to build dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release 2>/dev/null || true
-RUN rm -rf src
-
-# Copy actual source code
-COPY src ./src
-COPY templates ./templates
-COPY locales ./locales
-COPY migrations ./migrations
+# Tailwind reads the class names used in the templates and in the Rust code.
 COPY static ./static
+COPY templates ./templates
+COPY src ./src
 
-# Build Tailwind CSS (minified)
-RUN tailwindcss --input static/css/input.css --output static/css/style.css --minify
+# Only the built stylesheet is served, never its sources.
+RUN tailwindcss --input static/css/input.css --output static/css/style.css --minify && \
+    find static/css -name '*.css' ! -name style.css -delete && \
+    find static/css -mindepth 1 -type d -exec rm -rf {} +
 
-# Build the application
-RUN cargo build --release
-
-# Runtime stage
+# Runtime
 FROM alpine:3.21
 
-RUN apk add --no-cache ca-certificates wget
+# tzdata lets TZ name the time zone of the instance.
+RUN apk add --no-cache tzdata
+
+# A fixed id, so a bind-mounted data directory can be given to it.
+RUN addgroup -S -g 10001 statup && \
+    adduser -S -D -H -u 10001 -G statup -s /sbin/nologin statup && \
+    mkdir -p /data && chown statup:statup /data
 
 WORKDIR /app
 
-RUN addgroup -S statup && adduser -S statup -G statup && \
-    mkdir -p /data && chown statup:statup /data
-
-COPY --from=builder --chown=statup:statup /app/target/release/statup /app/statup
-COPY --from=builder --chown=statup:statup /app/static /app/static
-COPY --from=builder --chown=statup:statup /app/migrations /app/migrations
+COPY --from=builder /app/target/release/statup /app/statup
+COPY --from=styles /app/static /app/static
+COPY LICENSE /app/LICENSE
 
 # Uploaded icons live in the data volume beside the database, where the app
 # user may write and where an image update does not wipe them.
@@ -65,6 +78,6 @@ EXPOSE 3000
 VOLUME ["/data"]
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+    CMD wget -q --spider http://127.0.0.1:3000/health || exit 1
 
 ENTRYPOINT ["/app/statup"]

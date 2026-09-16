@@ -1,20 +1,18 @@
-//! `ValidatedForm` extractor, deserializes `application/x-www-form-urlencoded`
-//! bodies using `serde_html_form` (which supports repeated keys → `Vec`) and
-//! runs `validator::Validate` before handing the value to the handler.
+//! Form extractors: `application/x-www-form-urlencoded` bodies decoded with
+//! `serde_html_form`, which turns repeated keys into a `Vec`, with an
+//! optional `validator` pass.
 
 use async_trait::async_trait;
 use axum::extract::{FromRequest, Request};
 use serde::de::DeserializeOwned;
 use validator::Validate;
 
+use super::body::buffer_body;
 use crate::error::AppError;
 
-/// Maximum form body size (1 MB).
-const MAX_FORM_BODY: usize = 1024 * 1024;
-
-/// Axum extractor that deserializes a form body with `serde_html_form`,
-/// without validation. Use when repeated field names must deserialize into
-/// `Vec<T>` but no `validator::Validate` impl is needed.
+/// Axum extractor that decodes a form body without validating it. A body
+/// that does not decode is a 400 with a generic message: handlers that
+/// re-render a form give their fields `#[serde(default)]` and check them.
 pub struct HtmlForm<T>(pub T);
 
 #[async_trait]
@@ -26,22 +24,11 @@ where
     type Rejection = AppError;
 
     async fn from_request(req: Request, _state: &S) -> Result<Self, Self::Rejection> {
-        let bytes = axum::body::to_bytes(req.into_body(), MAX_FORM_BODY)
-            .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("failed to read request body: {e}")))?;
-
-        let value: T = serde_html_form::from_bytes(&bytes)
-            .map_err(|_e| AppError::Validation("validation.invalid_form_data".to_string()))?;
-
-        Ok(Self(value))
+        decode_form(req).await.map(Self)
     }
 }
 
-/// Axum extractor that deserializes a form body **and** validates it.
-///
-/// Uses `serde_html_form` instead of `serde_urlencoded` so that repeated
-/// field names (e.g. checkboxes with the same `name`) correctly deserialize
-/// into `Vec<T>`.
+/// Axum extractor that decodes a form body **and** validates it.
 pub struct ValidatedForm<T>(pub T);
 
 #[async_trait]
@@ -53,14 +40,14 @@ where
     type Rejection = AppError;
 
     async fn from_request(req: Request, _state: &S) -> Result<Self, Self::Rejection> {
-        let bytes = axum::body::to_bytes(req.into_body(), MAX_FORM_BODY)
-            .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("failed to read request body: {e}")))?;
-
-        let value: T = serde_html_form::from_bytes(&bytes)
-            .map_err(|_e| AppError::Validation("validation.invalid_form_data".to_string()))?;
-
+        let value: T = decode_form(req).await?;
         value.validate()?;
         Ok(Self(value))
     }
+}
+
+async fn decode_form<T: DeserializeOwned>(req: Request) -> Result<T, AppError> {
+    let bytes = buffer_body(req.into_body()).await?;
+    serde_html_form::from_bytes(&bytes)
+        .map_err(|_| AppError::Validation("validation.invalid_form_data".to_string()))
 }

@@ -1,19 +1,20 @@
-//! Profile routes - view and edit own user profile.
+//! Profile routes: a person's own name, email and password.
 
 use askama::Template;
 use axum::extract::State;
-use axum::response::{Html, IntoResponse, Response};
+use axum::response::Response;
 use serde::Deserialize;
 use tower_sessions::Session;
-use validator::Validate;
 
+use super::password::reopen_session;
+use super::render;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
-use crate::middleware::{AuthUser, CsrfToken, ValidatedForm};
-use crate::models::User;
+use crate::middleware::headers::no_store;
+use crate::middleware::{AuthUser, CsrfToken, HtmlForm};
+use crate::models::{User, check_display_name};
 use crate::repositories::{EventRepository, UserRepository};
 use crate::services::{AuthService, EventService};
-use crate::session::stamp_credential;
 use crate::state::AppState;
 
 #[derive(Template)]
@@ -35,215 +36,170 @@ struct ProfileTemplate {
     i18n: I18n,
 }
 
-#[derive(Deserialize, Validate)]
-pub struct ProfileInput {
-    #[validate(email(message = "validation.email_invalid"))]
-    email: String,
-    #[validate(length(min = 1, max = 100, message = "validation.display_name_required"))]
-    display_name: String,
-}
-
-#[derive(Deserialize, Validate)]
-pub struct PasswordInput {
-    #[validate(length(min = 1, message = "validation.current_password_required"))]
-    current_password: String,
-    #[validate(length(min = 12, message = "validation.new_password_min_length"))]
-    new_password: String,
-    new_password_confirm: String,
-}
-
-fn render(tpl: &impl Template) -> Result<Response, AppError> {
-    let html = tpl
-        .render()
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("template render error: {e}")))?;
-    Ok(Html(html).into_response())
-}
-
-fn layout_fields(user: &User) -> (String, bool, bool) {
-    (user.display_name.clone(), user.role.can_admin(), true)
-}
-
-async fn unread(pool: &crate::db::DbPool, user: &User) -> Result<i64, AppError> {
-    EventService::unread_count(pool, user.last_seen_at).await
-}
-
-fn role_label(user: &User, i18n: &I18n) -> String {
-    match user.role {
-        crate::models::Role::Reader => i18n.t("role.reader").to_string(),
-        crate::models::Role::Publisher => i18n.t("role.publisher").to_string(),
-        crate::models::Role::Admin => i18n.t("role.admin").to_string(),
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-async fn build_template(
-    user: &User,
-    state: &AppState,
-    csrf_token: String,
-    i18n: I18n,
+/// What the page says above each of its two forms.
+#[derive(Default)]
+struct ProfileMessages {
     error: Option<String>,
     success: Option<String>,
     password_error: Option<String>,
     password_success: Option<String>,
-) -> Result<ProfileTemplate, AppError> {
-    let (user_display_name, is_admin, is_authenticated) = layout_fields(user);
-    let unread_count = unread(&state.pool, user).await?;
+}
+
+#[derive(Deserialize)]
+pub struct ProfileInput {
+    #[serde(default)]
+    email: String,
+    #[serde(default)]
+    display_name: String,
+}
+
+#[derive(Deserialize)]
+pub struct PasswordInput {
+    #[serde(default)]
+    current_password: String,
+    #[serde(default)]
+    new_password: String,
+    #[serde(default)]
+    new_password_confirm: String,
+}
+
+async fn render_profile(
+    state: &AppState,
+    user: &User,
+    csrf_token: String,
+    i18n: I18n,
+    messages: ProfileMessages,
+) -> Result<Response, AppError> {
+    let unread_count = EventService::unread_count(&state.pool, user.last_seen_at).await?;
     let last_admin_action = EventRepository::last_admin_action(&state.pool)
         .await?
         .map(|dt| i18n.format_datetime_long(&dt));
 
-    Ok(ProfileTemplate {
+    let page = render(&ProfileTemplate {
         csrf_token,
-        user_display_name,
-        is_admin,
-        is_authenticated,
+        user_display_name: user.display_name.clone(),
+        is_admin: user.role.can_admin(),
+        is_authenticated: true,
         unread_count,
         last_admin_action,
         email: user.email.clone(),
         display_name: user.display_name.clone(),
-        role_label: role_label(user, &i18n),
-        error,
-        success,
-        password_error,
-        password_success,
+        role_label: i18n.t(user.role.i18n_key()).to_string(),
+        error: messages.error,
+        success: messages.success,
+        password_error: messages.password_error,
+        password_success: messages.password_success,
         i18n,
-    })
+    })?;
+    Ok(no_store(page))
 }
 
 pub async fn edit_form(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
-    csrf_token: CsrfToken,
+    CsrfToken(csrf_token): CsrfToken,
     Locale(i18n): Locale,
 ) -> Result<Response, AppError> {
-    let tpl = build_template(&user, &state, csrf_token.0, i18n, None, None, None, None).await?;
-    render(&tpl)
+    render_profile(&state, &user, csrf_token, i18n, ProfileMessages::default()).await
 }
 
 pub async fn update_profile(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
-    csrf_token: CsrfToken,
+    CsrfToken(csrf_token): CsrfToken,
     Locale(i18n): Locale,
-    ValidatedForm(input): ValidatedForm<ProfileInput>,
+    HtmlForm(input): HtmlForm<ProfileInput>,
 ) -> Result<Response, AppError> {
-    let email = input.email.trim().to_lowercase();
-    let display_name = input.display_name.trim().to_string();
-
-    if email.is_empty() || !email.contains('@') || email.len() < 5 {
-        let msg = i18n.t("validation.email_invalid").to_string();
-        let tpl = build_template(
-            &user,
-            &state,
-            csrf_token.0,
-            i18n,
-            Some(msg),
-            None,
-            None,
-            None,
-        )
-        .await?;
-        return render(&tpl);
+    match save_profile(&state, &user, &input).await {
+        Ok(updated) => {
+            let messages = ProfileMessages {
+                success: Some(i18n.t("success.profile_updated").to_string()),
+                ..ProfileMessages::default()
+            };
+            render_profile(&state, &updated, csrf_token, i18n, messages).await
+        }
+        Err(AppError::Validation(key)) => {
+            let messages = ProfileMessages {
+                error: Some(i18n.t(&key).to_string()),
+                ..ProfileMessages::default()
+            };
+            render_profile(&state, &user, csrf_token, i18n, messages).await
+        }
+        Err(e) => Err(e),
     }
+}
 
+/// Checks and stores the name and email, and returns the updated account.
+async fn save_profile(
+    state: &AppState,
+    user: &User,
+    input: &ProfileInput,
+) -> Result<User, AppError> {
+    let name = check_display_name(&input.display_name)
+        .map_err(|key| AppError::Validation(key.to_string()))?;
+    let email = AuthService::normalize_email(&input.email)?;
     if UserRepository::email_taken_by_other(&state.pool, &email, user.id).await? {
-        let msg = i18n.t("validation.email_taken").to_string();
-        let tpl = build_template(
-            &user,
-            &state,
-            csrf_token.0,
-            i18n,
-            Some(msg),
-            None,
-            None,
-            None,
-        )
-        .await?;
-        return render(&tpl);
+        return Err(AppError::Validation("validation.email_taken".to_string()));
     }
-
-    UserRepository::update_profile(&state.pool, user.id, &email, &display_name).await?;
-
+    UserRepository::update_profile(&state.pool, user.id, &email, &name)
+        .await
+        .map_err(|e| match &e {
+            sqlx::Error::Database(db) if db.is_unique_violation() => {
+                AppError::Validation("validation.email_taken".to_string())
+            }
+            _ => AppError::Database(e),
+        })?;
     tracing::info!(user_id = user.id, "Profile updated");
 
-    let updated_user = UserRepository::find_by_id(&state.pool, user.id)
+    UserRepository::find_by_id(&state.pool, user.id)
         .await?
-        .ok_or(AppError::NotFound)?;
-
-    let msg = i18n.t("success.profile_updated").to_string();
-    let tpl = build_template(
-        &updated_user,
-        &state,
-        csrf_token.0,
-        i18n,
-        None,
-        Some(msg),
-        None,
-        None,
-    )
-    .await?;
-    render(&tpl)
+        .ok_or(AppError::NotFound)
 }
 
 pub async fn update_password(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
     session: Session,
-    csrf_token: CsrfToken,
+    CsrfToken(csrf_token): CsrfToken,
     Locale(i18n): Locale,
-    ValidatedForm(input): ValidatedForm<PasswordInput>,
+    HtmlForm(input): HtmlForm<PasswordInput>,
 ) -> Result<Response, AppError> {
-    if !AuthService::verify_password(&input.current_password, &user.password_hash)? {
-        let msg = i18n.t("validation.wrong_password").to_string();
-        let tpl = build_template(
-            &user,
-            &state,
-            csrf_token.0,
-            i18n,
-            None,
-            None,
-            Some(msg),
-            None,
-        )
-        .await?;
-        return render(&tpl);
+    if let Some(key) = password_change_refusal(&user, &input).await? {
+        let messages = ProfileMessages {
+            password_error: Some(i18n.t(key).to_string()),
+            ..ProfileMessages::default()
+        };
+        return render_profile(&state, &user, csrf_token, i18n, messages).await;
     }
 
-    if input.new_password != input.new_password_confirm {
-        let msg = i18n.t("validation.new_passwords_mismatch").to_string();
-        let tpl = build_template(
-            &user,
-            &state,
-            csrf_token.0,
-            i18n,
-            None,
-            None,
-            Some(msg),
-            None,
-        )
-        .await?;
-        return render(&tpl);
-    }
-
-    AuthService::validate_password(&input.new_password)?;
-
-    let hash = AuthService::hash_password(&input.new_password)?;
+    let hash = AuthService::hash_password(&input.new_password).await?;
     UserRepository::update_password(&state.pool, user.id, &hash).await?;
-    stamp_credential(&session, &hash).await?;
-
+    let csrf_token = reopen_session(&session, &hash).await?;
     tracing::info!(user_id = user.id, "Password changed");
 
-    let msg = i18n.t("success.password_changed").to_string();
-    let tpl = build_template(
-        &user,
-        &state,
-        csrf_token.0,
-        i18n,
-        None,
-        None,
-        None,
-        Some(msg),
-    )
-    .await?;
-    render(&tpl)
+    let messages = ProfileMessages {
+        password_success: Some(i18n.t("success.password_changed").to_string()),
+        ..ProfileMessages::default()
+    };
+    render_profile(&state, &user, csrf_token, i18n, messages).await
+}
+
+/// The message key refusing the change, if any.
+async fn password_change_refusal(
+    user: &User,
+    input: &PasswordInput,
+) -> Result<Option<&'static str>, AppError> {
+    if input.current_password.is_empty() {
+        return Ok(Some("validation.current_password_required"));
+    }
+    if !AuthService::verify_password(&input.current_password, &user.password_hash).await? {
+        return Ok(Some("validation.wrong_password"));
+    }
+    if AuthService::validate_password(&input.new_password).is_err() {
+        return Ok(Some("validation.new_password_min_length"));
+    }
+    if input.new_password != input.new_password_confirm {
+        return Ok(Some("validation.new_passwords_mismatch"));
+    }
+    Ok(None)
 }

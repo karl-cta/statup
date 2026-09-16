@@ -27,9 +27,7 @@
     </label>
     <button type="submit" class="btn-3d auth-submit"><span>{{ i18n.t("auth.submit_login") }}</span></button>
 </form>
-{% if door.is_first_account() %}
+{% if offer_first_account %}
 <p class="auth-alt text-muted">{{ i18n.t("auth.first_account_hint") }} <a href="/register" class="auth-link">{{ i18n.t("auth.first_account_link") }}</a></p>
-{% else if door.is_members() %}
-<p class="auth-alt text-muted">{{ i18n.t("auth.no_account") }} <a href="/register" class="auth-link">{{ i18n.t("auth.create_account") }}</a></p>
 {% endif %}
 {% endblock %}

@@ -3,13 +3,8 @@
 {% block title %}{{ i18n.t("auth.register_title") }} | {{ instance }}{% endblock %}
 
 {% block auth_head %}
-{% if door.is_first_account() %}
 <h1 class="auth-title">{{ i18n.t("auth.first_account_heading") }} {{ instance }}</h1>
 <p class="auth-intro">{{ i18n.t("auth.first_account_intro") }}</p>
-{% else %}
-<h1 class="auth-title">{{ i18n.t("auth.join_heading") }} {{ instance }}</h1>
-<p class="auth-intro text-muted">{{ i18n.t("auth.join_intro") }}</p>
-{% endif %}
 {% endblock %}
 
 {% block auth_body %}
@@ -51,10 +46,7 @@
         {% endif %}
     </div>
     <button type="submit" class="btn-3d auth-submit">
-        <span>{% if door.is_first_account() %}{{ i18n.t("auth.first_account_submit") }}{% else %}{{ i18n.t("auth.submit_register") }}{% endif %}</span>
+        <span>{{ i18n.t("auth.first_account_submit") }}</span>
     </button>
 </form>
-{% if door.is_members() %}
-<p class="auth-alt text-muted">{{ i18n.t("auth.have_account") }} <a href="/login" class="auth-link">{{ i18n.t("auth.submit_login") }}</a></p>
-{% endif %}
 {% endblock %}

@@ -1,20 +1,24 @@
-//! Icon routes - upload, library browsing, delete.
+//! Icon routes: upload, library browsing and deletion.
 
 use std::collections::HashMap;
 
 use askama::Template;
 use axum::extract::{Multipart, Path, Query, State};
-use axum::response::{Html, IntoResponse, Redirect, Response};
+use axum::response::{IntoResponse, Redirect, Response};
 use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 use serde::Deserialize;
 
+use super::render;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, RequirePublisher};
 use crate::models::{Icon, MAX_ICON_SIZE, User};
 use crate::repositories::{EventRepository, IconRepository};
-use crate::services::{EventService, IconService};
+use crate::services::{EventService, IconService, file_exists, icon_path};
 use crate::state::AppState;
+
+/// Longest original file name kept, in characters.
+const ORIGINAL_NAME_MAX_CHARS: usize = 255;
 
 /// One icon of the library with what the page has to say about it.
 struct IconCard {
@@ -57,6 +61,14 @@ struct IconListTemplate {
     i18n: I18n,
 }
 
+/// What the library page says on top of the cards.
+#[derive(Default)]
+struct LibraryNotice {
+    added: Option<String>,
+    removed: Option<String>,
+    error: Option<String>,
+}
+
 #[derive(Deserialize)]
 pub struct IconListQuery {
     added: Option<i64>,
@@ -68,51 +80,28 @@ pub struct IconListQuery {
 struct IconGridTemplate {
     custom_icons: Vec<Icon>,
     selected_icon_id: Option<i64>,
-    /// A refused upload comes back as a normal swap carrying this message.
-    /// htmx does not swap error statuses, so a 400 left the author with a
-    /// picker that did nothing and said nothing.
+    /// Refusals come back with a 200 so htmx swaps the message in.
     upload_error: Option<String>,
     i18n: I18n,
-}
-
-fn render(tpl: &impl Template) -> Result<Response, AppError> {
-    let html = tpl
-        .render()
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("template render error: {e}")))?;
-    Ok(Html(html).into_response())
-}
-
-fn layout_fields(user: &User) -> (String, bool, bool) {
-    (user.display_name.clone(), user.role.can_admin(), true)
-}
-
-async fn unread(pool: &crate::db::DbPool, user: &User) -> Result<i64, AppError> {
-    EventService::unread_count(pool, user.last_seen_at).await
 }
 
 pub async fn list(
     RequirePublisher(user): RequirePublisher,
     State(state): State<AppState>,
-    csrf_token: CsrfToken,
+    CsrfToken(csrf_token): CsrfToken,
     Locale(i18n): Locale,
     Query(query): Query<IconListQuery>,
 ) -> Result<Response, AppError> {
     let cards = load_cards(&state).await?;
-    let added = query
-        .added
-        .and_then(|id| cards.iter().find(|c| c.icon.id == id))
-        .map(|c| c.icon.original_name.clone());
-    render_list(
-        &state,
-        &user,
-        csrf_token.0,
-        i18n,
-        cards,
-        added,
-        query.removed,
-        None,
-    )
-    .await
+    let notice = LibraryNotice {
+        added: query
+            .added
+            .and_then(|id| cards.iter().find(|c| c.icon.id == id))
+            .map(|c| c.icon.original_name.clone()),
+        removed: query.removed,
+        error: None,
+    };
+    render_list(&state, &user, csrf_token, i18n, cards, notice).await
 }
 
 async fn load_cards(state: &AppState) -> Result<Vec<IconCard>, AppError> {
@@ -125,115 +114,108 @@ async fn load_cards(state: &AppState) -> Result<Vec<IconCard>, AppError> {
         .await?
         .into_iter()
         .collect();
-    let cards = icons
-        .into_iter()
-        .map(|icon| {
-            let path = format!("{}/icons/{}", state.upload_dir, icon.filename);
-            IconCard {
-                services: services.remove(&icon.id).unwrap_or_default(),
-                other_uses: other_uses.get(&icon.id).copied().unwrap_or(0),
-                file_missing: !std::path::Path::new(&path).exists(),
-                icon,
-            }
-        })
-        .collect();
+
+    let mut cards = Vec::with_capacity(icons.len());
+    for icon in icons {
+        let file_missing = !file_exists(&icon_path(&state.upload_dir, &icon.filename)).await;
+        cards.push(IconCard {
+            services: services.remove(&icon.id).unwrap_or_default(),
+            other_uses: other_uses.get(&icon.id).copied().unwrap_or(0),
+            file_missing,
+            icon,
+        });
+    }
     Ok(cards)
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn render_list(
     state: &AppState,
     user: &User,
     csrf_token: String,
     i18n: I18n,
     cards: Vec<IconCard>,
-    added: Option<String>,
-    removed: Option<String>,
-    error: Option<String>,
+    notice: LibraryNotice,
 ) -> Result<Response, AppError> {
-    let (user_display_name, is_admin, is_authenticated) = layout_fields(user);
-    let unread_count = unread(&state.pool, user).await?;
+    let unread_count = EventService::unread_count(&state.pool, user.last_seen_at).await?;
     let last_admin_action = EventRepository::last_admin_action(&state.pool)
         .await?
         .map(|dt| i18n.format_datetime_long(&dt));
-    let tpl = IconListTemplate {
+    render(&IconListTemplate {
         csrf_token,
-        user_display_name,
-        is_admin,
-        is_authenticated,
+        user_display_name: user.display_name.clone(),
+        is_admin: user.role.can_admin(),
+        is_authenticated: true,
         unread_count,
         last_admin_action,
         cards,
-        added,
-        removed,
-        error,
+        added: notice.added,
+        removed: notice.removed,
+        error: notice.error,
         i18n,
-    };
-    render(&tpl)
+    })
 }
 
-/// Extract the uploaded file from a multipart request, enforcing size limit.
+/// The uploaded file of a multipart request, with its original name.
 /// CSRF is validated upstream by middleware.
-async fn extract_upload(
-    multipart: &mut Multipart,
-    i18n: &I18n,
-) -> Result<(String, Vec<u8>), AppError> {
-    let mut file_data: Option<(String, Vec<u8>)> = None;
-
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(|e| AppError::Validation(format!("{}: {e}", i18n.t("validation.generic_error"))))?
-    {
-        let name = field.name().unwrap_or("").to_string();
-        if name == "file" {
-            let original_name = field.file_name().unwrap_or("icon").to_string();
-            let data = field.bytes().await.map_err(|e| {
-                AppError::Validation(format!("{}: {e}", i18n.t("validation.generic_error")))
-            })?;
-
-            if data.len() > MAX_ICON_SIZE {
-                return Err(AppError::Validation(
-                    i18n.t("validation.file_too_large").to_string(),
-                ));
-            }
-
-            file_data = Some((original_name, data.to_vec()));
-        } else {
-            // CSRF is validated by middleware; drain any other field.
-            let _ = field.bytes().await;
+async fn extract_upload(multipart: &mut Multipart) -> Result<(String, Vec<u8>), AppError> {
+    let unreadable = |e: axum::extract::multipart::MultipartError| {
+        tracing::debug!(error = %e, "Unreadable upload");
+        AppError::Validation("validation.invalid_form_data".to_string())
+    };
+    let mut file_data = None;
+    while let Some(field) = multipart.next_field().await.map_err(unreadable)? {
+        if field.name() != Some("file") {
+            continue;
         }
+        let original_name: String = field
+            .file_name()
+            .unwrap_or("icon")
+            .chars()
+            .take(ORIGINAL_NAME_MAX_CHARS)
+            .collect();
+        let data = field.bytes().await.map_err(unreadable)?;
+        if data.len() > MAX_ICON_SIZE {
+            return Err(AppError::Validation(
+                "validation.file_too_large".to_string(),
+            ));
+        }
+        file_data = Some((original_name, data.to_vec()));
     }
+    file_data.ok_or_else(|| AppError::Validation("validation.no_file".to_string()))
+}
 
-    file_data.ok_or_else(|| AppError::Validation(i18n.t("validation.no_file").to_string()))
+async fn store_upload(
+    state: &AppState,
+    user: &User,
+    multipart: &mut Multipart,
+) -> Result<Icon, AppError> {
+    let (original_name, data) = extract_upload(multipart).await?;
+    IconService::upload(
+        &state.pool,
+        &state.upload_dir,
+        data,
+        &original_name,
+        user.id,
+    )
+    .await
 }
 
 pub async fn upload(
     RequirePublisher(user): RequirePublisher,
     State(state): State<AppState>,
-    csrf_token: CsrfToken,
+    CsrfToken(csrf_token): CsrfToken,
     Locale(i18n): Locale,
     mut multipart: Multipart,
 ) -> Result<Response, AppError> {
-    let uploaded = async {
-        let (original_name, data) = extract_upload(&mut multipart, &i18n).await?;
-        IconService::upload(
-            &state.pool,
-            &state.upload_dir,
-            &data,
-            &original_name,
-            user.id,
-        )
-        .await
-    }
-    .await;
-
-    match uploaded {
+    match store_upload(&state, &user, &mut multipart).await {
         Ok(icon) => Ok(Redirect::to(&format!("/icons?added={}", icon.id)).into_response()),
-        Err(AppError::Validation(msg)) => {
+        Err(AppError::Validation(key)) => {
             let cards = load_cards(&state).await?;
-            let error = Some(i18n.t(&msg).to_string());
-            render_list(&state, &user, csrf_token.0, i18n, cards, None, None, error).await
+            let notice = LibraryNotice {
+                error: Some(i18n.t(&key).to_string()),
+                ..LibraryNotice::default()
+            };
+            render_list(&state, &user, csrf_token, i18n, cards, notice).await
         }
         Err(e) => Err(e),
     }
@@ -245,55 +227,39 @@ pub async fn upload_picker(
     Locale(i18n): Locale,
     mut multipart: Multipart,
 ) -> Result<Response, AppError> {
-    let uploaded = async {
-        let (original_name, data) = extract_upload(&mut multipart, &i18n).await?;
-        IconService::upload(
-            &state.pool,
-            &state.upload_dir,
-            &data,
-            &original_name,
-            user.id,
-        )
-        .await
-    }
-    .await;
-
-    let (selected_icon_id, upload_error) = match uploaded {
+    let (selected_icon_id, upload_error) = match store_upload(&state, &user, &mut multipart).await {
         Ok(icon) => (Some(icon.id), None),
-        Err(AppError::Validation(msg)) => (None, Some(i18n.t(&msg).to_string())),
+        Err(AppError::Validation(key)) => (None, Some(i18n.t(&key).to_string())),
         Err(e) => return Err(e),
     };
 
-    let icons = IconRepository::list_all(&state.pool).await?;
-    let tpl = IconGridTemplate {
-        custom_icons: icons,
+    render(&IconGridTemplate {
+        custom_icons: IconRepository::list_all(&state.pool).await?,
         selected_icon_id,
         upload_error,
         i18n,
-    };
-    render(&tpl)
+    })
 }
 
 pub async fn delete(
     RequirePublisher(user): RequirePublisher,
     State(state): State<AppState>,
     Path(id): Path<i64>,
-    csrf_token: CsrfToken,
+    CsrfToken(csrf_token): CsrfToken,
     Locale(i18n): Locale,
 ) -> Result<Response, AppError> {
-    let name = IconRepository::find_by_id(&state.pool, id)
-        .await?
-        .ok_or(AppError::NotFound)?
-        .original_name;
     match IconService::delete(&state.pool, &state.upload_dir, id).await {
-        Ok(()) => {
-            let removed = utf8_percent_encode(&name, NON_ALPHANUMERIC);
+        Ok(icon) => {
+            let removed = utf8_percent_encode(&icon.original_name, NON_ALPHANUMERIC);
             Ok(Redirect::to(&format!("/icons?removed={removed}")).into_response())
         }
-        Err(AppError::Validation(msg)) => {
+        Err(AppError::Validation(key)) => {
             let cards = load_cards(&state).await?;
-            let error = Some(i18n.t(&msg).to_string());
-            render_list(&state, &user, csrf_token.0, i18n, cards, None, None, error).await
+            let notice = LibraryNotice {
+                error: Some(i18n.t(&key).to_string()),
+                ..LibraryNotice::default()
+            };
+            render_list(&state, &user, csrf_token, i18n, cards, notice).await
         }
         Err(e) => Err(e),
     }

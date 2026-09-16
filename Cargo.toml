@@ -2,32 +2,42 @@
 name = "statup"
 version = "0.1.0"
 edition = "2024"
-description = "Internal IT/Ops status page - self-hostable single binary"
+rust-version = "1.88"
+description = "Self-hosted status page for IT teams: services, incidents and maintenances"
 authors = ["Karl"]
 license = "AGPL-3.0-or-later"
+repository = "https://github.com/karl-cta/statup"
+readme = "README.md"
+keywords = ["status-page", "self-hosted", "incident", "htmx", "sqlite"]
+categories = ["web-programming::http-server"]
+publish = false
 
 [dependencies]
 # Web framework
 axum = { version = "0.7", features = ["macros", "multipart"] }
 multer = "3"
 tokio = { version = "1", features = ["full"] }
-tower = "0.4"
-tower-http = { version = "0.5", features = ["compression-gzip", "fs", "trace", "limit", "set-header"] }
+tower-http = { version = "0.5", features = [
+    "catch-panic",
+    "compression-gzip",
+    "fs",
+    "limit",
+    "set-header",
+    "timeout",
+    "trace",
+] }
 
 # Database
-sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "chrono"] }
+sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "chrono", "time"] }
 
 # Templates
-askama = { version = "0.12", features = ["with-axum", "serde-json"] }
-askama_axum = "0.4"
+askama = { version = "0.12", features = ["serde-json"] }
 
 # Authentication
 argon2 = "0.5"
 tower-sessions = "0.12"
 tower-sessions-sqlx-store = { version = "0.12", features = ["sqlite"] }
-
-# Security
-csrf = "0.4"
+rmp-serde = "1"
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
@@ -71,12 +81,19 @@ async-trait = "0.1"
 percent-encoding = "2"
 
 [dev-dependencies]
-tokio-test = "0.4"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "cookies"] }
 
+# Unoptimized, a password hash takes over a second: sign-in in a debug build
+# and every test that creates an account would wait on it.
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3
+
 [profile.release]
+opt-level = 3
 lto = true
 codegen-units = 1
-panic = "abort"
+panic = "unwind"
 strip = true
-opt-level = "z"

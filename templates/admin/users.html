@@ -74,7 +74,7 @@
                     {% for r in crate::models::Role::ALL %}
                     <label class="choice">
                         <input type="radio" name="role" value="{{ r.as_str() }}" class="sr-only" required
-                               {% if add_form.role == r.as_str() || (add_form.role.is_empty() && r.as_str() == "publisher") %}checked{% endif %}>
+                               {% if add_form.role == r.as_str() || (add_form.role.is_empty() && r.as_str() == "reader") %}checked{% endif %}>
                         <span>{{ i18n.t(r.i18n_key()) }}</span>
                     </label>
                     {% endfor %}

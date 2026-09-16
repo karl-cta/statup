@@ -1,260 +1,114 @@
-//! Integration tests for admin operations.
-//!
-//! Tests role changes, user disable/enable, and permission enforcement
-//! on admin-only endpoints.
+//! Integration tests for admin operations: role changes, account
+//! activation, members added with a temporary password, instance settings,
+//! uploaded icons, and permission enforcement on admin-only endpoints.
 
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
+mod common;
 
 use reqwest::StatusCode;
-use reqwest::redirect::Policy;
-use time::Duration;
-use tower_sessions::cookie::SameSite;
-use tower_sessions::{Expiry, SessionManagerLayer};
-use tower_sessions_sqlx_store::SqliteStore;
 
-use statup::db;
+use common::{TestApp, extract_csrf_token};
 use statup::models::Role;
 use statup::repositories::UserRepository;
-use statup::routes::create_router;
-use statup::services::{AuthService, LoginRateLimiter};
-use statup::state::AppState;
 
-// ---------------------------------------------------------------------------
-// Test application helper
-// ---------------------------------------------------------------------------
+/// The instance name lives in process memory: the tests that set it or read
+/// the default brand run one at a time.
+static BRAND: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
-struct TestApp {
-    addr: SocketAddr,
-    client: reqwest::Client,
-    pool: sqlx::SqlitePool,
-}
+const ADMIN_EMAIL: &str = "admin@test.com";
+const ADMIN_PASSWORD: &str = "admin_password_12";
 
 impl TestApp {
-    async fn spawn() -> Self {
-        let pool = db::create_pool("sqlite::memory:", 1)
+    async fn reader(&self, email: &str, name: &str) -> i64 {
+        self.create_user(email, "reader_password_12", name, Role::Reader)
             .await
-            .expect("failed to create test pool");
-        db::run_migrations(&pool)
-            .await
-            .expect("failed to run migrations");
-
-        let session_store = SqliteStore::new(pool.clone());
-        session_store
-            .migrate()
-            .await
-            .expect("failed to migrate session store");
-
-        let session_layer = SessionManagerLayer::new(session_store)
-            .with_secure(false)
-            .with_same_site(SameSite::Lax)
-            .with_http_only(true)
-            .with_expiry(Expiry::OnInactivity(Duration::seconds(3600)));
-
-        let upload_dir = std::env::temp_dir()
-            .join("statup-test-admin")
-            .to_string_lossy()
-            .to_string();
-        std::fs::create_dir_all(format!("{upload_dir}/icons")).ok();
-
-        let state = AppState {
-            pool: pool.clone(),
-            login_limiter: Arc::new(LoginRateLimiter::default()),
-            upload_dir,
-            public_mode: Arc::new(AtomicBool::new(false)),
-            trust_proxy_headers: false,
-            public_url: None,
-        };
-
-        let app = create_router(state).layer(session_layer);
-
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("failed to bind test listener");
-        let addr = listener.local_addr().expect("failed to get local addr");
-
-        tokio::spawn(async move {
-            axum::serve(
-                listener,
-                app.into_make_service_with_connect_info::<SocketAddr>(),
-            )
-            .await
-            .expect("server error");
-        });
-
-        let client = reqwest::Client::builder()
-            .cookie_store(true)
-            .redirect(Policy::none())
-            .build()
-            .expect("failed to build reqwest client");
-
-        Self { addr, client, pool }
     }
 
-    fn url(&self, path: &str) -> String {
-        format!("http://{}{path}", self.addr)
+    /// Promote a user directly in the database.
+    async fn promote(&self, user_id: i64, role: Role) {
+        assert!(
+            UserRepository::update_role(&self.pool, user_id, role)
+                .await
+                .expect("failed to update role")
+        );
     }
 
-    async fn get(&self, path: &str) -> (StatusCode, String) {
-        let resp = self
-            .client
-            .get(self.url(path))
-            .send()
-            .await
-            .expect("GET request failed");
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        (status, body)
-    }
-
-    async fn post_form(
-        &self,
-        path: &str,
-        csrf_token: &str,
-        fields: &[(&str, &str)],
-    ) -> (StatusCode, String, Option<String>) {
-        let mut form: Vec<(&str, &str)> = vec![("csrf_token", csrf_token)];
-        form.extend_from_slice(fields);
-
-        let resp = self
-            .client
-            .post(self.url(path))
-            .form(&form)
-            .send()
-            .await
-            .expect("POST request failed");
-
-        let status = resp.status();
-        let location = resp
-            .headers()
-            .get("location")
-            .and_then(|v| v.to_str().ok())
-            .map(ToOwned::to_owned);
-        let body = resp.text().await.unwrap_or_default();
-        (status, body, location)
-    }
-
-    /// Create a user directly in DB and return their id.
-    async fn create_user(&self, email: &str, password: &str, name: &str) -> i64 {
-        let user = AuthService::register(
-            &self.pool,
-            email,
-            password,
-            name,
-            statup::models::Role::Reader,
-        )
-        .await
-        .expect("failed to create user");
-        user.id
-    }
-
-    /// Promote a user to a given role directly in DB.
-    async fn set_role(&self, user_id: i64, role: Role) {
-        UserRepository::update_role(&self.pool, user_id, role)
-            .await
-            .expect("failed to update role");
-    }
-
-    /// Login via HTTP form flow.
-    async fn login(&self, email: &str, password: &str) {
-        let (status, body) = self.get("/login").await;
-        assert_eq!(status, StatusCode::OK);
-        let csrf = extract_csrf_token(&body);
-
-        let (status, _body, location) = self
-            .post_form("/login", &csrf, &[("email", email), ("password", password)])
-            .await;
-
-        assert_eq!(status, StatusCode::SEE_OTHER, "login should redirect");
-        assert_eq!(location.as_deref(), Some("/"));
-    }
-
-    /// Get a CSRF token from any authenticated page.
+    /// A CSRF token from the team page.
     async fn csrf(&self) -> String {
-        let (_, body) = self.get("/admin/users").await;
-        extract_csrf_token(&body)
+        self.csrf_from("/admin/users").await
+    }
+
+    async fn role_of(&self, user_id: i64) -> Role {
+        UserRepository::find_by_id(&self.pool, user_id)
+            .await
+            .expect("db error")
+            .expect("user not found")
+            .role
+    }
+
+    async fn is_active(&self, user_id: i64) -> bool {
+        UserRepository::find_by_id(&self.pool, user_id)
+            .await
+            .expect("db error")
+            .expect("user not found")
+            .is_active
+    }
+
+    async fn add_member(&self, fields: &[(&str, &str)]) -> (StatusCode, String, Option<String>) {
+        let csrf = self.csrf().await;
+        self.post_form("/admin/users/new", &csrf, fields).await
     }
 }
 
-fn extract_csrf_token(html: &str) -> String {
-    let marker = r#"name="csrf_token" value=""#;
-    let start = html
-        .find(marker)
-        .unwrap_or_else(|| panic!("csrf_token not found in HTML"))
-        + marker.len();
-    let end = html[start..]
-        .find('"')
-        .unwrap_or_else(|| panic!("closing quote for csrf_token not found"))
-        + start;
-    html[start..end].to_string()
-}
-
-/// Helper: spawn app, create an admin user, login, and return (app, admin_id).
+/// Spawn the app with a signed-in administrator, and return its id.
 async fn spawn_with_admin() -> (TestApp, i64) {
     let app = TestApp::spawn().await;
     let admin_id = app
-        .create_user("admin@test.com", "admin_password_12", "Admin")
+        .create_user(ADMIN_EMAIL, ADMIN_PASSWORD, "Admin", Role::Admin)
         .await;
-    app.set_role(admin_id, Role::Admin).await;
-    app.login("admin@test.com", "admin_password_12").await;
+    app.login(ADMIN_EMAIL, ADMIN_PASSWORD).await;
     (app, admin_id)
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+fn is_team_page_redirect(location: Option<&str>) -> bool {
+    location.is_some_and(|l| l.starts_with("/admin/users?"))
+}
+
+/// Whether the input with this `value` carries `checked`.
+fn is_checked(body: &str, value: &str) -> bool {
+    let marker = format!(r#"value="{value}""#);
+    let Some(start) = body.find(&marker) else {
+        return false;
+    };
+    let end = start + body[start..].find('>').unwrap_or(0);
+    body[start..end].contains("checked")
+}
 
 #[tokio::test]
 async fn admin_can_change_user_role_to_publisher() {
     let (app, _admin_id) = spawn_with_admin().await;
-
-    let reader_id = app
-        .create_user("reader@test.com", "reader_password_12", "Reader")
-        .await;
+    let reader_id = app.reader("reader@test.com", "Reader").await;
 
     let csrf = app.csrf().await;
     let path = format!("/admin/users/{reader_id}/role");
     let (status, _body, location) = app.post_form(&path, &csrf, &[("role", "publisher")]).await;
 
     assert_eq!(status, StatusCode::SEE_OTHER);
-    assert!(
-        location
-            .as_deref()
-            .is_some_and(|l| l.starts_with("/admin/users?"))
-    );
-
-    let user = UserRepository::find_by_id(&app.pool, reader_id)
-        .await
-        .expect("db error")
-        .expect("user not found");
-    assert_eq!(user.role, Role::Publisher);
+    assert!(is_team_page_redirect(location.as_deref()));
+    assert_eq!(app.role_of(reader_id).await, Role::Publisher);
 }
 
 #[tokio::test]
 async fn admin_can_change_user_role_to_admin() {
     let (app, _admin_id) = spawn_with_admin().await;
-
-    let user_id = app
-        .create_user("user@test.com", "user_password_1234", "User")
-        .await;
+    let user_id = app.reader("user@test.com", "User").await;
 
     let csrf = app.csrf().await;
     let path = format!("/admin/users/{user_id}/role");
     let (status, _body, location) = app.post_form(&path, &csrf, &[("role", "admin")]).await;
 
     assert_eq!(status, StatusCode::SEE_OTHER);
-    assert!(
-        location
-            .as_deref()
-            .is_some_and(|l| l.starts_with("/admin/users?"))
-    );
-
-    let user = UserRepository::find_by_id(&app.pool, user_id)
-        .await
-        .expect("db error")
-        .expect("user not found");
-    assert_eq!(user.role, Role::Admin);
+    assert!(is_team_page_redirect(location.as_deref()));
+    assert_eq!(app.role_of(user_id).await, Role::Admin);
 }
 
 #[tokio::test]
@@ -265,72 +119,32 @@ async fn admin_cannot_change_own_role() {
     let path = format!("/admin/users/{admin_id}/role");
     let (status, body, _location) = app.post_form(&path, &csrf, &[("role", "reader")]).await;
 
-    // Should fail with a validation error (not redirect)
-    assert_ne!(status, StatusCode::SEE_OTHER);
+    assert_eq!(status, StatusCode::OK, "refused in the page");
     assert!(
         body.contains("propre rôle"),
         "should mention cannot change own role, got: {body}"
     );
-
-    // Role should be unchanged
-    let user = UserRepository::find_by_id(&app.pool, admin_id)
-        .await
-        .expect("db error")
-        .expect("user not found");
-    assert_eq!(user.role, Role::Admin);
+    assert_eq!(app.role_of(admin_id).await, Role::Admin);
 }
 
 #[tokio::test]
-async fn last_admin_cannot_be_demoted() {
-    let (app, _admin_id) = spawn_with_admin().await;
+async fn demoting_other_admins_always_leaves_one() {
+    let (app, admin_id) = spawn_with_admin().await;
+    let other_id = app.reader("other@test.com", "Other").await;
+    let third_id = app.reader("third@test.com", "Third").await;
+    app.promote(other_id, Role::Admin).await;
+    app.promote(third_id, Role::Admin).await;
 
-    // Create another user who is admin, then try to demote them
-    // But first: we only have one admin, so demoting any admin should fail
-    let other_id = app
-        .create_user("other@test.com", "other_password_12", "Other")
-        .await;
-    app.set_role(other_id, Role::Admin).await;
+    for target in [other_id, third_id] {
+        let csrf = app.csrf().await;
+        let path = format!("/admin/users/{target}/role");
+        let (status, _body, location) = app.post_form(&path, &csrf, &[("role", "reader")]).await;
+        assert_eq!(status, StatusCode::SEE_OTHER);
+        assert!(is_team_page_redirect(location.as_deref()));
+        assert_eq!(app.role_of(target).await, Role::Reader);
+    }
 
-    // Now demote "other", should succeed because we still have the original admin
-    let csrf = app.csrf().await;
-    let path = format!("/admin/users/{other_id}/role");
-    let (status, _body, location) = app.post_form(&path, &csrf, &[("role", "reader")]).await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
-    assert!(
-        location
-            .as_deref()
-            .is_some_and(|l| l.starts_with("/admin/users?"))
-    );
-
-    // Now only one admin remains. Create a third user as admin, then try
-    // to demote them, but we can't demote the logged-in admin (self-check).
-    // Instead, create a second admin and demote them to be left with one,
-    // then try to demote one more.
-    let third_id = app
-        .create_user("third@test.com", "third_password_12", "Third")
-        .await;
-    app.set_role(third_id, Role::Admin).await;
-
-    // Demote third, should succeed (2 admins -> 1)
-    let csrf = app.csrf().await;
-    let path = format!("/admin/users/{third_id}/role");
-    let (status, _body, _location) = app.post_form(&path, &csrf, &[("role", "reader")]).await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
-
-    // Promote other back to admin, then demote, this time "other" is the only other admin
-    app.set_role(other_id, Role::Admin).await;
-    // Now demote other, 2 admins (logged-in + other), demoting other leaves 1 → should succeed
-    let csrf = app.csrf().await;
-    let path = format!("/admin/users/{other_id}/role");
-    let (status, _body, _location) = app.post_form(&path, &csrf, &[("role", "reader")]).await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
-
-    // Now only the logged-in admin remains. Promote other again, login as other,
-    // and try to demote the original admin (the last one besides "other").
-    // Actually let's just verify by direct DB check and a simpler approach:
-    // We know only 1 admin remains. Let's promote other to admin,
-    // then demote the original from other's session. But that's complex.
-    // Instead, just verify count:
+    assert_eq!(app.role_of(admin_id).await, Role::Admin);
     let admin_count = UserRepository::count_admins(&app.pool)
         .await
         .expect("db error");
@@ -338,89 +152,36 @@ async fn last_admin_cannot_be_demoted() {
 }
 
 #[tokio::test]
-async fn demoting_admin_when_two_admins_succeeds() {
-    let (app, _admin_id) = spawn_with_admin().await;
-
-    // Create a second admin
-    let other_id = app
-        .create_user("other@test.com", "other_password_12", "Other")
-        .await;
-    app.set_role(other_id, Role::Admin).await;
-
-    // 2 admins exist, demoting other should succeed
-    let csrf = app.csrf().await;
-    let path = format!("/admin/users/{other_id}/role");
-    let (status, _body, location) = app.post_form(&path, &csrf, &[("role", "reader")]).await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
-    assert!(
-        location
-            .as_deref()
-            .is_some_and(|l| l.starts_with("/admin/users?"))
-    );
-
-    let other = UserRepository::find_by_id(&app.pool, other_id)
-        .await
-        .expect("db error")
-        .expect("user not found");
-    assert_eq!(other.role, Role::Reader);
-}
-
-#[tokio::test]
 async fn admin_can_disable_user() {
     let (app, _admin_id) = spawn_with_admin().await;
-
-    let user_id = app
-        .create_user("target@test.com", "target_password_12", "Target")
-        .await;
+    let user_id = app.reader("target@test.com", "Target").await;
 
     let csrf = app.csrf().await;
     let path = format!("/admin/users/{user_id}/disable");
     let (status, _body, location) = app.post_form(&path, &csrf, &[]).await;
 
     assert_eq!(status, StatusCode::SEE_OTHER);
-    assert!(
-        location
-            .as_deref()
-            .is_some_and(|l| l.starts_with("/admin/users?"))
-    );
-
-    let user = UserRepository::find_by_id(&app.pool, user_id)
-        .await
-        .expect("db error")
-        .expect("user not found");
-    assert!(!user.is_active, "user should be disabled");
+    assert!(is_team_page_redirect(location.as_deref()));
+    assert!(!app.is_active(user_id).await, "user should be disabled");
 }
 
 #[tokio::test]
 async fn admin_can_reenable_user() {
     let (app, _admin_id) = spawn_with_admin().await;
+    let user_id = app.reader("target@test.com", "Target").await;
+    assert!(
+        UserRepository::set_active(&app.pool, user_id, false)
+            .await
+            .expect("failed to disable")
+    );
 
-    let user_id = app
-        .create_user("target@test.com", "target_password_12", "Target")
-        .await;
-
-    // Disable first
-    UserRepository::set_active(&app.pool, user_id, false)
-        .await
-        .expect("failed to disable");
-
-    // Re-enable via HTTP
     let csrf = app.csrf().await;
     let path = format!("/admin/users/{user_id}/disable");
     let (status, _body, location) = app.post_form(&path, &csrf, &[]).await;
 
     assert_eq!(status, StatusCode::SEE_OTHER);
-    assert!(
-        location
-            .as_deref()
-            .is_some_and(|l| l.starts_with("/admin/users?"))
-    );
-
-    let user = UserRepository::find_by_id(&app.pool, user_id)
-        .await
-        .expect("db error")
-        .expect("user not found");
-    assert!(user.is_active, "user should be re-enabled");
+    assert!(is_team_page_redirect(location.as_deref()));
+    assert!(app.is_active(user_id).await, "user should be re-enabled");
 }
 
 #[tokio::test]
@@ -431,151 +192,100 @@ async fn admin_cannot_disable_self() {
     let path = format!("/admin/users/{admin_id}/disable");
     let (status, body, _location) = app.post_form(&path, &csrf, &[]).await;
 
-    assert_ne!(status, StatusCode::SEE_OTHER);
+    assert_eq!(status, StatusCode::OK, "refused in the page");
     assert!(
         body.contains("désactiver vous-même"),
         "should mention cannot disable self, got: {body}"
     );
-
-    let user = UserRepository::find_by_id(&app.pool, admin_id)
-        .await
-        .expect("db error")
-        .expect("user not found");
-    assert!(user.is_active, "admin should still be active");
+    assert!(
+        app.is_active(admin_id).await,
+        "admin should still be active"
+    );
 }
 
 #[tokio::test]
-async fn last_active_admin_cannot_be_disabled() {
+async fn another_admin_can_be_disabled_while_one_stays_active() {
     let (app, _admin_id) = spawn_with_admin().await;
+    let other_id = app.reader("other@test.com", "Other").await;
+    app.promote(other_id, Role::Admin).await;
 
-    // Create another admin
-    let other_id = app
-        .create_user("other@test.com", "other_password_12", "Other")
-        .await;
-    app.set_role(other_id, Role::Admin).await;
-
-    // Disable other admin, should succeed (2 admins → 1 active)
     let csrf = app.csrf().await;
     let path = format!("/admin/users/{other_id}/disable");
     let (status, _body, location) = app.post_form(&path, &csrf, &[]).await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
-    assert!(
-        location
-            .as_deref()
-            .is_some_and(|l| l.starts_with("/admin/users?"))
-    );
 
-    let other = UserRepository::find_by_id(&app.pool, other_id)
-        .await
-        .expect("db error")
-        .expect("user not found");
-    assert!(!other.is_active, "other admin should be disabled");
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert!(is_team_page_redirect(location.as_deref()));
+    assert!(
+        !app.is_active(other_id).await,
+        "other admin should be disabled"
+    );
 }
 
 #[tokio::test]
 async fn reader_cannot_post_admin_role_change() {
     let app = TestApp::spawn().await;
-
-    // Create and login as reader
-    app.create_user("reader@test.com", "reader_password_12", "Reader")
-        .await;
+    app.reader("reader@test.com", "Reader").await;
     app.login("reader@test.com", "reader_password_12").await;
+    let target_id = app.reader("target@test.com", "Target").await;
 
-    // Try to change a role, should be rejected
-    let target_id = app
-        .create_user("target@test.com", "target_password_12", "Target")
-        .await;
-
-    // Get CSRF from an accessible page
-    let (_, body) = app.get("/").await;
-    let csrf = extract_csrf_token(&body);
-
+    let csrf = app.csrf_from("/").await;
     let path = format!("/admin/users/{target_id}/role");
     let (status, _body, _location) = app.post_form(&path, &csrf, &[("role", "admin")]).await;
 
-    assert!(
-        status == StatusCode::FORBIDDEN || status == StatusCode::UNAUTHORIZED,
-        "reader POST to admin route should be 401 or 403, got {status}"
-    );
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(app.role_of(target_id).await, Role::Reader);
 }
 
 #[tokio::test]
 async fn reader_cannot_post_admin_disable() {
     let app = TestApp::spawn().await;
-
-    app.create_user("reader@test.com", "reader_password_12", "Reader")
-        .await;
+    app.reader("reader@test.com", "Reader").await;
     app.login("reader@test.com", "reader_password_12").await;
+    let target_id = app.reader("target@test.com", "Target").await;
 
-    let target_id = app
-        .create_user("target@test.com", "target_password_12", "Target")
-        .await;
-
-    let (_, body) = app.get("/").await;
-    let csrf = extract_csrf_token(&body);
-
+    let csrf = app.csrf_from("/").await;
     let path = format!("/admin/users/{target_id}/disable");
     let (status, _body, _location) = app.post_form(&path, &csrf, &[]).await;
 
-    assert!(
-        status == StatusCode::FORBIDDEN || status == StatusCode::UNAUTHORIZED,
-        "reader POST to admin disable should be 401 or 403, got {status}"
-    );
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert!(app.is_active(target_id).await);
 }
 
 #[tokio::test]
 async fn publisher_cannot_access_admin_operations() {
     let app = TestApp::spawn().await;
-
-    let pub_id = app
-        .create_user("pub@test.com", "publisher_pass_12", "Publisher")
-        .await;
-    app.set_role(pub_id, Role::Publisher).await;
+    app.create_user(
+        "pub@test.com",
+        "publisher_pass_12",
+        "Publisher",
+        Role::Publisher,
+    )
+    .await;
     app.login("pub@test.com", "publisher_pass_12").await;
 
-    // GET admin page
     let (status, _body) = app.get("/admin/users").await;
-    assert!(
-        status == StatusCode::FORBIDDEN || status == StatusCode::UNAUTHORIZED,
-        "publisher GET /admin/users should be 401 or 403, got {status}"
-    );
+    assert_eq!(status, StatusCode::FORBIDDEN);
 
-    // POST role change
-    let target_id = app
-        .create_user("target@test.com", "target_password_12", "Target")
-        .await;
-
-    let (_, body) = app.get("/").await;
-    let csrf = extract_csrf_token(&body);
-
+    let target_id = app.reader("target@test.com", "Target").await;
+    let csrf = app.csrf_from("/").await;
     let path = format!("/admin/users/{target_id}/role");
     let (status, _body, _location) = app.post_form(&path, &csrf, &[("role", "publisher")]).await;
-    assert!(
-        status == StatusCode::FORBIDDEN || status == StatusCode::UNAUTHORIZED,
-        "publisher POST role change should be 401 or 403, got {status}"
-    );
+    assert_eq!(status, StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
 async fn unauthenticated_cannot_access_admin_operations() {
     let app = TestApp::spawn().await;
 
-    // GET /admin/users without auth should be rejected (401 or redirect)
     let (status, _body) = app.get("/admin/users").await;
-    assert!(
-        status == StatusCode::UNAUTHORIZED || status == StatusCode::SEE_OTHER,
-        "unauthenticated GET /admin/users should be 401 or redirect, got {status}"
-    );
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
 async fn admin_users_page_lists_all_users() {
     let (app, _admin_id) = spawn_with_admin().await;
-
-    app.create_user("alice@test.com", "alice_password_12", "Alice")
-        .await;
-    app.create_user("bob@test.com", "bob_password_1234", "Bob")
-        .await;
+    app.reader("alice@test.com", "Alice").await;
+    app.reader("bob@test.com", "Bob").await;
 
     let (status, body) = app.get("/admin/users").await;
     assert_eq!(status, StatusCode::OK);
@@ -585,28 +295,122 @@ async fn admin_users_page_lists_all_users() {
 }
 
 #[tokio::test]
-async fn member_added_by_an_admin_must_replace_the_temporary_password() {
+async fn a_new_member_is_a_reader_unless_chosen_otherwise() {
     let (app, _admin_id) = spawn_with_admin().await;
-    let csrf = app.csrf().await;
 
-    let (status, _body, _) = app
-        .post_form(
-            "/admin/users/new",
-            &csrf,
-            &[
-                ("display_name", "Paul"),
-                ("email", "paul@test.com"),
-                ("role", "reader"),
-            ],
-        )
+    let (_, body) = app.get("/admin/users").await;
+    assert!(
+        is_checked(&body, "reader"),
+        "the reader role is preselected"
+    );
+    assert!(!is_checked(&body, "publisher"));
+}
+
+#[tokio::test]
+async fn the_temporary_password_is_shown_once_after_the_redirect() {
+    let (app, _admin_id) = spawn_with_admin().await;
+
+    let (status, body, location) = app
+        .add_member(&[
+            ("display_name", "  Paul  "),
+            ("email", "Paul@Test.com"),
+            ("role", "publisher"),
+        ])
         .await;
-    assert_eq!(status, StatusCode::OK);
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/admin/users"));
+    assert!(!body.contains("temp-password"));
 
     let member = UserRepository::find_by_email(&app.pool, "paul@test.com")
         .await
         .expect("db error")
         .expect("member not created");
     assert!(member.must_change_password);
+    assert_eq!(member.role, Role::Publisher);
+    assert_eq!(member.display_name, "Paul");
+
+    let resp = app.get_response("/admin/users").await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        resp.headers()
+            .get("cache-control")
+            .and_then(|v| v.to_str().ok()),
+        Some("no-store"),
+        "a page showing a password is not stored"
+    );
+    let body = resp.text().await.unwrap_or_default();
+    assert!(body.contains("temp-password"), "shown after the redirect");
+    let password = body
+        .split(r#"<code class="temp-password">"#)
+        .nth(1)
+        .and_then(|rest| rest.split("</code>").next())
+        .expect("password rendered")
+        .to_string();
+    assert!(
+        statup::services::AuthService::verify_password(&password, &member.password_hash)
+            .await
+            .expect("hash error")
+    );
+
+    let (_, body) = app.get("/admin/users").await;
+    assert!(!body.contains("temp-password"), "and never again");
+}
+
+#[tokio::test]
+async fn a_refused_member_stays_in_the_form() {
+    let (app, _admin_id) = spawn_with_admin().await;
+
+    let (status, body, location) = app
+        .add_member(&[
+            ("display_name", "   "),
+            ("email", "blank@test.com"),
+            ("role", "reader"),
+        ])
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(location.is_none());
+    assert!(body.contains("form-error"));
+    assert!(body.contains(r#"value="blank@test.com""#));
+
+    let (status, body, _) = app
+        .add_member(&[
+            ("display_name", "Role"),
+            ("email", "role@test.com"),
+            ("role", "superadmin"),
+        ])
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("form-error"));
+
+    let (status, body, _) = app
+        .add_member(&[("display_name", "Mail"), ("email", "not-an-email")])
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("form-error"));
+    assert_eq!(UserRepository::count_all(&app.pool).await.unwrap(), 1);
+}
+
+#[tokio::test]
+async fn a_disabled_accounts_email_is_still_taken() {
+    let (app, _admin_id) = spawn_with_admin().await;
+    let gone_id = app.reader("gone@test.com", "Gone").await;
+    assert!(
+        UserRepository::set_active(&app.pool, gone_id, false)
+            .await
+            .expect("failed to disable")
+    );
+
+    let (status, body, _) = app
+        .add_member(&[
+            ("display_name", "Back"),
+            ("email", "GONE@test.com"),
+            ("role", "reader"),
+        ])
+        .await;
+
+    assert_eq!(status, StatusCode::OK, "a message, not a server error");
+    assert!(body.contains("déjà utilisée"), "{body}");
+    assert_eq!(UserRepository::count_all(&app.pool).await.unwrap(), 2);
 }
 
 #[tokio::test]
@@ -626,28 +430,15 @@ async fn modules_are_reordered_by_their_handle_alone() {
 #[tokio::test]
 async fn role_change_with_invalid_role_is_rejected() {
     let (app, _admin_id) = spawn_with_admin().await;
-
-    let user_id = app
-        .create_user("user@test.com", "user_password_1234", "User")
-        .await;
+    let user_id = app.reader("user@test.com", "User").await;
 
     let csrf = app.csrf().await;
     let path = format!("/admin/users/{user_id}/role");
-    let (status, _body, _location) = app.post_form(&path, &csrf, &[("role", "superadmin")]).await;
+    let (status, body, _location) = app.post_form(&path, &csrf, &[("role", "superadmin")]).await;
 
-    // Should not succeed
-    assert_ne!(
-        status,
-        StatusCode::SEE_OTHER,
-        "invalid role should not redirect to success"
-    );
-
-    // Role should be unchanged
-    let user = UserRepository::find_by_id(&app.pool, user_id)
-        .await
-        .expect("db error")
-        .expect("user not found");
-    assert_eq!(user.role, Role::Reader);
+    assert_eq!(status, StatusCode::OK, "refused in the page");
+    assert!(body.contains("form-error"));
+    assert_eq!(app.role_of(user_id).await, Role::Reader);
 }
 
 /// A self-hosted page should carry the host's identity, not ours: the name
@@ -655,6 +446,7 @@ async fn role_change_with_invalid_role_is_rejected() {
 /// product only keeps a credit in the footer.
 #[tokio::test]
 async fn instance_name_replaces_the_brand_in_masthead_and_title() {
+    let _brand = BRAND.lock().await;
     let (app, _admin_id) = spawn_with_admin().await;
     let csrf = app.csrf().await;
 
@@ -690,7 +482,6 @@ async fn instance_name_replaces_the_brand_in_masthead_and_title() {
         "the settings field should show the trimmed saved value"
     );
 
-    // The name lives in process memory, so put it back for the other tests.
     let csrf = app.csrf().await;
     app.post_form(
         "/admin/settings/instance-name",
@@ -706,6 +497,7 @@ async fn instance_name_replaces_the_brand_in_masthead_and_title() {
 /// still holding it, not on a bare error page.
 #[tokio::test]
 async fn instance_name_too_long_is_refused_in_the_page() {
+    let _brand = BRAND.lock().await;
     let (app, _admin_id) = spawn_with_admin().await;
     let csrf = app.csrf().await;
     let long_name = "a".repeat(41);
@@ -746,6 +538,11 @@ async fn public_access_choice_confirms_its_new_state() {
         .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
     assert_eq!(location.as_deref(), Some("/admin/settings?public=on"));
+    let stored: String = sqlx::query_scalar("SELECT value FROM settings WHERE key = 'public_mode'")
+        .fetch_one(&app.pool)
+        .await
+        .expect("the choice is stored");
+    assert_eq!(stored, "true");
 
     let (_, body) = app.get("/admin/settings?public=on").await;
     assert!(body.contains(r#"value="everyone" class="sr-only" checked"#));
@@ -780,4 +577,150 @@ async fn icon_picker_exposes_its_choice_as_radios() {
         cells,
         "a new service has no icon chosen yet"
     );
+}
+
+/// A multipart body carrying the CSRF token and one file.
+fn icon_upload_body(csrf: &str, filename: &str, content_type: &str, data: &[u8]) -> Vec<u8> {
+    let mut body = format!(
+        "--statup\r\nContent-Disposition: form-data; name=\"csrf_token\"\r\n\r\n{csrf}\r\n\
+         --statup\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n\
+         Content-Type: {content_type}\r\n\r\n"
+    )
+    .into_bytes();
+    body.extend_from_slice(data);
+    body.extend_from_slice(b"\r\n--statup--\r\n");
+    body
+}
+
+async fn upload_icon(app: &TestApp, body: Vec<u8>) -> reqwest::Response {
+    app.client
+        .post(app.url("/icons/upload"))
+        .header("content-type", "multipart/form-data; boundary=statup")
+        .body(body)
+        .send()
+        .await
+        .expect("upload failed")
+}
+
+#[tokio::test]
+async fn uploaded_icons_are_served_sandboxed() {
+    let (app, _) = spawn_with_admin().await;
+    let csrf = app.csrf_from("/icons").await;
+    let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8"/><script>alert(1)</script></svg>"#;
+
+    let resp = upload_icon(
+        &app,
+        icon_upload_body(&csrf, "logo.svg", "image/svg+xml", svg),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
+
+    let filename: String = sqlx::query_scalar("SELECT filename FROM icons")
+        .fetch_one(&app.pool)
+        .await
+        .expect("icon stored");
+    let resp = app
+        .get_response(&format!("/uploads/icons/{filename}"))
+        .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let header = |name| {
+        resp.headers()
+            .get(name)
+            .and_then(|v| v.to_str().ok())
+            .map(ToOwned::to_owned)
+    };
+    assert_eq!(
+        header("content-security-policy").as_deref(),
+        Some("default-src 'none'; style-src 'unsafe-inline'; sandbox")
+    );
+    assert_eq!(
+        header("cache-control").as_deref(),
+        Some("public, max-age=31536000, immutable")
+    );
+    let served = resp.text().await.unwrap_or_default();
+    assert!(served.starts_with("<svg") && !served.contains("script"));
+
+    let resp = app.get_response("/uploads/icons/missing.svg").await;
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    assert!(
+        resp.headers().get("cache-control").is_none(),
+        "a missing file is not cached"
+    );
+}
+
+#[tokio::test]
+async fn an_oversized_icon_is_refused_in_the_page() {
+    let (app, _) = spawn_with_admin().await;
+    let csrf = app.csrf_from("/icons").await;
+    let mut png = vec![0x89, 0x50, 0x4E, 0x47];
+    png.resize(300 * 1024, 0);
+
+    let resp = upload_icon(&app, icon_upload_body(&csrf, "big.png", "image/png", &png)).await;
+    assert_eq!(resp.status(), StatusCode::OK, "said on the page");
+    let body = resp.text().await.unwrap_or_default();
+    assert!(body.contains("taille maximale"), "{body}");
+
+    // The server answers before reading the whole body and then closes the
+    // connection, so the client may not get to read the page itself.
+    let huge = vec![0u8; 3 * 1024 * 1024];
+    let resp = upload_icon(
+        &app,
+        icon_upload_body(&csrf, "huge.png", "image/png", &huge),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(
+        resp.headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok()),
+        Some("text/html; charset=utf-8"),
+        "the error page is rendered"
+    );
+}
+
+#[tokio::test]
+async fn static_files_are_cached_by_version() {
+    let app = TestApp::spawn().await;
+    let cache_control = |resp: &reqwest::Response| {
+        resp.headers()
+            .get("cache-control")
+            .and_then(|v| v.to_str().ok())
+            .map(ToOwned::to_owned)
+    };
+
+    let resp = app.get_response("/static/js/htmx.min.js?v=42").await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        cache_control(&resp).as_deref(),
+        Some("public, max-age=31536000, immutable")
+    );
+
+    let resp = app.get_response("/static/js/htmx.min.js").await;
+    assert_eq!(
+        cache_control(&resp).as_deref(),
+        Some("public, max-age=300, must-revalidate")
+    );
+
+    let resp = app.get_response("/static/js/missing.js?v=42").await;
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    assert_eq!(cache_control(&resp), None);
+
+    let resp = app
+        .client
+        .get(app.url("/static/fonts/hanken-grotesk-variable.woff2"))
+        .header("accept-encoding", "gzip")
+        .send()
+        .await
+        .expect("GET failed");
+    assert!(
+        resp.headers().get("content-encoding").is_none(),
+        "fonts are not compressed again"
+    );
+}
+
+#[tokio::test]
+async fn csrf_token_of_an_authenticated_page_is_never_empty() {
+    let (app, _) = spawn_with_admin().await;
+    let (_, body) = app.get("/").await;
+    assert!(!extract_csrf_token(&body).is_empty());
 }

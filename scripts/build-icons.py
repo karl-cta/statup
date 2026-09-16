@@ -87,7 +87,7 @@ def write_png(path, rows):
     png += chunk(b"IDAT", zlib.compress(raw, 9))
     png += chunk(b"IEND", b"")
     Path(path).write_bytes(png)
-    print(f"  {path}  {size}x{size}  {len(png)} octets")
+    print(f"  {path}  {size}x{size}  {len(png)} bytes")
 
 
 if __name__ == "__main__":

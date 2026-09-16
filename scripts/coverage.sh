@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
+# Usage: scripts/coverage.sh
+# Runs the tests under cargo-llvm-cov, writes an HTML report to coverage/ and fails below 80 percent on services/ and models/.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 COV_DIR="$ROOT/coverage"
+THRESHOLD=80
 
 echo "=== Statup, Code Coverage ==="
 echo ""
 
-# Check prerequisites
 if ! command -v cargo-llvm-cov &>/dev/null; then
     echo "Error: cargo-llvm-cov is not installed."
     echo "Install it with: cargo install cargo-llvm-cov"
@@ -15,10 +17,8 @@ if ! command -v cargo-llvm-cov &>/dev/null; then
     exit 1
 fi
 
-# Clean previous coverage data
 cargo llvm-cov clean --workspace
 
-# Run tests and generate HTML report + console summary
 echo "--- Running tests with coverage instrumentation ---"
 echo ""
 
@@ -32,32 +32,26 @@ echo ""
 echo "--- Coverage Summary ---"
 echo ""
 
-# Generate text summary and display it
-SUMMARY=$(cargo llvm-cov report --summary-only 2>&1)
-echo "$SUMMARY"
+cargo llvm-cov report --summary-only 2>&1
 
 echo ""
 echo "--- Per-module coverage (services & models) ---"
 echo ""
 
-# Extract coverage for key modules
 cargo llvm-cov report 2>&1 | grep -E "(services/|models/)" || true
 
 echo ""
 echo "HTML report: $COV_DIR/html/index.html"
 echo ""
 
-# Check threshold on services and models
-THRESHOLD=80
-
 check_module_coverage() {
     local module="$1"
     local lines
 
+    # The report prints region, function and line coverage: line is the last percentage.
     lines=$(cargo llvm-cov report 2>&1 \
         | grep "$module" \
         | awk '{
-            # Find the last percentage in the line (region/function/line coverage, line is last)
             for (i=NF; i>=1; i--) {
                 if ($i ~ /%$/) {
                     gsub(/%/, "", $i)
@@ -72,7 +66,6 @@ check_module_coverage() {
         return 0
     fi
 
-    # Average across files in the module
     local total=0
     local count=0
     while IFS= read -r pct; do

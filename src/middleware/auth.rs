@@ -1,5 +1,5 @@
-//! Authentication middleware - extractors for `AuthUser`, `OptionalUser`,
-//! `RequirePublisher`, `RequireAdmin`.
+//! Authentication: the signed-in user, loaded once per request by
+//! [`load_session_user`], and the extractors that require it or a role.
 
 use std::convert::Infallible;
 
@@ -14,13 +14,19 @@ use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::User;
 use crate::repositories::UserRepository;
-use crate::session::{USER_ID_KEY, credential_matches};
+use crate::session::{
+    USER_ID_KEY, apply_signed_in_expiry, credential_matches, read_value, refresh_signed_in,
+};
+
+/// The user [`load_session_user`] found for this request, `None` for a
+/// visitor. Its presence tells the extractors the lookup already happened.
+#[derive(Clone)]
+struct SessionUser(Option<User>);
 
 /// Extractor that provides the authenticated user.
 ///
-/// Reads `user_id` from the session, loads the user from the DB,
-/// and redirects to `/login` if anything fails (no session, user not found,
-/// or user inactive).
+/// Redirects to `/login` when nobody is signed in, the account is disabled
+/// or its password changed since the session was opened.
 pub struct AuthUser(pub User);
 
 #[async_trait]
@@ -32,7 +38,7 @@ where
     type Rejection = Redirect;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        load_user_from_session(parts, state)
+        signed_in_user(parts, state)
             .await
             .map(AuthUser)
             .ok_or_else(|| Redirect::to("/login"))
@@ -42,7 +48,7 @@ where
 /// Optional user extractor, returns `Some(User)` if authenticated, `None` otherwise.
 ///
 /// Never rejects: used for read-only routes that are accessible in public mode
-/// without authentication (REQ-16).
+/// without authentication.
 pub struct OptionalUser(pub Option<User>);
 
 #[async_trait]
@@ -54,26 +60,28 @@ where
     type Rejection = Infallible;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let user = load_user_from_session(parts, state).await;
-        Ok(OptionalUser(user))
+        Ok(OptionalUser(signed_in_user(parts, state).await))
     }
 }
 
-/// Try to load the authenticated user from the session.
-async fn load_user_from_session<S>(parts: &mut Parts, state: &S) -> Option<User>
+/// The user loaded by the middleware, or a lookup when a route runs
+/// without it.
+async fn signed_in_user<S>(parts: &mut Parts, state: &S) -> Option<User>
 where
     S: Send + Sync,
     DbPool: FromRef<S>,
 {
+    if let Some(SessionUser(user)) = parts.extensions.get::<SessionUser>() {
+        return user.clone();
+    }
     let session = Session::from_request_parts(parts, state).await.ok()?;
-    let pool = DbPool::from_ref(state);
-    session_user(&session, &pool).await
+    session_user(&session, &DbPool::from_ref(state)).await
 }
 
 /// The signed-in user, or `None` when the session is empty, the account is
 /// gone or disabled, or its password changed since the session was opened.
 async fn session_user(session: &Session, pool: &DbPool) -> Option<User> {
-    let user_id: i64 = session.get(USER_ID_KEY).await.ok().flatten()?;
+    let user_id: i64 = read_value(session, USER_ID_KEY).await.ok().flatten()?;
     let user = UserRepository::find_by_id(pool, user_id)
         .await
         .ok()
@@ -89,34 +97,44 @@ async fn session_user(session: &Session, pool: &DbPool) -> Option<User> {
 
 /// Where a person with a temporary password can still go: the page that
 /// replaces it, and the ways out.
-const PASSWORD_CHANGE_PATHS: [&str; 5] = ["/password/new", "/login", "/logout", "/i18n", "/health"];
+const PASSWORD_CHANGE_PATHS: [&str; 4] = ["/password/new", "/login", "/logout", "/i18n"];
 
-/// Sends a signed-in person whose password was chosen by someone else to the
-/// page that replaces it, whatever page they asked for.
-pub async fn require_password_change(
+/// Loads the signed-in user once for the whole request, extends the session
+/// on activity, and sends a person whose password was chosen by someone
+/// else to the page that replaces it, whatever page they asked for.
+pub async fn load_session_user(
     State(pool): State<DbPool>,
     session: Session,
-    request: Request,
+    mut request: Request,
     next: Next,
 ) -> Response {
-    if !PASSWORD_CHANGE_PATHS.contains(&request.uri().path())
-        && must_change_password(&session, &pool).await
-    {
-        return Redirect::to("/password/new").into_response();
+    let user = session_user(&session, &pool).await;
+    if let Some(user) = &user {
+        if user.must_change_password && !PASSWORD_CHANGE_PATHS.contains(&request.uri().path()) {
+            return Redirect::to("/password/new").into_response();
+        }
+        if let Err(e) = refresh_signed_in(&session).await {
+            tracing::warn!(error = %e, "Session lifetime was not extended");
+        }
     }
-    next.run(request).await
-}
 
-async fn must_change_password(session: &Session, pool: &DbPool) -> bool {
-    session_user(session, pool)
-        .await
-        .is_some_and(|user| user.must_change_password)
+    let signed_in = user.is_some();
+    request.extensions_mut().insert(SessionUser(user));
+    let response = next.run(request).await;
+
+    if signed_in
+        && session.is_modified()
+        && let Err(e) = apply_signed_in_expiry(&session).await
+    {
+        tracing::warn!(error = %e, "Session lifetime was not kept");
+    }
+    response
 }
 
 /// Extractor that requires the authenticated user to have the `Publisher` or `Admin` role.
 ///
-/// Delegates authentication to [`AuthUser`], then checks `role.can_publish()`.
-/// Returns `AppError::Forbidden` (403) if the role is insufficient.
+/// Returns `AppError::Unauthorized` (401) without a signed-in user and
+/// `AppError::Forbidden` (403) if the role is insufficient.
 pub struct RequirePublisher(pub User);
 
 #[async_trait]
@@ -128,22 +146,20 @@ where
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let auth_user = AuthUser::from_request_parts(parts, state)
+        let user = signed_in_user(parts, state)
             .await
-            .map_err(|_| AppError::Unauthorized)?;
-
-        if !auth_user.0.role.can_publish() {
+            .ok_or(AppError::Unauthorized)?;
+        if !user.role.can_publish() {
             return Err(AppError::Forbidden);
         }
-
-        Ok(RequirePublisher(auth_user.0))
+        Ok(RequirePublisher(user))
     }
 }
 
 /// Extractor that requires the authenticated user to have the `Admin` role.
 ///
-/// Delegates authentication to [`AuthUser`], then checks `role.can_admin()`.
-/// Returns `AppError::Forbidden` (403) if the role is insufficient.
+/// Returns `AppError::Unauthorized` (401) without a signed-in user and
+/// `AppError::Forbidden` (403) if the role is insufficient.
 pub struct RequireAdmin(pub User);
 
 #[async_trait]
@@ -155,14 +171,12 @@ where
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let auth_user = AuthUser::from_request_parts(parts, state)
+        let user = signed_in_user(parts, state)
             .await
-            .map_err(|_| AppError::Unauthorized)?;
-
-        if !auth_user.0.role.can_admin() {
+            .ok_or(AppError::Unauthorized)?;
+        if !user.role.can_admin() {
             return Err(AppError::Forbidden);
         }
-
-        Ok(RequireAdmin(auth_user.0))
+        Ok(RequireAdmin(user))
     }
 }

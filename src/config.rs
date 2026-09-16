@@ -1,7 +1,10 @@
 //! Application configuration loaded from environment variables.
 
 use std::env;
-use std::net::IpAddr;
+use std::fmt::Display;
+use std::io::IsTerminal;
+use std::net::{IpAddr, Ipv4Addr};
+use std::str::FromStr;
 use std::time::Duration;
 
 use tracing::level_filters::LevelFilter;
@@ -24,7 +27,7 @@ pub struct Config {
     pub host: IpAddr,
     /// Server listen port.
     pub port: u16,
-    /// Session lifetime.
+    /// Lifetime of a session that nobody signed in with (the sign-in form).
     pub session_expiry: Duration,
     /// Logging level filter.
     pub log_level: LevelFilter,
@@ -36,11 +39,12 @@ pub struct Config {
     pub admin_password: Option<String>,
     /// Directory for user-uploaded files.
     pub upload_dir: String,
-    /// Public mode: read-only pages accessible without login (REQ-16).
+    /// Whether visitors without an account can read the pages, until an
+    /// admin chooses in the settings.
     pub public_mode: bool,
-    /// Read the client IP from `Forwarded` / `X-Forwarded-For` for rate limiting.
-    /// Only enable behind a reverse proxy that sets those headers: with no proxy
-    /// in front, a client can forge them and walk around the rate limit.
+    /// Read the client address from `X-Real-IP`, `X-Forwarded-For` or
+    /// `Forwarded`. Only behind a reverse proxy that sets them: without one,
+    /// a client can forge them and walk around the rate limits.
     pub trust_proxy_headers: bool,
     /// Address visitors use to reach the instance, without a trailing slash.
     /// Feed readers need absolute links, and the `Host` header is not reliable
@@ -49,94 +53,48 @@ pub struct Config {
 }
 
 impl Config {
-    /// Load configuration from environment variables (`.env` file supported via dotenvy).
+    /// Load configuration from the environment, after reading `.env` from
+    /// the working directory when it exists.
     ///
     /// # Errors
     ///
-    /// Returns `ConfigError` if a value is invalid. Every setting has a default.
+    /// Returns `ConfigError` if `.env` is malformed or a value is invalid.
+    /// Every setting has a default.
     pub fn from_env() -> Result<Self, ConfigError> {
-        dotenvy::dotenv().ok();
-
-        let database_url = get_env_or("DATABASE_URL", DEFAULT_DATABASE_URL);
-        let host = get_env_or("HOST", "0.0.0.0")
-            .parse::<IpAddr>()
-            .map_err(|e| ConfigError::InvalidValue {
-                key: "HOST".into(),
-                message: e.to_string(),
-            })?;
-        let port =
-            get_env_or("PORT", "3000")
-                .parse::<u16>()
-                .map_err(|e| ConfigError::InvalidValue {
-                    key: "PORT".into(),
-                    message: e.to_string(),
-                })?;
-        let session_expiry_secs = get_env_or("SESSION_EXPIRY", "604800")
-            .parse::<u64>()
-            .map_err(|e| ConfigError::InvalidValue {
-                key: "SESSION_EXPIRY".into(),
-                message: e.to_string(),
-            })?;
-        let log_level = parse_log_level(&get_env_or("LOG_LEVEL", "info"))?;
-        let db_max_connections = get_env_or("DB_MAX_CONNECTIONS", "10")
-            .parse::<u32>()
-            .map_err(|e| ConfigError::InvalidValue {
-                key: "DB_MAX_CONNECTIONS".into(),
-                message: e.to_string(),
-            })?;
-        let admin_email = env::var("ADMIN_EMAIL").ok().filter(|s| !s.is_empty());
-        let admin_password = env::var("ADMIN_PASSWORD").ok().filter(|s| !s.is_empty());
-        let upload_dir = get_env_or("UPLOAD_DIR", "data/uploads");
-        let public_mode = get_env_or("PUBLIC_MODE", "false")
-            .parse::<bool>()
-            .map_err(|e| ConfigError::InvalidValue {
-                key: "PUBLIC_MODE".into(),
-                message: e.to_string(),
-            })?;
-        let trust_proxy_headers = get_env_or("TRUST_PROXY_HEADERS", "false")
-            .parse::<bool>()
-            .map_err(|e| ConfigError::InvalidValue {
-                key: "TRUST_PROXY_HEADERS".into(),
-                message: e.to_string(),
-            })?;
-
-        let public_url = env::var("PUBLIC_URL")
-            .ok()
-            .map(|s| s.trim().trim_end_matches('/').to_string())
-            .filter(|s| !s.is_empty());
-
+        load_dotenv()?;
         let config = Self {
-            database_url,
-            host,
-            port,
-            session_expiry: Duration::from_secs(session_expiry_secs),
-            log_level,
-            db_max_connections,
-            admin_email,
-            admin_password,
-            upload_dir,
-            public_mode,
-            trust_proxy_headers,
-            public_url,
+            database_url: env_or("DATABASE_URL", DEFAULT_DATABASE_URL),
+            host: parse_env("HOST", IpAddr::V4(Ipv4Addr::UNSPECIFIED))?,
+            port: parse_env("PORT", 3000)?,
+            session_expiry: Duration::from_secs(parse_env("SESSION_EXPIRY", 604_800)?),
+            log_level: parse_log_level(&env_or("LOG_LEVEL", "info"))?,
+            db_max_connections: parse_env("DB_MAX_CONNECTIONS", 10)?,
+            admin_email: non_empty_env("ADMIN_EMAIL"),
+            admin_password: non_empty_env("ADMIN_PASSWORD"),
+            upload_dir: env_or("UPLOAD_DIR", "data/uploads"),
+            public_mode: parse_env("PUBLIC_MODE", false)?,
+            trust_proxy_headers: parse_env("TRUST_PROXY_HEADERS", false)?,
+            public_url: non_empty_env("PUBLIC_URL")
+                .map(|url| url.trim().trim_end_matches('/').to_string()),
         };
-
         config.validate()?;
         Ok(config)
     }
 
-    /// Validate configuration values.
-    ///
-    /// # Errors
-    ///
-    /// Returns `ConfigError::InvalidValue` if any value fails validation.
-    pub fn validate(&self) -> Result<(), ConfigError> {
+    fn validate(&self) -> Result<(), ConfigError> {
         if self.port == 0 {
-            return Err(ConfigError::InvalidValue {
-                key: "PORT".into(),
-                message: "must be greater than 0".into(),
-            });
+            return Err(invalid("PORT", "must be greater than 0"));
         }
-
+        if self.db_max_connections == 0 {
+            return Err(invalid("DB_MAX_CONNECTIONS", "must be greater than 0"));
+        }
+        let expiry_secs = self.session_expiry.as_secs();
+        if expiry_secs == 0 || i64::try_from(expiry_secs).is_err() {
+            return Err(invalid(
+                "SESSION_EXPIRY",
+                "must be a positive number of seconds",
+            ));
+        }
         Ok(())
     }
 
@@ -145,27 +103,66 @@ impl Config {
         format!("{}:{}", self.host, self.port)
     }
 
-    /// Whether the session cookie is marked `Secure`. Only when visitors reach
-    /// the instance over HTTPS: a browser refuses a secure cookie on a plain
+    /// Whether cookies are marked `Secure`. Only when visitors reach the
+    /// instance over HTTPS: a browser refuses a secure cookie on a plain
     /// HTTP page, and nobody could sign in to a local install.
     pub fn secure_cookies(&self) -> bool {
         serves_https(self.public_url.as_deref())
     }
 }
 
-fn serves_https(public_url: Option<&str>) -> bool {
+/// Whether `PUBLIC_URL` says visitors reach the instance over HTTPS.
+pub fn serves_https(public_url: Option<&str>) -> bool {
     public_url.is_some_and(|url| url.to_ascii_lowercase().starts_with("https://"))
 }
 
-/// Read an env var or return a default.
-fn get_env_or(key: &str, default: &str) -> String {
+/// Reads `.env` from the working directory only, never from a parent
+/// directory, where an unrelated project could keep its own. A missing file
+/// is not an error.
+///
+/// # Errors
+///
+/// Returns `ConfigError` when the file exists but cannot be read or parsed.
+pub fn load_dotenv() -> Result<(), ConfigError> {
+    match dotenvy::from_path(".env") {
+        Err(e) if !e.not_found() => Err(invalid(".env", &e.to_string())),
+        _ => Ok(()),
+    }
+}
+
+fn invalid(key: &str, message: &str) -> ConfigError {
+    ConfigError::InvalidValue {
+        key: key.to_string(),
+        message: message.to_string(),
+    }
+}
+
+fn env_or(key: &str, default: &str) -> String {
     env::var(key).unwrap_or_else(|_| default.to_string())
 }
 
-/// Initialize the tracing subscriber with the given log level.
-///
-/// Uses `RUST_LOG` env var if set, otherwise falls back to the config `log_level`.
-/// Pretty format in dev, compact format otherwise.
+/// The raw value, untrimmed so a password keeps its spaces, unless blank.
+fn non_empty_env(key: &str) -> Option<String> {
+    env::var(key).ok().filter(|value| !value.trim().is_empty())
+}
+
+fn parse_env<T>(key: &str, default: T) -> Result<T, ConfigError>
+where
+    T: FromStr,
+    T::Err: Display,
+{
+    match env::var(key) {
+        Ok(raw) => raw
+            .trim()
+            .parse()
+            .map_err(|e: T::Err| invalid(key, &e.to_string())),
+        Err(_) => Ok(default),
+    }
+}
+
+/// Installs the global subscriber. `RUST_LOG`, when it holds a valid filter,
+/// replaces `LOG_LEVEL`, which otherwise applies to every target. Colors
+/// are only written to a terminal, never to a container log.
 pub fn init_logging(level: LevelFilter) {
     use tracing_subscriber::EnvFilter;
     use tracing_subscriber::fmt;
@@ -176,25 +173,23 @@ pub fn init_logging(level: LevelFilter) {
     fmt()
         .with_env_filter(env_filter)
         .with_target(true)
-        .with_thread_ids(false)
-        .with_file(false)
-        .with_line_number(false)
+        .with_ansi(std::io::stdout().is_terminal())
         .init();
 }
 
 /// Parse a log level string into a `LevelFilter`.
 fn parse_log_level(s: &str) -> Result<LevelFilter, ConfigError> {
-    match s.to_lowercase().as_str() {
+    match s.trim().to_lowercase().as_str() {
         "trace" => Ok(LevelFilter::TRACE),
         "debug" => Ok(LevelFilter::DEBUG),
         "info" => Ok(LevelFilter::INFO),
         "warn" => Ok(LevelFilter::WARN),
         "error" => Ok(LevelFilter::ERROR),
         "off" => Ok(LevelFilter::OFF),
-        _ => Err(ConfigError::InvalidValue {
-            key: "LOG_LEVEL".into(),
-            message: format!("unknown level '{s}', expected trace|debug|info|warn|error|off"),
-        }),
+        _ => Err(invalid(
+            "LOG_LEVEL",
+            &format!("unknown level '{s}', expected trace|debug|info|warn|error|off"),
+        )),
     }
 }
 
@@ -208,5 +203,12 @@ mod tests {
         assert!(serves_https(Some("HTTPS://status.example.com")));
         assert!(!serves_https(Some("http://status.example.com")));
         assert!(!serves_https(None));
+    }
+
+    #[test]
+    fn log_levels_are_parsed_case_insensitively() {
+        assert_eq!(parse_log_level("WARN").unwrap(), LevelFilter::WARN);
+        assert_eq!(parse_log_level("off").unwrap(), LevelFilter::OFF);
+        assert!(parse_log_level("verbose").is_err());
     }
 }

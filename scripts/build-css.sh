@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Usage: scripts/build-css.sh [--watch | --no-minify]
+# Builds static/css/style.css with the Tailwind CSS v4.1.18 standalone CLI saved as ./tailwindcss.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

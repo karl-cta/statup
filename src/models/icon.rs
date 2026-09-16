@@ -1,7 +1,6 @@
 //! Icon model for the shared icon library.
 
 use chrono::{DateTime, Utc};
-use serde::Serialize;
 
 /// Maximum icon file size: 256 KB.
 pub const MAX_ICON_SIZE: usize = 256 * 1024;
@@ -9,11 +8,8 @@ pub const MAX_ICON_SIZE: usize = 256 * 1024;
 /// Maximum icon dimension (width or height) after resize.
 pub const MAX_ICON_DIMENSION: u32 = 128;
 
-/// Allowed MIME types for icon uploads.
-pub const ALLOWED_ICON_MIMES: &[&str] = &["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
-
 /// An uploaded icon in the shared library.
-#[derive(Debug, Clone, sqlx::FromRow, Serialize)]
+#[derive(Debug, Clone, sqlx::FromRow)]
 pub struct Icon {
     pub id: i64,
     pub filename: String,
@@ -34,24 +30,6 @@ impl Icon {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn max_icon_size_is_256kb() {
-        assert_eq!(MAX_ICON_SIZE, 256 * 1024);
-    }
-
-    #[test]
-    fn max_icon_dimension_is_128() {
-        assert_eq!(MAX_ICON_DIMENSION, 128);
-    }
-
-    #[test]
-    fn allowed_mimes_contains_expected_types() {
-        assert!(ALLOWED_ICON_MIMES.contains(&"image/png"));
-        assert!(ALLOWED_ICON_MIMES.contains(&"image/jpeg"));
-        assert!(ALLOWED_ICON_MIMES.contains(&"image/webp"));
-        assert!(ALLOWED_ICON_MIMES.contains(&"image/svg+xml"));
-    }
 
     #[test]
     fn icon_url_returns_correct_path() {

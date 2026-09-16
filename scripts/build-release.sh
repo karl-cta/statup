@@ -1,67 +1,51 @@
 #!/usr/bin/env bash
+# Usage: scripts/build-release.sh [target...]
+# Builds dist/statup-<version>-<target>.tar.gz (binary, static files, LICENSE) for the host or each given Rust target.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-$(cargo metadata --no-deps --format-version 1 2>/dev/null | grep -o '"version":"[^"]*"' | head -1 | cut -d'"' -f4)}"
 OUTPUT_DIR="$ROOT/dist"
+TAILWIND="$ROOT/tailwindcss"
+VERSION="$(sed -n 's/^version = "\(.*\)"$/\1/p' "$ROOT/Cargo.toml" | head -n 1)"
 
-echo "=== Statup release build v${VERSION} ==="
+if [ "$#" -gt 0 ]; then
+    TARGETS=("$@")
+else
+    TARGETS=("$(rustc -vV | sed -n 's/^host: //p')")
+fi
+
+if [ ! -x "$TAILWIND" ]; then
+    echo "Error: tailwindcss binary not found at $TAILWIND" >&2
+    echo "Download it from https://github.com/tailwindlabs/tailwindcss/releases" >&2
+    exit 1
+fi
 
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 
-# Targets to build
-TARGETS=(
-    "x86_64-unknown-linux-musl:linux-amd64"
-    "aarch64-unknown-linux-musl:linux-arm64"
-    "x86_64-apple-darwin:darwin-amd64"
-    "aarch64-apple-darwin:darwin-arm64"
-)
+"$TAILWIND" --input "$ROOT/static/css/input.css" --output "$ROOT/static/css/style.css" --minify
 
-# Build Tailwind CSS (minified)
-echo "--- Building CSS ---"
-TAILWIND="$ROOT/tailwindcss"
-if [ -x "$TAILWIND" ]; then
-    "$TAILWIND" --input "$ROOT/static/css/input.css" --output "$ROOT/static/css/style.css" --minify
-    echo "CSS built (minified)"
-else
-    echo "Warning: tailwindcss binary not found, skipping CSS build"
-    echo "Download it from https://github.com/tailwindlabs/tailwindcss/releases"
-fi
+# The server reads static/ from its working directory, so it ships beside
+# the binary. The stylesheet sources stay out.
+package() {
+    local target="$1"
+    local name="statup-${VERSION}-${target}"
+    local stage="$OUTPUT_DIR/$name"
 
-for entry in "${TARGETS[@]}"; do
-    TARGET="${entry%%:*}"
-    LABEL="${entry##*:}"
-    BINARY_NAME="statup-${LABEL}"
+    mkdir -p "$stage"
+    cp "$ROOT/target/$target/release/statup" "$stage/statup"
+    cp -R "$ROOT/static" "$stage/static"
+    find "$stage/static/css" -name '*.css' ! -name style.css -delete
+    find "$stage/static/css" -mindepth 1 -type d -exec rm -rf {} +
+    cp "$ROOT/LICENSE" "$ROOT/README.md" "$stage/"
 
-    echo ""
-    echo "--- Building ${BINARY_NAME} (${TARGET}) ---"
+    tar -C "$OUTPUT_DIR" -czf "$OUTPUT_DIR/$name.tar.gz" "$name"
+    rm -rf "$stage"
+    echo "Built $OUTPUT_DIR/$name.tar.gz"
+}
 
-    if ! rustup target list --installed | grep -q "$TARGET"; then
-        echo "Installing target ${TARGET}..."
-        rustup target add "$TARGET" || {
-            echo "Skipping ${TARGET} (cannot install target on this host)"
-            continue
-        }
-    fi
-
-    if cargo build --release --target "$TARGET" 2>/dev/null; then
-        BINARY="$ROOT/target/${TARGET}/release/statup"
-
-        # Strip symbols to reduce size
-        if command -v strip &>/dev/null; then
-            strip "$BINARY" 2>/dev/null || true
-        fi
-
-        cp "$BINARY" "$OUTPUT_DIR/${BINARY_NAME}"
-
-        SIZE=$(du -h "$OUTPUT_DIR/${BINARY_NAME}" | cut -f1)
-        echo "Built: ${BINARY_NAME} (${SIZE})"
-    else
-        echo "Skipping ${TARGET} (build failed, cross-compilation may require additional tooling)"
-    fi
+for target in "${TARGETS[@]}"; do
+    echo "--- statup ${VERSION} for ${target} ---"
+    cargo build --release --locked --target "$target"
+    package "$target"
 done
-
-echo ""
-echo "=== Release artifacts in ${OUTPUT_DIR}/ ==="
-ls -lh "$OUTPUT_DIR/"

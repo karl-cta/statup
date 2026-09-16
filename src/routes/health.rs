@@ -12,9 +12,8 @@ struct HealthResponse {
     status: &'static str,
 }
 
-///
-/// No authentication required. Designed for Docker HEALTHCHECK, load balancer
-/// probes, and uptime monitors.
+/// Reports whether the database answers. Served outside the CSRF, user and
+/// rate limit layers, so a probe never writes a session nor gets a 429.
 pub async fn check(State(state): State<AppState>) -> Response {
     let db_ok = sqlx::query_scalar::<_, i32>("SELECT 1")
         .fetch_one(&state.pool)

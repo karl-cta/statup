@@ -1,6 +1,6 @@
 //! Maintenance commands the host runs on the server, next to the web app.
 
-use crate::config::DEFAULT_DATABASE_URL;
+use crate::config::{DEFAULT_DATABASE_URL, load_dotenv};
 use crate::db;
 use crate::error::AppError;
 use crate::services::AuthService;
@@ -40,7 +40,10 @@ pub async fn run(args: &[String]) -> i32 {
 }
 
 async fn run_reset_password(email: &str) -> i32 {
-    dotenvy::dotenv().ok();
+    if let Err(e) = load_dotenv() {
+        eprintln!("{e}");
+        return 1;
+    }
     let database_url =
         std::env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_DATABASE_URL.to_string());
 
@@ -57,20 +60,33 @@ async fn run_reset_password(email: &str) -> i32 {
             1
         }
         Err(e) => {
-            eprintln!("Password reset failed: {e}");
+            eprintln!("Password reset failed: {}", describe(&e));
             1
         }
     }
 }
 
+/// The cause, which the error pages of the web app keep to the log.
+fn describe(error: &AppError) -> String {
+    match error {
+        AppError::Internal(inner) => format!("{inner:#}"),
+        AppError::Database(inner) => inner.to_string(),
+        other => other.to_string(),
+    }
+}
+
+/// Works on an existing database only: a mistyped path must not leave an
+/// empty database behind.
 async fn reset_password(database_url: &str, email: &str) -> Result<String, AppError> {
-    let pool = db::create_pool(database_url, 1)
+    let pool = db::open_existing_pool(database_url)
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("cannot open the database: {e}")))?;
     db::run_migrations(&pool)
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("cannot migrate the database: {e}")))?;
-    AuthService::reset_password(&pool, email).await
+    let result = AuthService::reset_password(&pool, email).await;
+    pool.close().await;
+    result
 }
 
 #[cfg(test)]
@@ -94,5 +110,14 @@ mod tests {
     fn unknown_commands_are_refused() {
         assert_eq!(parse(&args(&["serve"])), None);
         assert_eq!(parse(&args(&["--help"])), Some(Command::Help));
+    }
+
+    #[tokio::test]
+    async fn a_mistyped_database_path_is_not_created() {
+        let path = std::env::temp_dir().join(format!("statup-cli-{}.db", uuid::Uuid::new_v4()));
+        let url = path.to_string_lossy().to_string();
+
+        assert!(reset_password(&url, "a@b.com").await.is_err());
+        assert!(!path.exists());
     }
 }

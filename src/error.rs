@@ -1,4 +1,4 @@
-//! Application error types and conversions.
+//! Application error types and the middleware that turns them into pages.
 
 use askama::Template;
 use axum::extract::Request;
@@ -7,6 +7,7 @@ use axum::middleware::Next;
 use axum::response::{Html, IntoResponse, Response};
 
 use crate::i18n::{I18n, Locale};
+use crate::middleware::rate_limit::{RateLimited, rate_limited_page};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
@@ -22,6 +23,9 @@ pub enum AppError {
     #[error("Validation error: {0}")]
     Validation(String),
 
+    #[error("Request body too large")]
+    PayloadTooLarge,
+
     #[error("Database error")]
     Database(#[from] sqlx::Error),
 
@@ -30,18 +34,16 @@ pub enum AppError {
 }
 
 impl From<validator::ValidationErrors> for AppError {
+    /// The message of the first invalid field in name order, so the same
+    /// input always gets the same message.
     fn from(errors: validator::ValidationErrors) -> Self {
-        let message = errors
-            .field_errors()
-            .iter()
-            .find_map(|(field, errs)| {
-                errs.first().map(|e| {
-                    e.message
-                        .as_ref()
-                        .map_or_else(|| format!("{field}: invalid"), ToString::to_string)
-                })
-            })
-            .unwrap_or_else(|| "error.invalid_data".to_string());
+        let mut fields: Vec<_> = errors.field_errors().into_iter().collect();
+        fields.sort_by_key(|(field, _)| *field);
+        let message = fields
+            .first()
+            .and_then(|(_, errs)| errs.first())
+            .and_then(|e| e.message.as_ref())
+            .map_or_else(|| "error.invalid_data".to_string(), ToString::to_string);
         Self::Validation(message)
     }
 }
@@ -54,6 +56,7 @@ impl AppError {
             Self::Unauthorized => (StatusCode::UNAUTHORIZED, "error.unauthorized"),
             Self::Forbidden => (StatusCode::FORBIDDEN, "error.forbidden"),
             Self::Validation(key) => (StatusCode::BAD_REQUEST, key.as_str()),
+            Self::PayloadTooLarge => (StatusCode::PAYLOAD_TOO_LARGE, "error.payload_too_large"),
             Self::Database(_) | Self::Internal(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "error.internal")
             }
@@ -62,7 +65,7 @@ impl AppError {
 
     fn log(&self) {
         match self {
-            Self::NotFound | Self::Validation(_) => {
+            Self::NotFound | Self::Validation(_) | Self::PayloadTooLarge => {
                 tracing::debug!("{self}");
             }
             Self::Unauthorized => {
@@ -123,8 +126,9 @@ struct ErrorFragment {
     message: String,
 }
 
-/// Middleware that renders every `AppError` as a page in the language of
-/// the request, or as a form banner when htmx asked for a fragment.
+/// Middleware that renders error responses in the language of the request:
+/// every `AppError`, the bare statuses that layers answer on their own, and
+/// the rate limit page. htmx gets a form banner instead of a page.
 pub async fn render_error_pages(
     Locale(i18n): Locale,
     headers: HeaderMap,
@@ -132,21 +136,40 @@ pub async fn render_error_pages(
     next: Next,
 ) -> Response {
     let response = next.run(request).await;
-    let Some(payload) = response.extensions().get::<ErrorPayload>().cloned() else {
+    if let Some(limited) = response.extensions().get::<RateLimited>() {
+        return rate_limited_page(&i18n, limited.retry_after_secs);
+    }
+    let Some((status, key)) = error_to_render(&response) else {
         return response;
     };
-    let message = i18n.t(&payload.key).to_string();
+    let message = i18n.t(&key).to_string();
     let rendered = if headers.contains_key("hx-request") {
         ErrorFragment { message }.render()
     } else {
-        error_page(payload.status, message, i18n).render()
+        error_page(status, message, i18n).render()
     };
     match rendered {
-        Ok(html) => (payload.status, Html(html)).into_response(),
+        Ok(html) => (status, Html(html)).into_response(),
         Err(e) => {
             tracing::error!("error page render failed: {e}");
             response
         }
+    }
+}
+
+fn error_to_render(response: &Response) -> Option<(StatusCode, String)> {
+    if let Some(payload) = response.extensions().get::<ErrorPayload>() {
+        return Some((payload.status, payload.key.clone()));
+    }
+    bare_status_key(response.status()).map(|key| (response.status(), key.to_string()))
+}
+
+/// Statuses the timeout and body limit layers answer without a page.
+fn bare_status_key(status: StatusCode) -> Option<&'static str> {
+    match status {
+        StatusCode::REQUEST_TIMEOUT => Some("error.timeout"),
+        StatusCode::PAYLOAD_TOO_LARGE => Some("error.payload_too_large"),
+        _ => None,
     }
 }
 
@@ -165,5 +188,43 @@ fn error_page(status: StatusCode, message: String, i18n: I18n) -> ErrorTemplate 
         back_href,
         back_label,
         i18n,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use validator::Validate;
+
+    use super::*;
+
+    #[derive(Validate)]
+    struct TwoRules {
+        #[validate(length(min = 2, message = "validation.b_message"))]
+        b_field: String,
+        #[validate(length(min = 2, message = "validation.a_message"))]
+        a_field: String,
+    }
+
+    #[test]
+    fn the_first_invalid_field_by_name_gives_the_message() {
+        let input = TwoRules {
+            b_field: String::new(),
+            a_field: String::new(),
+        };
+        let error = AppError::from(input.validate().unwrap_err());
+        assert!(matches!(error, AppError::Validation(key) if key == "validation.a_message"));
+    }
+
+    #[test]
+    fn only_layer_statuses_are_rendered_without_a_payload() {
+        assert_eq!(
+            bare_status_key(StatusCode::PAYLOAD_TOO_LARGE),
+            Some("error.payload_too_large")
+        );
+        assert_eq!(
+            bare_status_key(StatusCode::REQUEST_TIMEOUT),
+            Some("error.timeout")
+        );
+        assert_eq!(bare_status_key(StatusCode::NOT_FOUND), None);
     }
 }

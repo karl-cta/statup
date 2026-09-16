@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use axum::extract::FromRef;
 
+use crate::config::serves_https;
 use crate::db::DbPool;
 use crate::services::LoginRateLimiter;
 
@@ -13,16 +14,16 @@ use crate::services::LoginRateLimiter;
 pub struct AppState {
     /// Database connection pool.
     pub pool: DbPool,
-    /// Login rate limiter (shared across handlers).
+    /// Failed sign-in attempts per client address.
     pub login_limiter: Arc<LoginRateLimiter>,
     /// Directory for user-uploaded files.
     pub upload_dir: String,
-    /// Public mode: read-only pages accessible without login (REQ-16).
-    /// Togglable at runtime from the admin panel.
+    /// Whether visitors without an account can read the pages. An admin
+    /// changes it at runtime.
     pub public_mode: Arc<AtomicBool>,
-    /// Read the client IP from proxy headers when rate limiting.
+    /// Read the client address from the headers of a trusted reverse proxy.
     pub trust_proxy_headers: bool,
-    /// Absolute address of the instance for outbound links (feed entries).
+    /// Absolute address of the instance, for feed links and secure cookies.
     pub public_url: Option<String>,
 }
 
@@ -34,6 +35,12 @@ impl AppState {
 
     pub fn set_public_mode(&self, enabled: bool) {
         self.public_mode.store(enabled, Ordering::Relaxed);
+    }
+
+    /// Whether visitors reach the instance over HTTPS, which decides the
+    /// `Secure` cookie flag and the HSTS header.
+    pub fn serves_https(&self) -> bool {
+        serves_https(self.public_url.as_deref())
     }
 }
 

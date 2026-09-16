@@ -1,9 +1,9 @@
-//! User model and Role enum.
+//! User model, Role enum and the rules for a display name.
 
-use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 /// User role determining access level.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
 pub enum Role {
     Reader,
@@ -42,6 +42,21 @@ impl Role {
     }
 }
 
+/// A role name that is not one of [`Role::ALL`].
+#[derive(Debug, PartialEq, Eq)]
+pub struct UnknownRole;
+
+impl FromStr for Role {
+    type Err = UnknownRole;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::ALL
+            .into_iter()
+            .find(|role| role.as_str() == s)
+            .ok_or(UnknownRole)
+    }
+}
+
 /// Full user record as stored in the database.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct User {
@@ -58,24 +73,23 @@ pub struct User {
     pub must_change_password: bool,
 }
 
-/// Public-facing user data (without password hash).
-#[derive(Debug, Clone, Serialize)]
-pub struct UserPublic {
-    pub id: i64,
-    pub email: String,
-    pub display_name: String,
-    pub role: Role,
-}
+/// Longest display name, in characters.
+pub const DISPLAY_NAME_MAX_CHARS: usize = 100;
 
-impl From<User> for UserPublic {
-    fn from(user: User) -> Self {
-        Self {
-            id: user.id,
-            email: user.email,
-            display_name: user.display_name,
-            role: user.role,
-        }
+/// The trimmed display name, or the message key saying why it is refused:
+/// empty, longer than 100 characters, or holding control characters.
+pub fn check_display_name(raw: &str) -> Result<String, &'static str> {
+    let name = raw.trim();
+    if name.is_empty() {
+        return Err("validation.display_name_required");
     }
+    if name.chars().count() > DISPLAY_NAME_MAX_CHARS {
+        return Err("validation.display_name_too_long");
+    }
+    if name.chars().any(char::is_control) {
+        return Err("validation.display_name_invalid");
+    }
+    Ok(name.to_string())
 }
 
 #[cfg(test)]
@@ -101,26 +115,33 @@ mod tests {
     }
 
     #[test]
-    fn user_public_from_user_strips_password() {
-        let user = User {
-            id: 1,
-            email: "test@example.com".to_string(),
-            password_hash: "secret_hash".to_string(),
-            display_name: "Test".to_string(),
-            role: Role::Admin,
-            is_active: true,
-            last_seen_at: None,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-            preferred_locale: None,
-            must_change_password: false,
-        };
+    fn roles_parse_from_their_form_value() {
+        for role in Role::ALL {
+            assert_eq!(role.as_str().parse::<Role>(), Ok(role));
+        }
+        assert!("superadmin".parse::<Role>().is_err());
+        assert!("Admin".parse::<Role>().is_err());
+    }
 
-        let public = UserPublic::from(user);
-
-        assert_eq!(public.id, 1);
-        assert_eq!(public.email, "test@example.com");
-        assert_eq!(public.display_name, "Test");
-        assert_eq!(public.role, Role::Admin);
+    #[test]
+    fn display_names_are_trimmed_and_bounded() {
+        assert_eq!(check_display_name("  Alice  "), Ok("Alice".to_string()));
+        assert_eq!(
+            check_display_name("   "),
+            Err("validation.display_name_required")
+        );
+        assert_eq!(
+            check_display_name(&"é".repeat(100)),
+            Ok("é".repeat(100)),
+            "the limit counts characters, not bytes"
+        );
+        assert_eq!(
+            check_display_name(&"a".repeat(101)),
+            Err("validation.display_name_too_long")
+        );
+        assert_eq!(
+            check_display_name("Ali\u{1}ce"),
+            Err("validation.display_name_invalid")
+        );
     }
 }

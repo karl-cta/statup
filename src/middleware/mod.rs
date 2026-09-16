@@ -1,11 +1,14 @@
-//! Middleware - Authentication, CSRF protection, security headers, rate limiting, request ID.
+//! Request extractors and middleware: authentication, CSRF, form parsing,
+//! client address, rate limiting and response headers.
 
 mod auth;
+mod body;
+pub mod client_ip;
 pub mod csrf;
-mod request_id;
+pub mod headers;
+pub mod rate_limit;
 mod validated_form;
 
 pub use auth::*;
-pub use csrf::CsrfToken;
-pub use request_id::{RequestId, request_id_middleware};
+pub use csrf::{CsrfToken, FormCsrfToken};
 pub use validated_form::{HtmlForm, ValidatedForm};

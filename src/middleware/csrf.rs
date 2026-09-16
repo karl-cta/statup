@@ -1,23 +1,26 @@
-//! CSRF protection middleware, session-based token generation and validation.
+//! CSRF protection: a random token per session, checked on every
+//! state-changing request (POST, PUT, PATCH, DELETE).
 //!
-//! Generates a random token per session and validates it on state-changing
-//! requests (POST, PUT, DELETE). The token is checked from:
-//! 1. `X-CSRF-Token` header (for HTMX / AJAX requests)
-//! 2. `csrf_token` form field (for regular form submissions, URL-encoded
-//!    or multipart, so a file upload form works without script)
+//! The token is read from the `X-CSRF-Token` header (htmx) or from the
+//! `csrf_token` field of a URL-encoded or multipart body, so forms and file
+//! uploads work without script. A visitor who is not signed in only gets a
+//! session, and so a token, from a page that shows a form.
 
 use async_trait::async_trait;
 use axum::body::{Body, Bytes};
 use axum::extract::FromRequestParts;
+use axum::http::header::CONTENT_TYPE;
 use axum::http::request::Parts;
-use axum::http::{Method, Request};
+use axum::http::{HeaderMap, Method, Request};
 use axum::middleware::Next;
 use axum::response::Response;
 use rand::Rng;
 use rand::distributions::Alphanumeric;
 use tower_sessions::Session;
 
+use super::body::buffer_body;
 use crate::error::AppError;
+use crate::session::{USER_ID_KEY, read_value, write_value};
 
 /// Session key for the CSRF token.
 const CSRF_SESSION_KEY: &str = "csrf_token";
@@ -31,21 +34,17 @@ const CSRF_HEADER: &str = "x-csrf-token";
 /// Form field name for CSRF token submission.
 const CSRF_FORM_FIELD: &str = "csrf_token";
 
-/// Largest multipart body the middleware will buffer to find the token.
-/// Uploads are capped far below this by the handlers; the margin only has
-/// to let an oversized file reach the handler that names the limit.
-const MULTIPART_BUFFER_LIMIT: usize = 8 * 1024 * 1024;
-
-/// CSRF token injected into request extensions by the middleware.
-///
-/// Handlers extract this to include the token in templates.
+/// The session's CSRF token, for templates. Empty for a visitor who is not
+/// signed in and has not been shown a form: extracting it never creates a
+/// session for them. A signed-in session always gets one.
 #[derive(Clone, Debug)]
 pub struct CsrfToken(pub String);
 
-/// Axum extractor for the CSRF token.
-///
-/// Reads the token from request extensions (set by [`csrf_middleware`]).
-/// Use this in GET handlers to pass the token to templates.
+/// The session's CSRF token, created with a session when missing. For the
+/// pages that show a form to a visitor who is not signed in.
+#[derive(Clone, Debug)]
+pub struct FormCsrfToken(pub String);
+
 #[async_trait]
 impl<S> FromRequestParts<S> for CsrfToken
 where
@@ -53,71 +52,108 @@ where
 {
     type Rejection = AppError;
 
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        parts.extensions.get::<CsrfToken>().cloned().ok_or_else(|| {
-            AppError::Internal(anyhow::anyhow!(
-                "CsrfToken not found in extensions, is csrf_middleware installed?"
-            ))
-        })
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        if let Some(token) = parts.extensions.get::<CsrfToken>() {
+            return Ok(token.clone());
+        }
+        let session = request_session(parts, state).await?;
+        if let Some(token) = stored_token(&session).await? {
+            return Ok(Self(token));
+        }
+        if read_value::<i64>(&session, USER_ID_KEY).await?.is_some() {
+            return renew_token(&session).await.map(Self);
+        }
+        Ok(Self(String::new()))
     }
+}
+
+#[async_trait]
+impl<S> FromRequestParts<S> for FormCsrfToken
+where
+    S: Send + Sync,
+{
+    type Rejection = AppError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        if let Some(CsrfToken(token)) = parts.extensions.get::<CsrfToken>() {
+            return Ok(Self(token.clone()));
+        }
+        let session = request_session(parts, state).await?;
+        form_token(&session).await.map(Self)
+    }
+}
+
+async fn request_session<S: Send + Sync>(
+    parts: &mut Parts,
+    state: &S,
+) -> Result<Session, AppError> {
+    Session::from_request_parts(parts, state)
+        .await
+        .map_err(|(_, message)| AppError::Internal(anyhow::anyhow!("no session layer: {message}")))
+}
+
+/// The session's token, created when missing.
+///
+/// # Errors
+///
+/// Returns `AppError::Internal` when the session store fails.
+pub async fn form_token(session: &Session) -> Result<String, AppError> {
+    match stored_token(session).await? {
+        Some(token) => Ok(token),
+        None => renew_token(session).await,
+    }
+}
+
+/// Replaces the session's token, after a sign-in or a password change.
+///
+/// # Errors
+///
+/// Returns `AppError::Internal` when the session store fails.
+pub async fn renew_token(session: &Session) -> Result<String, AppError> {
+    let token = generate_token();
+    write_value(session, CSRF_SESSION_KEY, &token).await?;
+    Ok(token)
+}
+
+async fn stored_token(session: &Session) -> Result<Option<String>, AppError> {
+    read_value(session, CSRF_SESSION_KEY).await
 }
 
 /// CSRF protection middleware.
 ///
-/// On every request:
-/// - Ensures a CSRF token exists in the session (generates one if absent).
-/// - Injects the token into request extensions for handler access.
-///
-/// On state-changing methods (POST, PUT, DELETE):
-/// - Validates the submitted token against the session token.
-/// - Checks the `X-CSRF-Token` header first, then falls back to parsing
-///   the `csrf_token` field from a `application/x-www-form-urlencoded` body.
-/// - Returns 403 Forbidden if the token is missing or invalid.
+/// A state-changing request is refused (403) unless the session holds a
+/// token and the request carries the same one. The token, when the session
+/// has one, is put in the request extensions for [`CsrfToken`]. Nothing is
+/// written to the session here.
 ///
 /// # Errors
 ///
-/// Returns `AppError::Forbidden` when the CSRF token is missing or invalid
-/// on a state-changing request, or `AppError::Internal` on session errors.
+/// Returns `AppError::Forbidden` when the token is missing or wrong,
+/// `AppError::PayloadTooLarge` for a body past the route limit, and
+/// `AppError::Internal` on session errors.
 pub async fn csrf_middleware(
     session: Session,
-    request: Request<Body>,
+    mut request: Request<Body>,
     next: Next,
 ) -> Result<Response, AppError> {
-    let token = ensure_token(&session).await?;
-    let method = request.method().clone();
-
-    if is_state_changing(&method) {
-        let (parts, body, submitted) = extract_submitted_token(request).await?;
-        validate_token(&token, submitted.as_deref())?;
-
-        let mut request = Request::from_parts(parts, body);
-        request.extensions_mut().insert(CsrfToken(token));
-        Ok(next.run(request).await)
-    } else {
-        let mut request = request;
-        request.extensions_mut().insert(CsrfToken(token));
-        Ok(next.run(request).await)
-    }
-}
-
-/// Ensure the session contains a CSRF token, creating one if absent.
-async fn ensure_token(session: &Session) -> Result<String, AppError> {
-    let existing: Option<String> = session
-        .get(CSRF_SESSION_KEY)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("session read error: {e}")))?;
-
-    if let Some(token) = existing {
-        return Ok(token);
+    let stored = stored_token(&session).await?;
+    if !is_state_changing(request.method()) {
+        if let Some(token) = stored {
+            request.extensions_mut().insert(CsrfToken(token));
+        }
+        return Ok(next.run(request).await);
     }
 
-    let token = generate_token();
-    session
-        .insert(CSRF_SESSION_KEY, &token)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("session write error: {e}")))?;
+    let Some(expected) = stored else {
+        tracing::warn!("CSRF check failed: the session holds no token");
+        return Err(AppError::Forbidden);
+    };
+    let (parts, body, submitted) = extract_submitted_token(request).await?;
+    validate_token(&expected, submitted.as_deref())?;
 
-    Ok(token)
+    let mut request = Request::from_parts(parts, body);
+    request.extensions_mut().insert(CsrfToken(expected));
+    Ok(next.run(request).await)
 }
 
 /// Generate a cryptographically random alphanumeric token.
@@ -137,64 +173,52 @@ fn is_state_changing(method: &Method) -> bool {
     )
 }
 
-/// Extract the submitted CSRF token from the request.
-///
-/// Checks the `X-CSRF-Token` header first. If absent and the content type is
-/// `application/x-www-form-urlencoded`, buffers the body and extracts the
-/// `csrf_token` field. Returns the reconstructed request parts and body so
-/// downstream handlers can still read the body.
+/// How a form body carries its fields.
+enum FormBody {
+    UrlEncoded,
+    Multipart(String),
+}
+
+impl FormBody {
+    fn of(headers: &HeaderMap) -> Option<Self> {
+        let content_type = headers.get(CONTENT_TYPE)?.to_str().ok()?;
+        if content_type.starts_with("application/x-www-form-urlencoded") {
+            return Some(Self::UrlEncoded);
+        }
+        multer::parse_boundary(content_type)
+            .ok()
+            .map(Self::Multipart)
+    }
+}
+
+/// The submitted token: the header first, then the form field. A form body
+/// is buffered to be read, then handed back so the handler can read it too.
 async fn extract_submitted_token(
     request: Request<Body>,
 ) -> Result<(Parts, Body, Option<String>), AppError> {
     let (parts, body) = request.into_parts();
+    if let Some(token) = header_token(&parts.headers) {
+        return Ok((parts, body, Some(token)));
+    }
+    let Some(form) = FormBody::of(&parts.headers) else {
+        return Ok((parts, body, None));
+    };
 
-    // 1. Check header (preferred for HTMX/AJAX)
-    let header_token = parts
-        .headers
+    let bytes = buffer_body(body).await?;
+    let token = match form {
+        FormBody::UrlEncoded => extract_field_from_form(&bytes),
+        FormBody::Multipart(boundary) => {
+            extract_field_from_multipart(bytes.clone(), boundary).await
+        }
+    };
+    Ok((parts, Body::from(bytes), token))
+}
+
+fn header_token(headers: &HeaderMap) -> Option<String> {
+    headers
         .get(CSRF_HEADER)
         .and_then(|v| v.to_str().ok())
-        .map(ToOwned::to_owned);
-
-    if header_token.is_some() {
-        return Ok((parts, body, header_token));
-    }
-
-    // 2. For form-urlencoded bodies, parse the csrf_token field
-    let is_form = parts
-        .headers
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(|ct| ct.starts_with("application/x-www-form-urlencoded"));
-
-    if is_form {
-        let bytes = axum::body::to_bytes(body, 1024 * 1024)
-            .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("failed to read request body: {e}")))?;
-
-        let token = extract_field_from_form(&bytes);
-        let body = Body::from(bytes);
-        return Ok((parts, body, token));
-    }
-
-    // 3. For multipart bodies (file uploads), parse the csrf_token part
-    let boundary = parts
-        .headers
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|ct| multer::parse_boundary(ct).ok());
-
-    if let Some(boundary) = boundary {
-        let bytes = axum::body::to_bytes(body, MULTIPART_BUFFER_LIMIT)
-            .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("failed to read request body: {e}")))?;
-
-        let token = extract_field_from_multipart(bytes.clone(), boundary).await;
-        let body = Body::from(bytes);
-        return Ok((parts, body, token));
-    }
-
-    // 4. Other content types, no token found
-    Ok((parts, body, None))
+        .map(ToOwned::to_owned)
 }
 
 /// Find the `csrf_token` part of a buffered multipart body.
@@ -249,7 +273,13 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
+
+    fn session() -> Session {
+        Session::new(None, Arc::new(tower_sessions::MemoryStore::default()), None)
+    }
 
     #[test]
     fn generated_token_has_correct_length() {
@@ -265,6 +295,13 @@ mod tests {
         assert!(!constant_time_eq(b"abc", b"ab"));
         assert!(!constant_time_eq(b"", b"a"));
         assert!(constant_time_eq(b"", b""));
+    }
+
+    #[test]
+    fn an_empty_session_token_never_matches() {
+        assert!(validate_token("abc", Some("")).is_err());
+        assert!(validate_token("abc", None).is_err());
+        assert!(validate_token("abc", Some("abc")).is_ok());
     }
 
     #[test]
@@ -294,6 +331,24 @@ mod tests {
                     Content-Type: image/png\r\n\r\nPNG\r\n--b--\r\n";
         let token = extract_field_from_multipart(Bytes::from(body), "b".to_owned()).await;
         assert_eq!(token, None);
+    }
+
+    #[tokio::test]
+    async fn a_form_token_is_kept_until_renewed() {
+        let session = session();
+        let first = form_token(&session).await.unwrap();
+        assert_eq!(form_token(&session).await.unwrap(), first);
+
+        let renewed = renew_token(&session).await.unwrap();
+        assert_ne!(renewed, first);
+        assert_eq!(form_token(&session).await.unwrap(), renewed);
+    }
+
+    #[tokio::test]
+    async fn reading_the_token_does_not_touch_the_session() {
+        let session = session();
+        assert_eq!(stored_token(&session).await.unwrap(), None);
+        assert!(!session.is_modified());
     }
 
     #[test]
