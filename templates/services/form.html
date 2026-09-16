@@ -1,100 +1,70 @@
 {% extends "_layout.html" %}
+{% import "components/macros.html" as ui %}
 
-{% block title %}
-{% match edit_id %}
-{% when Some with (_id) %}{{ i18n.t("services.edit") }}{% match service %}{% when Some with (s) %} {{ s.name }}{% when None %}{% endmatch %} | {{ crate::brand_name() }}{% when None %}{{ i18n.t("services.new_title") }} | {{ crate::brand_name() }}{% endmatch %}
+{% block title %}{% if edit_id.is_some() %}{{ i18n.t("services.edit") }} {{ form.name }}{% else %}{{ i18n.t("services.new_title") }}{% endif %} | {{ crate::brand_name() }}{% endblock %}
+{% block section %}services{% endblock %}
+
+{% block htmx %}{% include "components/htmx.html" %}{% endblock %}
+
+{% block scripts %}
+<script src="{{ crate::asset("js/icon-picker.js") }}" defer></script>
 {% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-[720px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
-
-    <header class="animate-in">
-        <a href="/services" class="inline-flex items-center gap-1.5 text-[10.5px] font-mono uppercase tracking-[0.12em] text-muted hover:text-ink dark:hover:text-sand-light transition-colors">
-            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-            </svg>
-            {{ i18n.t("services.back_to_services") }}
-        </a>
-        <h1 class="mt-2 text-[28px] font-semibold tracking-tight text-ink dark:text-sand-light">
-            {% match edit_id %}
-            {% when Some with (_id) %}{{ i18n.t("services.edit") }}{% match service %}{% when Some with (s) %} <span class="wrap-anywhere">{{ s.name }}</span>{% when None %}{% endmatch %}{% when None %}{{ i18n.t("services.new") }}{% endmatch %}
-        </h1>
-        {# The status is published from the list, the one place that asks
-           before an outage and offers an undo: this form only says where
-           the service stands and points there. #}
-        {% match service %}
-        {% when Some with (s) %}
-        {% if edit_id.is_some() %}
-        <p class="mt-3 flex items-baseline gap-2.5 text-sm text-ink dark:text-sand-light">
-            <span class="h-2 w-2 flex-shrink-0 rounded-full {{ s.status.dot_class() }}" aria-hidden="true"></span>
-            <span>{{ i18n.t(s.status.i18n_key()) }} {{ i18n.t("services.status_now") }}
-                <a href="/services" class="text-muted underline underline-offset-2 hover:text-ink dark:hover:text-sand-light transition-colors">{{ i18n.t("services.status_change_link") }}</a></span>
-        </p>
-        {% endif %}
-        {% when None %}
-        {% endmatch %}
+<div class="page page-narrow">
+    <header class="page-head">
+        <div>
+            <a href="/services" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("services.back_to_services") }}</a>
+            <h1 class="page-title">{% if edit_id.is_some() %}{{ i18n.t("services.edit") }} <span class="wrap-anywhere">{{ form.name }}</span>{% else %}{{ i18n.t("services.new") }}{% endif %}</h1>
+            {% if edit_id.is_some() %}
+            <p class="event-state" data-tone="{{ form.status.tone().as_str() }}">
+                <span class="ring-dot" aria-hidden="true"></span>
+                <span>{{ self.status_line() }} <a href="/services" class="link">{{ i18n.t("services.status_change_link") }}</a></span>
+            </p>
+            {% endif %}
+        </div>
     </header>
 
-    {% match error %}
-    {% when Some with (msg) %}
-    <div id="form-error" class="mt-6 form-error" role="alert">
-        <p>{{ msg }}</p>
-    </div>
-    {% when None %}
-    {% endmatch %}
+    {% if let Some(message) = error %}
+    <div id="form-error" class="form-error" role="alert"><p>{{ message }}</p></div>
+    {% endif %}
 
     <form method="post"
           action="{% match edit_id %}{% when Some with (id) %}/services/{{ id }}/edit{% when None %}/services/new{% endmatch %}"
-          class="mt-8 animate-in delay-1"
-          {% match error %}{% when Some with (_msg) %}aria-describedby="form-error"{% when None %}{% endmatch %}>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          class="mt-6"{% if error.is_some() %} aria-describedby="form-error"{% endif %}>
+        <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
 
-        <div>
-            <label for="name" class="field-label">
-                {{ i18n.t("services.name_label") }}
-            </label>
-            <input id="name" name="name" type="text" required aria-required="true" maxlength="100"
-                   value="{% match service %}{% when Some with (s) %}{{ s.name }}{% when None %}{% endmatch %}"
-                   class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm"
-                   placeholder="{{ i18n.t("services.name_placeholder") }}"{% if name_error.is_some() %} aria-invalid="true" aria-describedby="name-error" autofocus{% endif %}>
-            {% if let Some(msg) = name_error %}
-            <p id="name-error" class="field-error" role="alert">{{ msg }}</p>
+        <div class="field">
+            <label for="name" class="field-label">{{ i18n.t("services.name_label") }}</label>
+            <input id="name" name="name" type="text" class="input" required maxlength="100"
+                   value="{{ form.name }}" placeholder="{{ i18n.t("services.name_placeholder") }}"
+                   {% if name_error.is_some() %}aria-invalid="true" aria-describedby="name-error" autofocus{% endif %}>
+            {% if let Some(message) = name_error %}
+            <p id="name-error" class="field-error" role="alert">{{ message }}</p>
             {% endif %}
         </div>
 
-        <div class="mt-5">
-            <label for="description" class="field-label">
-                {{ i18n.t("services.description") }} <span class="field-note">{{ i18n.t("events.optional") }}</span>
-            </label>
-            <textarea id="description" name="description" rows="3"
-                      class="mt-1.5 block w-full min-h-[80px] resize-y input-raised px-3.5 py-2.5 text-sm"
-                      placeholder="{{ i18n.t("services.description_placeholder") }}">{% match service %}{% when Some with (s) %}{{ s.description }}{% when None %}{% endmatch %}</textarea>
+        <div class="form-block field">
+            <label for="description" class="field-label">{{ i18n.t("services.description") }} <span class="field-note">{{ i18n.t("common.optional") }}</span></label>
+            <textarea id="description" name="description" class="input" rows="3" maxlength="500"
+                      placeholder="{{ i18n.t("services.description_placeholder") }}">{{ form.description }}</textarea>
         </div>
 
-        <div class="mt-5">
+        <div class="form-block">
             {% include "components/icon_picker.html" %}
         </div>
 
-        {# The sentence never changes on this form, so it lives in the flow:
-           pinned, it cost a row of icons on a phone for nothing. #}
-        {% match edit_id %}
-        {% when None %}
-        <div class="consequence form-block" role="status">
-            <span class="consequence-dot status-dot-ok" aria-hidden="true"></span>
+        {% if edit_id.is_none() %}
+        <div class="form-block consequence" data-tone="ok">
+            <span class="dot" aria-hidden="true"></span>
             <p class="consequence-text">{{ i18n.t("services.consequence_new") }} <span class="field-note">{{ i18n.t("services.consequence_new_status") }}</span></p>
         </div>
-        {% when Some with (_id) %}
-        {% endmatch %}
+        {% endif %}
 
         <div class="action-bar">
             <div class="action-bar-buttons">
-                <a href="/services" class="text-sm font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors">
-                    {{ i18n.t("common.cancel") }}
-                </a>
-                <button type="submit" class="btn-3d text-sm">
-                    <span>{% match edit_id %}
-                    {% when Some with (_id) %}{{ i18n.t("common.save") }}{% when None %}{{ i18n.t("services.submit_create") }}{% endmatch %}</span>
-                </button>
+                <a href="/services" class="text-action">{{ i18n.t("common.cancel") }}</a>
+                <button type="submit" class="btn btn-primary">{% if edit_id.is_some() %}{{ i18n.t("common.save") }}{% else %}{{ i18n.t("services.submit_create") }}{% endif %}</button>
             </div>
         </div>
     </form>

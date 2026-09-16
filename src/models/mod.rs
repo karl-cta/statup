@@ -1,4 +1,4 @@
-//! Domain models - User, Service, Event, Icon, `EventTemplate` and related types.
+//! Domain models: users, services, events, icons and templates.
 
 mod builtin_icon;
 mod event;

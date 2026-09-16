@@ -10,43 +10,30 @@
 {% block auth_body %}
 <form method="post" action="/register" class="auth-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    {% if let Some(msg) = errors.form %}
-    <div id="form-error" class="form-error" role="alert"><p>{{ msg }}</p></div>
+    {% if let Some(message) = errors.form %}
+    <div id="form-error" class="form-error" role="alert"><p>{{ message }}</p></div>
     {% endif %}
-    <div class="auth-field">
+    <div class="field">
         <label for="display_name" class="field-label">{{ i18n.t("auth.display_name") }}</label>
-        <input id="display_name" class="input-raised" name="display_name" type="text" required aria-required="true" autocomplete="name" maxlength="100"
-               value="{{ display_name }}"{% if errors.name.is_some() %} aria-invalid="true" aria-describedby="name-error"{% endif %}{% if errors.focus() == "display_name" %} autofocus{% endif %}>
-        {% if let Some(msg) = errors.name %}
-        <p id="name-error" class="field-error" role="alert">{{ msg }}</p>
-        {% endif %}
+        <input id="display_name" name="display_name" type="text" class="input" required maxlength="100" autocomplete="name" value="{{ display_name }}"{% if errors.name.is_some() %} aria-invalid="true" aria-describedby="name-error"{% endif %}{% if errors.focus() == "display_name" %} autofocus{% endif %}>
+        {% if let Some(message) = errors.name %}<p id="name-error" class="field-error" role="alert">{{ message }}</p>{% endif %}
     </div>
-    <div class="auth-field">
+    <div class="field">
         <label for="email" class="field-label">{{ i18n.t("auth.email") }}</label>
-        <input id="email" class="input-raised" name="email" type="email" required aria-required="true" autocomplete="email"
-               value="{{ email }}" placeholder="you@example.com"{% if errors.email.is_some() %} aria-invalid="true" aria-describedby="email-error"{% endif %}{% if errors.focus() == "email" %} autofocus{% endif %}>
-        {% if let Some(msg) = errors.email %}
-        <p id="email-error" class="field-error" role="alert">{{ msg }}</p>
-        {% endif %}
+        <input id="email" name="email" type="email" class="input" required autocomplete="email" value="{{ email }}"{% if errors.email.is_some() %} aria-invalid="true" aria-describedby="email-error"{% endif %}{% if errors.focus() == "email" %} autofocus{% endif %}>
+        {% if let Some(message) = errors.email %}<p id="email-error" class="field-error" role="alert">{{ message }}</p>{% endif %}
     </div>
-    <div class="auth-field">
+    <div class="field">
         <label for="password" class="field-label">{{ i18n.t("auth.password") }}</label>
-        <input id="password" class="input-raised" name="password" type="password" required aria-required="true" autocomplete="new-password" minlength="12"
-               aria-describedby="password-hint{% if errors.password.is_some() %} password-error{% endif %}"{% if errors.password.is_some() %} aria-invalid="true"{% endif %}{% if errors.focus() == "password" %} autofocus{% endif %}>
-        <p id="password-hint" class="field-hint text-muted">{{ i18n.t("auth.password_hint") }}</p>
-        {% if let Some(msg) = errors.password %}
-        <p id="password-error" class="field-error" role="alert">{{ msg }}</p>
-        {% endif %}
+        <input id="password" name="password" type="password" class="input" required minlength="12" autocomplete="new-password" aria-describedby="password-hint{% if errors.password.is_some() %} password-error{% endif %}"{% if errors.password.is_some() %} aria-invalid="true"{% endif %}{% if errors.focus() == "password" %} autofocus{% endif %}>
+        <p id="password-hint" class="field-hint">{{ i18n.t("auth.password_hint") }}</p>
+        {% if let Some(message) = errors.password %}<p id="password-error" class="field-error" role="alert">{{ message }}</p>{% endif %}
     </div>
-    <div class="auth-field">
+    <div class="field">
         <label for="password_confirm" class="field-label">{{ i18n.t("auth.password_confirm") }}</label>
-        <input id="password_confirm" class="input-raised" name="password_confirm" type="password" required aria-required="true" autocomplete="new-password" minlength="12"{% if errors.confirm.is_some() %} aria-invalid="true" aria-describedby="confirm-error"{% endif %}{% if errors.focus() == "password_confirm" %} autofocus{% endif %}>
-        {% if let Some(msg) = errors.confirm %}
-        <p id="confirm-error" class="field-error" role="alert">{{ msg }}</p>
-        {% endif %}
+        <input id="password_confirm" name="password_confirm" type="password" class="input" required minlength="12" autocomplete="new-password"{% if errors.confirm.is_some() %} aria-invalid="true" aria-describedby="confirm-error"{% endif %}{% if errors.focus() == "password_confirm" %} autofocus{% endif %}>
+        {% if let Some(message) = errors.confirm %}<p id="confirm-error" class="field-error" role="alert">{{ message }}</p>{% endif %}
     </div>
-    <button type="submit" class="btn-3d auth-submit">
-        <span>{{ i18n.t("auth.first_account_submit") }}</span>
-    </button>
+    <button type="submit" class="btn btn-primary">{{ i18n.t("auth.first_account_submit") }}</button>
 </form>
 {% endblock %}

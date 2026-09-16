@@ -1,162 +1,224 @@
-//! Service routes - list, create, update, delete.
+//! Service pages: the list with its status control, the form, deletion.
 
 use askama::Template;
 use axum::extract::{Path, Query, State};
-use axum::response::{Html, IntoResponse, Redirect, Response};
+use axum::http::HeaderMap;
+use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
-use validator::Validate;
 
+use super::{Frame, render};
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
-use crate::middleware::{CsrfToken, RequirePublisher, ValidatedForm};
-use crate::models::{BUILTIN_ICONS, BuiltinIcon, Icon, ServiceStatus, User};
-use crate::repositories::{EventRepository, IconRepository, ServiceRepository};
-use crate::services::{EventService, ServiceService};
+use crate::middleware::{CsrfToken, HtmlForm, RequirePublisher};
+use crate::models::{
+    BUILTIN_ICONS, BuiltinIcon, Icon, Service, ServiceStatus, User, find_builtin_icon,
+};
+use crate::repositories::ServiceRepository;
+use crate::services::{IconService, ServiceService};
 use crate::state::AppState;
 
 #[derive(Template)]
 #[template(path = "services/list.html")]
 struct ServiceListTemplate {
-    csrf_token: String,
-    user_display_name: String,
-    is_admin: bool,
-    is_authenticated: bool,
-    unread_count: i64,
-    last_admin_action: Option<String>,
-    services: Vec<crate::models::Service>,
-    /// Never a receipt here: the list renders the control at rest.
+    frame: Frame,
+    services: Vec<Service>,
+    /// The list renders the status control at rest, never a receipt.
     previous: Option<ServiceStatus>,
-    /// The service the form just saved, named so the admin does not have to
-    /// find its row by eye.
-    saved_name: Option<String>,
     saved_id: Option<i64>,
+    saved_name: Option<String>,
+    deleted_name: Option<String>,
+    error: Option<String>,
     i18n: I18n,
+}
+
+impl ServiceListTemplate {
+    // Askama hands a field over by reference.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    fn is_saved(&self, id: &i64) -> bool {
+        self.saved_id == Some(*id)
+    }
 }
 
 #[derive(Deserialize)]
 pub struct ListQuery {
     saved: Option<i64>,
+    deleted: Option<String>,
 }
 
-#[derive(Template)]
-#[template(path = "services/form.html")]
-struct ServiceFormTemplate {
+async fn render_list(
+    state: &AppState,
+    user: &User,
     csrf_token: String,
-    user_display_name: String,
-    is_admin: bool,
-    is_authenticated: bool,
-    unread_count: i64,
-    last_admin_action: Option<String>,
-    error: Option<String>,
-    /// A refused name is said under the name field, not above the form.
-    name_error: Option<String>,
-    /// Set only when editing, and kept apart from `service` so that a rejected
-    /// creation can hand the author their input back without the form turning
-    /// into an edit form pointed at a service that does not exist.
-    edit_id: Option<i64>,
-    service: Option<ServiceFormData>,
-    selected_icon_id: Option<i64>,
-    selected_icon_url: Option<String>,
-    selected_icon_name: Option<String>,
-    builtin_icons: &'static [BuiltinIcon],
-    custom_icons: Vec<Icon>,
-    /// Only the picker's own upload fragment ever carries a message here.
-    upload_error: Option<String>,
     i18n: I18n,
-}
-
-struct ServiceFormData {
-    name: String,
-    description: String,
-    status: ServiceStatus,
-}
-
-/// The name and description rules live in `service_field_error`, not on the
-/// fields: a rule enforced by the extractor rejects the body before any handler
-/// runs, which is what emptied the form on a failed creation.
-#[derive(Deserialize, Validate)]
-pub struct ServiceInput {
-    name: String,
-    description: Option<String>,
-    icon_id: Option<i64>,
-    icon_name: Option<String>,
-}
-
-fn render(tpl: &impl Template) -> Result<Response, AppError> {
-    let html = tpl
-        .render()
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("template render error: {e}")))?;
-    Ok(Html(html).into_response())
-}
-
-fn layout_fields(user: &User) -> (String, bool, bool) {
-    (user.display_name.clone(), user.role.can_admin(), true)
-}
-
-async fn unread(pool: &crate::db::DbPool, user: &User) -> Result<i64, AppError> {
-    EventService::unread_count(pool, user.last_seen_at).await
-}
-
-/// Resolve an `icon_id` to its URL path.
-async fn resolve_icon_url(
-    pool: &crate::db::DbPool,
-    icon_id: Option<i64>,
-) -> Result<Option<String>, AppError> {
-    let Some(id) = icon_id else {
-        return Ok(None);
-    };
-    let icon = IconRepository::find_by_id(pool, id).await?;
-    Ok(icon.map(|i| i.url()))
-}
-
-/// Parse `icon_id` from form: empty string or 0 → None.
-fn parse_icon_id(input: Option<i64>) -> Option<i64> {
-    input.filter(|&id| id > 0)
-}
-
-/// Parse `icon_name` from form: empty string → None.
-fn parse_icon_name(input: Option<String>) -> Option<String> {
-    input.filter(|s| !s.is_empty())
-}
-
-async fn fetch_last_admin_action(
-    pool: &crate::db::DbPool,
-    i18n: &I18n,
-) -> Result<Option<String>, AppError> {
-    Ok(EventRepository::last_admin_action(pool)
-        .await?
-        .map(|dt| i18n.format_datetime_long(&dt)))
+    query: ListQuery,
+    error: Option<String>,
+) -> Result<Response, AppError> {
+    let services = ServiceRepository::list_all(&state.pool).await?;
+    let saved_name = query
+        .saved
+        .and_then(|id| services.iter().find(|s| s.id == id))
+        .map(|s| s.name.clone());
+    render(&ServiceListTemplate {
+        frame: Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?,
+        services,
+        previous: None,
+        saved_id: query.saved,
+        saved_name,
+        deleted_name: query.deleted,
+        error,
+        i18n,
+    })
 }
 
 pub async fn list(
     RequirePublisher(user): RequirePublisher,
     State(state): State<AppState>,
+    Query(query): Query<ListQuery>,
     csrf_token: CsrfToken,
     Locale(i18n): Locale,
-    Query(query): Query<ListQuery>,
 ) -> Result<Response, AppError> {
-    let (user_display_name, is_admin, is_authenticated) = layout_fields(&user);
-    let unread_count = unread(&state.pool, &user).await?;
-    let services = ServiceRepository::list_all_with_icons(&state.pool).await?;
-    let saved_name = match query.saved {
-        Some(id) => services.iter().find(|s| s.id == id).map(|s| s.name.clone()),
-        None => None,
+    render_list(&state, &user, csrf_token.0, i18n, query, None).await
+}
+
+#[derive(Template)]
+#[template(path = "services/form.html")]
+struct ServiceFormTemplate {
+    frame: Frame,
+    error: Option<String>,
+    name_error: Option<String>,
+    edit_id: Option<i64>,
+    form: ServiceFormData,
+    selected_icon_id: Option<i64>,
+    selected_icon_url: Option<String>,
+    selected_icon_name: Option<String>,
+    builtin_icons: &'static [BuiltinIcon],
+    custom_icons: Vec<Icon>,
+    upload_error: Option<String>,
+    i18n: I18n,
+}
+
+impl ServiceFormTemplate {
+    /// "Currently Operational." under the title of an edited service.
+    fn status_line(&self) -> String {
+        let status = self.i18n.t(self.form.status.i18n_key());
+        self.i18n.tf("services.status_now", &[("status", status)])
+    }
+
+    fn is_builtin_selected(&self, name: &str) -> bool {
+        self.selected_icon_name.as_deref() == Some(name)
+    }
+
+    /// The chosen icon, named for screen readers in the picker's summary.
+    fn chosen_icon(&self) -> String {
+        let builtin = self
+            .selected_icon_name
+            .as_deref()
+            .and_then(find_builtin_icon)
+            .map(|icon| self.i18n.t(icon.i18n_key()).to_string());
+        let custom = || {
+            self.selected_icon_id
+                .and_then(|id| self.custom_icons.iter().find(|icon| icon.id == id))
+                .map(|icon| icon.original_name.clone())
+        };
+        builtin
+            .or_else(custom)
+            .map(|name| self.i18n.tf("icons.current", &[("name", &name)]))
+            .unwrap_or_default()
+    }
+}
+
+pub struct ServiceFormData {
+    pub name: String,
+    pub description: String,
+    pub status: ServiceStatus,
+}
+
+/// Everything a form page shows besides the frame.
+struct FormPage {
+    edit_id: Option<i64>,
+    form: ServiceFormData,
+    icon_id: Option<i64>,
+    icon_name: Option<String>,
+    error_key: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct ServiceInput {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    description: String,
+    #[serde(default)]
+    icon_id: Option<String>,
+    #[serde(default)]
+    icon_name: Option<String>,
+}
+
+impl ServiceInput {
+    fn icon_id(&self) -> Option<i64> {
+        self.icon_id
+            .as_deref()
+            .and_then(|v| v.parse().ok())
+            .filter(|id| *id > 0)
+    }
+
+    fn icon_name(&self) -> Option<String> {
+        self.icon_name.clone().filter(|name| !name.is_empty())
+    }
+
+    fn into_page(self, edit_id: Option<i64>, status: ServiceStatus, error_key: String) -> FormPage {
+        FormPage {
+            edit_id,
+            icon_id: self.icon_id(),
+            icon_name: self.icon_name(),
+            form: ServiceFormData {
+                name: self.name,
+                description: self.description,
+                status,
+            },
+            error_key: Some(error_key),
+        }
+    }
+}
+
+/// A form shown again after a refusal keeps what the author typed; a name
+/// problem is said under the name field.
+async fn render_form(
+    state: &AppState,
+    user: &User,
+    csrf_token: String,
+    i18n: I18n,
+    page: FormPage,
+) -> Result<Response, AppError> {
+    let custom_icons = IconService::choosable(&state.pool, &state.upload_dir).await?;
+    let selected_icon_url = page
+        .icon_id
+        .and_then(|id| custom_icons.iter().find(|icon| icon.id == id))
+        .map(Icon::url);
+    let message = page.error_key.as_deref().map(|key| i18n.t(key).to_string());
+    let on_name = page
+        .error_key
+        .as_deref()
+        .is_some_and(|key| key.starts_with("validation.service_name_"));
+    let (error, name_error) = if on_name {
+        (None, message)
+    } else {
+        (message, None)
     };
-    let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
-    let tpl = ServiceListTemplate {
-        csrf_token: csrf_token.0,
-        user_display_name,
-        is_admin,
-        is_authenticated,
-        unread_count,
-        last_admin_action,
-        services,
-        previous: None,
-        saved_name,
-        saved_id: query.saved,
+    render(&ServiceFormTemplate {
+        frame: Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?,
+        error,
+        name_error,
+        edit_id: page.edit_id,
+        form: page.form,
+        selected_icon_id: page.icon_id.filter(|_| selected_icon_url.is_some()),
+        selected_icon_url,
+        selected_icon_name: page.icon_name,
+        builtin_icons: BUILTIN_ICONS,
+        custom_icons,
+        upload_error: None,
         i18n,
-    };
-    render(&tpl)
+    })
 }
 
 pub async fn new_form(
@@ -165,30 +227,18 @@ pub async fn new_form(
     csrf_token: CsrfToken,
     Locale(i18n): Locale,
 ) -> Result<Response, AppError> {
-    let (user_display_name, is_admin, is_authenticated) = layout_fields(&user);
-    let unread_count = unread(&state.pool, &user).await?;
-    let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
-    let custom_icons = IconRepository::list_all(&state.pool).await?;
-    let tpl = ServiceFormTemplate {
-        csrf_token: csrf_token.0,
-        user_display_name,
-        is_admin,
-        is_authenticated,
-        unread_count,
-        last_admin_action,
-        error: None,
-        name_error: None,
+    let page = FormPage {
         edit_id: None,
-        service: None,
-        selected_icon_id: None,
-        selected_icon_url: None,
-        selected_icon_name: None,
-        builtin_icons: BUILTIN_ICONS,
-        custom_icons,
-        upload_error: None,
-        i18n,
+        form: ServiceFormData {
+            name: String::new(),
+            description: String::new(),
+            status: ServiceStatus::Operational,
+        },
+        icon_id: None,
+        icon_name: None,
+        error_key: None,
     };
-    render(&tpl)
+    render_form(&state, &user, csrf_token.0, i18n, page).await
 }
 
 pub async fn create(
@@ -196,88 +246,25 @@ pub async fn create(
     State(state): State<AppState>,
     csrf_token: CsrfToken,
     Locale(i18n): Locale,
-    ValidatedForm(input): ValidatedForm<ServiceInput>,
+    HtmlForm(input): HtmlForm<ServiceInput>,
 ) -> Result<Response, AppError> {
-    let icon_id = parse_icon_id(input.icon_id);
-    let icon_name = parse_icon_name(input.icon_name);
-    match ServiceService::create(
+    let icon_name = input.icon_name();
+    let result = ServiceService::create(
         &state.pool,
         &input.name,
-        input.description.as_deref(),
-        icon_id,
+        Some(input.description.as_str()),
+        input.icon_id(),
         icon_name.as_deref(),
     )
-    .await
-    {
+    .await;
+    match result {
         Ok(service) => Ok(Redirect::to(&format!("/services?saved={}", service.id)).into_response()),
-        Err(AppError::Validation(msg)) => {
-            let form = ServiceFormData {
-                name: input.name,
-                description: input.description.unwrap_or_default(),
-                status: ServiceStatus::Operational,
-            };
-            render_service_form(
-                &state,
-                &user,
-                csrf_token.0,
-                i18n,
-                None,
-                &msg,
-                form,
-                icon_id,
-                icon_name,
-            )
-            .await
+        Err(AppError::Validation(key)) => {
+            let page = input.into_page(None, ServiceStatus::Operational, key);
+            render_form(&state, &user, csrf_token.0, i18n, page).await
         }
         Err(e) => Err(e),
     }
-}
-
-/// Re-renders the form carrying what the author typed, instead of handing back
-/// an empty one and asking them to write it all again.
-#[allow(clippy::too_many_arguments)]
-async fn render_service_form(
-    state: &AppState,
-    user: &User,
-    csrf_token: String,
-    i18n: I18n,
-    edit_id: Option<i64>,
-    error_key: &str,
-    service: ServiceFormData,
-    icon_id: Option<i64>,
-    icon_name: Option<String>,
-) -> Result<Response, AppError> {
-    let (user_display_name, is_admin, is_authenticated) = layout_fields(user);
-    let unread_count = unread(&state.pool, user).await?;
-    let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
-    let icon_url = resolve_icon_url(&state.pool, icon_id).await?;
-    let custom_icons = IconRepository::list_all(&state.pool).await?;
-    let message = Some(i18n.t(error_key).to_string());
-    let (error, name_error) = if error_key.starts_with("validation.service_name") {
-        (None, message)
-    } else {
-        (message, None)
-    };
-    let tpl = ServiceFormTemplate {
-        csrf_token,
-        user_display_name,
-        is_admin,
-        is_authenticated,
-        unread_count,
-        last_admin_action,
-        error,
-        name_error,
-        edit_id,
-        service: Some(service),
-        selected_icon_id: icon_id,
-        selected_icon_url: icon_url,
-        selected_icon_name: icon_name,
-        builtin_icons: BUILTIN_ICONS,
-        custom_icons,
-        upload_error: None,
-        i18n,
-    };
-    render(&tpl)
 }
 
 pub async fn edit_form(
@@ -287,40 +274,21 @@ pub async fn edit_form(
     csrf_token: CsrfToken,
     Locale(i18n): Locale,
 ) -> Result<Response, AppError> {
-    let service = ServiceRepository::find_by_id_with_icon(&state.pool, id)
+    let service = ServiceRepository::find_by_id(&state.pool, id)
         .await?
         .ok_or(AppError::NotFound)?;
-
-    let icon_url = service.icon_url();
-    let icon_name = service.icon_name.clone();
-    let (user_display_name, is_admin, is_authenticated) = layout_fields(&user);
-    let unread_count = unread(&state.pool, &user).await?;
-    let last_admin_action = fetch_last_admin_action(&state.pool, &i18n).await?;
-    let custom_icons = IconRepository::list_all(&state.pool).await?;
-    let tpl = ServiceFormTemplate {
-        csrf_token: csrf_token.0,
-        user_display_name,
-        is_admin,
-        is_authenticated,
-        unread_count,
-        last_admin_action,
-        error: None,
-        name_error: None,
-        edit_id: Some(service.id),
-        selected_icon_id: service.icon_id,
-        selected_icon_url: icon_url,
-        selected_icon_name: icon_name,
-        builtin_icons: BUILTIN_ICONS,
-        custom_icons,
-        upload_error: None,
-        i18n,
-        service: Some(ServiceFormData {
+    let page = FormPage {
+        edit_id: Some(id),
+        icon_id: service.icon_id,
+        icon_name: service.icon_name,
+        form: ServiceFormData {
             name: service.name,
             description: service.description.unwrap_or_default(),
             status: service.status,
-        }),
+        },
+        error_key: None,
     };
-    render(&tpl)
+    render_form(&state, &user, csrf_token.0, i18n, page).await
 }
 
 pub async fn update(
@@ -329,65 +297,68 @@ pub async fn update(
     Path(id): Path<i64>,
     csrf_token: CsrfToken,
     Locale(i18n): Locale,
-    ValidatedForm(input): ValidatedForm<ServiceInput>,
+    HtmlForm(input): HtmlForm<ServiceInput>,
 ) -> Result<Response, AppError> {
-    let icon_id = parse_icon_id(input.icon_id);
-    let icon_name = parse_icon_name(input.icon_name);
-    match ServiceService::update(
+    let icon_name = input.icon_name();
+    let result = ServiceService::update(
         &state.pool,
         id,
         &input.name,
-        input.description.as_deref(),
-        icon_id,
+        Some(input.description.as_str()),
+        input.icon_id(),
         icon_name.as_deref(),
     )
-    .await
-    {
+    .await;
+    match result {
         Ok(()) => Ok(Redirect::to(&format!("/services?saved={id}")).into_response()),
-        Err(AppError::Validation(msg)) => {
-            // The status line under the title reads the stored value: this
-            // form no longer carries it.
+        Err(AppError::Validation(key)) => {
             let status = ServiceRepository::find_by_id(&state.pool, id)
                 .await?
                 .ok_or(AppError::NotFound)?
                 .status;
-            let form = ServiceFormData {
-                name: input.name,
-                description: input.description.unwrap_or_default(),
-                status,
-            };
-            render_service_form(
-                &state,
-                &user,
-                csrf_token.0,
-                i18n,
-                Some(id),
-                &msg,
-                form,
-                icon_id,
-                icon_name,
-            )
-            .await
+            let page = input.into_page(Some(id), status, key);
+            render_form(&state, &user, csrf_token.0, i18n, page).await
         }
         Err(e) => Err(e),
     }
 }
 
+/// Deletes a service without history. A refusal is said in the list.
 pub async fn delete(
-    _publisher: RequirePublisher,
+    RequirePublisher(user): RequirePublisher,
     State(state): State<AppState>,
     Path(id): Path<i64>,
-    Locale(_i18n): Locale,
+    csrf_token: CsrfToken,
+    Locale(i18n): Locale,
 ) -> Result<Response, AppError> {
-    ServiceService::delete(&state.pool, id).await?;
-    Ok(Redirect::to("/services").into_response())
+    let service = ServiceRepository::find_by_id(&state.pool, id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    match ServiceService::delete(&state.pool, id).await {
+        Ok(()) => {
+            let name = percent_encoding::utf8_percent_encode(
+                &service.name,
+                percent_encoding::NON_ALPHANUMERIC,
+            );
+            Ok(Redirect::to(&format!("/services?deleted={name}")).into_response())
+        }
+        Err(AppError::Validation(key)) => {
+            let error = Some(i18n.t(&key).to_string());
+            let query = ListQuery {
+                saved: None,
+                deleted: None,
+            };
+            render_list(&state, &user, csrf_token.0, i18n, query, error).await
+        }
+        Err(e) => Err(e),
+    }
 }
 
 #[derive(Deserialize)]
 pub struct StatusInput {
     status: String,
     /// Sent by the receipt's undo button, so putting a status back does not
-    /// itself offer to put it back again.
+    /// offer to put it back again.
     #[serde(default)]
     undo: Option<String>,
 }
@@ -395,48 +366,51 @@ pub struct StatusInput {
 #[derive(Template)]
 #[template(path = "components/status_selector.html")]
 struct StatusSelectorFragment {
-    csrf_token: String,
-    service: crate::models::Service,
-    /// The status this service held a moment ago. `Some` turns the fragment
-    /// into a receipt with an undo, which is the only way back from a
-    /// publication that reached every visitor.
+    frame: StatusFrame,
+    service: Service,
+    /// The status held a moment ago: turns the fragment into a receipt with
+    /// an undo.
     previous: Option<ServiceStatus>,
     i18n: I18n,
 }
 
+/// The one field of the page frame the fragment reads.
+struct StatusFrame {
+    csrf_token: String,
+}
+
+/// Answers htmx with the refreshed cell; a plain form post goes back to the
+/// list.
 pub async fn update_status(
     _publisher: RequirePublisher,
     State(state): State<AppState>,
     Path(id): Path<i64>,
+    headers: HeaderMap,
     csrf_token: CsrfToken,
     Locale(i18n): Locale,
-    axum::extract::Form(input): axum::extract::Form<StatusInput>,
+    HtmlForm(input): HtmlForm<StatusInput>,
 ) -> Result<Response, AppError> {
     let status: ServiceStatus = input
         .status
         .parse()
-        .map_err(|e: String| AppError::Validation(e))?;
-
+        .map_err(|()| AppError::Validation("error.invalid_data".to_string()))?;
     let before = ServiceRepository::find_by_id(&state.pool, id)
         .await?
         .ok_or(AppError::NotFound)?
         .status;
-
     ServiceRepository::update_status(&state.pool, id, status).await?;
-
-    let service = ServiceRepository::find_by_id_with_icon(&state.pool, id)
+    if !headers.contains_key("hx-request") {
+        return Ok(Redirect::to(&format!("/services?saved={id}")).into_response());
+    }
+    let service = ServiceRepository::find_by_id(&state.pool, id)
         .await?
         .ok_or(AppError::NotFound)?;
-
-    let is_undo = input.undo.is_some();
-    let tpl = StatusSelectorFragment {
-        csrf_token: csrf_token.0,
+    render(&StatusSelectorFragment {
+        frame: StatusFrame {
+            csrf_token: csrf_token.0,
+        },
+        previous: (input.undo.is_none() && before != status).then_some(before),
         service,
-        previous: (!is_undo && before != status).then_some(before),
         i18n,
-    };
-    let html = tpl
-        .render()
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("template render error: {e}")))?;
-    Ok(Html(html).into_response())
+    })
 }

@@ -1,9 +1,8 @@
 //! Built-in SVG icon catalog for services.
 //!
-//! Each icon is a Heroicons outline (24x24 viewBox) stored as its `<path>` data.
-//! Templates render these inline, avoiding external image uploads for common cases.
+//! Each icon is a 24 by 24 outline stored as its `<path>` data.
+//! Heroicons (MIT), drawn inline so common services need no upload.
 
-/// A built-in icon definition.
 pub struct BuiltinIcon {
     /// Unique identifier used in the database (`icon_name` column).
     pub name: &'static str,
@@ -143,7 +142,6 @@ pub const BUILTIN_ICONS: &[BuiltinIcon] = &[
     },
 ];
 
-/// Look up a built-in icon by name.
 pub fn find_builtin_icon(name: &str) -> Option<&'static BuiltinIcon> {
     BUILTIN_ICONS.iter().find(|i| i.name == name)
 }

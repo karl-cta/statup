@@ -1,69 +1,47 @@
-//! Repository for the `dashboard_layouts` table.
-//!
-//! Stores one row per (context, `user_id`, `module_id`). `user_id` is NULL for
-//! the admin-defined default layout. Per-user overrides (non-null `user_id`)
-//! are supported at the schema level but not yet used by the engine.
-
-use sqlx::FromRow;
+//! Repository for the `dashboard_layouts` table: which modules each
+//! dashboard shows, and in what order.
 
 use crate::db::DbPool;
-use crate::error::AppError;
+use crate::modules::ModuleContext;
 
-use super::super::modules::ModuleContext;
-
-#[derive(Debug, Clone, FromRow)]
-pub struct DashboardLayoutRow {
-    pub id: i64,
-    pub context: String,
-    pub user_id: Option<i64>,
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct LayoutEntry {
     pub module_id: String,
     pub position: i64,
     pub enabled: bool,
-    pub config: String,
 }
 
 pub struct DashboardLayoutRepository;
 
 impl DashboardLayoutRepository {
-    /// List the default layout rows for a context, ordered by position.
-    pub async fn list_default(
+    pub async fn list(
         pool: &DbPool,
         context: ModuleContext,
-    ) -> Result<Vec<DashboardLayoutRow>, AppError> {
-        let rows = sqlx::query_as::<_, DashboardLayoutRow>(
-            "SELECT id, context, user_id, module_id, position, enabled, config
-             FROM dashboard_layouts
-             WHERE context = ? AND user_id IS NULL
-             ORDER BY position ASC, id ASC",
+    ) -> Result<Vec<LayoutEntry>, sqlx::Error> {
+        sqlx::query_as::<_, LayoutEntry>(
+            "SELECT module_id, position, enabled FROM dashboard_layouts \
+             WHERE context = ? AND user_id IS NULL ORDER BY position ASC, id ASC",
         )
         .bind(context.as_str())
         .fetch_all(pool)
-        .await?;
-        Ok(rows)
+        .await
     }
 
-    /// Insert a layout row for a module if none exists yet.
-    pub async fn insert_default_if_missing(
+    pub async fn insert_if_missing(
         pool: &DbPool,
         context: ModuleContext,
         module_id: &str,
         position: i64,
-        enabled: bool,
-        config: &str,
-    ) -> Result<(), AppError> {
+    ) -> Result<(), sqlx::Error> {
         sqlx::query(
-            "INSERT INTO dashboard_layouts (context, user_id, module_id, position, enabled, config)
-             SELECT ?, NULL, ?, ?, ?, ?
-             WHERE NOT EXISTS (
-                 SELECT 1 FROM dashboard_layouts
-                 WHERE context = ? AND user_id IS NULL AND module_id = ?
-             )",
+            "INSERT INTO dashboard_layouts (context, user_id, module_id, position, enabled) \
+             SELECT ?, NULL, ?, ?, 1 WHERE NOT EXISTS ( \
+                 SELECT 1 FROM dashboard_layouts \
+                 WHERE context = ? AND user_id IS NULL AND module_id = ?)",
         )
         .bind(context.as_str())
         .bind(module_id)
         .bind(position)
-        .bind(i64::from(enabled))
-        .bind(config)
         .bind(context.as_str())
         .bind(module_id)
         .execute(pool)
@@ -71,19 +49,16 @@ impl DashboardLayoutRepository {
         Ok(())
     }
 
-    /// Replace the ordering of default-layout rows in bulk. Missing modules
-    /// are left untouched. Transactional.
-    pub async fn save_default_order(
+    /// Rewrites the positions in the given order, in one transaction.
+    pub async fn save_order(
         pool: &DbPool,
         context: ModuleContext,
-        ordered_module_ids: &[String],
-    ) -> Result<(), AppError> {
+        module_ids: &[String],
+    ) -> Result<(), sqlx::Error> {
         let mut tx = pool.begin().await?;
-        for (index, module_id) in ordered_module_ids.iter().enumerate() {
-            let position = i64::try_from(index).unwrap_or(i64::MAX);
+        for (position, module_id) in (0_i64..).zip(module_ids) {
             sqlx::query(
-                "UPDATE dashboard_layouts
-                 SET position = ?, updated_at = datetime('now')
+                "UPDATE dashboard_layouts SET position = ?, updated_at = datetime('now') \
                  WHERE context = ? AND user_id IS NULL AND module_id = ?",
             )
             .bind(position)
@@ -92,23 +67,20 @@ impl DashboardLayoutRepository {
             .execute(&mut *tx)
             .await?;
         }
-        tx.commit().await?;
-        Ok(())
+        tx.commit().await
     }
 
-    /// Toggle the enabled flag for a default-layout row.
-    pub async fn set_default_enabled(
+    pub async fn set_enabled(
         pool: &DbPool,
         context: ModuleContext,
         module_id: &str,
         enabled: bool,
-    ) -> Result<(), AppError> {
+    ) -> Result<(), sqlx::Error> {
         sqlx::query(
-            "UPDATE dashboard_layouts
-             SET enabled = ?, updated_at = datetime('now')
+            "UPDATE dashboard_layouts SET enabled = ?, updated_at = datetime('now') \
              WHERE context = ? AND user_id IS NULL AND module_id = ?",
         )
-        .bind(i64::from(enabled))
+        .bind(enabled)
         .bind(context.as_str())
         .bind(module_id)
         .execute(pool)
@@ -116,34 +88,25 @@ impl DashboardLayoutRepository {
         Ok(())
     }
 
-    /// Remove layout rows whose module is no longer registered.
+    /// Removes the rows of modules this binary does not ship.
     pub async fn prune_unknown(
         pool: &DbPool,
         context: ModuleContext,
-        known_module_ids: &[&'static str],
-    ) -> Result<(), AppError> {
-        if known_module_ids.is_empty() {
-            sqlx::query("DELETE FROM dashboard_layouts WHERE context = ? AND user_id IS NULL")
-                .bind(context.as_str())
-                .execute(pool)
-                .await?;
-            return Ok(());
-        }
-        let placeholders = known_module_ids
-            .iter()
-            .map(|_| "?")
-            .collect::<Vec<_>>()
-            .join(",");
-        let sql = format!(
-            "DELETE FROM dashboard_layouts
-             WHERE context = ? AND user_id IS NULL
-               AND module_id NOT IN ({placeholders})"
+        known_ids: &[&str],
+    ) -> Result<(), sqlx::Error> {
+        let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
+            "DELETE FROM dashboard_layouts WHERE user_id IS NULL AND context = ",
         );
-        let mut query = sqlx::query(&sql).bind(context.as_str());
-        for id in known_module_ids {
-            query = query.bind(*id);
+        qb.push_bind(context.as_str());
+        if !known_ids.is_empty() {
+            qb.push(" AND module_id NOT IN (");
+            let mut ids = qb.separated(", ");
+            for id in known_ids {
+                ids.push_bind(*id);
+            }
+            qb.push(")");
         }
-        query.execute(pool).await?;
+        qb.build().execute(pool).await?;
         Ok(())
     }
 }
@@ -154,86 +117,58 @@ mod tests {
     use crate::test_helpers::test_pool;
 
     #[tokio::test]
-    async fn insert_default_is_idempotent() {
+    async fn insert_is_idempotent() {
         let pool = test_pool().await;
-        DashboardLayoutRepository::insert_default_if_missing(
-            &pool,
-            ModuleContext::Public,
-            "status_banner",
-            10,
-            true,
-            "{}",
-        )
-        .await
-        .expect("insert");
-        DashboardLayoutRepository::insert_default_if_missing(
-            &pool,
-            ModuleContext::Public,
-            "status_banner",
-            99,
-            false,
-            "{\"ignored\":true}",
-        )
-        .await
-        .expect("re-insert");
-        let rows = DashboardLayoutRepository::list_default(&pool, ModuleContext::Public)
+        let context = ModuleContext::Public;
+        DashboardLayoutRepository::insert_if_missing(&pool, context, "banner", 10)
             .await
-            .expect("list");
+            .unwrap();
+        DashboardLayoutRepository::insert_if_missing(&pool, context, "banner", 99)
+            .await
+            .unwrap();
+        let rows = DashboardLayoutRepository::list(&pool, context)
+            .await
+            .unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].position, 10);
         assert!(rows[0].enabled);
     }
 
     #[tokio::test]
-    async fn save_default_order_rewrites_positions() {
+    async fn save_order_rewrites_positions() {
         let pool = test_pool().await;
-        for (index, id) in ["a", "b", "c"].iter().enumerate() {
-            DashboardLayoutRepository::insert_default_if_missing(
-                &pool,
-                ModuleContext::Admin,
-                id,
-                i64::try_from(index).unwrap(),
-                true,
-                "{}",
-            )
-            .await
-            .expect("seed");
+        let context = ModuleContext::Admin;
+        for (position, id) in (0_i64..).zip(["a", "b", "c"]) {
+            DashboardLayoutRepository::insert_if_missing(&pool, context, id, position)
+                .await
+                .unwrap();
         }
-        DashboardLayoutRepository::save_default_order(
-            &pool,
-            ModuleContext::Admin,
-            &["c".to_string(), "a".to_string(), "b".to_string()],
-        )
-        .await
-        .expect("save");
-        let rows = DashboardLayoutRepository::list_default(&pool, ModuleContext::Admin)
+        let order = ["c", "a", "b"].map(String::from);
+        DashboardLayoutRepository::save_order(&pool, context, &order)
             .await
-            .expect("list");
-        let order: Vec<&str> = rows.iter().map(|r| r.module_id.as_str()).collect();
-        assert_eq!(order, vec!["c", "a", "b"]);
+            .unwrap();
+        let rows = DashboardLayoutRepository::list(&pool, context)
+            .await
+            .unwrap();
+        let ids: Vec<&str> = rows.iter().map(|r| r.module_id.as_str()).collect();
+        assert_eq!(ids, vec!["c", "a", "b"]);
     }
 
     #[tokio::test]
-    async fn prune_unknown_drops_removed_modules() {
+    async fn prune_drops_removed_modules() {
         let pool = test_pool().await;
+        let context = ModuleContext::Public;
         for id in ["kept", "gone"] {
-            DashboardLayoutRepository::insert_default_if_missing(
-                &pool,
-                ModuleContext::Public,
-                id,
-                0,
-                true,
-                "{}",
-            )
-            .await
-            .expect("seed");
+            DashboardLayoutRepository::insert_if_missing(&pool, context, id, 0)
+                .await
+                .unwrap();
         }
-        DashboardLayoutRepository::prune_unknown(&pool, ModuleContext::Public, &["kept"])
+        DashboardLayoutRepository::prune_unknown(&pool, context, &["kept"])
             .await
-            .expect("prune");
-        let rows = DashboardLayoutRepository::list_default(&pool, ModuleContext::Public)
+            .unwrap();
+        let rows = DashboardLayoutRepository::list(&pool, context)
             .await
-            .expect("list");
+            .unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].module_id, "kept");
     }

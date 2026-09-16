@@ -1,127 +1,99 @@
 {% extends "_layout.html" %}
 
 {% block title %}{{ i18n.t("admin.title") }} | {{ crate::brand_name() }}{% endblock %}
+{% block section %}admin{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
-
-    <header class="animate-in">
-        <h1 class="text-[28px] font-semibold tracking-tight text-ink dark:text-sand-light">
-            {{ i18n.t("admin.settings") }}
-        </h1>
-        <p class="mt-2 text-sm text-muted">{{ i18n.t("admin.settings_intro") }}</p>
+<div class="page page-form">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">{{ i18n.t("admin.settings") }}</h1>
+            <p class="page-lede">{{ i18n.t("admin.settings_intro") }}</p>
+        </div>
     </header>
 
-    {% match notice %}
-    {% when Some with (n) %}
-    <div class="mt-5 form-notice" role="status">
-        {% match n %}
-        {% when SettingsNotice::Renamed with (name) %}<q>{{ name }}</q> {{ i18n.t("admin.renamed_notice") }}
-        {% when SettingsNotice::NameReset %}{{ i18n.t("admin.name_reset_notice") }}
-        {% when SettingsNotice::PublicOpened %}{{ i18n.t("admin.public_opened_notice") }} <a href="/" class="set-link">{{ i18n.t("admin.public_view") }}</a>
-        {% when SettingsNotice::PublicClosed %}{{ i18n.t("admin.public_closed_notice") }}
-        {% endmatch %}
+    {% if let Some(n) = notice %}
+    <div class="form-notice mb-5" role="status">
+        <p>
+            {% match n %}
+            {% when SettingsNotice::Renamed with (name) %}<q>{{ name }}</q> {{ i18n.t("admin.renamed_notice") }}
+            {% when SettingsNotice::NameReset %}{{ i18n.t("admin.name_reset_notice") }}
+            {% when SettingsNotice::PublicOpened %}{{ i18n.t("admin.public_opened_notice") }} <a href="/" class="link">{{ i18n.t("admin.public_view") }}</a>
+            {% when SettingsNotice::PublicClosed %}{{ i18n.t("admin.public_closed_notice") }}
+            {% endmatch %}
+        </p>
     </div>
-    {% when None %}
-    {% endmatch %}
-    {% match error %}
-    {% when Some with (msg) %}
-    <div id="form-error" class="mt-5 form-error" role="alert">
-        <p>{{ msg }}</p>
-    </div>
-    {% when None %}
-    {% endmatch %}
+    {% endif %}
+    {% if let Some(message) = error %}
+    <div id="form-error" class="form-error mb-5" role="alert"><p>{{ message }}</p></div>
+    {% endif %}
 
-    <section class="mt-8 card animate-in delay-1">
-        <div class="card-head">
-            <h2>{{ i18n.t("admin.section_public") }}</h2>
-        </div>
+    <section class="card" aria-labelledby="public-title">
+        <header class="card-head">
+            <h2 id="public-title" class="card-title">{{ i18n.t("admin.section_public") }}</h2>
+        </header>
         <div class="set-row">
-            <div class="min-w-0">
+            <div class="set-text">
                 <label for="instance-name" class="set-label">{{ i18n.t("admin.instance_name") }}</label>
                 <p class="set-help">{{ i18n.t("admin.instance_name_help") }}</p>
             </div>
             <form method="post" action="/admin/settings/instance-name" class="set-inline-form">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
                 <div class="set-field">
-                    <input id="instance-name" type="text" name="instance_name"
-                           value="{{ instance_name }}" maxlength="40"
-                           placeholder="{{ i18n.t("admin.instance_name_placeholder") }}"
-                           class="input-raised px-3 py-2 text-sm"
-                           aria-describedby="instance-name-limit"{% if error.is_some() %} aria-invalid="true"{% endif %}>
-                    <span id="instance-name-limit" class="set-limit">{{ i18n.t("admin.instance_name_limit") }}</span>
+                    <input id="instance-name" type="text" name="instance_name" class="input" maxlength="40"
+                           value="{{ instance_name }}" placeholder="{{ i18n.t("admin.instance_name_placeholder") }}"
+                           aria-describedby="instance-name-limit{% if error.is_some() %} form-error{% endif %}"{% if error.is_some() %} aria-invalid="true"{% endif %}>
+                    <span id="instance-name-limit" class="field-hint">{{ i18n.t("admin.instance_name_limit") }}</span>
                 </div>
-                <button type="submit" class="btn-3d text-sm"><span>{{ i18n.t("common.save") }}</span></button>
+                <button type="submit" class="btn btn-primary">{{ i18n.t("common.save") }}</button>
             </form>
         </div>
         <div class="set-row">
-            <div class="min-w-0">
-                <div class="set-label" id="access-label">{{ i18n.t("admin.public_mode") }}</div>
+            <div class="set-text">
+                <p id="access-label" class="set-label">{{ i18n.t("admin.public_mode") }}</p>
             </div>
-            <form method="post" action="/admin/settings/public-mode" class="set-choices">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <div class="choice-row" role="radiogroup" aria-labelledby="access-label">
-                    <label class="choice">
-                        <input type="radio" name="access" value="everyone" class="sr-only"{% if public_mode %} checked{% endif %}
-                               onchange="this.form.requestSubmit()">
-                        <span>{{ i18n.t("admin.access_everyone") }}</span>
-                    </label>
-                    <label class="choice">
-                        <input type="radio" name="access" value="members" class="sr-only"{% if !public_mode %} checked{% endif %}
-                               onchange="this.form.requestSubmit()">
-                        <span>{{ i18n.t("admin.access_members") }}</span>
-                    </label>
+            <form method="post" action="/admin/settings/public-mode" class="set-access-form" data-autosubmit>
+                <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                <div class="segmented" role="radiogroup" aria-labelledby="access-label">
+                    <label class="choice"><input type="radio" name="access" value="everyone" class="sr-only"{% if public_mode %} checked{% endif %}><span>{{ i18n.t("admin.access_everyone") }}</span></label>
+                    <label class="choice"><input type="radio" name="access" value="members" class="sr-only"{% if !public_mode %} checked{% endif %}><span>{{ i18n.t("admin.access_members") }}</span></label>
                 </div>
-                <noscript><button type="submit" class="btn-3d-ghost text-[13px]"><span>{{ i18n.t("admin.access_apply") }}</span></button></noscript>
+                <button type="submit" class="btn btn-ghost btn-sm mt-2" data-apply>{{ i18n.t("admin.access_apply") }}</button>
             </form>
         </div>
     </section>
 
-    <section class="mt-6 mb-8 card animate-in delay-2">
-        <div class="card-head">
-            <h2>{{ i18n.t("admin.section_manage") }}</h2>
-        </div>
+    <section class="card mt-6" aria-labelledby="manage-title">
+        <header class="card-head">
+            <h2 id="manage-title" class="card-title">{{ i18n.t("admin.section_manage") }}</h2>
+        </header>
         <div class="set-row">
-            <div class="min-w-0">
-                <div class="set-label">
-                    {{ i18n.t("admin.section_team") }}
-                    <span class="set-count">{{ users_count }} {% if users_count > 1 %}{{ i18n.t("admin.team_count_many") }}{% else %}{{ i18n.t("admin.team_count_one") }}{% endif %} · {{ admins_count }} {% if admins_count > 1 %}{{ i18n.t("admin.team_admin_count_many") }}{% else %}{{ i18n.t("admin.team_admin_count_one") }}{% endif %}</span>
-                </div>
+            <div class="set-text">
+                <p class="set-label">{{ i18n.t("admin.section_team") }}<span class="count">{{ self.team_count() }}</span></p>
                 <p class="set-help">{{ i18n.t("admin.team_help") }}</p>
             </div>
-            <a href="/admin/users" class="btn-3d-ghost text-[13px] shrink-0">
-                <span>{{ i18n.t("admin.team_manage") }}</span>
-            </a>
+            <a href="/admin/users" class="btn btn-ghost btn-sm">{{ i18n.t("admin.team_manage") }}</a>
         </div>
         <div class="set-row">
-            <div class="min-w-0">
-                <div class="set-label">
-                    {{ i18n.t("admin.section_icons") }}
-                    <span class="set-count">{{ icons_count }} {% if icons_count > 1 %}{{ i18n.t("admin.icons_count_many") }}{% else %}{{ i18n.t("admin.icons_count_one") }}{% endif %}</span>
-                </div>
+            <div class="set-text">
+                <p class="set-label">{{ i18n.t("admin.section_icons") }}<span class="count">{{ self.icons_label() }}</span></p>
                 <p class="set-help">{{ i18n.t("admin.icons_help") }}</p>
             </div>
-            <a href="/icons" class="btn-3d-ghost text-[13px] shrink-0">
-                <span>{{ i18n.t("admin.icons_manage") }}</span>
-            </a>
+            <a href="/icons" class="btn btn-ghost btn-sm">{{ i18n.t("admin.icons_manage") }}</a>
         </div>
         <div class="set-row">
-            <div class="min-w-0">
-                <div class="set-label">{{ i18n.t("admin.modules_public_label") }}</div>
+            <div class="set-text">
+                <p id="modules-public-label" class="set-label">{{ i18n.t("admin.modules_public_label") }}</p>
                 <p class="set-help">{{ i18n.t("admin.modules_public_help") }}</p>
             </div>
-            <a href="/admin/dashboard/public/layout" class="btn-3d-ghost text-[13px] shrink-0">
-                <span>{{ i18n.t("admin.modules_public_manage") }}</span>
-            </a>
+            <a href="/admin/dashboard/public/layout" class="btn btn-ghost btn-sm" aria-describedby="modules-public-label">{{ i18n.t("admin.modules_manage") }}</a>
         </div>
         <div class="set-row">
-            <div class="min-w-0">
-                <div class="set-label">{{ i18n.t("admin.modules_admin_label") }}</div>
+            <div class="set-text">
+                <p id="modules-admin-label" class="set-label">{{ i18n.t("admin.modules_admin_label") }}</p>
                 <p class="set-help">{{ i18n.t("admin.modules_admin_help") }}</p>
             </div>
-            <a href="/admin/dashboard/admin/layout" class="btn-3d-ghost text-[13px] shrink-0">
-                <span>{{ i18n.t("admin.modules_admin_manage") }}</span>
-            </a>
+            <a href="/admin/dashboard/admin/layout" class="btn btn-ghost btn-sm" aria-describedby="modules-admin-label">{{ i18n.t("admin.modules_manage") }}</a>
         </div>
     </section>
 </div>

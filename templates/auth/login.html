@@ -9,25 +9,21 @@
 {% block auth_body %}
 <form method="post" action="/login" class="auth-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    {% if let Some(msg) = error %}
-    <div id="form-error" class="form-error" role="alert"><p>{{ msg }}</p></div>
+    {% if let Some(message) = error %}
+    <div id="form-error" class="form-error" role="alert"><p>{{ message }}</p></div>
     {% endif %}
-    <div class="auth-field">
+    <div class="field">
         <label for="email" class="field-label">{{ i18n.t("auth.email") }}</label>
-        <input id="email" class="input-raised" name="email" type="email" required aria-required="true" autocomplete="email"
-               value="{{ email }}" placeholder="you@example.com"{% if error.is_some() %} aria-invalid="true" aria-describedby="form-error"{% else %} autofocus{% endif %}>
+        <input id="email" name="email" type="email" class="input" required autocomplete="email" value="{{ email }}"{% if error.is_some() %} aria-invalid="true" aria-describedby="form-error"{% else %} autofocus{% endif %}>
     </div>
-    <div class="auth-field">
+    <div class="field">
         <label for="password" class="field-label">{{ i18n.t("auth.password") }}</label>
-        <input id="password" class="input-raised" name="password" type="password" required aria-required="true" autocomplete="current-password"{% if error.is_some() %} aria-invalid="true" aria-describedby="form-error" autofocus{% endif %}>
+        <input id="password" name="password" type="password" class="input" required autocomplete="current-password"{% if error.is_some() %} aria-invalid="true" aria-describedby="form-error" autofocus{% endif %}>
     </div>
-    <label class="auth-check" for="remember_me">
-        <input id="remember_me" class="checkbox-fancy" name="remember_me" type="checkbox" value="on" checked>
+    <label class="check-row">
+        <input id="remember_me" name="remember_me" type="checkbox" class="checkbox" value="on" checked>
         <span>{{ i18n.t("auth.remember_me") }}</span>
     </label>
-    <button type="submit" class="btn-3d auth-submit"><span>{{ i18n.t("auth.submit_login") }}</span></button>
+    <button type="submit" class="btn btn-primary">{{ i18n.t("auth.submit_login") }}</button>
 </form>
-{% if offer_first_account %}
-<p class="auth-alt text-muted">{{ i18n.t("auth.first_account_hint") }} <a href="/register" class="auth-link">{{ i18n.t("auth.first_account_link") }}</a></p>
-{% endif %}
 {% endblock %}

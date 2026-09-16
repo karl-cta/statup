@@ -1,119 +1,106 @@
 {% extends "_layout.html" %}
+{% import "components/macros.html" as ui %}
 
 {% block title %}{{ i18n.t("admin.users_title") }} | {{ crate::brand_name() }}{% endblock %}
+{% block section %}admin{% endblock %}
+
+{% block scripts %}
+<script src="{{ crate::asset("js/custom-select.js") }}" defer></script>
+<script src="{{ crate::asset("js/team.js") }}" defer></script>
+{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
-    <header class="animate-in">
-        <div class="flex items-baseline justify-between gap-4">
-            <h1 class="text-[28px] font-semibold tracking-tight text-ink dark:text-sand-light">
-                {{ i18n.t("admin.users_heading") }}
-            </h1>
-            <a href="/admin/settings" class="text-[12px] font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors shrink-0">
-                &larr; {{ i18n.t("admin.users_back") }}
-            </a>
+<div class="page">
+    <header class="page-head">
+        <div>
+            <a href="/admin/settings" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("admin.back_to_settings") }}</a>
+            <h1 class="page-title">{{ i18n.t("admin.users_heading") }}</h1>
+            <p class="page-lede">{{ i18n.t("admin.users_intro") }}</p>
         </div>
-        <p class="mt-2 text-sm text-muted">{{ i18n.t("admin.users_intro") }}</p>
     </header>
 
-    {% match notice %}
-    {% when Some with (n) %}
-    <div class="mt-5 form-notice" role="status">
-        {% match n.kind %}
-        {% when NoticeKind::RoleUpdated with (role) %}<q>{{ n.name }}</q> {{ i18n.t("admin.notice_role") }} <strong>{{ i18n.t(role.i18n_key()) }}</strong>.
-        {% when NoticeKind::Disabled %}<q>{{ n.name }}</q> {{ i18n.t("admin.notice_disabled") }}
-        {% when NoticeKind::Enabled %}<q>{{ n.name }}</q> {{ i18n.t("admin.notice_enabled") }}
-        {% endmatch %}
+    {% if let Some(n) = notice %}
+    <div class="form-notice mb-5" role="status">
+        <p>
+            {% match n.kind %}
+            {% when NoticeKind::RoleUpdated with (role) %}<q>{{ n.name }}</q> {{ i18n.t("admin.notice_role") }} <strong>{{ i18n.t(role.i18n_key()) }}</strong>.
+            {% when NoticeKind::Disabled %}<q>{{ n.name }}</q> {{ i18n.t("admin.notice_disabled") }}
+            {% when NoticeKind::Enabled %}<q>{{ n.name }}</q> {{ i18n.t("admin.notice_enabled") }}
+            {% endmatch %}
+        </p>
     </div>
-    {% when None %}
-    {% endmatch %}
+    {% endif %}
 
-    {# The temporary password is printed once, here, and nowhere else: no
-       mail leaves the instance, the admin hands it over. #}
-    {% match created %}
-    {% when Some with (c) %}
-    <div class="mt-5 form-notice created-notice" role="status">
-        <p>{{ i18n.t("admin.created_for") }} <strong>{{ c.name }}</strong> ({{ c.email }}).</p>
-        <p class="mt-2">{{ i18n.t("admin.created_password") }} <code class="temp-password">{{ c.password }}</code></p>
-        <p class="mt-2 text-muted">{{ i18n.t("admin.created_hint") }}</p>
+    {# The temporary password is shown once, here: no mail leaves the
+       instance, the admin hands it over. #}
+    {% if let Some(c) = created %}
+    <div class="form-notice notice-stack mb-5" role="status">
+        <div>
+            <p>{{ i18n.t("admin.created_for") }} <strong>{{ c.name }}</strong> ({{ c.email }}).</p>
+            <p>{{ i18n.t("admin.created_password") }} <code class="temp-password">{{ c.password }}</code></p>
+            <p class="text-muted">{{ i18n.t("admin.created_hint") }}</p>
+        </div>
     </div>
-    {% when None %}
-    {% endmatch %}
+    {% endif %}
 
-    {% match error %}
-    {% when Some with (msg) %}
-    <div class="mt-5 form-error" role="alert"><p>{{ msg }}</p></div>
-    {% when None %}
-    {% endmatch %}
+    {% if let Some(message) = error %}
+    <div class="form-error mb-5" role="alert"><p>{{ message }}</p></div>
+    {% endif %}
 
-    {# Adding a member folds behind one verb, and opens itself when its form
-       came back refused, so the fields keep what was typed. #}
-    <details id="add-member" class="add-member animate-in delay-1"{% if add_open %} open{% endif %}>
-        <summary class="add-member-summary">
-            <span class="btn-3d text-sm"><span>{{ i18n.t("admin.add_member") }}</span></span>
-        </summary>
-        <form method="post" action="/admin/users/new" class="add-member-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <div class="add-member-fields">
-                <div>
+    <details class="add-member"{% if add_open %} open{% endif %}>
+        <summary class="btn btn-primary">{% call ui::plus() %}{{ i18n.t("admin.add_member") }}</summary>
+        <form method="post" action="/admin/users/new" class="add-member-form stack">
+            <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+            <div class="form-grid form-grid-2">
+                <div class="field">
                     <label for="member-name" class="field-label">{{ i18n.t("auth.display_name") }}</label>
-                    <input id="member-name" name="display_name" type="text" required maxlength="100" autocomplete="off"
-                           value="{{ add_form.display_name }}"
-                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm">
+                    <input id="member-name" name="display_name" type="text" class="input" required maxlength="100" autocomplete="off" value="{{ add_form.display_name }}">
                 </div>
-                <div>
+                <div class="field">
                     <label for="member-email" class="field-label">{{ i18n.t("auth.email") }}</label>
-                    <input id="member-email" name="email" type="email" required autocomplete="off"
-                           value="{{ add_form.email }}"
-                           class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm">
+                    <input id="member-email" name="email" type="email" class="input" required autocomplete="off" value="{{ add_form.email }}">
                 </div>
             </div>
-            <fieldset class="choice-group mt-5">
+            <fieldset class="choice-group">
                 <legend class="field-label">{{ i18n.t("profile.role") }}</legend>
                 <div class="choice-row">
                     {% for r in crate::models::Role::ALL %}
-                    <label class="choice">
-                        <input type="radio" name="role" value="{{ r.as_str() }}" class="sr-only" required
-                               {% if add_form.role == r.as_str() || (add_form.role.is_empty() && r.as_str() == "reader") %}checked{% endif %}>
-                        <span>{{ i18n.t(r.i18n_key()) }}</span>
-                    </label>
+                    <label class="choice"><input type="radio" name="role" value="{{ r.as_str() }}" class="sr-only" required{% if add_form.role == r.as_str() || (add_form.role.is_empty() && r.as_str() == "reader") %} checked{% endif %}><span>{{ i18n.t(r.i18n_key()) }}</span></label>
                     {% endfor %}
                 </div>
-                <p class="mt-2 text-[12px] text-muted">{{ i18n.t("role.reader_desc") }} {{ i18n.t("role.publisher_desc") }} {{ i18n.t("role.admin_desc") }}</p>
+                <ul class="field-hint mt-2">
+                    <li>{{ i18n.t("role.reader_desc") }}</li>
+                    <li>{{ i18n.t("role.publisher_desc") }}</li>
+                    <li>{{ i18n.t("role.admin_desc") }}</li>
+                </ul>
             </fieldset>
-            <p class="mt-4 text-[12px] text-muted">{{ i18n.t("admin.add_member_hint") }}</p>
-            <div class="mt-4 flex items-center gap-4">
-                <button type="submit" class="btn-3d-ghost text-[13px]"><span>{{ i18n.t("admin.add_member_submit") }}</span></button>
-            </div>
+            <p class="field-hint">{{ i18n.t("admin.add_member_hint") }}</p>
+            <button type="submit" class="btn btn-ghost">{{ i18n.t("admin.add_member_submit") }}</button>
         </form>
     </details>
 
-    <ul class="member-list mt-6 animate-in delay-1">
+    <ul class="admin-list">
         {% for u in users %}
-        <li class="member-row{% if !u.is_active %} is-off{% endif %}">
-            <div class="member-identity">
-                <div class="text-sm font-medium text-ink dark:text-sand-light wrap-anywhere">{{ u.display_name }}{% if u.id == current_user_id %} <span class="text-[12px] font-normal text-muted">{{ i18n.t("admin.you") }}</span>{% endif %}</div>
-                <div class="text-[12px] text-muted wrap-anywhere">{{ u.email }}</div>
-                <div class="text-[12px] text-muted">{{ i18n.t("admin.last_seen") }} : {% match u.last_seen_at %}{% when Some with (d) %}{{ d }}{% when None %}{{ i18n.t("admin.never") }}{% endmatch %}</div>
+        <li class="admin-row member-row">
+            <div class="min-w-0">
+                <p class="admin-row-name">{{ u.display_name }}{% if u.id == current_user_id %} <span class="count">{{ i18n.t("admin.you") }}</span>{% endif %}</p>
+                <p class="admin-row-sub">{{ u.email }}</p>
+                <p class="admin-row-sub">{{ i18n.t("admin.last_seen") }} {% if let Some(seen) = u.last_seen_at %}{{ seen }}{% else %}{{ i18n.t("admin.never") }}{% endif %}</p>
             </div>
 
-            <div class="member-status">
-                {% if u.is_active %}
-                <span class="h-1.5 w-1.5 rounded-full bg-ink dark:bg-sand-light" aria-hidden="true"></span>{{ i18n.t("admin.active") }}
-                {% else %}
-                <span class="h-1.5 w-1.5 rounded-full bg-ink/30 dark:bg-sand-light/25" aria-hidden="true"></span>{{ i18n.t("admin.disabled") }}
-                {% endif %}
-            </div>
+            <p class="member-status{% if !u.is_active %} member-status-off{% endif %}">{% if u.is_active %}{{ i18n.t("admin.active") }}{% else %}{{ i18n.t("admin.disabled") }}{% endif %}</p>
 
-            <div class="member-role">
+            <div class="admin-row-cell member-role">
                 {% if u.id == current_user_id %}
-                <span class="text-sm text-ink dark:text-sand-light">{{ i18n.t(u.role.i18n_key()) }}</span>
+                <p class="member-role-self">{{ i18n.t(u.role.i18n_key()) }}</p>
                 {% else %}
                 <form method="post" action="/admin/users/{{ u.id }}/role" data-role-form>
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <select name="role" data-custom-select data-committed="{{ u.role.as_str() }}"
-                            aria-label="{{ i18n.t("profile.role") }} {{ u.display_name }}"
-                            data-name="{{ u.display_name }}"
+                    <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                    <label for="role-{{ u.id }}" class="sr-only">{{ i18n.t("admin.role_of") }} {{ u.display_name }}</label>
+                    <select id="role-{{ u.id }}" name="role" class="input" data-custom-select data-committed="{{ u.role.as_str() }}"
+                            data-question-reader="{{ i18n.t("admin.confirm_role_reader") }}"
+                            data-question-publisher="{{ i18n.t("admin.confirm_role_publisher") }}"
+                            data-question-admin="{{ i18n.t("admin.confirm_role_admin") }}"
                             data-desc-reader="{{ i18n.t("role.reader_desc") }}"
                             data-desc-publisher="{{ i18n.t("role.publisher_desc") }}"
                             data-desc-admin="{{ i18n.t("role.admin_desc") }}">
@@ -121,31 +108,30 @@
                         <option value="{{ r.as_str() }}"{% if u.role == r %} selected{% endif %}>{{ i18n.t(r.i18n_key()) }}</option>
                         {% endfor %}
                     </select>
-                    <div class="status-confirm member-confirm" hidden data-confirm role="group" aria-label="{{ i18n.t("admin.confirm_role_aria") }}">
-                        <span class="status-confirm-label" data-confirm-label></span>
-                        <span class="status-confirm-desc" data-confirm-desc></span>
-                        <button type="submit" class="status-confirm-go">{{ i18n.t("common.confirm") }}</button>
-                        <button type="button" class="status-confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
+                    <div class="confirm mt-2" role="group" aria-label="{{ i18n.t("admin.confirm_role_aria") }}" aria-describedby="role-q-{{ u.id }} role-d-{{ u.id }}" data-role-confirm hidden>
+                        <span id="role-q-{{ u.id }}" class="confirm-text" data-role-question data-name="{{ u.display_name }}"></span>
+                        <span id="role-d-{{ u.id }}" class="confirm-desc" data-role-desc></span>
+                        <button type="button" class="confirm-cancel" data-role-cancel>{{ i18n.t("common.cancel") }}</button>
+                        <button type="submit" class="confirm-go">{{ i18n.t("common.confirm") }}</button>
                     </div>
                 </form>
                 {% endif %}
             </div>
 
-            <div class="member-action">
+            <div class="admin-row-actions">
                 {% if u.id != current_user_id %}
-                <form method="post" action="/admin/users/{{ u.id }}/disable" data-toggle-form>
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <form method="post" action="/admin/users/{{ u.id }}/disable"{% if u.is_active %} data-confirm{% endif %}>
+                    <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
                     {% if u.is_active %}
-                    <button type="button" class="btn-outline-danger text-[12px]" data-disable-btn
-                            aria-label="{{ i18n.t("admin.disable") }} {{ u.display_name }}">{{ i18n.t("admin.disable") }}</button>
-                    <div class="status-confirm member-confirm" hidden data-confirm role="group" aria-label="{{ i18n.t("admin.confirm_disable_aria") }}">
-                        <span class="status-confirm-label">{{ i18n.t("admin.disable") }} <q>{{ u.display_name }}</q></span>
-                        <button type="submit" class="status-confirm-go">{{ i18n.t("admin.disable") }}</button>
-                        <button type="button" class="status-confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
+                    <button type="button" class="btn btn-danger btn-sm" data-confirm-open aria-label="{{ i18n.t("admin.disable") }} {{ u.display_name }}">{{ i18n.t("admin.disable") }}</button>
+                    <div class="confirm" role="group" aria-label="{{ i18n.t("admin.confirm_disable_aria") }}" aria-describedby="disable-q-{{ u.id }} disable-d-{{ u.id }}" data-confirm-box hidden>
+                        <span id="disable-q-{{ u.id }}" class="confirm-text">{{ i18n.t("admin.disable") }} <q>{{ u.display_name }}</q>{{ i18n.t("common.question_mark") }}</span>
+                        <span id="disable-d-{{ u.id }}" class="confirm-desc">{{ i18n.t("admin.disable_consequence") }}</span>
+                        <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
+                        <button type="submit" class="confirm-go" data-danger>{{ i18n.t("admin.disable") }}</button>
                     </div>
                     {% else %}
-                    <button type="submit" class="btn-3d-ghost text-[12px] !px-3 !py-1.5"
-                            aria-label="{{ i18n.t("admin.enable") }} {{ u.display_name }}"><span>{{ i18n.t("admin.enable") }}</span></button>
+                    <button type="submit" class="btn btn-ghost btn-sm" aria-label="{{ i18n.t("admin.enable") }} {{ u.display_name }}">{{ i18n.t("admin.enable") }}</button>
                     {% endif %}
                 </form>
                 {% endif %}
@@ -154,5 +140,4 @@
         {% endfor %}
     </ul>
 </div>
-<script src="/static/js/team.js?v={{ crate::css_version() }}" defer></script>
 {% endblock %}

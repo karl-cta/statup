@@ -1,190 +1,31 @@
 @layer utilities {
-    [hx-swap-oob],
-    .htmx-swapping {
-        transition: opacity 0.2s ease-in-out;
-    }
-    .htmx-swapping {
-        opacity: 0;
+    .text-muted {
+        color: var(--muted);
     }
 
-    @keyframes rise-in {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    .text-ink {
+        color: var(--ink);
     }
 
-    .animate-in {
-        animation: rise-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-    }
-
-    .delay-1 { animation-delay: 50ms; }
-    .delay-2 { animation-delay: 100ms; }
-    .delay-3 { animation-delay: 150ms; }
-    .delay-4 { animation-delay: 200ms; }
-
-    @media (prefers-reduced-motion: reduce) {
-        .animate-in {
-            animation: none;
-        }
-        .delay-1, .delay-2, .delay-3, .delay-4 {
-            animation-delay: 0ms;
-        }
-    }
-
-    /* Paper grain overlay, one of the Magazine signatures. */
-    .noise::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        z-index: 9999;
-        pointer-events: none;
-        opacity: 0.022;
-        background-image: url("/static/noise.svg");
-        background-repeat: repeat;
-    }
-
-    :is(.dark *) {
-        .noise::before {
-            opacity: 0.04;
-        }
-    }
-
-    /* Observed by the IntersectionObserver registered in base.html. Gated on
-       the `js` class that script sets first, so without JavaScript the content
-       is simply there instead of hidden behind an animation nobody will run. */
-    .js .reveal {
-        opacity: 0;
-        transform: translateY(16px);
-        transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
-                    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .js .reveal.is-visible {
-        opacity: 1;
-        transform: translateY(0);
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .js .reveal {
-            opacity: 1;
-            transform: none;
-            transition: none;
-        }
-    }
-
-    /* Inline action colors driven by semantic status tokens. Use these on
-       text-only buttons and labels so the palette adapts in dark mode and
-       stays in sync with chips, dots, hero banners. The -soft variant is
-       for resting state on destructive or affirmative actions, paired with
-       a hover that resolves to full strength. */
-    .text-danger {
-        color: var(--sem-crit-text);
-    }
-
-    .text-danger-soft {
-        color: var(--sem-crit-text);
-        opacity: 0.7;
-        transition: opacity 0.15s ease;
-    }
-
-    .text-danger-soft:hover {
-        opacity: 1;
-    }
-
-    .text-success {
-        color: var(--sem-ok-text);
-    }
-
-    .text-success-soft {
-        color: var(--sem-ok-text);
-        opacity: 0.7;
-        transition: opacity 0.15s ease;
-    }
-
-    .text-success-soft:hover {
-        opacity: 1;
-    }
-
-    /* Severity carries the urgency color wherever it is read as a value,
-       keyed on Severity::as_str() so the template stays declarative. */
-    .sev-minor {
-        color: var(--sem-minor-text);
-    }
-
-    .sev-major {
-        color: var(--sem-major-text);
-    }
-
-    .sev-critical {
-        color: var(--sem-crit-text);
-    }
-
-    /* User-supplied text with no space to break on: service names, event
-       titles, author-entered identifiers. Wraps mid-word rather than letting
-       the tail leave the container, where it is clipped without a scrollbar
-       and without an ellipsis. */
+    /* User text with no space to break on: names, titles, identifiers. */
     .wrap-anywhere {
         overflow-wrap: anywhere;
     }
 
-    /* Status dot fill. Same reason as the text classes below: a dot painted
-       with a raw Tailwind color sits next to a token-driven label and the two
-       drift apart. */
-    .status-dot-ok {
-        background-color: var(--sem-ok);
+    /* Paper grain over the page. */
+    .grain::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background-image: url("/static/noise.svg");
+        background-repeat: repeat;
+        opacity: 0.022;
+        pointer-events: none;
     }
 
-    .status-dot-minor {
-        background-color: var(--sem-minor);
+    .dark .grain::before,
+    .dark.grain::before {
+        opacity: 0.04;
     }
-
-    .status-dot-major {
-        background-color: var(--sem-major);
-    }
-
-    .status-dot-crit {
-        background-color: var(--sem-crit);
-    }
-
-    .status-dot-info {
-        background-color: var(--sem-info);
-    }
-
-    .hover-row {
-        transition: background-color 0.15s ease;
-    }
-
-    .hover-row:hover {
-        background-color: var(--color-sand-warm);
-    }
-
-    :is(.dark *) .hover-row:hover {
-        background-color: var(--surface-hover);
-    }
-
-    a.card-raised:hover {
-        transform: translateY(-1px);
-        border-color: var(--color-sand);
-    }
-
-    :is(.dark *) a.card-raised:hover {
-        border-color: color-mix(in srgb, var(--color-sand) 22%, transparent);
-    }
-
-    /* Secondary text in the theme's muted ink, which clears AA on both
-       grounds. An ink opacity below 60 percent does not on white. */
-    .text-muted {
-        color: var(--color-muted-light);
-    }
-
-    :is(.dark *) .text-muted {
-        color: var(--color-muted-dark);
-    }
-
 }
-

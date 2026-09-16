@@ -1,0 +1,832 @@
+@layer components {
+    /* Settings rows inside a card: label and help on the left, the action
+       on the right; the row wraps on a phone. */
+    .set-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 16px;
+        border-bottom: 1px solid var(--hairline);
+    }
+
+    .set-row:last-child {
+        border-bottom: 0;
+    }
+
+    .set-text {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .set-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.35;
+        color: var(--ink);
+    }
+
+    .set-label .count {
+        margin-left: 8px;
+        white-space: nowrap;
+    }
+
+    .set-help {
+        max-width: 60ch;
+        margin-top: 4px;
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--muted);
+    }
+
+    .set-inline-form {
+        display: flex;
+        flex-shrink: 0;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .set-inline-form .input {
+        width: 260px;
+        max-width: 100%;
+    }
+
+    .set-field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+    }
+
+    /* Two choices that are the state and the action at once: one control in
+       two segments, the marked one is the state. */
+    .set-access-form {
+        flex-shrink: 0;
+    }
+
+    .segmented {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .segmented .choice {
+        justify-content: center;
+        white-space: nowrap;
+        border-radius: 0;
+    }
+
+    .segmented .choice:first-child {
+        border-radius: 6px 0 0 6px;
+    }
+
+    .segmented .choice:last-child {
+        margin-left: -1px;
+        border-radius: 0 6px 6px 0;
+    }
+
+    .segmented .choice:has(:checked),
+    .segmented .choice:has(:focus-visible) {
+        position: relative;
+        z-index: 1;
+    }
+
+    @media (max-width: 720px) {
+        .set-row {
+            flex-wrap: wrap;
+            gap: 12px 16px;
+        }
+
+        .set-text {
+            flex-basis: 100%;
+        }
+
+        .set-inline-form,
+        .set-access-form {
+            flex: 1 1 100%;
+        }
+
+        .set-inline-form .set-field {
+            flex: 1 1 auto;
+        }
+
+        .set-inline-form .input {
+            width: 100%;
+        }
+    }
+
+    /* Layout editor. Neighbours glide while a row is moved; the dragged row
+       follows the pointer on the card's own ground. */
+    .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .tab {
+        display: inline-flex;
+        align-items: center;
+        min-height: 40px;
+        margin-bottom: -1px;
+        padding: 0 12px;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--muted);
+        border-bottom: 2px solid transparent;
+        transition: color 150ms ease, border-color 150ms ease;
+    }
+
+    .tab:hover {
+        color: var(--ink);
+    }
+
+    .tab[aria-current="page"] {
+        font-weight: 600;
+        color: var(--ink);
+        border-bottom-color: var(--ink);
+    }
+
+    .layout-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .layout-row {
+        transition: transform 180ms cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .layout-row.is-dragging {
+        position: relative;
+        z-index: 1;
+        background: var(--card);
+        border-radius: 4px;
+        outline: 1px solid var(--line-strong);
+        user-select: none;
+    }
+
+    .layout-pin {
+        display: inline-flex;
+        flex: none;
+        width: 32px;
+        justify-content: center;
+        color: var(--muted);
+    }
+
+    .layout-pin svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .row-handle {
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 40px;
+        margin: -8px 0;
+        color: var(--muted);
+        border-radius: 4px;
+        cursor: grab;
+        touch-action: none;
+        transition: color 150ms ease;
+    }
+
+    .row-handle svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .row-handle:hover {
+        color: var(--ink);
+    }
+
+    .row-handle:focus-visible {
+        outline-offset: -2px;
+    }
+
+    .layout-row.is-dragging .row-handle {
+        cursor: grabbing;
+    }
+
+    .layout-row[data-hidden] .set-label {
+        color: var(--muted);
+    }
+
+    .row-actions {
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        gap: 12px;
+    }
+
+    @media (max-width: 720px) {
+        .layout-row .set-text,
+        .layout-pinned .set-text {
+            flex-basis: auto;
+            flex: 1 1 0;
+        }
+    }
+
+    /* Admin lists that reflow: identity first, then status, then actions. */
+    .admin-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        border-top: 1px solid var(--line);
+    }
+
+    .admin-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px 20px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .admin-row-ident {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .admin-row-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink);
+        overflow-wrap: anywhere;
+    }
+
+    .admin-row-sub {
+        margin-top: 2px;
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--muted);
+        overflow-wrap: anywhere;
+    }
+
+    .admin-row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px 16px;
+        grid-column: 1 / -1;
+    }
+
+    .admin-row-cell {
+        grid-column: 1 / -1;
+        min-width: 0;
+    }
+
+    @media (min-width: 720px) {
+        .svc-admin-row {
+            grid-template-columns: minmax(0, 1fr) 240px minmax(160px, auto);
+        }
+
+        .svc-admin-row .admin-row-cell,
+        .svc-admin-row .admin-row-actions {
+            grid-column: auto;
+        }
+
+        .member-row {
+            grid-template-columns: minmax(0, 1fr) 110px 200px minmax(140px, auto);
+        }
+
+        .member-row .admin-row-cell,
+        .member-row .admin-row-actions {
+            grid-column: auto;
+        }
+    }
+
+    /* The row the last save named: a wash that fades once. */
+    .row-saved {
+        animation: row-saved 2400ms ease-out both;
+    }
+
+    @keyframes row-saved {
+        0%,
+        40% {
+            background-color: var(--hover);
+        }
+
+        100% {
+            background-color: transparent;
+        }
+    }
+
+    /* The status control publishes to every visitor; the confirmation and
+       the receipt live in the same cell, so the row never jumps. */
+    .status-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .status-cell .confirm,
+    .status-cell .receipt {
+        font-size: 12px;
+    }
+
+    /* An account state, not a service status: words without a dot, the
+       exception in ink. */
+    .member-status {
+        justify-self: start;
+        font-size: 13px;
+        color: var(--muted);
+    }
+
+    .member-status-off {
+        font-weight: 500;
+        color: var(--ink);
+    }
+
+    .member-role-self {
+        font-size: 14px;
+        color: var(--ink);
+    }
+
+    .member-role .cs-wrap,
+    .member-role select {
+        max-width: 220px;
+    }
+
+    .add-member {
+        margin-bottom: 24px;
+    }
+
+    .add-member > summary {
+        width: fit-content;
+        list-style: none;
+    }
+
+    .add-member > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .add-member-form {
+        max-width: 720px;
+        margin-top: 16px;
+        padding: 20px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+    }
+
+    .temp-password {
+        padding: 2px 8px;
+        font-size: 16px;
+        letter-spacing: 0.06em;
+        border: 1px solid var(--line-strong);
+        border-radius: 4px;
+        user-select: all;
+    }
+
+    .notice-stack > * + * {
+        margin-top: 6px;
+    }
+
+    /* Icons: the library page and the picker share the upload field. */
+    .icon-upload-field {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        width: fit-content;
+        padding: 10px 14px;
+        border: 1px dashed var(--line-strong);
+        border-radius: 6px;
+        transition: border-color 120ms ease, background-color 120ms ease;
+    }
+
+    .icon-upload-field:hover {
+        background: var(--surface-hover);
+        border-color: var(--ink);
+    }
+
+    .icon-upload-field:focus-within {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+    }
+
+    .icon-upload-cta {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .icon-upload-hint {
+        font-size: 12px;
+        color: var(--muted);
+    }
+
+    .icon-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+        gap: 12px;
+        margin: 24px 0 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .icon-card {
+        display: flex;
+        flex-direction: column;
+        padding: 14px 14px 12px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+    }
+
+    .icon-card-figure {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 56px;
+        color: var(--muted);
+    }
+
+    .icon-card-figure img {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+    }
+
+    .icon-card-figure svg {
+        width: 32px;
+        height: 32px;
+    }
+
+    .icon-card-name {
+        margin: 10px 0 0;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink);
+        overflow-wrap: anywhere;
+    }
+
+    .icon-card-use {
+        margin: 2px 0 0;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--muted);
+    }
+
+    .icon-card-use strong {
+        font-weight: 500;
+        color: var(--ink);
+    }
+
+    .icon-card-actions {
+        margin-top: auto;
+        padding-top: 10px;
+        font-size: 12px;
+        color: var(--muted);
+    }
+
+    .icon-card .confirm {
+        gap: 2px 12px;
+        font-size: 12px;
+    }
+
+    .icon-picker {
+        min-width: 0;
+    }
+
+    .icon-picker-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-top: 8px;
+    }
+
+    .icon-choices {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .icon-choices > summary {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: fit-content;
+        list-style: none;
+    }
+
+    .icon-choices > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .icon-preview {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        color: var(--muted);
+        background: var(--raised);
+        border: 1px dashed var(--line-strong);
+        border-radius: 6px;
+    }
+
+    .icon-preview svg {
+        width: 24px;
+        height: 24px;
+        color: var(--ink-soft);
+    }
+
+    .icon-preview img {
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
+    }
+
+    .icon-preview-empty svg {
+        width: 20px;
+        height: 20px;
+        color: var(--muted);
+    }
+
+    .icon-choices-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--muted);
+        transition: color 150ms ease;
+    }
+
+    .icon-choices > summary:hover .icon-choices-label {
+        color: var(--ink);
+    }
+
+    .icon-choices-chevron {
+        width: 14px;
+        height: 14px;
+        color: var(--muted);
+        transition: transform 200ms var(--ease-out);
+    }
+
+    .icon-choices[open] .icon-choices-chevron {
+        transform: rotate(180deg);
+    }
+
+    .icon-choices-body.is-revealing {
+        animation: reveal-in 240ms var(--ease-out) both;
+    }
+
+    .icon-group {
+        margin-top: 16px;
+    }
+
+    .icon-group-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        min-width: 0;
+        margin-bottom: 8px;
+    }
+
+    .icon-name-echo {
+        min-width: 0;
+        overflow: hidden;
+        font-size: 12px;
+        color: var(--muted);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .icon-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 44px);
+        gap: 6px;
+    }
+
+    @media (min-width: 640px) {
+        .icon-grid {
+            grid-template-columns: repeat(8, 44px);
+        }
+    }
+
+    /* A cell is a radio: the chosen one shows an ink edge and a check in
+       its corner, so the choice never rests on color alone. */
+    .icon-cell {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        color: var(--ink-soft);
+        background: var(--raised);
+        border: 1px solid var(--hairline);
+        border-radius: 4px;
+        transition: border-color 150ms ease-out, background-color 150ms ease-out;
+    }
+
+    .icon-cell svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .icon-cell img {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+    }
+
+    .icon-cell:hover {
+        background: var(--hover);
+        border-color: var(--line-strong);
+    }
+
+    .icon-cell[aria-checked="true"] {
+        background: var(--hover);
+        border-color: var(--ink);
+    }
+
+    .icon-cell[aria-checked="true"]::before {
+        content: "";
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        width: 14px;
+        height: 14px;
+        background: var(--ink);
+        border-radius: 50%;
+        box-shadow: 0 0 0 2px var(--ground);
+    }
+
+    .icon-cell[aria-checked="true"]::after {
+        content: "";
+        position: absolute;
+        top: -2px;
+        right: 0;
+        width: 3px;
+        height: 6px;
+        border-right: 1.5px solid var(--ground);
+        border-bottom: 1.5px solid var(--ground);
+        transform: rotate(45deg);
+    }
+
+    /* Sign-in and account creation: one column on the page, no card. */
+    .auth-page {
+        position: relative;
+        display: flex;
+        min-height: 100vh;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 64px 16px 48px;
+    }
+
+    .auth-panel {
+        width: 100%;
+        max-width: 360px;
+    }
+
+    .auth-head {
+        margin-bottom: 28px;
+    }
+
+    .auth-mark {
+        width: auto;
+        height: 40px;
+        margin-bottom: 20px;
+        color: var(--ink);
+    }
+
+    .auth-title {
+        font-size: 20px;
+        font-weight: 600;
+        line-height: 1.3;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+    }
+
+    .auth-intro {
+        margin-top: 8px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--muted);
+    }
+
+    .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .auth-form .btn {
+        width: 100%;
+    }
+
+    .auth-alt {
+        margin-top: 24px;
+        font-size: 13px;
+        color: var(--muted);
+    }
+
+    .auth-alt button {
+        font: inherit;
+    }
+
+    .auth-foot {
+        margin-top: 32px;
+        font-size: 12px;
+        color: var(--muted);
+    }
+
+    .auth-tools {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .icon-button {
+        display: inline-grid;
+        place-items: center;
+        min-width: 40px;
+        height: 40px;
+        padding: 0 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--muted);
+        border-radius: 6px;
+        transition: color 150ms ease, background-color 150ms ease;
+    }
+
+    .icon-button:hover {
+        color: var(--ink);
+        background: var(--surface-hover);
+    }
+
+    .icon-button svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Profile. */
+    .profile-section + .profile-section {
+        margin-top: 40px;
+        padding-top: 32px;
+        border-top: 1px solid var(--line);
+    }
+
+    .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .stack > .btn {
+        align-self: flex-start;
+    }
+
+    /* Subscribe page. */
+    .copy-field {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .copy-field .input {
+        flex: 1 1 260px;
+        font-feature-settings: 'tnum' 1;
+    }
+
+    .steps {
+        margin: 12px 0 0;
+        padding-left: 20px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--ink-soft);
+        list-style: decimal;
+    }
+
+    .steps li + li {
+        margin-top: 6px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .layout-row,
+        .icon-choices-chevron {
+            transition: none;
+        }
+
+        .icon-choices-body.is-revealing {
+            animation: none;
+        }
+    }
+}

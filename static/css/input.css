@@ -1,12 +1,15 @@
 @import "tailwindcss";
 
 @source "../../templates/**/*.html";
-@source "../../src/**/*.rs";
+@source "../js/**/*.js";
 
 @custom-variant dark (&:is(.dark *));
 
 @import "./tokens.css";
 @import "./base.css";
-@import "./components.css";
+@import "./components/controls.css";
+@import "./components/frame.css";
+@import "./components/status.css";
+@import "./components/events.css";
+@import "./components/admin.css";
 @import "./utilities.css";
-@import "./transitions.css";

@@ -1,0 +1,694 @@
+@layer components {
+    /* Events list: filters above the results. */
+    .filters {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .filters-search,
+    .filters-service {
+        grid-column: 1 / -1;
+    }
+
+    /* One row only once each menu keeps room to show its choice. */
+    @media (min-width: 768px) {
+        .filters {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            align-items: end;
+        }
+
+        .filters-service {
+            grid-column: auto;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .filters {
+            grid-template-columns: minmax(200px, 2fr) repeat(3, minmax(0, 1fr)) repeat(2, minmax(0, 150px));
+        }
+
+        .filters-search {
+            grid-column: auto;
+        }
+    }
+
+    .filters .field-label {
+        font-size: 13px;
+    }
+
+    .results-count {
+        margin: 0 0 10px;
+        font-size: 13px;
+        color: var(--muted);
+        font-feature-settings: 'tnum' 1;
+    }
+
+    .pager {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .pager-page {
+        font-size: 13px;
+        color: var(--muted);
+        font-feature-settings: 'tnum' 1;
+    }
+
+    /* Event page: reading on the left, acting on the right. */
+    .event-grid {
+        display: grid;
+        gap: 36px;
+    }
+
+    @media (min-width: 1024px) {
+        .event-grid {
+            grid-template-columns: minmax(0, 1fr) 280px;
+            gap: 56px;
+        }
+    }
+
+    .event-title {
+        max-width: 40ch;
+        font-size: 28px;
+        font-weight: 600;
+        line-height: 1.2;
+        letter-spacing: -0.022em;
+        color: var(--ink);
+        overflow-wrap: anywhere;
+    }
+
+    .event-head .meta {
+        margin-top: 8px;
+    }
+
+    .event-state {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 12px;
+        margin-top: 14px;
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--ink);
+    }
+
+    .event-state-words strong {
+        font-weight: 600;
+    }
+
+    .event-dates {
+        margin-top: 6px;
+    }
+
+    .event-body {
+        max-width: 72ch;
+        margin-top: 24px;
+    }
+
+    .event-section {
+        max-width: 72ch;
+        margin-top: 40px;
+    }
+
+    .event-section-head {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+    }
+
+    @media (max-width: 639px) {
+        .event-title {
+            font-size: 24px;
+        }
+    }
+
+    /* Rendered Markdown of descriptions and updates. */
+    .rich-text {
+        font-size: 14px;
+        line-height: 1.65;
+        color: var(--ink-soft);
+        overflow-wrap: anywhere;
+    }
+
+    .rich-text > * + * {
+        margin-top: 10px;
+    }
+
+    .rich-text ul,
+    .rich-text ol {
+        padding-left: 20px;
+    }
+
+    .rich-text ul {
+        list-style: disc;
+    }
+
+    .rich-text ol {
+        list-style: decimal;
+    }
+
+    .rich-text li + li {
+        margin-top: 4px;
+    }
+
+    .rich-text strong {
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .rich-text a {
+        color: var(--ink);
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-underline-offset: 3px;
+    }
+
+    .rich-text a:hover {
+        text-decoration-color: currentColor;
+    }
+
+    .rich-text code {
+        padding: 1px 5px;
+        font-size: 13px;
+        background: var(--surface-subtle);
+        border-radius: 3px;
+    }
+
+    .rich-text pre {
+        padding: 10px 12px;
+        overflow-x: auto;
+        font-size: 13px;
+        background: var(--surface-subtle);
+        border-radius: 4px;
+    }
+
+    .rich-text pre code {
+        padding: 0;
+        background: none;
+    }
+
+    .rich-text blockquote {
+        padding-left: 12px;
+        color: var(--muted);
+        border-left: 1px solid var(--line);
+    }
+
+    .rich-text table {
+        display: block;
+        max-width: 100%;
+        overflow-x: auto;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .rich-text th,
+    .rich-text td {
+        padding: 6px 10px;
+        text-align: left;
+        border-bottom: 1px solid var(--line);
+    }
+
+    /* Updates, newest first, on a thin line. */
+    .timeline {
+        margin: 20px 0 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .update {
+        position: relative;
+        padding: 0 0 22px 22px;
+        border-left: 1px solid var(--line);
+    }
+
+    .update:last-child {
+        padding-bottom: 4px;
+    }
+
+    .update::before {
+        content: "";
+        position: absolute;
+        top: 5px;
+        left: -4px;
+        width: 7px;
+        height: 7px;
+        background: var(--ground);
+        border-radius: 50%;
+        box-shadow: inset 0 0 0 1.5px var(--line-strong);
+    }
+
+    .update:first-child::before {
+        background: var(--ink);
+        box-shadow: none;
+    }
+
+    .update-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 2px 10px;
+        font-size: 12px;
+        color: var(--muted);
+        font-feature-settings: 'tnum' 1;
+    }
+
+    .update-author {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .update .rich-text {
+        margin-top: 4px;
+    }
+
+    .update-delete {
+        margin-left: auto;
+    }
+
+    .composer {
+        margin-top: 16px;
+        padding: 16px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+    }
+
+    .composer .input {
+        background: var(--ground);
+    }
+
+    .composer-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px 16px;
+        margin-top: 12px;
+    }
+
+    .composer-state {
+        flex: 1 1 220px;
+        max-width: 320px;
+    }
+
+    .composer .form-error {
+        margin-bottom: 12px;
+    }
+
+    /* Action rail. */
+    .rail-block + .rail-block {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid var(--hairline);
+    }
+
+    .rail-block .label {
+        margin-bottom: 10px;
+    }
+
+    @media (min-width: 1024px) {
+        .rail {
+            position: sticky;
+            top: 104px;
+        }
+    }
+
+    .rail-services {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .rail-services li {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 2px 10px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ink);
+    }
+
+    .rail-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 16px;
+    }
+
+    /* Side panel: a solid sheet that slides in, isolated from the page so a
+       swap inside it never repaints the dashboard. */
+    .drawer-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 45;
+        background: var(--scrim);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 220ms ease-out;
+    }
+
+    .drawer-overlay.is-open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 46;
+        display: flex;
+        flex-direction: column;
+        width: min(540px, 94vw);
+        background: var(--card);
+        border-left: 1px solid var(--line);
+        transform: translateX(100%);
+        transition: transform 280ms var(--ease-drawer);
+        overscroll-behavior: contain;
+        contain: layout paint style;
+    }
+
+    /* The shadow is not animated: it rides with the panel. */
+    .drawer.is-open {
+        transform: none;
+        box-shadow: var(--shadow-drawer);
+    }
+
+    .drawer-content {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .drawer-head {
+        display: flex;
+        flex: none;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 10px 12px 0;
+    }
+
+    .drawer-close {
+        display: inline-flex;
+        flex: none;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        color: var(--muted);
+        border-radius: 6px;
+        transition: color 120ms ease, background-color 120ms ease;
+    }
+
+    .drawer-close:hover {
+        color: var(--ink);
+        background: var(--surface-subtle);
+    }
+
+    .drawer-close svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .drawer-body {
+        flex: 1;
+        padding: 4px 28px 32px;
+        overflow-y: auto;
+    }
+
+    .drawer-title {
+        font-size: 24px;
+        font-weight: 600;
+        line-height: 1.25;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+        overflow-wrap: anywhere;
+    }
+
+    .drawer-body .meta {
+        margin-top: 6px;
+    }
+
+    .drawer-body .event-state {
+        margin-top: 12px;
+    }
+
+    .drawer-section {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid var(--hairline);
+    }
+
+    .drawer-section > .label {
+        margin-bottom: 12px;
+    }
+
+    .drawer-foot {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 28px;
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+    }
+
+    .drawer-foot .hero-link {
+        margin-top: 0;
+    }
+
+    .drawer-loader,
+    .drawer-error {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        padding: 56px 24px;
+        text-align: center;
+    }
+
+    .drawer-error p {
+        margin: 0;
+        font-size: 13px;
+        color: var(--muted);
+    }
+
+    @media (max-width: 640px) {
+        .drawer {
+            width: 100vw;
+        }
+
+        .drawer-body {
+            padding: 4px 16px 28px;
+        }
+    }
+
+    /* Event form. One column: kind, severity, services, then the words. */
+    .form-block {
+        margin-top: 28px;
+    }
+
+    .form-grid {
+        display: grid;
+        gap: 16px;
+    }
+
+    @media (min-width: 640px) {
+        .form-grid-2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    /* A row that only concerns some kinds. Without script every row shows;
+       with it, rows that do not apply leave the form entirely. */
+    .js .reveal-row:not(.is-open) {
+        display: none;
+    }
+
+    /* Only a row opened by a choice slides in. */
+    .reveal-row.is-revealing {
+        animation: reveal-in 200ms var(--ease-out) both;
+    }
+
+    @keyframes reveal-in {
+        from {
+            opacity: 0;
+            transform: translateY(-4px);
+        }
+    }
+
+    .svc-pick-list {
+        max-height: 320px;
+        margin-top: 8px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        border-top: 1px solid var(--hairline);
+        border-bottom: 1px solid var(--hairline);
+    }
+
+    .svc-pick {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px;
+        min-height: 44px;
+        padding: 8px 4px;
+        border-bottom: 1px solid var(--hairline);
+        transition: background-color 120ms ease;
+    }
+
+    .svc-pick:last-child {
+        border-bottom: 0;
+    }
+
+    .svc-pick:hover {
+        background: var(--surface-hover);
+    }
+
+    .svc-pick-name {
+        min-width: 0;
+        overflow: hidden;
+        font-size: 14px;
+        color: var(--ink);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .suggest {
+        position: relative;
+    }
+
+    .suggestions {
+        position: absolute;
+        top: calc(100% + 4px);
+        right: 0;
+        left: 0;
+        z-index: 20;
+        padding: 4px;
+        background: var(--menu);
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+    }
+
+    .suggestions-title {
+        margin: 0;
+        padding: 6px 10px 4px;
+    }
+
+    .suggestion {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 8px 10px;
+        text-align: left;
+        border-radius: 4px;
+        transition: background-color 120ms ease;
+    }
+
+    .suggestion:hover,
+    .suggestion:focus-visible {
+        background: var(--hover);
+    }
+
+    .suggestion:focus-visible {
+        outline-offset: -2px;
+    }
+
+    /* The menu ground is lighter than the page in the dark theme. */
+    .suggestions .meta,
+    .suggestions-title {
+        color: var(--ink-soft);
+    }
+
+    .suggestion-title {
+        display: block;
+        overflow: hidden;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--ink);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* The consequence and the button travel together, pinned to the bottom
+       of the window until the form ends. */
+    .action-bar {
+        position: sticky;
+        bottom: 0;
+        z-index: 5;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px 24px;
+        margin-top: 32px;
+        padding: 14px 0 16px;
+        background: var(--ground);
+        border-top: 1px solid var(--line);
+    }
+
+    .action-bar-buttons {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-left: auto;
+    }
+
+    .consequence {
+        display: flex;
+        flex: 1 1 320px;
+        align-items: flex-start;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .consequence .dot {
+        margin-top: 7px;
+    }
+
+    .consequence-text {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.6;
+        color: var(--ink);
+    }
+
+    @media (max-width: 639px) {
+        .action-bar-buttons {
+            width: 100%;
+            margin-left: 0;
+        }
+
+        .action-bar-buttons .btn-primary {
+            flex: 1;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .drawer,
+        .drawer-overlay {
+            transition: none;
+        }
+
+        .reveal-row.is-revealing {
+            animation: none;
+        }
+    }
+}

@@ -1,13 +1,11 @@
-//! Icon repository - database queries for the icon library.
+//! Icon repository: SQL queries on the uploaded icon library.
 
 use crate::db::DbPool;
 use crate::models::Icon;
 
-/// Encapsulates all icon-related database queries.
 pub struct IconRepository;
 
 impl IconRepository {
-    /// Create a new icon record.
     pub async fn create(
         pool: &DbPool,
         filename: &str,
@@ -30,7 +28,6 @@ impl IconRepository {
         .await
     }
 
-    /// Find an icon by ID.
     pub async fn find_by_id(pool: &DbPool, id: i64) -> Result<Option<Icon>, sqlx::Error> {
         sqlx::query_as::<_, Icon>("SELECT * FROM icons WHERE id = ?")
             .bind(id)
@@ -38,14 +35,13 @@ impl IconRepository {
             .await
     }
 
-    /// List all icons ordered by creation date (newest first).
+    /// Newest first.
     pub async fn list_all(pool: &DbPool) -> Result<Vec<Icon>, sqlx::Error> {
         sqlx::query_as::<_, Icon>("SELECT * FROM icons ORDER BY created_at DESC")
             .fetch_all(pool)
             .await
     }
 
-    /// Number of icons in the library.
     pub async fn count(pool: &DbPool) -> Result<i64, sqlx::Error> {
         let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM icons")
             .fetch_one(pool)
@@ -74,7 +70,7 @@ impl IconRepository {
         .await
     }
 
-    /// Check if an icon is referenced by any service, event, or template.
+    /// Whether a service, an event or a template still wears the icon.
     pub async fn is_referenced(pool: &DbPool, id: i64) -> Result<bool, sqlx::Error> {
         let row: (bool,) = sqlx::query_as(
             "SELECT EXISTS(\
@@ -93,7 +89,6 @@ impl IconRepository {
         Ok(row.0)
     }
 
-    /// Delete an icon by ID.
     pub async fn delete(pool: &DbPool, id: i64) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM icons WHERE id = ?")
             .bind(id)

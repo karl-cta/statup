@@ -114,33 +114,28 @@ fn limit_response(error: &GovernorError) -> Response<Body> {
     }
 }
 
-/// Self contained, so it renders even while the stylesheet is out of reach.
-/// A slot frees in under a second, so the page reloads itself shortly.
+/// Files are served outside the rate limit, so the page keeps the app's
+/// stylesheet and theme. A slot frees in under a second, so the page
+/// reloads itself shortly.
 const RATE_LIMITED_PAGE: &str = r#"<!doctype html>
 <html lang="{lang}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <meta http-equiv="refresh" content="{seconds}">
 <title>{title}</title>
-<style>
-  :root { color-scheme: light dark; }
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center;
-         background: #FFFFFF; color: #1C1B18; text-align: center; padding: 24px;
-         font: 400 14px/1.6 -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
-  h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 8px; }
-  p { margin: 0; color: #5F5C52; max-width: 44ch; }
-  @media (prefers-color-scheme: dark) {
-    body { background: #1C1B18; color: #FAF8F2; }
-    p { color: #9C9689; }
-  }
-</style></head>
-<body><main>
-  <h1>{title}</h1>
-  <p>{body}</p>
-</main></body></html>"#;
+<link rel="stylesheet" href="{stylesheet}">
+<script src="{theme}"></script>
+</head>
+<body><div class="auth-page"><main class="auth-panel">
+  <h1 class="auth-title">{title}</h1>
+  <p class="auth-intro">{body}</p>
+</main></div></body></html>"#;
 
 /// The 429 page in the language of the request.
 pub fn rate_limited_page(i18n: &I18n, retry_after_secs: u64) -> Response {
     let html = RATE_LIMITED_PAGE
+        .replace("{stylesheet}", &crate::asset("css/style.css"))
+        .replace("{theme}", &crate::asset("js/theme.js"))
         .replace("{lang}", i18n.locale())
         .replace("{seconds}", &retry_after_secs.to_string())
         .replace("{title}", &escape_html(i18n.t("error.rate_limited_title")))

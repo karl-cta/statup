@@ -1,60 +1,45 @@
-// Guards on the team page. A role change and a disable both ask in the row,
-// naming the person and what changes, before anything is posted.
+// A role change asks in the row, naming the person and what the role allows,
+// before anything is posted.
 (function () {
-    'use strict';
+    "use strict";
 
-    function conceal(box) {
-        if (box) box.hidden = true;
-    }
+    const selector = '[data-role-form] select[name="role"]';
 
-    // The native select sits behind a dressed listbox: putting the value back
-    // has to tell that widget too, without firing a change of its own.
     function restore(select) {
         select.value = select.dataset.committed;
-        select.dispatchEvent(new CustomEvent('cs:sync'));
+        select.dispatchEvent(new CustomEvent("cs:sync"));
     }
 
-    document.addEventListener('change', function (e) {
-        var select = e.target;
-        if (!select.matches || !select.matches('[data-role-form] select[name="role"]')) return;
-        var form = select.closest('[data-role-form]');
-        var box = form.querySelector('[data-confirm]');
+    // The select carries one sentence per role: "questionAdmin", "descReader".
+    function roleText(select, kind) {
+        const role = select.value;
+        return select.dataset[`${kind}${role.charAt(0).toUpperCase()}${role.slice(1)}`] || "";
+    }
+
+    document.addEventListener("change", (event) => {
+        const select = event.target;
+        if (!(select instanceof HTMLSelectElement) || !select.matches(selector)) return;
+        const form = select.closest("[data-role-form]");
+        const box = form.querySelector("[data-role-confirm]");
         if (select.value === select.dataset.committed) {
-            conceal(box);
+            box.hidden = true;
             return;
         }
-        var label = select.options[select.selectedIndex].text;
-        var desc = select.dataset['desc' + select.value.charAt(0).toUpperCase() + select.value.slice(1)];
-        box.querySelector('[data-confirm-label]').textContent = select.dataset.name + ' \u2192 ' + label;
-        box.querySelector('[data-confirm-desc]').textContent = desc;
+        const question = box.querySelector("[data-role-question]");
+        question.textContent = roleText(select, "question").replace("{name}", question.dataset.name);
+        box.querySelector("[data-role-desc]").textContent = roleText(select, "desc");
         box.hidden = false;
-        box.querySelector('.status-confirm-go').focus();
+        box.querySelector("[data-role-cancel]").focus();
     });
 
-    document.addEventListener('click', function (e) {
-        if (!e.target.closest) return;
-
-        var disable = e.target.closest('[data-disable-btn]');
-        if (disable) {
-            var box = disable.parentNode.querySelector('[data-confirm]');
-            disable.hidden = true;
-            box.hidden = false;
-            box.querySelector('.status-confirm-cancel').focus();
-            return;
-        }
-
-        var cancel = e.target.closest('[data-confirm-cancel]');
+    document.addEventListener("click", (event) => {
+        const cancel = event.target instanceof Element ? event.target.closest("[data-role-cancel]") : null;
         if (!cancel) return;
-        var form = cancel.closest('form');
-        conceal(cancel.closest('[data-confirm]'));
-        var select = form.querySelector('select[name="role"]');
-        if (select) {
-            restore(select);
-            form.querySelector('.cs-trigger, select').focus();
-            return;
-        }
-        var opener = form.querySelector('[data-disable-btn]');
-        opener.hidden = false;
-        opener.focus();
+        const form = cancel.closest("[data-role-form]");
+        form.querySelector("[data-role-confirm]").hidden = true;
+        const select = form.querySelector(selector);
+        restore(select);
+        const trigger = form.querySelector(".cs-trigger");
+        (trigger || select).focus();
     });
 })();

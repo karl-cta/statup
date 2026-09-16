@@ -1,83 +1,56 @@
-{# Drawer content partial, read-only event detail. Loaded via HTMX #}
-<div class="drawer-head">
-    <p class="drawer-kicker">
-        <span class="{{ event.event.chip_class() }}">{{ i18n.t(event.event.kind.i18n_key()) }}</span>
-        {% if let Some(sev) = event.event.severity %}
-        <span aria-hidden="true">·</span>
-        <span>{{ i18n.t(sev.i18n_key()) }}</span>
-        {% endif %}
-        {% if let Some(lc) = event.event.lifecycle %}
-        <span aria-hidden="true">·</span>
-        <span class="log-right-{{ lc.as_str() }}">{{ i18n.t(lc.i18n_key()) }}</span>
-        {% endif %}
-    </p>
-    <button type="button" class="drawer-close" onclick="closeDrawer()" aria-label="{{ i18n.t("common.close") }}">
-        <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M18 6 6 18M6 6l12 12"/>
-        </svg>
-    </button>
-</div>
-
+{% import "components/macros.html" as ui %}
 <div class="drawer-body">
-    <h2 class="drawer-title">{{ event.event.title }}</h2>
-
-    <p class="drawer-meta">
-        {{ author_name }}
-        <span aria-hidden="true">·</span>
-        {{ i18n.format_datetime(event.event.created_at) }}
-    </p>
-    {% match event.event.planned_start %}
-    {% when Some with (start) %}
-    <p class="drawer-meta">
-        {{ i18n.t("events.planned_from") }} {{ i18n.format_datetime(start) }}{% match event.event.planned_end %}{% when Some with (end) %} {{ i18n.t("events.planned_to") }} {{ i18n.format_datetime(end) }}{% when None %}{% endmatch %}
-    </p>
-    {% when None %}
-    {% endmatch %}
-    {% match event.event.ended_at %}
-    {% when Some with (ended) %}
-    <p class="drawer-meta">
-        {{ i18n.t("events.resolved_at") }} {{ i18n.format_datetime(ended) }}{% match event.event.duration() %}{% when Some with (parts) %} <span aria-hidden="true">·</span> {{ i18n.t("events.duration") }} {{ i18n.format_duration(parts) }}{% when None %}{% endmatch %}
-    </p>
-    {% when None %}
-    {% endmatch %}
-
-    {% if !event.services.is_empty() %}
-    <p class="drawer-services">
-        {% for svc in event.services %}{{ svc.name }}{% if !loop.last %}, {% endif %}{% endfor %}
+    <h2 id="drawer-title" class="drawer-title">{{ view.event.title }}</h2>
+    <p class="meta event-kind-line">{% call ui::kind_chip(i18n.t(view.event.kind.i18n_key()), view.event.kind_tone()) %}<span>{% if let Some(qualifier) = view.event.qualifier(i18n) %}{{ qualifier }}&nbsp;<span aria-hidden="true">·</span> {% endif %}{{ view.published }}</span></p>
+    {% if let Some(state) = view.state %}
+    <p class="event-state" data-tone="{{ state.tone }}">
+        <span class="ring-dot" aria-hidden="true"></span>
+        <span class="event-state-words"><strong>{{ state.label }}</strong>{% if let Some(detail) = state.detail %}&nbsp;<span aria-hidden="true">·</span> {{ detail }}{% endif %}</span>
     </p>
     {% endif %}
-
-    {% if !event.event.description.is_empty() %}
-    <div class="rich-text drawer-section drawer-section-first">{{ description_html|safe }}</div>
+    {% if let Some(schedule) = view.schedule %}
+    <p class="meta">{{ schedule }}</p>
     {% endif %}
 
-    {% if !updates.is_empty() %}
-    <section class="drawer-section">
-        <p class="drawer-section-label">{{ i18n.t("events.updates") }} · {{ updates.len() }}</p>
-        <div class="drawer-updates">
-            {% for update in updates %}
-            <div class="drawer-update">
-                <div class="drawer-update-head">
-                    <b>{{ update.author_name }}</b>
-                    <span aria-hidden="true">·</span>
-                    <span>{{ i18n.format_datetime(update.created_at) }}</span>
-                </div>
-                <div class="drawer-update-msg">{{ update.message|safe }}</div>
-            </div>
+    {% if !view.services.is_empty() %}
+    <div class="drawer-section">
+        <h3 class="label">{{ i18n.t("events.services_concerned") }}</h3>
+        <ul class="rail-services">
+            {% for service in view.services %}
+            <li>
+                <span class="wrap-anywhere">{{ service.name }}</span>
+                <span class="state" data-tone="{{ service.status.tone().as_str() }}">{{ i18n.t(service.status.i18n_key()) }}</span>
+            </li>
             {% endfor %}
-        </div>
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if !view.description_html.is_empty() %}
+    <div class="drawer-section rich-text">{{ view.description_html|safe }}</div>
+    {% endif %}
+
+    {% if !view.updates.is_empty() %}
+    <section class="drawer-section" aria-labelledby="drawer-updates-title">
+        <h3 id="drawer-updates-title" class="label">{{ i18n.t("events.updates") }} <span class="count">{{ view.updates.len() }}</span></h3>
+        <ol class="timeline">
+            {% for update in view.updates %}
+            <li class="update">
+                <div class="update-head">
+                    {% if let Some(author) = update.author %}<span class="update-author">{{ author }}</span>{% endif %}
+                    <time datetime="{{ update.iso }}">{{ update.time }}</time>
+                </div>
+                <div class="rich-text">{{ update.html|safe }}</div>
+            </li>
+            {% endfor %}
+        </ol>
     </section>
     {% endif %}
 
     <div class="drawer-foot">
-        <a class="drawer-foot-link" href="/events/{{ event.event.id }}">
-            {{ i18n.t("events.open_full_page") }}
-            <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M5 12h14M13 6l6 6-6 6"/>
-            </svg>
-        </a>
+        <a class="hero-link" href="/events/{{ view.event.id }}">{{ i18n.t("events.open_full_page") }}{% call ui::arrow_right() %}</a>
         {% if can_edit %}
-        <a class="btn-3d-ghost text-[13px] !px-3 !py-1.5" href="/events/{{ event.event.id }}/edit">{{ i18n.t("common.edit") }}</a>
+        <a class="btn btn-ghost btn-sm" href="/events/{{ view.event.id }}/edit">{{ i18n.t("events.edit") }}</a>
         {% endif %}
     </div>
 </div>

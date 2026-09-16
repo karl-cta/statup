@@ -1,0 +1,168 @@
+// Event form: rows follow the chosen kind, the sentence under the form says
+// what the public page will show, the title writes itself until typed in,
+// and a saved template fills the form.
+(function () {
+    "use strict";
+
+    const form = document.querySelector("[data-event-form]");
+    const copyNode = document.getElementById("event-form-copy");
+    if (!form || form.hasAttribute("data-editing") || !copyNode) return;
+
+    const copy = JSON.parse(copyNode.textContent);
+    const title = form.querySelector("#title");
+    const suggestions = form.querySelector("[data-suggestions]");
+    const planned = form.querySelector("#planned");
+    let titleTouched = title.value.trim() !== "";
+
+    const checked = (name) => {
+        const input = form.querySelector(`input[name="${name}"]:checked`);
+        return input ? input.value : "";
+    };
+
+    const fill = (text, services) => text.replace("{services}", services);
+
+    function serviceNames() {
+        return Array.from(form.querySelectorAll('input[name="service_ids"]:checked'), (box) => box.dataset.serviceName);
+    }
+
+    // Up to three names are written out; past that a count reads better.
+    function joinNames(names) {
+        if (names.length > 3) return copy.services_many.replace("{n}", String(names.length));
+        if (names.length === 1) return names[0];
+        return `${names.slice(0, -1).join(", ")} ${copy.and} ${names[names.length - 1]}`;
+    }
+
+    // A row opened by a choice slides in; one open on arrival does not.
+    form.addEventListener("animationend", (event) => event.target.classList.remove("is-revealing"));
+
+    function setOpen(row, open) {
+        if (open && !row.classList.contains("is-open")) row.classList.add("is-revealing");
+        row.classList.toggle("is-open", open);
+        row.querySelectorAll("input, select, textarea").forEach((field) => {
+            field.disabled = !open;
+            if (field.hasAttribute("data-required")) field.required = open;
+        });
+    }
+
+    function outcome(kind, severity, names) {
+        if (kind === "publication") return { text: copy.publication, tone: "" };
+        if (kind === "incident" && !severity) return { text: copy.pick_severity, tone: "" };
+        if (names.length === 0) return { text: copy.no_services, tone: "" };
+        const services = joinNames(names);
+        if (kind === "maintenance") {
+            const key = planned && planned.checked ? "maintenance_planned" : "maintenance_now";
+            return { text: fill(copy[key], services), tone: "info" };
+        }
+        const tone = severity === "critical" ? "crit" : severity;
+        return { text: fill(copy[`incident_${severity}`], services), tone };
+    }
+
+    function proposeTitle(kind, severity, names) {
+        if (titleTouched) return;
+        let lead = "";
+        if (kind === "maintenance") lead = copy.title_maintenance;
+        else if (kind === "incident" && severity) lead = copy[`title_incident_${severity}`];
+        const proposal = lead && names.length ? fill(lead, joinNames(names)).slice(0, 200) : "";
+        if (proposal !== title.value) title.value = proposal;
+    }
+
+    function update() {
+        const kind = checked("kind") || "incident";
+        const severity = checked("severity");
+        const names = serviceNames();
+        form.querySelectorAll(".reveal-row").forEach((row) => {
+            let open = row.dataset.forKind === kind;
+            if (row.hasAttribute("data-when-planned")) open = open && Boolean(planned && planned.checked);
+            setOpen(row, open);
+        });
+
+        const result = outcome(kind, severity, names);
+        form.querySelector("[data-consequence]").textContent = result.text;
+        const dot = form.querySelector("[data-consequence-dot]");
+        dot.hidden = !result.tone;
+        if (result.tone) dot.dataset.tone = result.tone;
+
+        proposeTitle(kind, severity, names);
+        form.querySelector("[data-submit-label]").textContent = copy[`submit_${kind}`] || copy.submit_incident;
+    }
+
+    function check(name, value) {
+        if (!value) return;
+        const input = form.querySelector(`input[name="${name}"][value="${value}"]`);
+        if (input) input.checked = true;
+    }
+
+    function closeSuggestions() {
+        if (suggestions) suggestions.replaceChildren();
+    }
+
+    function showTemplateError() {
+        const box = document.createElement("div");
+        box.className = "form-error mt-2";
+        const text = document.createElement("p");
+        text.textContent = copy.template_error;
+        box.append(text);
+        suggestions.replaceChildren(box);
+    }
+
+    function applyTemplate(id) {
+        fetch(`/events/templates/${encodeURIComponent(id)}`, { credentials: "same-origin" })
+            .then((response) => {
+                if (!response.ok) throw new Error(String(response.status));
+                return response.json();
+            })
+            .then((template) => {
+                title.value = template.title;
+                titleTouched = true;
+                form.querySelector("#description").value = template.description;
+                check("kind", template.kind);
+                check("severity", template.severity);
+                check("category", template.category);
+                if (planned) planned.checked = Boolean(template.planned);
+                form.querySelector("[data-template-id]").value = String(template.id);
+                closeSuggestions();
+                update();
+                title.focus();
+            })
+            .catch(showTemplateError);
+    }
+
+    form.addEventListener("change", update);
+    title.addEventListener("input", () => {
+        titleTouched = title.value.trim() !== "";
+        form.querySelector("[data-template-id]").value = "";
+    });
+
+    if (suggestions) {
+        suggestions.addEventListener("click", (event) => {
+            const option = event.target.closest("[data-template]");
+            if (option) applyTemplate(option.dataset.template);
+        });
+        // Arrows move between the title and the suggestions; Escape closes them.
+        form.addEventListener("keydown", (event) => {
+            const options = Array.from(suggestions.querySelectorAll("[data-template]"));
+            if (event.key === "Escape" && options.length) {
+                closeSuggestions();
+                title.focus();
+                return;
+            }
+            if (!options.length || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) return;
+            const index = options.indexOf(document.activeElement);
+            if (event.target !== title && index === -1) return;
+            event.preventDefault();
+            const step = event.key === "ArrowDown" ? 1 : -1;
+            const next = index + step;
+            if (next < 0) title.focus();
+            else options[Math.min(next, options.length - 1)].focus();
+        });
+        document.addEventListener("click", (event) => {
+            if (event.target instanceof Element && !event.target.closest(".suggest")) closeSuggestions();
+        });
+        form.addEventListener("focusout", (event) => {
+            const next = event.relatedTarget;
+            if (next instanceof Element && !next.closest(".suggest")) closeSuggestions();
+        });
+    }
+
+    update();
+})();

@@ -1,150 +1,77 @@
 {% extends "_layout.html" %}
+{% import "components/macros.html" as ui %}
 
 {% block title %}{{ i18n.t("services.title") }} | {{ crate::brand_name() }}{% endblock %}
+{% block section %}services{% endblock %}
+
+{% block htmx %}{% include "components/htmx.html" %}{% endblock %}
+
+{% block scripts %}
+<script src="{{ crate::asset("js/custom-select.js") }}" defer></script>
+<script src="{{ crate::asset("js/status-publish.js") }}" defer></script>
+{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
-    <div class="flex items-center justify-between animate-in">
-        <h1 class="text-2xl font-medium tracking-tight text-ink dark:text-sand-light">{{ i18n.t("services.heading") }}</h1>
-        <a href="/services/new" class="btn-3d text-[13px]" aria-label="{{ i18n.t("services.add") }}">
-            <span class="inline-flex items-center gap-1.5">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                {{ i18n.t("services.new") }}
-            </span>
-        </a>
-    </div>
+<div class="page">
+    <header class="page-head">
+        <div>
+            <h1 class="page-title">{{ i18n.t("services.heading") }}</h1>
+        </div>
+        <div class="page-actions">
+            <a href="/services/new" class="btn btn-primary">{% call ui::plus() %}{{ i18n.t("services.new") }}</a>
+        </div>
+    </header>
 
-    {% match saved_name %}
-    {% when Some with (name) %}
-    <div class="mt-5 form-notice animate-in delay-1" role="status"><q>{{ name }}</q> {{ i18n.t("services.saved_notice") }}</div>
-    {# The list is rendered twice, phone and desktop: the row to bring into
-       view is whichever copy is drawn, so there is no fixed id to jump to. #}
-    <script>
-    (function () {
-        var rows = document.querySelectorAll('.row-saved');
-        for (var i = 0; i < rows.length; i++) {
-            if (rows[i].offsetParent !== null) { rows[i].scrollIntoView({ block: 'center' }); break; }
-        }
-    })();
-    </script>
-    {% when None %}
-    {% endmatch %}
+    {% if let Some(name) = saved_name %}
+    <div class="form-notice mb-5" role="status"><p><q>{{ name }}</q> {{ i18n.t("services.saved_notice") }}</p></div>
+    {% endif %}
+    {% if let Some(name) = deleted_name %}
+    <div class="form-notice mb-5" role="status"><p><q>{{ name }}</q> {{ i18n.t("services.deleted_notice") }}</p></div>
+    {% endif %}
+    {% if let Some(message) = error %}
+    <div class="form-error mb-5" role="alert"><p>{{ message }}</p></div>
+    {% endif %}
 
     {% if services.is_empty() %}
-    <div class="mt-12 text-center animate-in delay-1">
-        <svg class="mx-auto h-12 w-12 text-ink/20 dark:text-sand-light/15" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 0 1-3-3m3 3a3 3 0 1 0 0 6h13.5a3 3 0 1 0 0-6m-16.5-3a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3m-19.5 0a4.5 4.5 0 0 1 .9-2.7L5.737 5.1a3.375 3.375 0 0 1 2.7-1.35h7.126c1.062 0 2.062.5 2.7 1.35l2.587 3.45a4.5 4.5 0 0 1 .9 2.7m0 0a3 3 0 0 1-3 3m0 3h.008v.008h-.008v-.008Zm0-6h.008v.008h-.008v-.008Zm-3 6h.008v.008h-.008v-.008Zm0-6h.008v.008h-.008v-.008Z" />
-        </svg>
-        <p class="mt-3 text-sm text-ink/55 dark:text-sand-light/45">{{ i18n.t("services.no_services") }}</p>
-        <a href="/services/new" class="mt-2 inline-block text-sm font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors">
-            {{ i18n.t("services.add_first") }}
-        </a>
+    <div class="card empty-state">
+        <p class="empty-state-title">{{ i18n.t("services.empty_title") }}</p>
+        <p class="empty-state-text">{{ i18n.t("services.empty_text") }}</p>
     </div>
     {% else %}
-    {# Mobile, flat list #}
-    <div class="mt-6 sm:hidden animate-in delay-1">
+    <ul class="admin-list">
         {% for service in services %}
-        <div class="service-item py-3 border-b border-ink/10 dark:border-sand-light/10 last:border-b-0{% if let Some(id) = saved_id %}{% if id.eq(service.id) %} row-saved{% endif %}{% endif %}">
-            <div class="flex items-start justify-between gap-3">
-                <div class="flex min-w-0 flex-1 items-center gap-2.5">
-                    <span class="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full {{ service.status.dot_class() }}" aria-hidden="true"></span>
-                    {% let icon_size = "h-5 w-5" %}
-                    {% include "components/service_icon.html" %}
-                    <div class="min-w-0 flex-1">
-                        <div class="text-sm font-medium text-ink dark:text-sand-light wrap-anywhere">{{ service.name }}</div>
-                        {% match service.description %}
-                        {% when Some with (desc) %}
-                        <div class="mt-0.5 text-[12px] text-ink/55 dark:text-sand-light/45 line-clamp-1">{{ desc }}</div>
-                        {% when None %}
-                        {% endmatch %}
-                    </div>
+        <li class="admin-row svc-admin-row{% if self.is_saved(service.id) %} row-saved{% endif %}" id="{{ service.anchor() }}"{% if self.is_saved(service.id) %} data-scroll-into-view{% endif %}>
+            <div class="admin-row-ident">
+                <span class="svc-icon">{% call ui::service_icon(service) %}</span>
+                <div class="min-w-0">
+                    <p class="admin-row-name">{{ service.name }}</p>
+                    {% if let Some(description) = service.description %}
+                    <p class="admin-row-sub">{{ description }}</p>
+                    {% endif %}
                 </div>
+            </div>
+            <div class="admin-row-cell">
                 {% include "components/status_selector.html" %}
             </div>
-            <div class="mt-2 flex items-center gap-4 pl-[18px]">
-                <a href="/services/{{ service.id }}/edit"
-                   class="text-[13px] font-medium text-ink/60 hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light transition-colors"
-                   aria-label="{{ i18n.t("common.edit") }} {{ service.name }}">
-                    {{ i18n.t("common.edit") }}
-                </a>
-                <form method="post" action="/services/{{ service.id }}/delete"
-                      hx-post="/services/{{ service.id }}/delete"
-                      hx-confirm="{{ i18n.t("common.delete") }} {{ service.name }} ?"
-                      hx-target="closest .service-item"
-                      hx-swap="outerHTML swap:0.3s"
-                      class="inline-flex">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <button type="submit"
-                            class="text-[13px] font-medium text-danger-soft"
-                            aria-label="{{ i18n.t("common.delete") }} {{ service.name }}">
-                        {{ i18n.t("common.delete") }}
-                    </button>
+            <div class="admin-row-actions">
+                <a class="text-action" href="/services/{{ service.id }}/edit" aria-label="{{ i18n.t("common.edit") }} {{ service.name }}">{{ i18n.t("common.edit") }}</a>
+                {% if service.has_history %}
+                <span class="field-hint" title="{{ i18n.t("services.kept_hint") }}">{{ i18n.t("services.kept") }}<span class="sr-only">. {{ i18n.t("services.kept_hint") }}</span></span>
+                {% else %}
+                <form method="post" action="/services/{{ service.id }}/delete" data-confirm>
+                    <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                    <button type="button" class="text-action text-action-danger" data-confirm-open aria-label="{{ i18n.t("common.delete") }} {{ service.name }}">{{ i18n.t("common.delete") }}</button>
+                    <div class="confirm" role="group" aria-label="{{ i18n.t("services.confirm_delete") }}" aria-describedby="delete-q-{{ service.id }}" data-confirm-box hidden>
+                        <span id="delete-q-{{ service.id }}" class="confirm-text">{{ i18n.t("common.delete") }} <q>{{ service.name }}</q>{{ i18n.t("common.question_mark") }}</span>
+                        <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
+                        <button type="submit" class="confirm-go" data-danger>{{ i18n.t("common.delete") }}</button>
+                    </div>
                 </form>
+                {% endif %}
             </div>
-        </div>
+        </li>
         {% endfor %}
-    </div>
-    {# Desktop, flat table #}
-    <div class="mt-6 hidden sm:block animate-in delay-1 -mx-4 sm:-mx-6 lg:-mx-10">
-        <table class="min-w-full">
-            <thead>
-                <tr class="border-b border-ink/15 dark:border-sand-light/15">
-                    <th scope="col" class="pb-2 pl-4 pr-4 sm:pl-6 lg:pl-10 text-left text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("services.name_label") }}</th>
-                    <th scope="col" class="pb-2 pr-4 text-left text-[10.5px] font-medium uppercase tracking-[0.14em] text-ink/55 dark:text-sand-light/45">{{ i18n.t("common.status_label") }}</th>
-                    {# Named for assistive tech only: the column holds links that name themselves. #}
-                    <th scope="col" class="pb-2 pr-4 sm:pr-6 lg:pr-10"><span class="sr-only">{{ i18n.t("common.actions_label") }}</span></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for service in services %}
-                <tr class="border-b border-ink/10 dark:border-sand-light/10 last:border-b-0 transition-colors hover-row{% if let Some(id) = saved_id %}{% if id.eq(service.id) %} row-saved{% endif %}{% endif %}">
-                    <td class="py-3.5 pl-4 pr-4 sm:pl-6 lg:pl-10">
-                        <div class="flex items-center gap-2.5">
-                            <span class="h-2 w-2 flex-shrink-0 rounded-full {{ service.status.dot_class() }}" aria-hidden="true"></span>
-                            {% let icon_size = "h-6 w-6" %}
-                            {% include "components/service_icon.html" %}
-                            <div class="min-w-0">
-                                <div class="text-sm font-medium text-ink dark:text-sand-light wrap-anywhere">{{ service.name }}</div>
-                                {% match service.description %}
-                                {% when Some with (desc) %}
-                                <div class="text-[12px] text-ink/55 dark:text-sand-light/45 mt-0.5">{{ desc }}</div>
-                                {% when None %}
-                                {% endmatch %}
-                            </div>
-                        </div>
-                    </td>
-                    <td class="py-3.5 pr-4">
-                        {% include "components/status_selector.html" %}
-                    </td>
-                    <td class="py-3.5 pr-4 sm:pr-6 lg:pr-10 text-right">
-                        <div class="flex items-center justify-end gap-3">
-                            <a href="/services/{{ service.id }}/edit"
-                               class="text-[13px] font-medium text-ink/60 hover:text-ink dark:text-sand-light/55 dark:hover:text-sand-light transition-colors"
-                               aria-label="{{ i18n.t("common.edit") }} {{ service.name }}">
-                                {{ i18n.t("common.edit") }}
-                            </a>
-                            <form method="post" action="/services/{{ service.id }}/delete"
-                                  hx-post="/services/{{ service.id }}/delete"
-                                  hx-confirm="{{ i18n.t("common.delete") }} {{ service.name }} ?"
-                                  hx-target="closest tr"
-                                  hx-swap="outerHTML swap:0.3s"
-                                  class="inline-flex">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                                <button type="submit"
-                                        class="text-[13px] font-medium text-danger-soft"
-                                        aria-label="{{ i18n.t("common.delete") }} {{ service.name }}">
-                                    {{ i18n.t("common.delete") }}
-                                </button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    </ul>
     {% endif %}
 </div>
 {% endblock %}

@@ -1,9 +1,13 @@
-//! Service management: CRUD and status recalculation from active events.
+//! Service rules: creation, edits, deletion and the status that open work
+//! gives them.
 
 use crate::db::DbPool;
 use crate::error::AppError;
-use crate::models::{self, Kind, Service, ServiceStatus, Severity};
+use crate::models::{Kind, Service, ServiceStatus, Severity};
 use crate::repositories::{EventRepository, ServiceRepository};
+
+const MAX_NAME_CHARS: usize = 100;
+const MAX_DESCRIPTION_CHARS: usize = 500;
 
 pub struct ServiceService;
 
@@ -19,16 +23,9 @@ impl ServiceService {
         if let Some(key) = service_field_error(name, description) {
             return Err(AppError::Validation(key.to_string()));
         }
-
-        let description = description.map(str::trim).filter(|d| !d.is_empty());
-
-        let slug = models::generate_unique_slug(pool, name).await?;
-
-        let service =
-            ServiceRepository::create_with_icon(pool, name, &slug, description, icon_id, icon_name)
-                .await?;
-
-        Ok(service)
+        let slug = unique_slug(pool, name).await?;
+        let description = clean_description(description);
+        Ok(ServiceRepository::create(pool, name, &slug, description, icon_id, icon_name).await?)
     }
 
     pub async fn update(
@@ -43,80 +40,99 @@ impl ServiceService {
         if let Some(key) = service_field_error(name, description) {
             return Err(AppError::Validation(key.to_string()));
         }
-
-        let description = description.map(str::trim).filter(|d| !d.is_empty());
-
         ServiceRepository::find_by_id(pool, id)
             .await?
             .ok_or(AppError::NotFound)?;
-
+        let description = clean_description(description);
         ServiceRepository::update(pool, id, name, description, icon_id, icon_name).await?;
-
         Ok(())
     }
 
+    /// A service with history cannot be deleted: its past incidents would
+    /// lose their subject.
     pub async fn delete(pool: &DbPool, id: i64) -> Result<(), AppError> {
         ServiceRepository::find_by_id(pool, id)
             .await?
             .ok_or(AppError::NotFound)?;
-
         if ServiceRepository::has_events(pool, id).await? {
             return Err(AppError::Validation(
                 "validation.service_has_events".to_string(),
             ));
         }
-
         ServiceRepository::delete(pool, id).await?;
         Ok(())
     }
 
-    /// Recalculate a service's status from its active events. Picks the worst
-    /// projected status (highest priority). Falls back to `Operational` when
-    /// no active event remains.
-    pub async fn recalculate_status(
-        pool: &DbPool,
-        service_id: i64,
-    ) -> Result<ServiceStatus, AppError> {
-        let active_events = EventRepository::list_active_for_service(pool, service_id).await?;
-
-        let worst = active_events
-            .iter()
-            .filter_map(|event| derive_service_status(event.kind, event.severity))
-            .max_by_key(|s| s.priority())
+    /// Sets the service to the worst status its open work implies, or back
+    /// to operational when nothing is open.
+    pub async fn recalculate_status(pool: &DbPool, service_id: i64) -> Result<(), AppError> {
+        let drivers = EventRepository::status_drivers(pool, service_id).await?;
+        let worst = drivers
+            .into_iter()
+            .filter_map(|(kind, severity)| derive_status(kind, severity))
+            .max_by_key(|status| status.priority())
             .unwrap_or(ServiceStatus::Operational);
-
         ServiceRepository::update_status(pool, service_id, worst).await?;
+        Ok(())
+    }
 
-        Ok(worst)
+    pub async fn recalculate_many(pool: &DbPool, service_ids: &[i64]) -> Result<(), AppError> {
+        for id in service_ids {
+            Self::recalculate_status(pool, *id).await?;
+        }
+        Ok(())
     }
 }
 
-/// Name and description rules, returning the message key rather than an error so
-/// a route can re-render the form with what the author typed. The length cap on
-/// the description used to live on the form extractor, which rejected the body
-/// before any handler could hand it back.
+/// Name and description rules as a message key, so a route can re-render
+/// the form with what the author typed.
 pub fn service_field_error(name: &str, description: Option<&str>) -> Option<&'static str> {
-    if name.trim().is_empty() {
+    let name = name.trim();
+    if name.is_empty() {
         return Some("validation.service_name_required");
     }
-    if name.len() > 100 {
+    if name.chars().count() > MAX_NAME_CHARS {
         return Some("validation.service_name_too_long");
     }
-    if description.is_some_and(|d| d.chars().count() > 500) {
+    if description.is_some_and(|d| d.trim().chars().count() > MAX_DESCRIPTION_CHARS) {
         return Some("validation.description_max_length");
     }
     None
 }
 
-/// Project an active event onto a service status. Publications do not affect
-/// the status. Any maintenance (planned or unplanned) forces `Maintenance`.
-/// Incidents are projected by severity, or ignored when severity is missing.
-fn derive_service_status(kind: Kind, severity: Option<Severity>) -> Option<ServiceStatus> {
+fn clean_description(description: Option<&str>) -> Option<&str> {
+    description.map(str::trim).filter(|d| !d.is_empty())
+}
+
+/// A URL-safe slug that no other service uses: `-2`, `-3`... are appended
+/// when the plain one is taken.
+async fn unique_slug(pool: &DbPool, name: &str) -> Result<String, AppError> {
+    let base = match slug::slugify(name) {
+        s if s.is_empty() => "service".to_string(),
+        s => s,
+    };
+    if !ServiceRepository::slug_exists(pool, &base).await? {
+        return Ok(base);
+    }
+    for suffix in 2..=10_000u32 {
+        let candidate = format!("{base}-{suffix}");
+        if !ServiceRepository::slug_exists(pool, &candidate).await? {
+            return Ok(candidate);
+        }
+    }
+    Err(AppError::Internal(anyhow::anyhow!(
+        "no free slug for {base}"
+    )))
+}
+
+/// Status an open event gives its services. Maintenance under way sets
+/// Maintenance; an incident follows its severity, minor when none was given.
+fn derive_status(kind: Kind, severity: Option<Severity>) -> Option<ServiceStatus> {
     match kind {
-        Kind::Incident => severity.map(|s| match s {
-            Severity::Critical => ServiceStatus::MajorOutage,
-            Severity::Major => ServiceStatus::PartialOutage,
-            Severity::Minor => ServiceStatus::Degraded,
+        Kind::Incident => Some(match severity {
+            Some(Severity::Critical) => ServiceStatus::MajorOutage,
+            Some(Severity::Major) => ServiceStatus::PartialOutage,
+            Some(Severity::Minor) | None => ServiceStatus::Degraded,
         }),
         Kind::Maintenance => Some(ServiceStatus::Maintenance),
         Kind::Publication => None,
@@ -126,54 +142,63 @@ fn derive_service_status(kind: Kind, severity: Option<Severity>) -> Option<Servi
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_helpers::test_pool;
 
     #[test]
-    fn critical_incident_maps_to_major_outage() {
+    fn incidents_follow_their_severity() {
         assert_eq!(
-            derive_service_status(Kind::Incident, Some(Severity::Critical)),
+            derive_status(Kind::Incident, Some(Severity::Critical)),
             Some(ServiceStatus::MajorOutage)
         );
-    }
-
-    #[test]
-    fn major_incident_maps_to_partial_outage() {
         assert_eq!(
-            derive_service_status(Kind::Incident, Some(Severity::Major)),
+            derive_status(Kind::Incident, Some(Severity::Major)),
             Some(ServiceStatus::PartialOutage)
         );
-    }
-
-    #[test]
-    fn minor_incident_maps_to_degraded() {
         assert_eq!(
-            derive_service_status(Kind::Incident, Some(Severity::Minor)),
+            derive_status(Kind::Incident, Some(Severity::Minor)),
             Some(ServiceStatus::Degraded)
         );
     }
 
     #[test]
-    fn incident_without_severity_returns_none() {
-        assert_eq!(derive_service_status(Kind::Incident, None), None);
-    }
-
-    #[test]
-    fn maintenance_maps_to_maintenance_status() {
+    fn an_incident_without_severity_still_counts() {
         assert_eq!(
-            derive_service_status(Kind::Maintenance, None),
-            Some(ServiceStatus::Maintenance)
-        );
-        assert_eq!(
-            derive_service_status(Kind::Maintenance, Some(Severity::Critical)),
-            Some(ServiceStatus::Maintenance)
+            derive_status(Kind::Incident, None),
+            Some(ServiceStatus::Degraded)
         );
     }
 
     #[test]
-    fn publication_does_not_affect_status() {
+    fn maintenance_and_announcements() {
         assert_eq!(
-            derive_service_status(Kind::Publication, Some(Severity::Major)),
-            None
+            derive_status(Kind::Maintenance, Some(Severity::Critical)),
+            Some(ServiceStatus::Maintenance)
         );
-        assert_eq!(derive_service_status(Kind::Publication, None), None);
+        assert_eq!(derive_status(Kind::Publication, None), None);
+    }
+
+    #[test]
+    fn field_rules_count_characters() {
+        assert!(service_field_error(&"é".repeat(100), None).is_none());
+        assert!(service_field_error(&"a".repeat(101), None).is_some());
+        assert!(service_field_error("  ", None).is_some());
+        assert!(service_field_error("API", Some(&"x".repeat(501))).is_some());
+    }
+
+    #[tokio::test]
+    async fn slugs_stay_unique() {
+        let pool = test_pool().await;
+        let first = ServiceService::create(&pool, "Paie", None, None, None)
+            .await
+            .unwrap();
+        let second = ServiceService::create(&pool, "Paie", None, None, None)
+            .await
+            .unwrap();
+        assert_eq!(first.slug, "paie");
+        assert_eq!(second.slug, "paie-2");
+        let symbols = ServiceService::create(&pool, "***", None, None, None)
+            .await
+            .unwrap();
+        assert_eq!(symbols.slug, "service");
     }
 }

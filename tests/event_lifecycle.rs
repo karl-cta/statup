@@ -53,7 +53,7 @@ impl TestApp {
 
     async fn create_service(&self, name: &str) -> i64 {
         let slug = name.to_lowercase().replace(' ', "-");
-        let service = ServiceRepository::create(&self.pool, name, &slug, None)
+        let service = ServiceRepository::create(&self.pool, name, &slug, None, None, None)
             .await
             .expect("failed to create service");
         service.id
@@ -114,6 +114,7 @@ impl TestApp {
                 ("kind", "maintenance".to_string()),
                 ("severity", severity.to_string()),
                 ("planned", "on".to_string()),
+                ("planned_start", in_two_days()),
             ],
             service_ids,
         )
@@ -138,6 +139,14 @@ impl TestApp {
         )
         .await
     }
+}
+
+/// A start the maintenance schedule will not reach during the test, in the
+/// form a `datetime-local` field sends.
+fn in_two_days() -> String {
+    (chrono::Local::now() + chrono::Duration::days(2))
+        .format("%Y-%m-%dT%H:%M")
+        .to_string()
 }
 
 fn event_id_from_path(path: &str) -> i64 {
@@ -166,7 +175,7 @@ async fn create_incident_and_verify_detail() {
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("Database outage"), "should show event title");
     assert!(
-        body.contains("Investigation") || body.contains("investigating"),
+        body.contains("analyse") || body.contains("Investigating"),
         "incident should start in Investigating lifecycle"
     );
 }
@@ -206,7 +215,7 @@ async fn full_incident_lifecycle_with_service_status() {
 
     let (status, _, _) = app
         .post_form_with_header_csrf(
-            &format!("/events/{event_id}/lifecycle"),
+            &format!("/events/{event_id}/updates"),
             &[("lifecycle", "in_progress")],
         )
         .await;
@@ -231,7 +240,7 @@ async fn full_incident_lifecycle_with_service_status() {
 
     let (status, _, _) = app
         .post_form_with_header_csrf(
-            &format!("/events/{event_id}/lifecycle"),
+            &format!("/events/{event_id}/updates"),
             &[("lifecycle", "monitoring")],
         )
         .await;
@@ -239,11 +248,8 @@ async fn full_incident_lifecycle_with_service_status() {
 
     let (status, _, _) = app
         .post_form_with_header_csrf(
-            &format!("/events/{event_id}/lifecycle"),
-            &[
-                ("lifecycle", "resolved"),
-                ("resolution_comment", "Problème résolu"),
-            ],
+            &format!("/events/{event_id}/updates"),
+            &[("lifecycle", "resolved"), ("message", "Problème résolu")],
         )
         .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
@@ -288,30 +294,40 @@ async fn scheduled_maintenance_lifecycle() {
         .expect("service not found");
     assert_eq!(
         svc.status,
-        ServiceStatus::Maintenance,
-        "planned maintenance should put service in Maintenance"
+        ServiceStatus::Operational,
+        "a maintenance still to come leaves the service as it is"
     );
 
     let (_, body) = app.get(&path).await;
     assert!(
-        body.contains("Scheduled") || body.contains("scheduled") || body.contains("Planifié"),
+        body.contains("Programmée") || body.contains("Scheduled"),
         "planned maintenance should start in Scheduled lifecycle"
     );
 
     let (status, _, _) = app
         .post_form_with_header_csrf(
-            &format!("/events/{event_id}/lifecycle"),
+            &format!("/events/{event_id}/updates"),
             &[("lifecycle", "in_progress")],
         )
         .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
 
+    let svc = ServiceRepository::find_by_id(&app.pool, service_id)
+        .await
+        .expect("db error")
+        .expect("service not found");
+    assert_eq!(
+        svc.status,
+        ServiceStatus::Maintenance,
+        "work under way puts the service in maintenance"
+    );
+
     let (status, _, _) = app
         .post_form_with_header_csrf(
-            &format!("/events/{event_id}/lifecycle"),
+            &format!("/events/{event_id}/updates"),
             &[
                 ("lifecycle", "completed"),
-                ("resolution_comment", "Maintenance terminée"),
+                ("message", "Maintenance terminée"),
             ],
         )
         .await;
@@ -341,14 +357,19 @@ async fn invalid_lifecycle_transition_is_rejected() {
 
     let (status, body, _) = app
         .post_form_with_header_csrf(
-            &format!("/events/{event_id}/lifecycle"),
+            &format!("/events/{event_id}/updates"),
             &[("lifecycle", "scheduled")],
         )
         .await;
 
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "the page comes back with the refusal"
+    );
     assert!(
-        status == StatusCode::BAD_REQUEST || body.contains("autorisée"),
-        "invalid transition should be rejected, got status {status}"
+        body.contains("pas possible"),
+        "invalid transition should be refused in the page"
     );
 }
 
@@ -416,11 +437,8 @@ async fn multiple_events_worst_status_wins() {
     let minor_id = event_id_from_path(&minor_path);
     let (status, _, _) = app
         .post_form_with_header_csrf(
-            &format!("/events/{minor_id}/lifecycle"),
-            &[
-                ("lifecycle", "resolved"),
-                ("resolution_comment", "Problème résolu"),
-            ],
+            &format!("/events/{minor_id}/updates"),
+            &[("lifecycle", "resolved"), ("message", "Problème résolu")],
         )
         .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
@@ -632,8 +650,8 @@ async fn feed_lists_events_with_their_updates() {
         "pages should advertise the feed for auto discovery"
     );
     assert!(
-        home.contains(r#"href="/feed" class="hero-subscribe""#),
-        "the banner should offer the subscription"
+        home.contains(r#"href="/subscribe""#),
+        "the banner should offer the subscription page"
     );
 }
 
@@ -650,48 +668,50 @@ async fn detail_page_says_an_incident_is_still_ongoing() {
 
     let (_, body) = app.get(&path).await;
     assert!(
-        body.contains("hero-dot hero-dot-major"),
-        "an open incident should carry the banner's tone on its own page"
+        body.contains(r#"class="event-state" data-tone="major""#),
+        "an open incident should carry its tone on its own page"
     );
     assert!(
-        body.contains(r#"data-relative-from="#),
-        "the elapsed time should be shown for an open incident"
+        body.contains("ouvert depuis"),
+        "the time since the incident opened should be shown"
     );
     assert!(
-        body.contains(r#"<option value="" selected>"#),
-        "the transition list should open on a prompt, not on a state"
+        body.contains(r#"name="lifecycle""#) && body.contains(r#"<option value="">"#),
+        "the state list should open on keeping the current state"
     );
 
-    let (status, _, location) = app
+    let (status, body, _) = app
         .post_form_with_header_csrf(
-            &format!("/events/{event_id}/lifecycle"),
-            &[("lifecycle", "")],
+            &format!("/events/{event_id}/updates"),
+            &[("lifecycle", ""), ("message", "")],
         )
         .await;
     assert_eq!(
         status,
-        StatusCode::SEE_OTHER,
-        "an empty transition is a no-op"
+        StatusCode::OK,
+        "an update with nothing in it is refused in the page"
     );
+    assert!(body.contains("Écrivez un message"));
+
+    let (status, _, location) = app
+        .post_form_with_header_csrf(
+            &format!("/events/{event_id}/updates"),
+            &[("lifecycle", "resolved"), ("message", "Index rebuilt")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
     assert_eq!(
         location.as_deref(),
         Some(format!("/events/{event_id}").as_str())
     );
 
-    let (status, _, _) = app
-        .post_form_with_header_csrf(
-            &format!("/events/{event_id}/lifecycle"),
-            &[
-                ("lifecycle", "resolved"),
-                ("resolution_comment", "Index rebuilt"),
-            ],
-        )
-        .await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
-
     let (_, body) = app.get(&path).await;
     assert!(
-        !body.contains("hero-dot hero-dot-major"),
+        !body.contains(r#"class="event-state" data-tone="major""#),
         "a closed incident should not claim to be ongoing"
+    );
+    assert!(
+        body.contains("Index rebuilt"),
+        "the closing message is shown"
     );
 }

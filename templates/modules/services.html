@@ -1,54 +1,42 @@
-{# Services module, dashboard left card. Expects: services, sparkline_map, i18n #}
-<section class="card">
+{% import "components/macros.html" as ui %}
+<section class="card" aria-labelledby="services-title">
     <header class="card-head">
-        <h2>
-            <span>{{ i18n.t("dashboard.services") }}</span>
-            {% if !services.is_empty() %}
-            <span class="card-head-cnt">{{ services.len() }}</span>
-            {% endif %}
+        <h2 id="services-title" class="card-title">
+            {{ i18n.t("dashboard.services") }}
+            {% if !rows.is_empty() %}<span class="count">{{ rows.len() }}</span>{% endif %}
         </h2>
-        {% if !services.is_empty() && can_edit %}
-        <a href="/services" class="card-action">{{ i18n.t("dashboard.view_all") }}</a>
+        {% if can_publish && !rows.is_empty() %}
+        <a href="/services" class="card-action">{{ i18n.t("dashboard.manage_services") }}</a>
         {% endif %}
     </header>
 
-    {% if services.is_empty() %}
+    {% if rows.is_empty() %}
     <div class="empty-state">
-        <p class="empty-state-title">{{ i18n.t("dashboard.no_services") }}</p>
-        <p class="empty-state-text">{{ i18n.t("dashboard.no_services_text") }}</p>
+        <p class="empty-state-text">{{ i18n.t("dashboard.no_services") }}</p>
     </div>
     {% else %}
-    {# The period is the same for every row, so it is stated once, before the
-       bars it explains, and it gives the sparklines the legend they need. #}
-    <p class="svc-legend">{{ i18n.t("dashboard.availability_30d") }}</p>
-    {% for service in services %}
-    <article class="svc">
-        <div class="svc-top">
-            <div class="svc-left">
-                <span class="svc-dot svc-dot-{{ service.status.as_str() }}" aria-hidden="true"></span>
-                <span class="svc-name">{{ service.name }}</span>
+    <p class="card-note">{{ i18n.t("availability.note") }}</p>
+    <ul class="log-list">
+        {% for row in rows %}
+        <li class="svc" id="{{ row.service.anchor() }}">
+            <div class="svc-top">
+                <div class="svc-ident">
+                    <span class="svc-icon">{% call ui::service_icon(row.service) %}</span>
+                    <h3 class="svc-name">{{ row.service.name }}</h3>
+                </div>
+                <p class="svc-state" data-tone="{{ row.service.status.tone().as_str() }}">
+                    <span class="ring-dot" aria-hidden="true"></span>
+                    {{ i18n.t(row.service.status.i18n_key()) }}
+                </p>
             </div>
-            {# The state is a word, the dot only reinforces it. This row used to
-               read "avatar 96.7%", so an outage and a healthy service differed
-               by an 8px hue and nothing else. #}
-            <span class="svc-status svc-status-{{ service.status.as_str() }}">{{ i18n.t(service.status.i18n_key()) }}</span>
-        </div>
-        {# The percentage sits with the bars because both describe the same
-           thirty days, while the row above answers for right now. #}
-        <div class="svc-strip">
-            {# One image with one label. Each bar used to be its own focusable
-               image, which put 90 tab stops and 90 nested images on a card with
-               three services. #}
-            <div class="svc-bars"
-                 role="img"
-                 aria-label="{{ self.availability_label(service) }}">
-                {% for day in self.sparkline_days(service) %}
-                <span class="{{ day.class }}" data-day-date="{{ day.date }}" data-day-status="{{ day.status }}"></span>
-                {% endfor %}
+            <div class="svc-strip">
+                <div class="svc-bars" role="img" aria-label="{{ row.availability_label }}">
+                    {% for day in row.days %}<span class="{{ day.class() }}" data-day-date="{{ day.date }}" data-day-status="{{ day.status }}"></span>{% endfor %}
+                </div>
+                <span class="svc-pct">{{ row.availability }}</span>
             </div>
-            <span class="svc-pct">{{ self.uptime_pct(service) }}</span>
-        </div>
-    </article>
-    {% endfor %}
+        </li>
+        {% endfor %}
+    </ul>
     {% endif %}
 </section>

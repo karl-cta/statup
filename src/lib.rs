@@ -1,20 +1,22 @@
-//! Statup - Internal IT/Ops status page.
+//! Statup, a self-hosted status page for IT teams.
 //!
-//! A self-hostable status page built with Rust, Axum, `SQLite`, HTMX and Tailwind CSS.
+//! Rust, Axum, `SQLite`, HTMX and Tailwind CSS, rendered on the server.
 
-// Clippy strict lints
 #![warn(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::must_use_candidate)]
 #![allow(clippy::missing_errors_doc)]
 
+use std::collections::HashMap;
+use std::hash::{DefaultHasher, Hasher};
+use std::path::Path;
 use std::sync::{OnceLock, PoisonError, RwLock};
 
-static CSS_VERSION: OnceLock<String> = OnceLock::new();
+/// Content fingerprint of each file under `static/`, keyed by its path
+/// relative to that directory.
+static ASSET_VERSIONS: OnceLock<HashMap<String, String>> = OnceLock::new();
 
-/// The name the host gave this instance, empty until an admin sets one. Kept
-/// in memory like the CSS version so templates can read it through a function
-/// instead of every page struct carrying one more field.
+/// The name the host gave this instance, empty until an admin sets one.
 static INSTANCE_NAME: RwLock<String> = RwLock::new(String::new());
 
 /// The instance's own name, or an empty string when none was set.
@@ -25,9 +27,7 @@ pub fn instance_name() -> String {
         .clone()
 }
 
-/// What the masthead and the tab titles display: the instance's name when the
-/// host set one, otherwise the product's. A self-hosted page should carry the
-/// host's identity to its visitors, not ours.
+/// The instance name when set, otherwise the product name.
 pub fn brand_name() -> String {
     let name = instance_name();
     if name.is_empty() {
@@ -37,30 +37,48 @@ pub fn brand_name() -> String {
     }
 }
 
-/// Stores the instance name for every later render. Called once at startup
-/// from the settings table, then whenever an admin saves it.
+/// Stores the instance name for every later render.
 pub fn set_instance_name(name: &str) {
     *INSTANCE_NAME
         .write()
         .unwrap_or_else(PoisonError::into_inner) = name.trim().to_string();
 }
 
-/// Returns a short version tag for CSS cache-busting (file mtime as unix seconds).
-pub fn css_version() -> &'static str {
-    CSS_VERSION.get().map_or("0", |s| s.as_str())
+/// URL of a static file with its content fingerprint, so browsers may keep
+/// it for a year and still fetch a changed file at once.
+pub fn asset(path: &str) -> String {
+    match ASSET_VERSIONS.get().and_then(|versions| versions.get(path)) {
+        Some(version) => format!("/static/{path}?v={version}"),
+        None => format!("/static/{path}"),
+    }
 }
 
-/// Computes and stores the CSS file version. Call once at startup.
-pub fn init_css_version() {
-    let version = std::fs::metadata("static/css/style.css")
-        .and_then(|m| m.modified())
-        .ok()
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map_or_else(|| "0".to_string(), |d| d.as_secs().to_string());
-    let _ = CSS_VERSION.set(version);
+/// Fingerprints every file under `static/`. Call once at startup, from the
+/// directory the server serves.
+pub fn init_asset_versions() {
+    let mut versions = HashMap::new();
+    collect_versions(Path::new("static"), Path::new("static"), &mut versions);
+    let _ = ASSET_VERSIONS.set(versions);
+}
+
+fn collect_versions(root: &Path, dir: &Path, versions: &mut HashMap<String, String>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for path in entries.flatten().map(|entry| entry.path()) {
+        if path.is_dir() {
+            collect_versions(root, &path, versions);
+        } else if let (Ok(bytes), Ok(relative)) = (std::fs::read(&path), path.strip_prefix(root)) {
+            let mut hasher = DefaultHasher::new();
+            hasher.write(&bytes);
+            let key = relative.to_string_lossy().replace('\\', "/");
+            versions.insert(key, format!("{:x}", hasher.finish() & 0xffff_ffff));
+        }
+    }
 }
 
 pub mod cli;
+pub mod clock;
 pub mod config;
 pub mod db;
 pub mod error;
@@ -78,10 +96,10 @@ pub mod state;
 pub mod test_helpers {
     use crate::db::DbPool;
 
-    /// Create an in-memory `SQLite` pool with all migrations applied.
+    /// An in-memory database with every migration applied.
     ///
     /// # Panics
-    /// Panics if pool creation or migration application fails. Test-only.
+    /// When the pool or a migration fails. Test-only.
     pub async fn test_pool() -> DbPool {
         let pool = crate::db::create_pool("sqlite::memory:", 1)
             .await
@@ -90,5 +108,28 @@ pub mod test_helpers {
             .await
             .expect("Failed to run migrations");
         pool
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unknown_assets_keep_their_plain_path() {
+        assert_eq!(asset("nothing/here.css"), "/static/nothing/here.css");
+    }
+
+    #[test]
+    fn versions_follow_the_content() {
+        let dir = std::env::temp_dir().join(format!("statup-assets-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("js")).unwrap();
+        std::fs::write(dir.join("js/a.js"), "one").unwrap();
+        std::fs::write(dir.join("b.css"), "two").unwrap();
+        let mut versions = HashMap::new();
+        collect_versions(&dir, &dir, &mut versions);
+        assert!(versions.contains_key("js/a.js"));
+        assert_ne!(versions.get("js/a.js"), versions.get("b.css"));
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

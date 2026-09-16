@@ -1,4 +1,4 @@
-//! Data access layer - `SQLx` queries for each model.
+//! Data access: the SQL queries of each model.
 
 mod dashboard_layout_repo;
 mod event_repo;

@@ -1,45 +1,31 @@
 {% extends "_layout.html" %}
+{% import "components/macros.html" as ui %}
 
 {% block title %}{{ i18n.t("dashboard.title") }} | {{ crate::brand_name() }}{% endblock %}
+{% block section %}home{% endblock %}
+
+{% block htmx %}{% include "components/htmx.html" %}{% endblock %}
+
+{% block scripts %}
+<script src="{{ crate::asset("js/uptime-tooltip.js") }}" defer></script>
+{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12" data-dashboard-context="{{ context_label }}">
+<div class="page">
+    <h1 class="sr-only">{{ i18n.t("dashboard.heading") }}</h1>
 
-    <h1 class="sr-only text-2xl">{{ i18n.t("dashboard.heading") }}</h1>
-
-    {# Banner, always pinned full width at the top, locked out of the reorder editor. #}
-    {% match banner_html %}
-    {% when Some with (html) %}
-    <section class="animate-in">
-        {{ html|safe }}
-    </section>
-    {% when None %}
-    {% endmatch %}
-
-    {% if banner_html.is_some() && !row_modules.is_empty() %}
-    <hr class="my-8 border-0 border-t border-ink/10 dark:border-sand-light/10">
-    {% endif %}
-
-    {# Modules in saved order. Each keeps its intrinsic width (narrow = 260px,
-       wide = flex-1). Stack on mobile, flex row from lg. Hairlines between. #}
-    {% if !row_modules.is_empty() %}
-    <div class="flex flex-col gap-8 lg:flex-row lg:gap-0 lg:items-start animate-in delay-1">
-        {% for m in row_modules %}
-        <section data-module-id="{{ m.id }}"
-                 class="lg:min-w-0
-                        {% if m.is_wide %}lg:flex-1{% else %}lg:w-[260px] lg:shrink-0{% endif %}
-                        {% if !loop.first %}lg:pl-8 lg:border-l lg:border-ink/10 lg:dark:border-sand-light/10{% endif %}
-                        {% if !loop.last %}lg:pr-8{% endif %}">
-            {{ m.html|safe }}
-        </section>
-        {% endfor %}
+    {# An instance without services first needs one: the banner offers it. #}
+    {% if frame.can_publish && has_services %}
+    <div class="quick-actions">
+        <a href="/events/new" class="btn btn-primary btn-sm">{% call ui::plus() %}{{ i18n.t("dashboard.report_incident") }}</a>
+        <a href="/events/new?kind=maintenance" class="btn btn-ghost btn-sm">{{ i18n.t("dashboard.plan_maintenance") }}</a>
+        <a href="/events/new?kind=publication" class="btn btn-ghost btn-sm">{{ i18n.t("dashboard.post_announcement") }}</a>
     </div>
     {% endif %}
 
-    {% if banner_html.is_none() && row_modules.is_empty() %}
-    <div class="rounded-sm border border-ink/10 bg-cream px-5 py-10 text-center dark:border-sand-light/10 dark:bg-surface-1">
-        <p class="text-sm text-ink/55 dark:text-sand-light/45">{{ i18n.t("dashboard.no_modules") }}</p>
+    {# Refreshed every minute while the tab is visible. #}
+    <div id="live" data-live="/" data-version="{{ live.version }}">
+        {% include "dashboard/_live.html" %}
     </div>
-    {% endif %}
 </div>
 {% endblock %}

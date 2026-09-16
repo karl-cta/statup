@@ -1,0 +1,738 @@
+@layer components {
+    .skip-link {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        z-index: 60;
+        padding: 8px 14px;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--on-primary);
+        background: var(--primary);
+        border-radius: 6px;
+        transform: translateY(-200%);
+        transition: transform 150ms var(--ease-out);
+    }
+
+    .skip-link:focus {
+        transform: none;
+    }
+
+    /* Masthead: the title cell on the left, the dateline row and the tabs
+       stacked on the right. The side inset follows the page container, so
+       the mark lines up with the content under it. When room runs out, a
+       host's long name is cut before the tabs are. */
+    .mast {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        background: var(--mast-ground);
+        border-bottom: 2px solid var(--ink);
+    }
+
+    .mast-inner {
+        display: flex;
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 0 16px;
+    }
+
+    /* Never narrower than the mark itself. */
+    .mast-title-cell {
+        display: flex;
+        flex: 0 1 auto;
+        align-items: center;
+        min-width: 62px;
+        padding-right: 24px;
+        border-right: 1px solid var(--line);
+    }
+
+    .mast-title {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        max-width: 100%;
+        font-size: 28px;
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: -0.025em;
+        color: var(--ink);
+        white-space: nowrap;
+    }
+
+    .mast-mark {
+        flex: none;
+        width: auto;
+        height: 28px;
+    }
+
+    .logo-dot {
+        fill: var(--color-brand);
+    }
+
+    .mast-word-accent {
+        color: var(--color-brand);
+    }
+
+    .mast-word-custom {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mast-rows {
+        display: flex;
+        flex: 1 0 auto;
+        flex-direction: column;
+    }
+
+    .mast-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 32px;
+        padding: 4px 0 4px 16px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted);
+        border-bottom: 1px solid var(--line);
+        font-feature-settings: 'tnum' 1;
+    }
+
+    .mast-top-left {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        white-space: nowrap;
+    }
+
+    .mast-top-sep {
+        display: inline-block;
+        width: 1px;
+        height: 10px;
+        margin: 0 10px;
+        background: var(--line-strong);
+    }
+
+    .mast-lang {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 0 2px;
+        color: var(--muted);
+        transition: color 150ms ease;
+    }
+
+    .mast-lang:hover {
+        color: var(--ink);
+    }
+
+    .mast-nav {
+        display: flex;
+        align-items: stretch;
+        height: 44px;
+    }
+
+    .mnav {
+        position: relative;
+        display: inline-flex;
+        flex: none;
+        align-items: center;
+        gap: 6px;
+        height: 100%;
+        padding: 0 16px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--muted);
+        white-space: nowrap;
+        border-right: 1px solid var(--line);
+        transition: color 150ms ease, background-color 150ms ease;
+    }
+
+    .mnav:hover {
+        color: var(--ink);
+    }
+
+    /* The page names its section on the shell, so the tab is marked
+       server-side, before any script runs. */
+    .mnav[aria-current="page"],
+    [data-section="home"] .mnav[data-nav="home"],
+    [data-section="events"] .mnav[data-nav="events"],
+    [data-section="services"] .mnav[data-nav="services"],
+    [data-section="admin"] .mnav[data-nav="admin"] {
+        font-weight: 600;
+        color: var(--ink);
+        background: var(--hover);
+    }
+
+    /* Unread count: a neutral ink token, never the outage red. */
+    .unread {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1;
+        color: var(--on-primary);
+        background: var(--primary);
+        border-radius: 999px;
+        font-feature-settings: 'tnum' 1;
+    }
+
+    .mnav-spacer {
+        flex: 1;
+    }
+
+    .mnav-tools {
+        display: flex;
+        flex: none;
+        align-items: stretch;
+        border-left: 1px solid var(--line);
+    }
+
+    .mnav-tool {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 100%;
+        padding: 0 12px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--muted);
+        white-space: nowrap;
+        border-right: 1px solid var(--line);
+        transition: color 150ms ease, background-color 150ms ease;
+    }
+
+    .mnav-tool:last-child {
+        border-right: 0;
+    }
+
+    .mnav-tool:hover {
+        color: var(--ink);
+        background: var(--surface-hover);
+    }
+
+    .mnav-tool svg {
+        width: 14px;
+        height: 14px;
+        flex: none;
+    }
+
+    .mnav-tool-user {
+        max-width: 140px;
+        color: var(--ink);
+    }
+
+    .mnav-tool-user span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .mnav-tools form {
+        display: contents;
+    }
+
+    .theme-icon-light {
+        display: none;
+    }
+
+    .dark .theme-icon-light {
+        display: block;
+    }
+
+    .dark .theme-icon-dark {
+        display: none;
+    }
+
+    .mast-burger {
+        position: relative;
+        display: none;
+        flex: none;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 44px;
+        color: var(--muted);
+        border-left: 1px solid var(--line);
+        transition: color 150ms ease;
+    }
+
+    .mast-burger:hover {
+        color: var(--ink);
+    }
+
+    .mast-burger-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 20px;
+        height: 20px;
+        margin: -10px 0 0 -10px;
+        transition: opacity 180ms ease, transform 220ms var(--ease-drawer);
+    }
+
+    .mast-burger-icon-close {
+        opacity: 0;
+        transform: rotate(-90deg);
+    }
+
+    .mast-burger[aria-expanded="true"] .mast-burger-icon-open {
+        opacity: 0;
+        transform: rotate(90deg);
+    }
+
+    .mast-burger[aria-expanded="true"] .mast-burger-icon-close {
+        opacity: 1;
+        transform: none;
+    }
+
+    .mast-menu {
+        border-top: 1px solid var(--line);
+    }
+
+    .mast-menu-list {
+        display: flex;
+        flex-direction: column;
+        padding: 8px 16px;
+    }
+
+    .mast-menu-list + .mast-menu-list {
+        border-top: 1px solid var(--line);
+    }
+
+    .mast-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        min-height: 44px;
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--ink-soft);
+        text-align: left;
+        transition: color 150ms ease;
+    }
+
+    .mast-menu-item:hover {
+        color: var(--ink);
+    }
+
+    .mast-menu-item[aria-current="page"],
+    [data-section="home"] .mast-menu-item[data-nav="home"],
+    [data-section="events"] .mast-menu-item[data-nav="events"],
+    [data-section="services"] .mast-menu-item[data-nav="services"],
+    [data-section="admin"] .mast-menu-item[data-nav="admin"] {
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .mast-menu-list form {
+        display: contents;
+    }
+
+    /* Three modes: tabs and labelled tools; tabs and tools as icons, with a
+       menu for the rest; everything in the menu. The room each needs grows
+       with the number of tabs (two to four), measured in French, the longer
+       language, with an unread count and a long member name. The menu shows
+       for as long as the burger does. */
+    @media (min-width: 640px) {
+        .mast-inner {
+            padding: 0 24px;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .mast-inner {
+            padding: 0 40px;
+        }
+    }
+
+    @media (max-width: 960px) {
+        .mast-title {
+            font-size: 24px;
+        }
+
+        .mnav {
+            padding: 0 12px;
+        }
+
+        .mnav-tool-label,
+        .mnav-tool-user {
+            display: none;
+        }
+
+        .mast-burger {
+            display: inline-flex;
+        }
+    }
+
+    @media (min-width: 961px) {
+        .mast-menu {
+            display: none;
+        }
+    }
+
+    @media (min-width: 961px) and (max-width: 1159px) {
+        .mast[data-tabs="4"] .mnav-tool-label,
+        .mast[data-tabs="4"] .mnav-tool-user {
+            display: none;
+        }
+
+        .mast[data-tabs="4"] .mast-burger {
+            display: inline-flex;
+        }
+
+        .mast[data-tabs="4"] .mast-menu {
+            display: block;
+        }
+    }
+
+    @media (min-width: 961px) and (max-width: 1019px) {
+        .mast[data-tabs="3"] .mnav-tool-label,
+        .mast[data-tabs="3"] .mnav-tool-user {
+            display: none;
+        }
+
+        .mast[data-tabs="3"] .mast-burger {
+            display: inline-flex;
+        }
+
+        .mast[data-tabs="3"] .mast-menu {
+            display: block;
+        }
+    }
+
+    @media (min-width: 600px) {
+        .mast-menu-tabs {
+            display: none;
+        }
+    }
+
+    @media (min-width: 600px) and (max-width: 779px) {
+        .mast[data-tabs="4"] .mast-nav > .mnav,
+        .mast[data-tabs="4"] .mast-nav > .mnav-tools {
+            display: none;
+        }
+
+        .mast[data-tabs="4"] .mast-menu-tabs {
+            display: flex;
+        }
+    }
+
+    @media (min-width: 600px) and (max-width: 679px) {
+        .mast[data-tabs="3"] .mast-nav > .mnav,
+        .mast[data-tabs="3"] .mast-nav > .mnav-tools {
+            display: none;
+        }
+
+        .mast[data-tabs="3"] .mast-menu-tabs {
+            display: flex;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .mast-word-custom {
+            font-size: 20px;
+        }
+    }
+
+    @media (max-width: 599px) {
+        .mast-title-cell {
+            padding-right: 16px;
+            border-right: 0;
+        }
+
+        .mast-top {
+            padding-left: 0;
+        }
+
+        .mast-top-clock,
+        .mast-top-sep,
+        .mast-top-right,
+        .mast-nav > .mnav,
+        .mast-nav > .mnav-tools {
+            display: none;
+        }
+    }
+
+    /* Page containers and heads. */
+    .page {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 32px 16px 56px;
+    }
+
+    /* Narrow pages keep the page's left edge, under the masthead mark. */
+    .page-narrow > * {
+        max-width: 720px;
+    }
+
+    .page-form > * {
+        max-width: 800px;
+    }
+
+    @media (min-width: 640px) {
+        .page {
+            padding: 40px 24px 64px;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .page {
+            padding: 44px 40px 72px;
+        }
+    }
+
+    .page-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px 24px;
+        margin-bottom: 28px;
+    }
+
+    .page-head .back-link {
+        margin-bottom: 6px;
+    }
+
+    .page-title {
+        font-size: 28px;
+        font-weight: 600;
+        line-height: 1.15;
+        letter-spacing: -0.022em;
+        color: var(--ink);
+        overflow-wrap: anywhere;
+    }
+
+    .page-lede {
+        max-width: 64ch;
+        margin-top: 8px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--muted);
+    }
+
+    .page-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+    }
+
+    @media (max-width: 639px) {
+        .page-title {
+            font-size: 24px;
+        }
+    }
+
+    /* Cards. */
+    .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+    }
+
+    .card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 48px;
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .card-title {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 8px;
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.008em;
+        color: var(--ink);
+    }
+
+    .card-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 28px;
+        margin-right: -8px;
+        padding: 0 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--muted);
+        border-radius: 4px;
+        transition: color 150ms ease, background-color 150ms ease;
+    }
+
+    .card-action:hover {
+        color: var(--ink);
+        background: var(--surface-hover);
+    }
+
+    .card-note {
+        margin: 0;
+        padding: 10px 16px;
+        font-size: 12px;
+        color: var(--muted);
+        border-bottom: 1px solid var(--hairline);
+    }
+
+    /* An empty state says what belongs here and how to put it there. */
+    .empty-state {
+        padding: 28px 16px;
+    }
+
+    .empty-state-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .empty-state-text {
+        max-width: 56ch;
+        margin-top: 6px;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--muted);
+    }
+
+    .empty-state-text:first-child {
+        margin-top: 0;
+    }
+
+    .empty-state .btn {
+        margin-top: 16px;
+    }
+
+    .foot {
+        margin-top: 32px;
+        padding: 24px 0 32px;
+        border-top: 1px solid var(--line);
+    }
+
+    .foot-inner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 24px;
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 0 16px;
+        font-size: 12px;
+        color: var(--muted);
+        font-feature-settings: 'tnum' 1;
+    }
+
+    .foot-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .foot-mark {
+        width: auto;
+        height: 16px;
+        color: var(--muted);
+    }
+
+    .foot a {
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        text-underline-offset: 3px;
+        transition: color 150ms ease, text-decoration-color 150ms ease;
+    }
+
+    .foot a:hover {
+        color: var(--ink);
+        text-decoration-color: currentColor;
+    }
+
+    @media (min-width: 640px) {
+        .foot-inner {
+            padding: 0 24px;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .foot-inner {
+            padding: 0 40px;
+        }
+    }
+
+    /* A request htmx could not complete, said above the page. */
+    .toast {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        z-index: 70;
+        width: min(480px, calc(100vw - 32px));
+        transform: translateX(-50%);
+    }
+
+    .toast:empty {
+        display: none;
+    }
+
+    .toast .form-error {
+        background: var(--card);
+        box-shadow: var(--shadow-menu);
+        animation: receipt-in 240ms var(--ease-out) both;
+    }
+
+    .toast-close {
+        display: inline-flex;
+        flex: none;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        margin: -4px -6px -4px auto;
+        color: var(--muted);
+        border-radius: 4px;
+        transition: color 120ms ease, background-color 120ms ease;
+    }
+
+    .toast-close:hover {
+        color: var(--ink);
+        background: var(--surface-subtle);
+    }
+
+    .toast-close svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .toast .form-error {
+            animation: none;
+        }
+
+        .skip-link,
+        .mast-burger-icon {
+            transition: none;
+        }
+
+        .mast-burger-icon-close,
+        .mast-burger[aria-expanded="true"] .mast-burger-icon-open {
+            transform: none;
+        }
+    }
+}

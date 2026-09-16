@@ -18,7 +18,7 @@ use statup::db;
 use statup::middleware::rate_limit::RateLimit;
 use statup::models::Role;
 use statup::routes::create_router;
-use statup::services::{AuthService, LoginRateLimiter};
+use statup::services::{AuthService, LoginRateLimiter, NewAccount};
 use statup::session;
 use statup::state::AppState;
 
@@ -166,7 +166,14 @@ impl TestApp {
 
     /// Create an account directly, with a password its owner chose.
     pub async fn create_user(&self, email: &str, password: &str, name: &str, role: Role) -> i64 {
-        AuthService::register(&self.pool, email, password, name, role)
+        let account = NewAccount {
+            email,
+            password,
+            display_name: name,
+            role,
+            must_change_password: false,
+        };
+        AuthService::create_account(&self.pool, &account)
             .await
             .expect("failed to create user")
             .id

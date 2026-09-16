@@ -19,7 +19,8 @@ pub struct NewUser<'a> {
 pub struct UserRepository;
 
 impl UserRepository {
-    /// Create a new user and return the created record.
+    /// Test fixture: an account with a password its owner chose.
+    #[cfg(test)]
     pub async fn create(
         pool: &DbPool,
         email: &str,

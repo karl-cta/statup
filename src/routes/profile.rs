@@ -7,25 +7,20 @@ use serde::Deserialize;
 use tower_sessions::Session;
 
 use super::password::reopen_session;
-use super::render;
+use super::{Frame, render};
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::headers::no_store;
 use crate::middleware::{AuthUser, CsrfToken, HtmlForm};
 use crate::models::{User, check_display_name};
-use crate::repositories::{EventRepository, UserRepository};
-use crate::services::{AuthService, EventService};
+use crate::repositories::UserRepository;
+use crate::services::AuthService;
 use crate::state::AppState;
 
 #[derive(Template)]
 #[template(path = "profile/edit.html")]
 struct ProfileTemplate {
-    csrf_token: String,
-    user_display_name: String,
-    is_admin: bool,
-    is_authenticated: bool,
-    unread_count: i64,
-    last_admin_action: Option<String>,
+    frame: Frame,
     email: String,
     display_name: String,
     role_label: String,
@@ -70,18 +65,9 @@ async fn render_profile(
     i18n: I18n,
     messages: ProfileMessages,
 ) -> Result<Response, AppError> {
-    let unread_count = EventService::unread_count(&state.pool, user.last_seen_at).await?;
-    let last_admin_action = EventRepository::last_admin_action(&state.pool)
-        .await?
-        .map(|dt| i18n.format_datetime_long(&dt));
-
+    let frame = Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?;
     let page = render(&ProfileTemplate {
-        csrf_token,
-        user_display_name: user.display_name.clone(),
-        is_admin: user.role.can_admin(),
-        is_authenticated: true,
-        unread_count,
-        last_admin_action,
+        frame,
         email: user.email.clone(),
         display_name: user.display_name.clone(),
         role_label: i18n.t(user.role.i18n_key()).to_string(),

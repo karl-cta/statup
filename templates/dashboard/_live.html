@@ -1,0 +1,19 @@
+{% match live.banner_html %}
+{% when Some with (html) %}
+{{ html|safe }}
+{% when None %}
+{% endmatch %}
+
+{% if live.banner_html.is_some() && !live.row.is_empty() %}
+<hr class="dash-divider">
+{% endif %}
+
+{% if !live.row.is_empty() %}
+<div class="dash-row">
+    {% for module in live.row %}
+    <div class="dash-cell{% if module.is_wide %} dash-cell-wide{% endif %}">
+        {{ module.html|safe }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}

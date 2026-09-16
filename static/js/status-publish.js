@@ -1,93 +1,90 @@
-// Guards on the service status control.
-//
-// This is the one control in the product that publishes to every visitor, and
-// it used to post on the first keystroke: a stray scroll over a focused select
-// announced a major outage with no confirmation, no receipt and no way back.
-// Two guards sit on it now. The two outage levels ask before publishing, and
-// every publication comes back with a receipt carrying an undo.
+// The service status control publishes to every visitor: an outage level
+// asks first, and a refused change puts the menu back on the saved value.
 (function () {
-    'use strict';
+    "use strict";
 
-    var GUARDED = ['partial_outage', 'major_outage'];
-    var RECEIPT_MS = 9000;
+    const selector = '[data-status-form] select[name="status"]';
 
-    function reveal(host, select) {
-        var box = host.querySelector('[data-status-confirm]');
-        box.querySelector('[data-status-confirm-label]').textContent =
-            select.options[select.selectedIndex].text;
-        box.hidden = false;
-        box.querySelector('[data-status-confirm-go]').focus();
+    function cellOf(element) {
+        return element.closest(".status-cell");
     }
 
-    function conceal(host) {
-        var box = host.querySelector('[data-status-confirm]');
-        if (box) box.hidden = true;
-    }
-
-    // The native select is hidden behind a custom listbox, so putting the value
-    // back has to tell that widget too. `cs:sync` redraws its trigger without
-    // firing a change, which would read as a fresh choice.
     function restore(select) {
-        select.value = select.dataset.statusCommitted;
-        select.dispatchEvent(new CustomEvent('cs:sync'));
+        select.value = select.dataset.committed;
+        select.dispatchEvent(new CustomEvent("cs:sync"));
     }
 
-    document.addEventListener('change', function (e) {
-        var select = e.target;
-        if (!select.matches || !select.matches('[data-status-form] select[name="status"]')) return;
+    function ask(cell, select) {
+        const box = cell.querySelector("[data-status-confirm]");
+        const question = box.querySelector("[data-status-question]");
+        const label = select.options[select.selectedIndex].textContent.trim();
+        question.textContent = question.dataset.template.replace("{status}", label);
+        box.hidden = false;
+        box.querySelector("[data-status-cancel]").focus();
+    }
 
-        var host = select.closest('.status-cell');
-        if (!host || select.value === select.dataset.statusCommitted) return;
+    function publish(cell) {
+        cell.querySelector("[data-status-confirm]").hidden = true;
+        cell.querySelector("[data-status-form]").requestSubmit();
+    }
 
-        if (GUARDED.indexOf(select.value) !== -1) {
-            reveal(host, select);
+    document.addEventListener("change", (event) => {
+        const select = event.target;
+        if (!(select instanceof HTMLSelectElement) || !select.matches(selector)) return;
+        const cell = cellOf(select);
+        if (select.value === select.dataset.committed) {
+            cell.querySelector("[data-status-confirm]").hidden = true;
             return;
         }
-        conceal(host);
-        host.querySelector('[data-status-form]').requestSubmit();
+        if (select.selectedOptions[0].hasAttribute("data-guarded")) {
+            ask(cell, select);
+        } else {
+            publish(cell);
+        }
     });
 
-    document.addEventListener('click', function (e) {
-        if (!e.target.closest) return;
-
-        var go = e.target.closest('[data-status-confirm-go]');
+    document.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        const go = target.closest("[data-status-publish]");
         if (go) {
-            var publishing = go.closest('.status-cell');
-            conceal(publishing);
-            publishing.querySelector('[data-status-form]').requestSubmit();
+            publish(cellOf(go));
             return;
         }
-
-        var cancel = e.target.closest('[data-status-confirm-cancel]');
+        const cancel = target.closest("[data-status-cancel]");
         if (!cancel) return;
-
-        var host = cancel.closest('.status-cell');
-        conceal(host);
-        restore(host.querySelector('select[name="status"]'));
-        var trigger = host.querySelector('.cs-trigger');
+        const cell = cellOf(cancel);
+        cell.querySelector("[data-status-confirm]").hidden = true;
+        restore(cell.querySelector(selector));
+        const trigger = cell.querySelector(".cs-trigger");
         if (trigger) trigger.focus();
     });
 
-    // The value the server actually holds, which is where a cancelled choice
-    // has to fall back to.
-    function init(root) {
-        var scope = root && root.querySelectorAll ? root : document;
+    // The cell is replaced once the server answers: the keyboard carries on
+    // from the receipt's undo, or from the menu once a change is undone.
+    let refocus = false;
 
-        scope.querySelectorAll('[data-status-form] select[name="status"]').forEach(function (select) {
-            select.dataset.statusCommitted = select.value;
-        });
+    document.body.addEventListener("htmx:beforeRequest", (event) => {
+        const elt = event.detail.elt;
+        if (elt instanceof Element && elt.closest(".status-cell")) refocus = true;
+    });
 
-        scope.querySelectorAll('[data-status-receipt]').forEach(function (receipt) {
-            if (receipt.dataset.armed) return;
-            receipt.dataset.armed = '1';
-            window.setTimeout(function () {
-                receipt.remove();
-            }, RECEIPT_MS);
-        });
-    }
+    document.body.addEventListener("htmx:afterSettle", (event) => {
+        const cell = event.target;
+        if (!refocus || !(cell instanceof Element) || !cell.matches(".status-cell")) return;
+        refocus = false;
+        const next = cell.querySelector(".receipt-undo") || cell.querySelector(".cs-trigger");
+        if (next) next.focus();
+    });
 
-    init(document);
-    document.body.addEventListener('htmx:afterSwap', function () {
-        init(document);
+    document.body.addEventListener("htmx:afterRequest", (event) => {
+        const elt = event.detail.elt;
+        const cell = !event.detail.successful && elt instanceof Element ? elt.closest(".status-cell") : null;
+        if (!cell) return;
+        refocus = false;
+        const select = cell.querySelector(selector);
+        if (select) restore(select);
+        const trigger = cell.querySelector(".cs-trigger");
+        if (trigger) trigger.focus();
     });
 })();

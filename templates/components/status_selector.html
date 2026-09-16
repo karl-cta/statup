@@ -1,59 +1,35 @@
-{# Status selector, inline dropdown to override service status. Expects `service`, `csrf_token`, `previous`, `i18n` in scope.
-
-   This control publishes to every visitor of the public page. It used to post
-   on the first keystroke, with no confirmation, no receipt and no way back, on
-   a select that a stray scroll or arrow key can change. Two guards now sit on
-   it: the two outage levels ask before publishing, and every change comes back
-   with a receipt carrying an undo. #}
-{# No id on purpose: /services renders this fragment twice, once for the phone
-   layout and once for the table, so an id would be duplicated and htmx would
-   swap whichever copy came first, which on a wide screen is the hidden one.
-   `closest` always replaces the cell the author actually used. #}
+{# Publishes to every visitor: the two outage levels ask first, and every
+   change comes back with a receipt and a way back. htmx targets the closest
+   cell, which this fragment replaces. #}
 <div class="status-cell">
-    <form
-        class="inline-flex"
-        hx-post="/services/{{ service.id }}/status"
-        hx-target="closest .status-cell"
-        hx-swap="outerHTML settle:0.2s"
-        data-status-form
-    >
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <select
-            name="status"
-            data-custom-select
-            class="status-label cursor-pointer appearance-none border-0 bg-transparent py-0.5 pl-0 pr-4
-                   transition-colors duration-200
-                   {{ service.status.css_class() }}"
-            aria-label="{{ i18n.t("services.change_status_aria") }} {{ service.name }}"
-        >
-            {% for st in crate::models::ServiceStatus::ALL %}
-            <option value="{{ st.as_str() }}" {% if service.status == st %}selected{% endif %}>{{ i18n.t(st.i18n_key()) }}</option>
+    <form method="post" action="/services/{{ service.id }}/status"
+          hx-post="/services/{{ service.id }}/status" hx-target="closest .status-cell" hx-swap="outerHTML"
+          data-status-form>
+        <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+        <label for="status-{{ service.id }}" class="sr-only">{{ i18n.t("services.status_of") }} {{ service.name }}</label>
+        <select id="status-{{ service.id }}" name="status" class="input" data-custom-select data-committed="{{ service.status.as_str() }}">
+            {% for status in crate::models::ServiceStatus::ALL %}
+            <option value="{{ status.as_str() }}" data-tone="{{ status.tone().as_str() }}"{% if service.status == status %} selected{% endif %}{% if status.is_outage() %} data-guarded{% endif %}>{{ i18n.t(status.i18n_key()) }}</option>
             {% endfor %}
         </select>
+        <noscript><button type="submit" class="btn btn-ghost btn-sm mt-2">{{ i18n.t("services.publish_status") }}</button></noscript>
     </form>
 
-    {# Revealed by status-publish.js for the two outage levels only. #}
-    <div class="status-confirm" hidden data-status-confirm role="group" aria-label="{{ i18n.t("services.confirm_status_aria") }}">
-        <span class="status-confirm-label" data-status-confirm-label></span>
-        <button type="button" class="status-confirm-go" data-status-confirm-go>{{ i18n.t("services.publish_status") }}</button>
-        <button type="button" class="status-confirm-cancel" data-status-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
+    <div class="confirm" role="group" aria-label="{{ i18n.t("services.confirm_status_aria") }}" aria-describedby="status-q-{{ service.id }}" data-status-confirm hidden>
+        <span id="status-q-{{ service.id }}" class="confirm-text" data-status-question data-template="{{ i18n.t("services.confirm_status") }}"></span>
+        <button type="button" class="confirm-cancel" data-status-cancel>{{ i18n.t("common.cancel") }}</button>
+        <button type="button" class="confirm-go" data-danger data-status-publish>{{ i18n.t("services.publish_status") }}</button>
     </div>
 
-    {% match previous %}
-    {% when Some with (prev) %}
-    <div class="status-receipt" data-status-receipt role="status" aria-label="{{ i18n.t("services.status_receipt_aria") }}">
-        <span class="status-receipt-text">{{ i18n.t(service.status.i18n_key()) }} {{ i18n.t("services.status_published") }}</span>
-        <form
-            hx-post="/services/{{ service.id }}/status"
-            hx-target="closest .status-cell"
-            hx-swap="outerHTML settle:0.2s"
-        >
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="status" value="{{ prev.as_str() }}">
+    {% if let Some(before) = previous %}
+    <div class="receipt">
+        <span data-announce>{{ i18n.t("services.status_published") }} {{ i18n.t(service.status.i18n_key()) }}</span>
+        <form hx-post="/services/{{ service.id }}/status" hx-target="closest .status-cell" hx-swap="outerHTML">
+            <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+            <input type="hidden" name="status" value="{{ before.as_str() }}">
             <input type="hidden" name="undo" value="1">
-            <button type="submit" class="status-receipt-undo">{{ i18n.t("services.undo_status") }}</button>
+            <button type="submit" class="receipt-undo">{{ i18n.t("services.undo_status") }}</button>
         </form>
     </div>
-    {% when None %}
-    {% endmatch %}
+    {% endif %}
 </div>

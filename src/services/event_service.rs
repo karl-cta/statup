@@ -1,276 +1,310 @@
-//! Event service: lifecycle transitions, updates, and markdown handling.
+//! Event rules: creation, edits, updates, state changes and the maintenance
+//! schedule.
+
+use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use tokio::task::AbortHandle;
 
 use crate::db::DbPool;
 use crate::error::AppError;
-use crate::models::{CreateEventInput, Event, EventUpdate, EventWithServices, Lifecycle, Role};
+use crate::models::{
+    CreateEventInput, Event, EventWithServices, Kind, Lifecycle, Role, Severity, UpdateEventInput,
+    User,
+};
 use crate::repositories::EventRepository;
 use crate::services::ServiceService;
+
+/// How often announced maintenances are started and completed.
+const SCHEDULE_INTERVAL: Duration = Duration::from_secs(60);
+
+const MAX_TITLE_CHARS: usize = 200;
 
 pub struct EventService;
 
 impl EventService {
     pub async fn create(pool: &DbPool, input: CreateEventInput) -> Result<Event, AppError> {
-        validate_event_input(&input)?;
-
-        let event = EventRepository::create(pool, input).await?;
-
-        if let Some(ews) = EventRepository::find_by_id_with_services(pool, event.id).await? {
-            for svc in &ews.services {
-                ServiceService::recalculate_status(pool, svc.id).await?;
-            }
+        if let Some(key) = event_field_error(&input.title)
+            .or_else(|| severity_error(input.kind, input.severity))
+            .or_else(|| {
+                schedule_error(
+                    input.kind,
+                    input.planned,
+                    input.planned_start,
+                    input.planned_end,
+                )
+            })
+        {
+            return Err(AppError::Validation(key.to_string()));
         }
-
+        let event = EventRepository::create(pool, &input).await?;
+        if affects_services(event.kind) {
+            ServiceService::recalculate_many(pool, &input.service_ids).await?;
+        }
         Ok(event)
     }
 
-    /// Transition the lifecycle. Publications have no lifecycle and the call
-    /// is rejected. `ended_at` is set automatically on resolution or
-    /// completion (not on cancellation).
-    pub async fn update_lifecycle(
+    /// Saves an edit. The kind and the "announced ahead" flag stay what they
+    /// were: the event's states only make sense for them.
+    pub async fn update(
         pool: &DbPool,
-        event_id: i64,
-        new_lifecycle: Lifecycle,
-        user_role: Role,
-    ) -> Result<Event, AppError> {
-        let event = EventRepository::find_by_id(pool, event_id)
-            .await?
-            .ok_or(AppError::NotFound)?;
-
-        check_modification_allowed(&event, user_role)?;
-
-        let current = event.lifecycle.ok_or(AppError::Validation(
-            "validation.event_has_no_lifecycle".to_string(),
-        ))?;
-
-        if !event.kind.can_transition(current, new_lifecycle) {
-            return Err(AppError::Validation(
-                "validation.invalid_transition".to_string(),
-            ));
+        id: i64,
+        mut input: UpdateEventInput,
+        role: Role,
+    ) -> Result<(), AppError> {
+        let event = find(pool, id).await?;
+        check_modification_allowed(&event, role)?;
+        input.planned = event.planned;
+        if let Some(key) = event_field_error(&input.title)
+            .or_else(|| severity_error(event.kind, input.severity))
+            .or_else(|| {
+                schedule_error(
+                    event.kind,
+                    event.planned,
+                    input.planned_start,
+                    input.planned_end,
+                )
+            })
+        {
+            return Err(AppError::Validation(key.to_string()));
         }
-
-        EventRepository::update_lifecycle(pool, event_id, new_lifecycle).await?;
-
-        if matches!(new_lifecycle, Lifecycle::Resolved | Lifecycle::Completed) {
-            EventRepository::set_ended_at(pool, event_id, Utc::now()).await?;
+        let touched = EventRepository::update(pool, id, &input).await?;
+        if affects_services(event.kind) {
+            ServiceService::recalculate_many(pool, &touched).await?;
         }
-
-        let ews = EventRepository::find_by_id_with_services(pool, event_id).await?;
-        if let Some(ews) = &ews {
-            for svc in &ews.services {
-                ServiceService::recalculate_status(pool, svc.id).await?;
-            }
-        }
-
-        ews.map(|e| e.event).ok_or(AppError::NotFound)
+        Ok(())
     }
 
-    pub async fn add_update(
+    /// Posts a message, moves the event to `next`, or both at once. Closing
+    /// states need the message, which readers see as the last word.
+    pub async fn post_update(
         pool: &DbPool,
-        event_id: i64,
+        id: i64,
         message: &str,
-        author_id: i64,
-        user_role: Role,
-    ) -> Result<EventUpdate, AppError> {
-        let event = EventRepository::find_by_id(pool, event_id)
-            .await?
-            .ok_or(AppError::NotFound)?;
-
-        check_modification_allowed(&event, user_role)?;
-
+        next: Option<Lifecycle>,
+        author: &User,
+    ) -> Result<(), AppError> {
+        let event = find(pool, id).await?;
+        check_modification_allowed(&event, author.role)?;
         let message = message.trim();
-        if message.is_empty() {
-            return Err(AppError::Validation(
-                "validation.update_required".to_string(),
-            ));
+        if let Some(key) = update_error(&event, message, next) {
+            return Err(AppError::Validation(key.to_string()));
         }
-
-        let sanitized = sanitize_markdown(message);
-
-        let update = EventRepository::add_update(pool, event_id, &sanitized, author_id).await?;
-        Ok(update)
+        if !message.is_empty() {
+            EventRepository::add_update(pool, id, &sanitize_markdown(message), author.id).await?;
+        }
+        if let Some(next) = next {
+            EventRepository::transition(pool, id, next, Utc::now()).await?;
+            recalculate_event_services(pool, id).await?;
+        }
+        Ok(())
     }
 
-    /// Revert to the previous lifecycle (one-level undo). Only allowed when
-    /// `previous_lifecycle` is set.
-    pub async fn revert_lifecycle(
-        pool: &DbPool,
-        event_id: i64,
-        user_role: Role,
-    ) -> Result<Event, AppError> {
-        let event = EventRepository::find_by_id(pool, event_id)
-            .await?
-            .ok_or(AppError::NotFound)?;
-
-        check_modification_allowed(&event, user_role)?;
-
+    /// Undoes the last state change.
+    pub async fn revert(pool: &DbPool, id: i64, role: Role) -> Result<(), AppError> {
+        let event = find(pool, id).await?;
+        check_modification_allowed(&event, role)?;
         if event.previous_lifecycle.is_none() {
             return Err(AppError::Validation(
                 "validation.no_previous_lifecycle".to_string(),
             ));
         }
-
-        EventRepository::revert_lifecycle(pool, event_id).await?;
-
-        let ews = EventRepository::find_by_id_with_services(pool, event_id).await?;
-        if let Some(ews) = &ews {
-            for svc in &ews.services {
-                ServiceService::recalculate_status(pool, svc.id).await?;
-            }
-        }
-
-        ews.map(|e| e.event).ok_or(AppError::NotFound)
+        EventRepository::revert_transition(pool, id).await?;
+        recalculate_event_services(pool, id).await
     }
 
-    /// Delete an event. Closed (terminal) events can only be deleted by an
-    /// admin.
-    pub async fn delete(pool: &DbPool, event_id: i64, user_role: Role) -> Result<(), AppError> {
-        let event = EventRepository::find_by_id(pool, event_id)
-            .await?
-            .ok_or(AppError::NotFound)?;
-
-        if !is_modifiable(&event) && !user_role.can_admin() {
-            return Err(AppError::Validation(
-                "validation.event_closed_admin_only".to_string(),
-            ));
+    pub async fn delete(pool: &DbPool, id: i64, role: Role) -> Result<(), AppError> {
+        let event = find(pool, id).await?;
+        check_modification_allowed(&event, role)?;
+        let service_ids = EventRepository::delete(pool, id).await?;
+        if affects_services(event.kind) {
+            ServiceService::recalculate_many(pool, &service_ids).await?;
         }
-
-        let service_ids = EventRepository::delete(pool, event_id).await?;
-
-        for sid in service_ids {
-            ServiceService::recalculate_status(pool, sid).await?;
-        }
-
         Ok(())
     }
 
-    /// Count of unseen events. `last_seen_at = None` means since the epoch.
+    /// Removes a posted update: an admin may remove any, an author their own
+    /// while the event is open.
+    pub async fn delete_update(
+        pool: &DbPool,
+        event_id: i64,
+        update_id: i64,
+        user: &User,
+    ) -> Result<(), AppError> {
+        let event = find(pool, event_id).await?;
+        let update = EventRepository::find_update(pool, event_id, update_id)
+            .await?
+            .ok_or(AppError::NotFound)?;
+        if !can_delete_update(&event, update.author_id, user) {
+            return Err(AppError::Forbidden);
+        }
+        EventRepository::delete_update(pool, update_id).await?;
+        Ok(())
+    }
+
+    /// Incidents and maintenances created since the reader's last visit.
     pub async fn unread_count(
         pool: &DbPool,
         last_seen_at: Option<DateTime<Utc>>,
     ) -> Result<i64, AppError> {
         let since = last_seen_at.unwrap_or(DateTime::UNIX_EPOCH);
-        let count = EventRepository::count_since(pool, since).await?;
-        Ok(count)
+        Ok(EventRepository::count_since(pool, since).await?)
     }
 
     pub async fn find_with_services(
         pool: &DbPool,
         event_id: i64,
     ) -> Result<EventWithServices, AppError> {
-        EventRepository::find_by_id_with_services(pool, event_id)
+        EventRepository::find_with_services(pool, event_id)
             .await?
             .ok_or(AppError::NotFound)
     }
+
+    /// Starts and completes the announced maintenances whose time has come,
+    /// then refreshes the services they touch. Returns how many changed.
+    pub async fn apply_schedule(pool: &DbPool) -> Result<usize, AppError> {
+        let now = Utc::now();
+        let mut changed = EventRepository::start_due_maintenance(pool, now).await?;
+        changed.extend(EventRepository::complete_due_maintenance(pool, now).await?);
+        changed.sort_unstable();
+        changed.dedup();
+        for id in &changed {
+            recalculate_event_services(pool, *id).await?;
+        }
+        Ok(changed.len())
+    }
 }
 
-/// Title rules, returning the message key rather than an error so a route
-/// can re-render the form with what the author typed instead of bubbling up
-/// and losing it. The description is optional: at 3am a proposed title is
-/// enough to publish, the detail can follow in the first update.
+/// Runs [`EventService::apply_schedule`] every minute for the life of the
+/// server.
+pub fn spawn_maintenance_schedule(pool: DbPool) -> AbortHandle {
+    let task = tokio::spawn(async move {
+        let mut ticker = tokio::time::interval(SCHEDULE_INTERVAL);
+        ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            ticker.tick().await;
+            match EventService::apply_schedule(&pool).await {
+                Ok(0) => {}
+                Ok(count) => tracing::info!(count, "Maintenance schedule applied"),
+                Err(e) => tracing::warn!(error = %e, "Maintenance schedule failed"),
+            }
+        }
+    });
+    task.abort_handle()
+}
+
+/// Title rules as a message key, so a route can re-render the form with
+/// what the author typed. The description is optional.
 pub fn event_field_error(title: &str) -> Option<&'static str> {
-    if title.trim().is_empty() {
+    let title = title.trim();
+    if title.is_empty() {
         return Some("validation.title_empty");
     }
-    if title.len() > 200 {
+    if title.chars().count() > MAX_TITLE_CHARS {
         return Some("validation.title_too_long");
     }
     None
 }
 
-fn validate_event_input(input: &CreateEventInput) -> Result<(), AppError> {
-    match event_field_error(&input.title) {
-        Some(key) => Err(AppError::Validation(key.to_string())),
-        None => Ok(()),
+/// An incident says how bad it is.
+fn severity_error(kind: Kind, severity: Option<Severity>) -> Option<&'static str> {
+    (kind == Kind::Incident && severity.is_none()).then_some("validation.severity_required")
+}
+
+/// An announced maintenance needs a start, and an end after it.
+pub fn schedule_error(
+    kind: Kind,
+    planned: bool,
+    start: Option<DateTime<Utc>>,
+    end: Option<DateTime<Utc>>,
+) -> Option<&'static str> {
+    if kind != Kind::Maintenance || !planned {
+        return None;
+    }
+    match (start, end) {
+        (None, _) => Some("validation.planned_start_required"),
+        (Some(start), Some(end)) if end <= start => Some("validation.planned_end_before_start"),
+        _ => None,
     }
 }
 
-/// An event is modifiable as long as it is not in a terminal state.
-/// Publications (no lifecycle) remain modifiable by their author.
-fn is_modifiable(event: &Event) -> bool {
+fn update_error(event: &Event, message: &str, next: Option<Lifecycle>) -> Option<&'static str> {
+    let Some(next) = next else {
+        return message.is_empty().then_some("validation.update_required");
+    };
+    let Some(current) = event.lifecycle else {
+        return Some("validation.event_has_no_lifecycle");
+    };
+    if !event.kind.can_transition(current, next) {
+        return Some("validation.invalid_transition");
+    }
+    (next.needs_closing_message() && message.is_empty())
+        .then_some("validation.closing_message_required")
+}
+
+/// Announcements never change a service status.
+fn affects_services(kind: Kind) -> bool {
+    kind != Kind::Publication
+}
+
+async fn find(pool: &DbPool, id: i64) -> Result<Event, AppError> {
+    EventRepository::find_by_id(pool, id)
+        .await?
+        .ok_or(AppError::NotFound)
+}
+
+async fn recalculate_event_services(pool: &DbPool, event_id: i64) -> Result<(), AppError> {
+    let service_ids = EventRepository::service_ids(pool, event_id).await?;
+    ServiceService::recalculate_many(pool, &service_ids).await
+}
+
+/// Closed events stay as they are, except for an admin. Announcements have
+/// no state and remain editable.
+pub fn is_modifiable(event: &Event) -> bool {
     event.lifecycle.is_none_or(Lifecycle::is_active)
 }
 
-fn check_modification_allowed(event: &Event, user_role: Role) -> Result<(), AppError> {
-    if !is_modifiable(event) && !user_role.can_admin() {
-        return Err(AppError::Validation(
-            "validation.event_closed_admin_only".to_string(),
-        ));
-    }
-    Ok(())
+pub fn can_modify(event: &Event, role: Role) -> bool {
+    role.can_publish() && (is_modifiable(event) || role.can_admin())
 }
 
-/// Render markdown to HTML and pass the output through ammonia to allow only
-/// a safe subset (paragraphs, lists, links, code, emphasis).
+fn check_modification_allowed(event: &Event, role: Role) -> Result<(), AppError> {
+    if can_modify(event, role) {
+        Ok(())
+    } else {
+        Err(AppError::Validation(
+            "validation.event_closed_admin_only".to_string(),
+        ))
+    }
+}
+
+pub fn can_delete_update(event: &Event, author_id: i64, user: &User) -> bool {
+    user.role.can_admin()
+        || (author_id == user.id && user.role.can_publish() && is_modifiable(event))
+}
+
+/// Renders Markdown and keeps a safe subset: paragraphs, lists, links, code,
+/// emphasis and tables. No class attributes and no images, so an author
+/// cannot restyle the page or load a third-party image.
 pub fn sanitize_markdown(raw: &str) -> String {
-    use ammonia::Builder;
     use pulldown_cmark::{Options, Parser, html};
 
     let parser = Parser::new_ext(raw, Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TABLES);
-    let mut html_output = String::new();
-    html::push_html(&mut html_output, parser);
-
-    Builder::default()
-        .add_generic_attributes(std::iter::once("class"))
-        .clean(&html_output)
+    let mut rendered = String::new();
+    html::push_html(&mut rendered, parser);
+    ammonia::Builder::default()
+        .rm_tags(&["img"])
+        .clean(&rendered)
         .to_string()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Kind, Severity};
+    use crate::models::Severity;
+    use chrono::Duration as TimeDelta;
 
-    fn make_input(title: &str, description: &str, service_ids: Vec<i64>) -> CreateEventInput {
-        CreateEventInput {
-            kind: Kind::Incident,
-            severity: Some(Severity::Major),
-            planned: false,
-            category: None,
-            title: title.to_string(),
-            description: description.to_string(),
-            planned_start: None,
-            planned_end: None,
-            service_ids,
-            icon_id: None,
-            author_id: 1,
-        }
-    }
-
-    #[test]
-    fn validate_rejects_empty_title() {
-        assert!(validate_event_input(&make_input("", "desc", vec![1])).is_err());
-    }
-
-    #[test]
-    fn validate_rejects_whitespace_only_title() {
-        assert!(validate_event_input(&make_input("   ", "desc", vec![1])).is_err());
-    }
-
-    #[test]
-    fn validate_rejects_title_over_200_chars() {
-        let long_title = "a".repeat(201);
-        assert!(validate_event_input(&make_input(&long_title, "desc", vec![1])).is_err());
-    }
-
-    #[test]
-    fn validate_accepts_title_at_200_chars() {
-        let title = "a".repeat(200);
-        assert!(validate_event_input(&make_input(&title, "desc", vec![1])).is_ok());
-    }
-
-    #[test]
-    fn validate_accepts_empty_description() {
-        assert!(validate_event_input(&make_input("title", "", vec![1])).is_ok());
-    }
-
-    #[test]
-    fn validate_accepts_empty_service_ids() {
-        assert!(validate_event_input(&make_input("title", "desc", vec![])).is_ok());
-    }
-
-    fn make_event(lifecycle: Option<Lifecycle>, kind: Kind) -> Event {
+    fn event(lifecycle: Option<Lifecycle>, kind: Kind) -> Event {
         Event {
             id: 1,
             kind,
@@ -284,7 +318,6 @@ mod tests {
             planned_end: None,
             started_at: None,
             ended_at: None,
-            icon_id: None,
             author_id: 1,
             previous_lifecycle: None,
             created_at: Utc::now(),
@@ -292,34 +325,116 @@ mod tests {
         }
     }
 
-    #[test]
-    fn active_incident_can_be_modified_by_publisher() {
-        let event = make_event(Some(Lifecycle::Investigating), Kind::Incident);
-        assert!(check_modification_allowed(&event, Role::Publisher).is_ok());
+    fn user(id: i64, role: Role) -> User {
+        User {
+            id,
+            email: format!("u{id}@example.test"),
+            password_hash: String::new(),
+            display_name: "User".to_string(),
+            role,
+            is_active: true,
+            last_seen_at: None,
+            preferred_locale: None,
+            must_change_password: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
     }
 
     #[test]
-    fn resolved_incident_cannot_be_modified_by_publisher() {
-        let event = make_event(Some(Lifecycle::Resolved), Kind::Incident);
-        assert!(check_modification_allowed(&event, Role::Publisher).is_err());
+    fn title_rules() {
+        assert!(event_field_error("").is_some());
+        assert!(event_field_error("   ").is_some());
+        assert!(event_field_error(&"a".repeat(201)).is_some());
+        assert!(event_field_error(&"é".repeat(200)).is_none());
+        assert!(event_field_error("Payroll down").is_none());
     }
 
     #[test]
-    fn completed_maintenance_cannot_be_modified_by_publisher() {
-        let event = make_event(Some(Lifecycle::Completed), Kind::Maintenance);
-        assert!(check_modification_allowed(&event, Role::Publisher).is_err());
+    fn incidents_say_how_bad_they_are() {
+        assert_eq!(
+            severity_error(Kind::Incident, None),
+            Some("validation.severity_required")
+        );
+        assert!(severity_error(Kind::Incident, Some(Severity::Minor)).is_none());
+        assert!(severity_error(Kind::Maintenance, None).is_none());
+        assert!(severity_error(Kind::Publication, None).is_none());
     }
 
     #[test]
-    fn resolved_event_can_be_modified_by_admin() {
-        let event = make_event(Some(Lifecycle::Resolved), Kind::Incident);
-        assert!(check_modification_allowed(&event, Role::Admin).is_ok());
+    fn announced_maintenance_needs_a_consistent_window() {
+        let start = Utc::now();
+        assert_eq!(
+            schedule_error(Kind::Maintenance, true, None, None),
+            Some("validation.planned_start_required")
+        );
+        assert_eq!(
+            schedule_error(Kind::Maintenance, true, Some(start), Some(start)),
+            Some("validation.planned_end_before_start")
+        );
+        assert!(schedule_error(Kind::Maintenance, true, Some(start), None).is_none());
+        assert!(
+            schedule_error(
+                Kind::Maintenance,
+                true,
+                Some(start),
+                Some(start + TimeDelta::hours(1))
+            )
+            .is_none()
+        );
+        assert!(schedule_error(Kind::Maintenance, false, None, None).is_none());
+        assert!(schedule_error(Kind::Incident, true, None, None).is_none());
     }
 
     #[test]
-    fn publication_is_always_modifiable() {
-        let event = make_event(None, Kind::Publication);
-        assert!(check_modification_allowed(&event, Role::Publisher).is_ok());
+    fn closing_needs_a_message() {
+        let open = event(Some(Lifecycle::Investigating), Kind::Incident);
+        assert_eq!(
+            update_error(&open, "", Some(Lifecycle::Resolved)),
+            Some("validation.closing_message_required")
+        );
+        assert!(update_error(&open, "Fixed", Some(Lifecycle::Resolved)).is_none());
+        assert!(update_error(&open, "", Some(Lifecycle::Monitoring)).is_none());
+        assert_eq!(
+            update_error(&open, "", None),
+            Some("validation.update_required")
+        );
+    }
+
+    #[test]
+    fn transitions_are_checked_before_anything_is_written() {
+        let open = event(Some(Lifecycle::Investigating), Kind::Incident);
+        assert_eq!(
+            update_error(&open, "x", Some(Lifecycle::Completed)),
+            Some("validation.invalid_transition")
+        );
+        let note = event(None, Kind::Publication);
+        assert_eq!(
+            update_error(&note, "x", Some(Lifecycle::Resolved)),
+            Some("validation.event_has_no_lifecycle")
+        );
+    }
+
+    #[test]
+    fn closed_events_belong_to_admins() {
+        let resolved = event(Some(Lifecycle::Resolved), Kind::Incident);
+        assert!(!can_modify(&resolved, Role::Publisher));
+        assert!(can_modify(&resolved, Role::Admin));
+        let open = event(Some(Lifecycle::Investigating), Kind::Incident);
+        assert!(can_modify(&open, Role::Publisher));
+        assert!(!can_modify(&open, Role::Reader));
+        assert!(can_modify(&event(None, Kind::Publication), Role::Publisher));
+    }
+
+    #[test]
+    fn authors_delete_their_own_updates_while_open() {
+        let open = event(Some(Lifecycle::Investigating), Kind::Incident);
+        let closed = event(Some(Lifecycle::Resolved), Kind::Incident);
+        let author = user(7, Role::Publisher);
+        assert!(can_delete_update(&open, 7, &author));
+        assert!(!can_delete_update(&open, 8, &author));
+        assert!(!can_delete_update(&closed, 7, &author));
+        assert!(can_delete_update(&closed, 8, &user(1, Role::Admin)));
     }
 
     #[test]
@@ -330,28 +445,20 @@ mod tests {
     }
 
     #[test]
-    fn sanitize_strips_script_tags() {
-        let result = sanitize_markdown("<script>alert('xss')</script>");
-        assert!(!result.contains("<script>"));
+    fn sanitize_strips_scripts_images_and_classes() {
+        let result = sanitize_markdown(
+            "<script>alert('xss')</script><img src=x onerror=\"alert(1)\"><div class=\"fixed inset-0\">x</div>",
+        );
+        assert!(!result.contains("<script"));
         assert!(!result.contains("alert"));
+        assert!(!result.contains("<img"));
+        assert!(!result.contains("class="));
     }
 
     #[test]
-    fn sanitize_strips_onerror_attributes() {
-        let result = sanitize_markdown("<img onerror=\"alert('xss')\" src=\"x\">");
-        assert!(!result.contains("onerror"));
-    }
-
-    #[test]
-    fn sanitize_allows_links() {
-        let result = sanitize_markdown("[link](https://example.com)");
-        assert!(result.contains("<a"));
-        assert!(result.contains("https://example.com"));
-    }
-
-    #[test]
-    fn sanitize_allows_code_blocks() {
-        let result = sanitize_markdown("```\ncode\n```");
-        assert!(result.contains("<code>"));
+    fn sanitize_keeps_links_and_code() {
+        let link = sanitize_markdown("[link](https://example.com)");
+        assert!(link.contains("<a") && link.contains("https://example.com"));
+        assert!(sanitize_markdown("```\ncode\n```").contains("<code>"));
     }
 }

@@ -37,10 +37,9 @@ RUN case "${TARGETARCH:-amd64}" in \
 
 WORKDIR /app
 
-# Tailwind reads the class names used in the templates and in the Rust code.
+# Tailwind reads the class names used in the templates and the scripts.
 COPY static ./static
 COPY templates ./templates
-COPY src ./src
 
 # Only the built stylesheet is served, never its sources.
 RUN tailwindcss --input static/css/input.css --output static/css/style.css --minify && \

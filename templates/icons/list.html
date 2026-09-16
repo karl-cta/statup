@@ -1,118 +1,83 @@
 {% extends "_layout.html" %}
+{% import "components/macros.html" as ui %}
 
 {% block title %}{{ i18n.t("icons.title") }} | {{ crate::brand_name() }}{% endblock %}
+{% block section %}admin{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
-    <header class="animate-in">
-        <div class="flex items-baseline justify-between gap-4">
-            <h1 class="text-[28px] font-semibold tracking-tight text-ink dark:text-sand-light">
-                {{ i18n.t("icons.heading") }}
-            </h1>
-            <a href="/admin/settings" class="text-[12px] font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors shrink-0">
-                &larr; {{ i18n.t("admin.users_back") }}
-            </a>
+<div class="page">
+    <header class="page-head">
+        <div>
+            <a href="/admin/settings" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("admin.back_to_settings") }}</a>
+            <h1 class="page-title">{{ i18n.t("icons.heading") }}</h1>
+            <p class="page-lede">{{ i18n.t("icons.intro") }}</p>
         </div>
-        <p class="mt-2 text-sm text-muted">{{ i18n.t("icons.intro") }}</p>
     </header>
 
-    {% match added %}
-    {% when Some with (name) %}
-    <div class="mt-5 form-notice" role="status"><q>{{ name }}</q> {{ i18n.t("icons.added_notice") }}</div>
-    {% when None %}
-    {% endmatch %}
-    {% match removed %}
-    {% when Some with (name) %}
-    <div class="mt-5 form-notice" role="status"><q>{{ name }}</q> {{ i18n.t("icons.removed_notice") }}</div>
-    {% when None %}
-    {% endmatch %}
-    {% match error %}
-    {% when Some with (msg) %}
-    <div class="mt-5 form-error" role="alert"><p>{{ msg }}</p></div>
-    {% when None %}
-    {% endmatch %}
+    {% if let Some(name) = added %}
+    <div class="form-notice mb-5" role="status"><p><q>{{ name }}</q> {{ i18n.t("icons.added_notice") }}</p></div>
+    {% endif %}
+    {% if let Some(name) = removed %}
+    <div class="form-notice mb-5" role="status"><p><q>{{ name }}</q> {{ i18n.t("icons.removed_notice") }}</p></div>
+    {% endif %}
+    {% if let Some(message) = error %}
+    <div class="form-error mb-5" role="alert"><p>{{ message }}</p></div>
+    {% endif %}
 
-    {# The same drop zone as the service form, one way to upload in the whole
-       product. Picking a file sends it; without script the button does. #}
-    <form method="post" action="/icons/upload" enctype="multipart/form-data" class="mt-6 flex flex-wrap items-center gap-3 animate-in delay-1">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <form method="post" action="/icons/upload" enctype="multipart/form-data" class="flex flex-wrap items-center gap-3" data-submit-on-change>
+        <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
         <label class="icon-upload-field">
             <span class="icon-upload-cta">{{ i18n.t("icons.upload") }}</span>
-            <span class="icon-upload-hint">{{ i18n.t("icons.upload_hint_short") }} {{ crate::models::MAX_ICON_SIZE / 1024 }} {{ i18n.t("units.kb") }}</span>
-            <input type="file" name="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" required
-                   class="sr-only" onchange="this.form.requestSubmit()">
+            <span class="icon-upload-hint">{{ i18n.t("icons.upload_hint_short") }} {{ crate::models::MAX_ICON_SIZE / 1024 }}&nbsp;{{ i18n.t("units.kb") }}</span>
+            <input type="file" name="file" class="sr-only" accept="image/png,image/jpeg,image/webp,image/svg+xml" required>
         </label>
-        <noscript><button type="submit" class="btn-3d text-sm"><span>{{ i18n.t("icons.upload") }}</span></button></noscript>
+        <noscript><button type="submit" class="btn btn-primary">{{ i18n.t("icons.upload") }}</button></noscript>
     </form>
 
     {% if cards.is_empty() %}
-    <p class="mt-10 text-sm text-muted animate-in delay-1">{{ i18n.t("icons.no_custom") }} {{ i18n.t("icons.empty_hint") }}</p>
+    <div class="card empty-state mt-6">
+        <p class="empty-state-title">{{ i18n.t("icons.no_custom") }}</p>
+        <p class="empty-state-text">{{ i18n.t("icons.empty_hint") }}</p>
+    </div>
     {% else %}
-    <ul id="icons-grid" class="mt-8 flex flex-wrap gap-3 list-none p-0 animate-in delay-1">
+    <ul class="icon-cards">
         {% for card in cards %}
         <li class="icon-card">
             <div class="icon-card-figure">
                 {% if card.file_missing %}
-                <svg class="h-8 w-8 text-ink/25 dark:text-sand-light/20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
-                </svg>
+                {% call ui::image_placeholder() %}
                 {% else %}
-                <img src="{{ card.icon.url() }}" alt="" class="h-12 w-12 rounded-sm object-contain" loading="lazy">
+                <img src="{{ card.icon.url() }}" alt="" loading="lazy">
                 {% endif %}
             </div>
-            <p class="icon-card-name wrap-anywhere">{{ card.icon.original_name }}</p>
+            <p class="icon-card-name">{{ card.icon.original_name }}</p>
             <p class="icon-card-use">
                 {% if card.file_missing %}
-                <span class="text-danger">{{ i18n.t("icons.file_missing") }}</span>
-                {% else %}
-                {% if card.services.is_empty() && card.other_uses == 0 %}
+                {{ i18n.t("icons.file_missing") }}
+                {% else if card.services.is_empty() && card.other_uses == 0 %}
                 {{ i18n.t("icons.unused") }}
                 {% else %}
                 {{ i18n.t("icons.used_by") }}
-                {% for name in card.services %}{% if !loop.first %}, {% endif %}<span class="text-ink dark:text-sand-light">{{ name }}</span>{% endfor %}
+                {% for name in card.services %}{% if !loop.first %}, {% endif %}<strong>{{ name }}</strong>{% endfor %}
                 {% if card.other_uses > 0 %}{% if !card.services.is_empty() %} {{ i18n.t("common.and") }} {% endif %}{{ card.other_uses }} {% if card.other_uses > 1 %}{{ i18n.t("icons.other_uses_many") }}{% else %}{{ i18n.t("icons.other_uses_one") }}{% endif %}{% endif %}
-                {% endif %}
                 {% endif %}
             </p>
             {% if card.deletable() %}
-            <form method="post" action="/icons/{{ card.icon.id }}/delete" class="icon-card-actions">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <button type="button" class="icon-delete" data-delete-btn
-                        aria-label="{{ i18n.t("common.delete") }} {{ card.icon.original_name }}">
-                    {{ i18n.t("common.delete") }}
-                </button>
-                <div class="status-confirm delete-confirm icon-card-confirm" hidden role="group" data-delete-box
-                     aria-label="{{ i18n.t("icons.confirm_delete") }}">
-                    <span class="status-confirm-label">{{ i18n.t("common.delete") }} <q>{{ card.icon.original_name }}</q></span>
-                    <button type="button" class="status-confirm-cancel" data-delete-cancel>{{ i18n.t("common.cancel") }}</button>
-                    <button type="submit" class="status-confirm-go">{{ i18n.t("common.delete") }}</button>
+            <form class="icon-card-actions" method="post" action="/icons/{{ card.icon.id }}/delete" data-confirm>
+                <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                <button type="button" class="text-action text-action-danger" data-confirm-open aria-label="{{ i18n.t("common.delete") }} {{ card.icon.original_name }}">{{ i18n.t("common.delete") }}</button>
+                <div class="confirm" role="group" aria-label="{{ i18n.t("icons.confirm_delete") }}" aria-describedby="delete-q-{{ card.icon.id }}" data-confirm-box hidden>
+                    <span id="delete-q-{{ card.icon.id }}" class="confirm-text">{{ i18n.t("common.delete") }} <q>{{ card.icon.original_name }}</q>{{ i18n.t("common.question_mark") }}</span>
+                    <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
+                    <button type="submit" class="confirm-go" data-danger>{{ i18n.t("common.delete") }}</button>
                 </div>
             </form>
             {% else %}
-            <p class="icon-card-actions text-[12px] text-muted">{{ i18n.t("icons.in_use_hint") }}</p>
+            <p class="icon-card-actions">{{ i18n.t("icons.in_use_hint") }}</p>
             {% endif %}
         </li>
         {% endfor %}
     </ul>
-    <script>
-    // Deleting asks in the card, naming the file, like an event does.
-    document.getElementById('icons-grid').addEventListener('click', function (e) {
-        var btn = e.target.closest('[data-delete-btn]');
-        var cancel = e.target.closest('[data-delete-cancel]');
-        if (btn) {
-            var box = btn.parentNode.querySelector('[data-delete-box]');
-            btn.hidden = true;
-            box.hidden = false;
-            box.querySelector('[data-delete-cancel]').focus();
-        } else if (cancel) {
-            var form = cancel.closest('form');
-            cancel.closest('[data-delete-box]').hidden = true;
-            var opener = form.querySelector('[data-delete-btn]');
-            opener.hidden = false;
-            opener.focus();
-        }
-    });
-    </script>
     {% endif %}
 </div>
 {% endblock %}

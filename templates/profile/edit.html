@@ -1,111 +1,66 @@
 {% extends "_layout.html" %}
+{% import "components/macros.html" as ui %}
 
 {% block title %}{{ i18n.t("profile.title") }} | {{ crate::brand_name() }}{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-lg px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
-    <div class="animate-in">
-        <a href="/" class="inline-flex items-center gap-1 text-sm font-medium text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light transition-colors">
-            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-            </svg>
-            {{ i18n.t("profile.back") }}
-        </a>
-        <h1 class="mt-4 text-2xl font-medium tracking-tight text-ink dark:text-sand-light">{{ i18n.t("profile.heading") }}</h1>
-        <p class="mt-1 text-sm text-ink/55 dark:text-sand-light/50">{{ role_label }}</p>
-    </div>
-
-    {% match error %}
-    {% when Some with (msg) %}
-    <div id="profile-error" class="mt-6 form-error" role="alert">
-        <p>{{ msg }}</p>
-    </div>
-    {% when None %}
-    {% endmatch %}
-
-    {% match success %}
-    {% when Some with (msg) %}
-    <div class="mt-6 form-notice" role="status">{{ msg }}</div>
-    {% when None %}
-    {% endmatch %}
-
-    <form method="post" action="/profile" class="mt-8 space-y-5 animate-in delay-1"
-          {% match error %}{% when Some with (_msg) %}aria-describedby="profile-error"{% when None %}{% endmatch %}>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-
+<div class="page page-narrow">
+    <header class="page-head">
         <div>
-            <label for="display_name" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-                {{ i18n.t("profile.name") }}
-            </label>
-            <input id="display_name" name="display_name" type="text" required aria-required="true"
-                   autocomplete="name" maxlength="100" value="{{ display_name }}"
-                   class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
-                   placeholder="{{ i18n.t("auth.display_name") }}">
+            <a href="/" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("profile.back") }}</a>
+            <h1 class="page-title">{{ i18n.t("profile.heading") }}</h1>
+            <p class="page-lede">{{ role_label }}</p>
         </div>
+    </header>
 
-        <div>
-            <label for="email" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-                {{ i18n.t("profile.email") }}
-            </label>
-            <input id="email" name="email" type="email" required aria-required="true" autocomplete="email" value="{{ email }}"
-                   class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
-                   placeholder="you@example.com">
-        </div>
-
-        <button type="submit" class="btn-3d text-sm"><span>{{ i18n.t("common.save") }}</span></button>
-    </form>
-
-    <div class="mt-10 border-t border-ink/10 pt-8 dark:border-sand-light/10 animate-in delay-2">
-        <h2 class="text-xl font-medium tracking-tight text-ink dark:text-sand-light">{{ i18n.t("profile.change_password") }}</h2>
-
-        {% match password_error %}
-        {% when Some with (msg) %}
-        <div id="password-form-error" class="mt-6 form-error" role="alert">
-        <p>{{ msg }}</p>
-    </div>
-        {% when None %}
-        {% endmatch %}
-
-        {% match password_success %}
-        {% when Some with (msg) %}
-        <div class="mt-4 form-notice" role="status">{{ msg }}</div>
-        {% when None %}
-        {% endmatch %}
-
-        <form method="post" action="/profile/password" class="mt-6 space-y-5"
-              {% match password_error %}{% when Some with (_msg) %}aria-describedby="password-form-error"{% when None %}{% endmatch %}>
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-
-            <div>
-                <label for="current_password" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-                    {{ i18n.t("profile.current_password") }}
-                </label>
-                <input id="current_password" name="current_password" type="password" required aria-required="true" autocomplete="current-password"
-                       class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30">
+    <section class="profile-section" aria-labelledby="identity-title">
+        <h2 id="identity-title" class="section-title mb-4">{{ i18n.t("profile.identity") }}</h2>
+        {% if let Some(message) = error %}
+        <div id="profile-error" class="form-error mb-4" role="alert"><p>{{ message }}</p></div>
+        {% endif %}
+        {% if let Some(message) = success %}
+        <div class="form-notice mb-4" role="status"><p>{{ message }}</p></div>
+        {% endif %}
+        <form method="post" action="/profile" class="stack"{% if error.is_some() %} aria-describedby="profile-error"{% endif %}>
+            <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+            <div class="field">
+                <label for="display_name" class="field-label">{{ i18n.t("profile.name") }}</label>
+                <input id="display_name" name="display_name" type="text" class="input" required maxlength="100" autocomplete="name" value="{{ display_name }}">
             </div>
-
-            <div>
-                <label for="new_password" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-                    {{ i18n.t("profile.new_password") }}
-                </label>
-                <input id="new_password" name="new_password" type="password" required aria-required="true" autocomplete="new-password"
-                       class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
-                       placeholder="{{ i18n.t("validation.password_min_length") }}"
-                       aria-describedby="new-password-hint">
-                <p id="new-password-hint" class="mt-1.5 text-[12px] text-ink/45 dark:text-sand-light/35">{{ i18n.t("validation.password_min_length") }}</p>
+            <div class="field">
+                <label for="email" class="field-label">{{ i18n.t("profile.email") }}</label>
+                <input id="email" name="email" type="email" class="input" required autocomplete="email" value="{{ email }}">
             </div>
-
-            <div>
-                <label for="new_password_confirm" class="block text-sm font-medium text-ink/85 dark:text-sand-light/85">
-                    {{ i18n.t("profile.confirm_password") }}
-                </label>
-                <input id="new_password_confirm" name="new_password_confirm" type="password" required aria-required="true" autocomplete="new-password"
-                       class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
-                       placeholder="{{ i18n.t("profile.confirm_password") }}">
-            </div>
-
-            <button type="submit" class="btn-3d-ghost text-sm"><span>{{ i18n.t("profile.submit_password") }}</span></button>
+            <button type="submit" class="btn btn-primary">{{ i18n.t("common.save") }}</button>
         </form>
-    </div>
+    </section>
+
+    <section class="profile-section" aria-labelledby="password-title">
+        <h2 id="password-title" class="section-title mb-4">{{ i18n.t("profile.change_password") }}</h2>
+        {% if let Some(message) = password_error %}
+        <div id="password-form-error" class="form-error mb-4" role="alert"><p>{{ message }}</p></div>
+        {% endif %}
+        {% if let Some(message) = password_success %}
+        <div class="form-notice mb-4" role="status"><p>{{ message }}</p></div>
+        {% endif %}
+        <form method="post" action="/profile/password" class="stack"{% if password_error.is_some() %} aria-describedby="password-form-error"{% endif %}>
+            <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+            <input type="email" name="username" autocomplete="username" value="{{ email }}" hidden>
+            <div class="field">
+                <label for="current_password" class="field-label">{{ i18n.t("profile.current_password") }}</label>
+                <input id="current_password" name="current_password" type="password" class="input" required autocomplete="current-password">
+            </div>
+            <div class="field">
+                <label for="new_password" class="field-label">{{ i18n.t("profile.new_password") }}</label>
+                <input id="new_password" name="new_password" type="password" class="input" required minlength="12" autocomplete="new-password" aria-describedby="new-password-hint">
+                <p id="new-password-hint" class="field-hint">{{ i18n.t("auth.password_hint") }}</p>
+            </div>
+            <div class="field">
+                <label for="new_password_confirm" class="field-label">{{ i18n.t("profile.confirm_password") }}</label>
+                <input id="new_password_confirm" name="new_password_confirm" type="password" class="input" required minlength="12" autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn btn-ghost">{{ i18n.t("profile.submit_password") }}</button>
+        </form>
+    </section>
 </div>
 {% endblock %}

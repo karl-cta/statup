@@ -470,11 +470,11 @@ async fn instance_name_replaces_the_brand_in_masthead_and_title() {
         "the settings page should confirm the new name in a receipt"
     );
     assert!(
-        body.contains(r#"<span class="mast-word mast-word-custom">Acme Status</span>"#),
+        body.contains(r#"<span class="mast-word-custom">Acme Status</span>"#),
         "masthead should show the instance name without the accented wordmark"
     );
     assert!(
-        body.contains("Statup</span>") && !body.contains(r#"<span class="mast-word">Statu"#),
+        body.contains(">Statup</a>") && !body.contains(r#"Statu<span class="mast-word-accent">"#),
         "the product should only remain as a footer credit"
     );
     assert!(
@@ -490,7 +490,7 @@ async fn instance_name_replaces_the_brand_in_masthead_and_title() {
     )
     .await;
     let (_, body) = app.get("/").await;
-    assert!(body.contains(r#"<span class="mast-word">Statu"#));
+    assert!(body.contains(r#"Statu<span class="mast-word-accent">"#));
 }
 
 /// A name past the limit comes back on the settings page with the field
@@ -517,7 +517,7 @@ async fn instance_name_too_long_is_refused_in_the_page() {
 
     let (_, body) = app.get("/").await;
     assert!(
-        body.contains(r#"<span class="mast-word">Statu"#),
+        body.contains(r#"Statu<span class="mast-word-accent">"#),
         "a refused name must not replace the brand"
     );
 }
@@ -546,7 +546,7 @@ async fn public_access_choice_confirms_its_new_state() {
 
     let (_, body) = app.get("/admin/settings?public=on").await;
     assert!(body.contains(r#"value="everyone" class="sr-only" checked"#));
-    assert!(body.contains(r#"href="/" class="set-link""#));
+    assert!(body.contains(r#"href="/" class="link""#));
 
     let csrf = app.csrf().await;
     let (_, _, location) = app
@@ -559,7 +559,7 @@ async fn public_access_choice_confirms_its_new_state() {
     assert_eq!(location.as_deref(), Some("/admin/settings?public=off"));
     let (_, body) = app.get("/admin/settings").await;
     assert!(body.contains(r#"value="members" class="sr-only" checked"#));
-    assert!(!body.contains(r#"href="/" class="set-link""#));
+    assert!(!body.contains(r#"href="/" class="link""#));
 }
 
 #[tokio::test]
@@ -658,7 +658,7 @@ async fn an_oversized_icon_is_refused_in_the_page() {
     let resp = upload_icon(&app, icon_upload_body(&csrf, "big.png", "image/png", &png)).await;
     assert_eq!(resp.status(), StatusCode::OK, "said on the page");
     let body = resp.text().await.unwrap_or_default();
-    assert!(body.contains("taille maximale"), "{body}");
+    assert!(body.contains("trop lourd"), "{body}");
 
     // The server answers before reading the whole body and then closes the
     // connection, so the client may not get to read the page itself.

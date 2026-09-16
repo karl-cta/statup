@@ -101,24 +101,6 @@ impl AuthService {
         Ok(password)
     }
 
-    /// Register an account with a password its owner chose.
-    pub async fn register(
-        pool: &DbPool,
-        email: &str,
-        password: &str,
-        display_name: &str,
-        role: Role,
-    ) -> Result<User, AppError> {
-        let account = NewAccount {
-            email,
-            password,
-            display_name,
-            role,
-            must_change_password: false,
-        };
-        Self::create_account(pool, &account).await
-    }
-
     /// Create an account for a member, with a temporary password returned
     /// once for the admin to hand over.
     pub async fn add_member(
@@ -301,6 +283,17 @@ mod tests {
     use super::*;
     use crate::test_helpers::test_pool;
 
+    async fn own_account(pool: &DbPool, email: &str, name: &str) -> Result<User, AppError> {
+        let account = NewAccount {
+            email,
+            password: "a_password_123",
+            display_name: name,
+            role: Role::Reader,
+            must_change_password: false,
+        };
+        AuthService::create_account(pool, &account).await
+    }
+
     #[tokio::test]
     async fn test_hash_and_verify() {
         let password = "super_secure_password_123";
@@ -357,17 +350,12 @@ mod tests {
     #[tokio::test]
     async fn a_disabled_account_keeps_its_email_taken() {
         let pool = test_pool().await;
-        let user =
-            AuthService::register(&pool, "gone@x.com", "a_password_123", "Gone", Role::Reader)
-                .await
-                .unwrap();
+        let user = own_account(&pool, "gone@x.com", "Gone").await.unwrap();
         UserRepository::set_active(&pool, user.id, false)
             .await
             .unwrap();
 
-        let again =
-            AuthService::register(&pool, "Gone@X.com", "a_password_123", "Back", Role::Reader)
-                .await;
+        let again = own_account(&pool, "Gone@X.com", "Back").await;
         assert!(matches!(again, Err(AppError::Validation(key)) if key == "validation.email_taken"));
 
         let member = AuthService::add_member(&pool, "gone@x.com", "Back", Role::Reader).await;
@@ -410,9 +398,7 @@ mod tests {
     #[tokio::test]
     async fn login_refuses_disabled_accounts() {
         let pool = test_pool().await;
-        let user = AuthService::register(&pool, "off@x.com", "a_password_123", "Off", Role::Reader)
-            .await
-            .unwrap();
+        let user = own_account(&pool, "off@x.com", "Off").await.unwrap();
         assert!(
             AuthService::login(&pool, "off@x.com", "a_password_123")
                 .await

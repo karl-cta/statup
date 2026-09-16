@@ -1,31 +1,18 @@
-{# Custom icons grid for the picker. Expects `custom_icons` (Vec<Icon>), `selected_icon_id` (Option<i64>),
-   `upload_error` (Option<String>), `i18n` (I18n) in scope. #}
-<div id="custom-icons-grid" class="mt-3">
-    {% match upload_error %}
-    {% when Some with (msg) %}
-    <div class="form-error mb-3" role="alert">
-        <p>{{ msg }}</p>
-    </div>
-    {% when None %}
-    {% endmatch %}
+<div id="custom-icons-grid">
+    {% if let Some(message) = upload_error %}
+    <div class="form-error mt-3" role="alert"><p>{{ message }}</p></div>
+    {% endif %}
     {% if custom_icons.is_empty() %}
-    <p class="text-[12px] text-muted">
-        {{ i18n.t("icons.no_custom") }}
-    </p>
+    <p class="field-hint mt-3">{{ i18n.t("icons.no_custom") }}</p>
     {% else %}
-    <div class="grid grid-cols-6 gap-1.5 sm:grid-cols-8" role="radiogroup" aria-label="{{ i18n.t("icons.custom") }}">
+    <div class="icon-grid mt-3" role="radiogroup" aria-labelledby="custom-icons-label">
         {% for icon in custom_icons %}
-        <button type="button"
-                role="radio"
-                class="icon-cell flex h-11 w-11 items-center justify-center rounded-sm cursor-pointer"
-                data-icon-id="{{ icon.id }}"
-                data-icon-url="{{ icon.url() }}"
-                onclick="selectCustomIcon(this)"
-                title="{{ icon.original_name }}"
-                aria-checked="{% if let Some(sel) = selected_icon_id %}{% if sel.eq(icon.id) %}true{% else %}false{% endif %}{% else %}false{% endif %}"
-                tabindex="{% if let Some(sel) = selected_icon_id %}{% if sel.eq(icon.id) %}0{% else %}-1{% endif %}{% else %}{% if loop.first %}0{% else %}-1{% endif %}{% endif %}"
-                aria-label="{{ i18n.t("icons.select") }} {{ icon.original_name }}">
-            <img src="{{ icon.url() }}" alt="{{ icon.original_name }}" class="h-6 w-6 rounded-sm object-contain" loading="lazy">
+        <button type="button" role="radio" class="icon-cell"
+                data-icon-custom="{{ icon.id }}" data-icon-label="{{ icon.original_name }}"
+                aria-label="{{ icon.original_name }}"
+                aria-checked="{% if let Some(selected) = selected_icon_id %}{% if selected.eq(icon.id) %}true{% else %}false{% endif %}{% else %}false{% endif %}"
+                tabindex="{% if loop.first %}0{% else %}-1{% endif %}">
+            <img src="{{ icon.url() }}" alt="" loading="lazy" data-hide-on-error>
         </button>
         {% endfor %}
     </div>

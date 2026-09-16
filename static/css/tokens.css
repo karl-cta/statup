@@ -1,4 +1,4 @@
-/* Hanken Grotesk, SIL OFL, variable weight. Self-hosted Latin subset. */
+/* Hanken Grotesk, SIL OFL 1.1, variable weight, self-hosted Latin subset. */
 @font-face {
     font-family: 'Hanken Grotesk';
     font-style: normal;
@@ -7,7 +7,6 @@
     src: url('/static/fonts/hanken-grotesk-variable.woff2') format('woff2');
 }
 
-/* Palette locked on docs/brand.html. Signals come from weight and semantic status, never chromatic accent. */
 @theme {
     --color-ink: #1C1B18;
     --color-ink-deep: #141310;
@@ -17,119 +16,178 @@
     --color-cream: #FAFAF9;
     --color-page: #FFFFFF;
 
-    /* Brand accent, used only on the dot of the mark and the last letter of
-       the wordmark. Sage from the original brand system
-       (docs/mockups/brand.html). One value in both themes, decided with the
-       product owner: a brand color that shifts between themes is not one
-       color, and the mark is the one place the identity must stay fixed.
-       Sage sits 71 degrees from the operational green, so the identity is
-       never read as a status. It reaches 2.5:1 on white, which WCAG allows
-       here because logotypes and brand names carry no contrast requirement;
-       do not reuse it for anything that has to be read. */
+    /* Brand accent: the dot of the mark and the last letter of the wordmark,
+       nothing else. Same value in both themes. Under 4.5:1 on white, so it
+       never colors text, icons, borders or states. */
     --color-brand: #8BAE66;
+
     --color-muted-light: #5F5C52;
     --color-muted-dark: #9C9689;
-
-    /* Single family, the "mono" look is carried by tabular-nums + letter-spacing + uppercase. */
-    --font-sans: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    --font-mono: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-
-    /* Tailwind stone/neutral remapped to the warm Ink/Sand ramp. */
-    --color-stone-50: #FAF8F2;
-    --color-stone-100: #F4F1EB;
-    --color-stone-200: #E8E3D8;
-    --color-stone-300: #D5CFBE;
-    --color-stone-400: #A8A193;
-    --color-stone-500: #6E6A5E;
-    --color-stone-600: #4A463E;
-    --color-stone-700: #36332D;
-    --color-stone-800: #262420;
-    --color-stone-900: #1C1B18;
-    --color-stone-950: #141310;
-
-    --color-neutral-50: #FAF8F2;
-    --color-neutral-100: #F4F1EB;
-    --color-neutral-200: #E8E3D8;
-    --color-neutral-300: #D5CFBE;
-    --color-neutral-400: #A8A193;
-    --color-neutral-500: #6E6A5E;
-    --color-neutral-600: #4A463E;
-    --color-neutral-700: #36332D;
-    --color-neutral-800: #262420;
-    --color-neutral-900: #1C1B18;
-    --color-neutral-950: #141310;
-
-    /* Tailwind teal collapsed to the Ink/Sand ramp, text-teal-700 reads as Ink. */
-    --color-teal-50: #FAF8F2;
-    --color-teal-100: #F4F1EB;
-    --color-teal-200: #E8E3D8;
-    --color-teal-300: #D5CFBE;
-    --color-teal-400: #A8A193;
-    --color-teal-500: #6E6A5E;
-    --color-teal-600: #36332D;
-    --color-teal-700: #1C1B18;
-    --color-teal-800: #141310;
-    --color-teal-900: #141310;
-    --color-teal-950: #141310;
-
-    --color-accent: #1C1B18;
-    --color-accent-hover: #36332D;
-
-    /* Service status and impact severity, WCAG AA on sand/cream. */
-    --color-status-operational: #61803E;
-    --color-status-degraded: oklch(0.554 0.135 66);
-    --color-status-partial: oklch(0.553 0.195 38);
-    --color-status-major: oklch(0.577 0.245 27);
-    --color-status-maintenance: oklch(0.546 0.245 262);
-
-    --color-impact-none: oklch(0.446 0.030 264);
-    --color-impact-minor: oklch(0.554 0.135 66);
-    --color-impact-major: oklch(0.553 0.195 38);
-    --color-impact-critical: oklch(0.577 0.245 27);
 
     --color-surface-0: #FFFFFF;
     --color-surface-1: #FAFAF9;
     --color-surface-2: #E8E6E1;
     --color-surface-3: #D9D5CE;
+
+    /* One family. Figures that must line up use tabular numbers instead of a
+       monospace face. */
+    --font-sans: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-mono: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+/* Roles, resolved per theme. Components read these and never carry a dark
+   variant of their own. */
+:root {
+    --ink: var(--color-ink);
+    --ink-soft: rgb(28 27 24 / 0.85);
+    --muted: var(--color-muted-light);
+    --ground: var(--color-page);
+    --mast-ground: var(--color-page);
+    --card: var(--color-cream);
+    --raised: var(--color-cream);
+    --menu: var(--color-cream);
+    --edge: var(--color-sand-warm);
+    /* 3:1 against the page and the field, so a field can be found. */
+    --edge-input: rgb(28 27 24 / 0.5);
+    --hover: var(--color-sand-warm);
+    --untracked: var(--color-surface-2);
+
+    --hairline: rgb(28 27 24 / 0.08);
+    --line: rgb(28 27 24 / 0.12);
+    --line-strong: rgb(28 27 24 / 0.18);
+    --surface-hover: rgb(28 27 24 / 0.04);
+    --surface-subtle: rgb(28 27 24 / 0.06);
+    --scrim: rgb(28 27 24 / 0.44);
+
+    --focus: var(--color-ink);
+    --focus-halo: rgb(28 27 24 / 0.12);
+
+    --primary: var(--color-ink);
+    --primary-hover: var(--color-ink-deep);
+    --primary-active: #000000;
+    --on-primary: var(--color-sand-light);
+    --primary-sheen: rgb(250 248 242 / 0.14);
+
+    --shadow-menu: 0 10px 28px -14px rgb(28 27 24 / 0.22), 0 2px 6px -2px rgb(28 27 24 / 0.08);
+    --shadow-drawer: -20px 0 48px rgb(28 27 24 / 0.18);
+    --bar-rest: 0.55;
+
+    /* Status hues, drawn for this ink and this ground. Critical keeps its
+       signal strength; the others lean warm so red stays the only hue that
+       shouts. Operational shares the brand sage on purpose. The -text values
+       clear 4.5:1 where a hue has to be read on its own tint. */
+    --sem-ok: #8BAE66;
+    --sem-ok-text: #517232;
+    --sem-minor: #D2B373;
+    --sem-minor-text: #826931;
+    --sem-minor-soft: rgb(210 179 115 / 0.14);
+    --sem-minor-border: rgb(210 179 115 / 0.4);
+    --sem-major: #CA874E;
+    --sem-major-text: #925A25;
+    --sem-major-soft: rgb(202 135 78 / 0.12);
+    --sem-major-border: rgb(202 135 78 / 0.34);
+    --sem-crit: #D03833;
+    --sem-crit-text: #B01F1F;
+    --sem-crit-soft: rgb(208 56 51 / 0.1);
+    --sem-crit-border: rgb(208 56 51 / 0.26);
+    --sem-info: #507FA7;
+    --sem-info-text: #336288;
+    --sem-info-soft: rgb(80 127 167 / 0.1);
+    --sem-info-border: rgb(80 127 167 / 0.3);
+
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .dark {
-    --color-status-operational: #8BAE66;
-    --color-status-degraded: oklch(0.852 0.199 92);
-    --color-status-partial: oklch(0.750 0.183 56);
-    --color-status-major: oklch(0.704 0.191 22);
-    --color-status-maintenance: oklch(0.707 0.165 254);
+    --ink: var(--color-sand-light);
+    --ink-soft: color-mix(in srgb, var(--color-sand) 85%, transparent);
+    --muted: var(--color-muted-dark);
+    --ground: var(--color-ink);
+    --mast-ground: var(--color-ink-deep);
+    --card: #201F1C;
+    --raised: #262420;
+    --menu: #36332D;
+    --edge: color-mix(in srgb, var(--color-sand) 14%, transparent);
+    --edge-input: color-mix(in srgb, var(--color-sand) 36%, transparent);
+    --hover: color-mix(in srgb, var(--color-sand) 10%, transparent);
+    --untracked: #36332D;
 
-    --color-impact-none: oklch(0.704 0.015 264);
-    --color-impact-minor: oklch(0.852 0.199 92);
-    --color-impact-major: oklch(0.750 0.183 56);
-    --color-impact-critical: oklch(0.704 0.191 22);
-
-    --color-surface-0: #1C1B18;
-    --color-surface-1: #262420;
-    --color-surface-2: #36332D;
-    --color-surface-3: #4A463E;
-
-    --color-accent: #F4F1EB;
-    --color-accent-hover: #FAF8F2;
-}
-
-/* Mode-aware alpha ramps. Use these instead of hard-coded rgb(ink/sand / a),
-   a rule using var(--hairline) adapts to dark without its own override. */
-:root {
-    --hairline:       rgb(28 27 24 / 0.08);
-    --line:           rgb(28 27 24 / 0.12);
-    --line-strong:    rgb(28 27 24 / 0.18);
-    --surface-hover:  rgb(28 27 24 / 0.04);
-    --surface-subtle: rgb(28 27 24 / 0.06);
-}
-
-:is(.dark *) {
-    --hairline:       color-mix(in srgb, var(--color-sand) 8%, transparent);
-    --line:           color-mix(in srgb, var(--color-sand) 12%, transparent);
-    --line-strong:    color-mix(in srgb, var(--color-sand) 18%, transparent);
-    --surface-hover:  color-mix(in srgb, var(--color-sand) 4%, transparent);
+    --hairline: color-mix(in srgb, var(--color-sand) 8%, transparent);
+    --line: color-mix(in srgb, var(--color-sand) 12%, transparent);
+    --line-strong: color-mix(in srgb, var(--color-sand) 18%, transparent);
+    --surface-hover: color-mix(in srgb, var(--color-sand) 4%, transparent);
     --surface-subtle: color-mix(in srgb, var(--color-sand) 6%, transparent);
+    --scrim: rgb(0 0 0 / 0.55);
+
+    --focus: var(--color-sand);
+    --focus-halo: color-mix(in srgb, var(--color-sand) 18%, transparent);
+
+    --primary: var(--color-sand);
+    --primary-hover: var(--color-sand-light);
+    --primary-active: var(--color-cream);
+    --on-primary: var(--color-ink);
+    --primary-sheen: rgb(28 27 24 / 0.1);
+
+    --shadow-menu: 0 12px 32px -14px rgb(0 0 0 / 0.7), 0 3px 8px -2px rgb(0 0 0 / 0.45);
+    --shadow-drawer: -20px 0 48px rgb(0 0 0 / 0.5);
+    --bar-rest: 0.4;
+
+    /* Same hues, lifted until each clears AA on the dark ground. */
+    --sem-ok-text: #8BAE66;
+    --sem-minor: #E3C78E;
+    --sem-minor-text: #E3C78E;
+    --sem-minor-soft: rgb(227 199 142 / 0.14);
+    --sem-minor-border: rgb(227 199 142 / 0.4);
+    --sem-major: #E4A067;
+    --sem-major-text: #E4A067;
+    --sem-major-soft: rgb(228 160 103 / 0.12);
+    --sem-major-border: rgb(228 160 103 / 0.36);
+    --sem-crit: #EF675C;
+    --sem-crit-text: #EF675C;
+    --sem-crit-soft: rgb(239 103 92 / 0.08);
+    --sem-crit-border: rgb(239 103 92 / 0.28);
+    --sem-info: #73ABDA;
+    --sem-info-text: #73ABDA;
+    --sem-info-soft: rgb(115 171 218 / 0.12);
+    --sem-info-border: rgb(115 171 218 / 0.32);
 }
 
+/* A tone names a status hue once; the component decides where it lands. */
+[data-tone="ok"] {
+    --tone: var(--sem-ok);
+    --tone-text: var(--sem-ok-text);
+}
 
+[data-tone="minor"] {
+    --tone: var(--sem-minor);
+    --tone-text: var(--sem-minor-text);
+    --tone-soft: var(--sem-minor-soft);
+    --tone-border: var(--sem-minor-border);
+}
+
+[data-tone="major"] {
+    --tone: var(--sem-major);
+    --tone-text: var(--sem-major-text);
+    --tone-soft: var(--sem-major-soft);
+    --tone-border: var(--sem-major-border);
+}
+
+[data-tone="crit"] {
+    --tone: var(--sem-crit);
+    --tone-text: var(--sem-crit-text);
+    --tone-soft: var(--sem-crit-soft);
+    --tone-border: var(--sem-crit-border);
+}
+
+[data-tone="info"] {
+    --tone: var(--sem-info);
+    --tone-text: var(--sem-info-text);
+    --tone-soft: var(--sem-info-soft);
+    --tone-border: var(--sem-info-border);
+}
+
+[data-tone="neutral"] {
+    --tone: var(--muted);
+    --tone-text: var(--muted);
+}

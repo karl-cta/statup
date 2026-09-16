@@ -6,14 +6,14 @@ use axum::response::{IntoResponse, Redirect, Response};
 use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
 
-use super::render;
+use super::{Frame, render};
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::headers::no_store;
 use crate::middleware::{CsrfToken, HtmlForm, RequireAdmin};
 use crate::models::{Role, User, check_display_name};
-use crate::repositories::{EventRepository, IconRepository, SettingsRepository, UserRepository};
-use crate::services::{AuthService, EventService};
+use crate::repositories::{IconRepository, SettingsRepository, UserRepository};
+use crate::services::AuthService;
 use crate::session::{read_value, write_value};
 use crate::state::AppState;
 
@@ -27,12 +27,7 @@ const INSTANCE_NAME_MAX_CHARS: usize = 40;
 #[derive(Template)]
 #[template(path = "admin/settings.html")]
 struct SettingsPageTemplate {
-    csrf_token: String,
-    user_display_name: String,
-    is_admin: bool,
-    is_authenticated: bool,
-    unread_count: i64,
-    last_admin_action: Option<String>,
+    frame: Frame,
     public_mode: bool,
     /// The value shown in the field: the saved name, or the refused one.
     instance_name: String,
@@ -51,6 +46,23 @@ enum SettingsNotice {
     NameReset,
     PublicOpened,
     PublicClosed,
+}
+
+impl SettingsPageTemplate {
+    /// "4 members, 1 administrator".
+    fn team_count(&self) -> String {
+        let count = |n: i64| usize::try_from(n).unwrap_or(0);
+        format!(
+            "{}, {}",
+            self.i18n.plural("admin.members", count(self.users_count)),
+            self.i18n.plural("admin.admins", count(self.admins_count))
+        )
+    }
+
+    fn icons_label(&self) -> String {
+        let count = usize::try_from(self.icons_count).unwrap_or(0);
+        self.i18n.plural("admin.icons", count)
+    }
 }
 
 /// What the settings page says on top of the saved values.
@@ -89,12 +101,7 @@ impl SettingsQuery {
 #[derive(Template)]
 #[template(path = "admin/users.html")]
 struct UsersListTemplate {
-    csrf_token: String,
-    user_display_name: String,
-    is_admin: bool,
-    is_authenticated: bool,
-    unread_count: i64,
-    last_admin_action: Option<String>,
+    frame: Frame,
     current_user_id: i64,
     users: Vec<UserRow>,
     /// The member the previous action touched, and what happened to them.
@@ -201,19 +208,6 @@ fn to_user_row(u: User, i18n: &I18n) -> UserRow {
     }
 }
 
-/// The unread count and the footer date that every signed-in page shows.
-async fn layout_counts(
-    state: &AppState,
-    user: &User,
-    i18n: &I18n,
-) -> Result<(i64, Option<String>), AppError> {
-    let unread_count = EventService::unread_count(&state.pool, user.last_seen_at).await?;
-    let last_admin_action = EventRepository::last_admin_action(&state.pool)
-        .await?
-        .map(|dt| i18n.format_datetime_long(&dt));
-    Ok((unread_count, last_admin_action))
-}
-
 pub async fn settings_page(
     RequireAdmin(user): RequireAdmin,
     State(state): State<AppState>,
@@ -236,14 +230,9 @@ async fn render_settings(
     i18n: I18n,
     page: SettingsPage,
 ) -> Result<Response, AppError> {
-    let (unread_count, last_admin_action) = layout_counts(state, user, &i18n).await?;
+    let frame = Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?;
     render(&SettingsPageTemplate {
-        csrf_token,
-        user_display_name: user.display_name.clone(),
-        is_admin: user.role.can_admin(),
-        is_authenticated: true,
-        unread_count,
-        last_admin_action,
+        frame,
         public_mode: state.is_public_mode(),
         instance_name: page.instance_name,
         notice: page.notice,
@@ -327,14 +316,9 @@ async fn render_users(
     users: Vec<UserRow>,
     page: ListPage,
 ) -> Result<Response, AppError> {
-    let (unread_count, last_admin_action) = layout_counts(state, user, &i18n).await?;
+    let frame = Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?;
     render(&UsersListTemplate {
-        csrf_token,
-        user_display_name: user.display_name.clone(),
-        is_admin: user.role.can_admin(),
-        is_authenticated: true,
-        unread_count,
-        last_admin_action,
+        frame,
         current_user_id: user.id,
         users,
         notice: page.notice,

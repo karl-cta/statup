@@ -15,7 +15,9 @@ use statup::db::{self, DbPool};
 use statup::middleware::rate_limit::RateLimit;
 use statup::repositories::SettingsRepository;
 use statup::routes::create_router;
-use statup::services::{AuthService, LoginRateLimiter};
+use statup::services::{
+    AuthService, DashboardLayoutService, LoginRateLimiter, spawn_maintenance_schedule,
+};
 use statup::session;
 use statup::state::AppState;
 
@@ -31,14 +33,9 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Config::from_env().context("invalid configuration")?;
     init_logging(config.log_level);
-    statup::init_css_version();
+    statup::init_asset_versions();
     tracing::info!("Statup starting on {}", config.bind_addr());
-    if config.trust_proxy_headers && !config.secure_cookies() {
-        tracing::warn!(
-            "TRUST_PROXY_HEADERS is on but PUBLIC_URL is not an https address: \
-             cookies are sent without the Secure flag and no HSTS header is set"
-        );
-    }
+    warn_on_plain_proxy(&config);
 
     let pool = open_database(&config).await?;
     let state = build_state(&config, pool.clone()).await?;
@@ -55,7 +52,23 @@ async fn main() -> anyhow::Result<()> {
     );
     let app = create_router(state, &rate_limit).layer(sessions);
     let served = serve(app, &config.bind_addr()).await;
+    stop(tasks, &pool).await;
+    served
+}
 
+/// Behind a proxy that terminates TLS, `PUBLIC_URL` is what marks the
+/// cookies `Secure` and turns HSTS on.
+fn warn_on_plain_proxy(config: &Config) {
+    if config.trust_proxy_headers && !config.secure_cookies() {
+        tracing::warn!(
+            "TRUST_PROXY_HEADERS is on but PUBLIC_URL is not an https address: \
+             cookies are sent without the Secure flag and no HSTS header is set"
+        );
+    }
+}
+
+/// Stops the background work, then closes the database.
+async fn stop(tasks: Vec<AbortHandle>, pool: &DbPool) {
     for task in tasks {
         task.abort();
     }
@@ -67,7 +80,6 @@ async fn main() -> anyhow::Result<()> {
         tracing::warn!("Database connections still in use, closing anyway");
     }
     tracing::info!("Statup stopped");
-    served
 }
 
 /// Opens and migrates the database, then creates the first administrator
@@ -82,6 +94,9 @@ async fn open_database(config: &Config) -> anyhow::Result<DbPool> {
     if let Err(e) = db::optimize(&pool).await {
         tracing::warn!(error = %e, "Planner statistics were not updated");
     }
+    DashboardLayoutService::reconcile(&pool)
+        .await
+        .context("cannot prepare the dashboard layouts")?;
 
     AuthService::bootstrap_admin(
         &pool,
@@ -133,6 +148,7 @@ fn spawn_background_tasks(pool: &DbPool, rate_limit: &RateLimit) -> Vec<AbortHan
     vec![
         session::spawn_cleanup_task(pool.clone()),
         rate_limit.spawn_cleanup_task(),
+        spawn_maintenance_schedule(pool.clone()),
     ]
 }
 

@@ -8,13 +8,13 @@ use axum::response::{IntoResponse, Redirect, Response};
 use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 use serde::Deserialize;
 
-use super::render;
+use super::{Frame, render};
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, RequirePublisher};
 use crate::models::{Icon, MAX_ICON_SIZE, User};
-use crate::repositories::{EventRepository, IconRepository};
-use crate::services::{EventService, IconService, file_exists, icon_path};
+use crate::repositories::IconRepository;
+use crate::services::{IconService, file_exists, icon_path};
 use crate::state::AppState;
 
 /// Longest original file name kept, in characters.
@@ -45,12 +45,7 @@ impl IconCard {
 #[derive(Template)]
 #[template(path = "icons/list.html")]
 struct IconListTemplate {
-    csrf_token: String,
-    user_display_name: String,
-    is_admin: bool,
-    is_authenticated: bool,
-    unread_count: i64,
-    last_admin_action: Option<String>,
+    frame: Frame,
     cards: Vec<IconCard>,
     /// Name of the icon the previous action added or removed.
     added: Option<String>,
@@ -136,17 +131,9 @@ async fn render_list(
     cards: Vec<IconCard>,
     notice: LibraryNotice,
 ) -> Result<Response, AppError> {
-    let unread_count = EventService::unread_count(&state.pool, user.last_seen_at).await?;
-    let last_admin_action = EventRepository::last_admin_action(&state.pool)
-        .await?
-        .map(|dt| i18n.format_datetime_long(&dt));
+    let frame = Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?;
     render(&IconListTemplate {
-        csrf_token,
-        user_display_name: user.display_name.clone(),
-        is_admin: user.role.can_admin(),
-        is_authenticated: true,
-        unread_count,
-        last_admin_action,
+        frame,
         cards,
         added: notice.added,
         removed: notice.removed,
@@ -234,7 +221,7 @@ pub async fn upload_picker(
     };
 
     render(&IconGridTemplate {
-        custom_icons: IconRepository::list_all(&state.pool).await?,
+        custom_icons: IconService::choosable(&state.pool, &state.upload_dir).await?,
         selected_icon_id,
         upload_error,
         i18n,

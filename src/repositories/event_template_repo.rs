@@ -12,7 +12,6 @@ pub struct CreateTemplateInput<'a> {
     pub severity: Option<Severity>,
     pub planned: bool,
     pub category: Option<Category>,
-    pub icon_id: Option<i64>,
     pub created_by: i64,
 }
 
@@ -22,9 +21,9 @@ impl EventTemplateRepository {
         input: CreateTemplateInput<'_>,
     ) -> Result<EventTemplate, sqlx::Error> {
         sqlx::query_as::<_, EventTemplate>(
-            "INSERT INTO event_templates (title, description, kind, severity, planned, category, icon_id, created_by) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?) \
-             RETURNING *",
+            "INSERT INTO event_templates \
+             (title, description, kind, severity, planned, category, created_by) \
+             VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *",
         )
         .bind(input.title)
         .bind(input.description)
@@ -32,7 +31,6 @@ impl EventTemplateRepository {
         .bind(input.severity)
         .bind(input.planned)
         .bind(input.category)
-        .bind(input.icon_id)
         .bind(input.created_by)
         .fetch_one(pool)
         .await
@@ -45,27 +43,22 @@ impl EventTemplateRepository {
             .await
     }
 
-    pub async fn list_all(pool: &DbPool) -> Result<Vec<EventTemplate>, sqlx::Error> {
-        sqlx::query_as::<_, EventTemplate>(
-            "SELECT * FROM event_templates ORDER BY usage_count DESC, created_at DESC",
-        )
-        .fetch_all(pool)
-        .await
-    }
-
+    /// Templates whose title contains `query`, most used first. The text is
+    /// matched literally, wildcards included.
     pub async fn search_by_title(
         pool: &DbPool,
         query: &str,
         limit: i64,
     ) -> Result<Vec<EventTemplate>, sqlx::Error> {
-        let pattern = format!("%{query}%");
+        let escaped = query
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_");
         sqlx::query_as::<_, EventTemplate>(
-            "SELECT * FROM event_templates \
-             WHERE title LIKE ? \
-             ORDER BY usage_count DESC, created_at DESC \
-             LIMIT ?",
+            "SELECT * FROM event_templates WHERE title LIKE ? ESCAPE '\\' \
+             ORDER BY usage_count DESC, created_at DESC LIMIT ?",
         )
-        .bind(pattern)
+        .bind(format!("%{escaped}%"))
         .bind(limit)
         .fetch_all(pool)
         .await
@@ -119,7 +112,6 @@ mod tests {
                 severity: Some(Severity::Minor),
                 planned: true,
                 category: None,
-                icon_id: None,
                 created_by: uid,
             },
         )
@@ -150,7 +142,6 @@ mod tests {
                 severity: Some(Severity::Minor),
                 planned: true,
                 category: None,
-                icon_id: None,
                 created_by: uid,
             },
         )
@@ -166,7 +157,6 @@ mod tests {
                 severity: Some(Severity::Major),
                 planned: false,
                 category: None,
-                icon_id: None,
                 created_by: uid,
             },
         )
@@ -194,7 +184,6 @@ mod tests {
                 severity: Some(Severity::Minor),
                 planned: false,
                 category: None,
-                icon_id: None,
                 created_by: uid,
             },
         )
@@ -210,7 +199,6 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(updated.usage_count, 1);
-        assert!(updated.last_used_at.is_some());
     }
 
     #[tokio::test]
@@ -227,7 +215,6 @@ mod tests {
                 severity: None,
                 planned: false,
                 category: Some(Category::Info),
-                icon_id: None,
                 created_by: uid,
             },
         )

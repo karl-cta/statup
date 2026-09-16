@@ -1,13 +1,11 @@
-//! Service model, `ServiceStatus` enum, and slug generation.
+//! Services and their status.
 
 use std::str::FromStr;
 
-use crate::db::DbPool;
-use crate::repositories::ServiceRepository;
-use serde::Serialize;
+use super::Tone;
 
 /// Current operational status of a service.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "TEXT", rename_all = "snake_case")]
 pub enum ServiceStatus {
     Operational,
@@ -18,22 +16,18 @@ pub enum ServiceStatus {
 }
 
 impl FromStr for ServiceStatus {
-    type Err = String;
+    type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "operational" => Ok(Self::Operational),
-            "degraded" => Ok(Self::Degraded),
-            "partial_outage" => Ok(Self::PartialOutage),
-            "major_outage" => Ok(Self::MajorOutage),
-            "maintenance" => Ok(Self::Maintenance),
-            other => Err(format!("unknown service status: {other}")),
-        }
+        Self::ALL
+            .into_iter()
+            .find(|status| status.as_str() == s)
+            .ok_or(())
     }
 }
 
 impl ServiceStatus {
-    /// All possible statuses, for building UI selectors.
+    /// Every status, in the order the status menu lists them.
     pub const ALL: [Self; 5] = [
         Self::Operational,
         Self::Degraded,
@@ -42,7 +36,6 @@ impl ServiceStatus {
         Self::Maintenance,
     ];
 
-    /// `snake_case` string for form values and DB storage.
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Operational => "operational",
@@ -53,18 +46,6 @@ impl ServiceStatus {
         }
     }
 
-    /// Tailwind CSS class for the status color.
-    pub fn css_class(self) -> &'static str {
-        match self {
-            Self::Operational => "text-status-operational",
-            Self::Degraded => "text-status-degraded",
-            Self::PartialOutage => "text-status-partial",
-            Self::MajorOutage => "text-status-major",
-            Self::Maintenance => "text-status-maintenance",
-        }
-    }
-
-    /// Translation key for i18n.
     pub fn i18n_key(self) -> &'static str {
         match self {
             Self::Operational => "status.service.operational",
@@ -75,19 +56,34 @@ impl ServiceStatus {
         }
     }
 
-    /// Background class for a small status dot. Resolves through the semantic
-    /// tokens, so the dot and the label beside it can never drift apart.
-    pub fn dot_class(self) -> &'static str {
+    pub fn tone(self) -> Tone {
         match self {
-            Self::Operational => "status-dot-ok",
-            Self::Degraded => "status-dot-minor",
-            Self::PartialOutage => "status-dot-major",
-            Self::MajorOutage => "status-dot-crit",
-            Self::Maintenance => "status-dot-info",
+            Self::Operational => Tone::Ok,
+            Self::Degraded => Tone::Minor,
+            Self::PartialOutage => Tone::Major,
+            Self::MajorOutage => Tone::Crit,
+            Self::Maintenance => Tone::Info,
         }
     }
 
-    /// Priority for determining the worst status (higher = worse).
+    pub fn is_operational(self) -> bool {
+        self == Self::Operational
+    }
+
+    /// A tool that works badly or not at all, maintenance aside.
+    pub fn is_disruption(self) -> bool {
+        matches!(
+            self,
+            Self::Degraded | Self::PartialOutage | Self::MajorOutage
+        )
+    }
+
+    /// Asks for a confirmation before it reaches every visitor.
+    pub fn is_outage(self) -> bool {
+        matches!(self, Self::PartialOutage | Self::MajorOutage)
+    }
+
+    /// Rank used to pick the worst status (higher is worse).
     pub fn priority(self) -> u8 {
         match self {
             Self::Operational => 0,
@@ -99,7 +95,6 @@ impl ServiceStatus {
     }
 }
 
-/// A monitored service.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct Service {
     pub id: i64,
@@ -111,54 +106,33 @@ pub struct Service {
     pub icon_name: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
-    /// Icon filename from JOIN with icons table (not always populated).
+    /// File name of the uploaded icon, when the query joins it.
     #[sqlx(default)]
     pub icon_filename: Option<String>,
+    /// Whether an event ever named this service, when the query asks.
+    #[sqlx(default)]
+    pub has_history: bool,
 }
 
 impl Service {
-    /// URL to the uploaded service icon (if any).
     pub fn icon_url(&self) -> Option<String> {
         self.icon_filename
             .as_ref()
             .map(|f| format!("/uploads/icons/{f}"))
     }
 
-    /// SVG path data for the built-in icon (if `icon_name` is set and valid).
-    /// Returns `|||`-separated paths when the icon has multiple `<path>` elements.
+    /// SVG path data of the built-in icon, `|||` between paths.
     pub fn builtin_icon_paths(&self) -> Option<&'static str> {
         self.icon_name
             .as_deref()
             .and_then(super::find_builtin_icon)
             .map(|i| i.paths)
     }
-}
 
-/// Generate a unique URL-safe slug. If the base slug is taken, appends `-2`,
-/// `-3`, ... until a free value is found.
-///
-/// # Errors
-///
-/// Returns `sqlx::Error` if a query fails.
-pub async fn generate_unique_slug(pool: &DbPool, name: &str) -> Result<String, sqlx::Error> {
-    let base = slug::slugify(name);
-    if ServiceRepository::find_by_slug(pool, &base)
-        .await?
-        .is_none()
-    {
-        return Ok(base);
-    }
-
-    let mut suffix = 2u32;
-    loop {
-        let candidate = format!("{base}-{suffix}");
-        if ServiceRepository::find_by_slug(pool, &candidate)
-            .await?
-            .is_none()
-        {
-            return Ok(candidate);
-        }
-        suffix += 1;
+    /// Fragment identifier of the service on the status page, stable across
+    /// renames, so a link can point at one service.
+    pub fn anchor(&self) -> String {
+        format!("service-{}", self.slug)
     }
 }
 
@@ -167,46 +141,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn operational_has_lowest_priority() {
-        assert_eq!(ServiceStatus::Operational.priority(), 0);
-    }
-
-    #[test]
-    fn major_outage_has_highest_priority() {
-        let max = [
-            ServiceStatus::Operational,
-            ServiceStatus::Degraded,
-            ServiceStatus::PartialOutage,
-            ServiceStatus::MajorOutage,
-            ServiceStatus::Maintenance,
-        ]
-        .iter()
-        .map(|s| s.priority())
-        .max()
-        .unwrap();
-        assert_eq!(max, ServiceStatus::MajorOutage.priority());
-    }
-
-    #[test]
-    fn priority_ordering_matches_severity() {
-        assert!(ServiceStatus::Operational.priority() < ServiceStatus::Degraded.priority());
-        assert!(ServiceStatus::Degraded.priority() < ServiceStatus::PartialOutage.priority());
-        assert!(ServiceStatus::PartialOutage.priority() < ServiceStatus::MajorOutage.priority());
-    }
-
-    #[test]
-    fn all_statuses_have_visual_classes() {
-        let statuses = [
-            ServiceStatus::Operational,
-            ServiceStatus::Degraded,
-            ServiceStatus::PartialOutage,
-            ServiceStatus::MajorOutage,
-            ServiceStatus::Maintenance,
-        ];
-        for s in statuses {
-            assert!(!s.css_class().is_empty());
-            assert!(!s.dot_class().is_empty());
-            assert!(!s.i18n_key().is_empty());
+    fn statuses_round_trip() {
+        for status in ServiceStatus::ALL {
+            assert_eq!(status.as_str().parse::<ServiceStatus>(), Ok(status));
         }
+        assert!("broken".parse::<ServiceStatus>().is_err());
+    }
+
+    #[test]
+    fn priority_ordering_matches_impact() {
+        let order = [
+            ServiceStatus::Operational,
+            ServiceStatus::Maintenance,
+            ServiceStatus::Degraded,
+            ServiceStatus::PartialOutage,
+            ServiceStatus::MajorOutage,
+        ];
+        assert!(order.windows(2).all(|w| w[0].priority() < w[1].priority()));
+    }
+
+    #[test]
+    fn only_outages_ask_first() {
+        assert!(ServiceStatus::MajorOutage.is_outage());
+        assert!(ServiceStatus::PartialOutage.is_outage());
+        assert!(!ServiceStatus::Degraded.is_outage());
     }
 }

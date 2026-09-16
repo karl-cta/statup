@@ -1,0 +1,648 @@
+@layer components {
+    /* Status banner. Calm, it is a plain card; with something open it takes
+       the tint of the worst tone, while its text stays in ink. */
+    .hero {
+        margin-bottom: 20px;
+        padding: 22px 24px 18px;
+        background: var(--card);
+        border: 1px solid var(--line);
+    }
+
+    /* Each line of the list carries its own tone; the rules between them
+       keep the banner's. */
+    .hero-alert {
+        --hero-rule: var(--tone-border);
+        background: var(--tone-soft);
+        border-color: var(--tone-border);
+    }
+
+    .hero-title {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        max-width: 60ch;
+        font-size: 28px;
+        font-weight: 600;
+        line-height: 1.15;
+        letter-spacing: -0.022em;
+        color: var(--ink);
+        overflow-wrap: anywhere;
+    }
+
+    /* Dot with a detached ring, drawn as its own element so the gap stays
+       transparent on a tinted ground. On a tint the dot takes the text
+       value of its hue, which keeps 3:1 there. */
+    .ring-dot {
+        --dot: var(--tone, var(--muted));
+        position: relative;
+        display: inline-block;
+        flex: none;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--dot);
+    }
+
+    .ring-dot::after {
+        content: "";
+        position: absolute;
+        inset: -3px;
+        border: 1px solid var(--dot);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .hero-alert .ring-dot {
+        --dot: var(--tone-text);
+    }
+
+    .ring-dot[data-tone="neutral"] {
+        background: transparent;
+        box-shadow: inset 0 0 0 1.5px var(--dot);
+    }
+
+    .hero-title .ring-dot {
+        top: -0.16em;
+    }
+
+    /* The ring arrives once, on the first paint; a refresh replaces the
+       markup without replaying it. */
+    html:not(.is-settled) .ring-dot::after {
+        animation: ring-in 560ms var(--ease-out) both;
+    }
+
+    @keyframes ring-in {
+        from {
+            opacity: 0;
+            transform: scale(0.35);
+        }
+    }
+
+    .hero-body {
+        margin-top: 10px;
+        padding-left: 20px;
+    }
+
+    .hero-meta {
+        font-size: 14px;
+        line-height: 1.55;
+        color: var(--ink-soft);
+    }
+
+    .hero-meta strong {
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .hero-update {
+        max-width: 72ch;
+        margin-top: 12px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--ink);
+    }
+
+    .hero-update-time {
+        display: block;
+        margin-bottom: 2px;
+        font-size: 12px;
+        color: var(--muted);
+    }
+
+    .hero-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 32px;
+        margin-top: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .hero-link svg {
+        width: 14px;
+        height: 14px;
+        transition: transform 150ms var(--ease-out);
+    }
+
+    .hero-link:hover svg {
+        transform: translateX(2px);
+    }
+
+    .hero-list {
+        margin: 16px 0 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .hero-item {
+        border-top: 1px solid var(--line);
+    }
+
+    .hero-alert .hero-item {
+        border-top-color: var(--hero-rule);
+    }
+
+    .hero-item-link {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: baseline;
+        gap: 2px 12px;
+        padding: 10px 0;
+    }
+
+    .hero-item-link > .dot {
+        align-self: center;
+    }
+
+    .hero-item-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink);
+        overflow-wrap: anywhere;
+    }
+
+    .hero-item-link:hover .hero-item-title {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+    .hero-item-meta {
+        grid-column: 2 / -1;
+        font-size: 13px;
+        color: var(--ink-soft);
+    }
+
+    .hero-item-state {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--ink-soft);
+        white-space: nowrap;
+    }
+
+    .hero-alert .dot {
+        background: var(--tone-text);
+    }
+
+    .hero-foot {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 20px;
+        margin-top: 18px;
+        font-size: 12px;
+        color: var(--muted);
+        font-feature-settings: 'tnum' 1;
+    }
+
+    .hero-alert .hero-foot,
+    .hero-alert .hero-update-time {
+        color: var(--ink-soft);
+    }
+
+    .hero-follow {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+        font-size: 13px;
+        font-weight: 500;
+        color: inherit;
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        text-underline-offset: 3px;
+        transition: color 150ms ease, text-decoration-color 150ms ease;
+    }
+
+    .hero-follow:hover {
+        color: var(--ink);
+        text-decoration-color: currentColor;
+    }
+
+    .hero-follow svg {
+        width: 13px;
+        height: 13px;
+    }
+
+    .hero .btn {
+        margin-top: 14px;
+    }
+
+    @media (max-width: 720px) {
+        .hero {
+            padding: 18px 16px 16px;
+        }
+
+        .hero-title {
+            gap: 10px;
+            font-size: 24px;
+        }
+
+        .hero-body {
+            padding-left: 0;
+        }
+
+        .hero-item-link {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .hero-item-state {
+            grid-column: 2;
+        }
+    }
+
+    /* Dashboard row: modules in saved order, side by side from 1024px with a
+       hairline between columns; the narrow ones keep a fixed width. */
+    .dash-divider {
+        margin: 32px 0;
+        border: 0;
+        border-top: 1px solid var(--line);
+    }
+
+    .dash-row {
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+    }
+
+    .dash-cell {
+        min-width: 0;
+    }
+
+    @media (min-width: 1024px) {
+        .dash-row {
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 0;
+        }
+
+        .dash-cell {
+            flex: 0 0 260px;
+        }
+
+        .dash-cell-wide {
+            flex: 1 1 0;
+        }
+
+        .dash-cell + .dash-cell {
+            padding-left: 32px;
+            border-left: 1px solid var(--line);
+        }
+
+        .dash-cell:not(:last-child) {
+            padding-right: 32px;
+        }
+    }
+
+    .quick-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+        margin-bottom: 20px;
+    }
+
+    /* Services card. */
+    .svc {
+        display: block;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--hairline);
+    }
+
+    .svc:last-child {
+        border-bottom: 0;
+    }
+
+    .svc:target {
+        background: var(--surface-subtle);
+    }
+
+    .svc-top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 2px 10px;
+        margin-bottom: 8px;
+    }
+
+    .svc-ident {
+        display: flex;
+        flex: 1 1 130px;
+        align-items: center;
+        gap: 8px;
+        min-width: 130px;
+    }
+
+    .svc-name {
+        min-width: 0;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.35;
+        letter-spacing: -0.008em;
+        color: var(--ink);
+        overflow-wrap: anywhere;
+    }
+
+    .svc-state {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        margin-left: auto;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--ink);
+        white-space: nowrap;
+    }
+
+    .svc-state[data-tone="ok"] {
+        color: var(--muted);
+    }
+
+    .svc-strip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .svc-pct {
+        flex: none;
+        min-width: 3ch;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: right;
+        color: var(--muted);
+        font-feature-settings: 'tnum' 1;
+    }
+
+    .svc-bars {
+        position: relative;
+        display: flex;
+        flex: 1;
+        gap: 2px;
+        min-width: 0;
+        height: 20px;
+    }
+
+    .bar {
+        flex: 1 1 0;
+        min-width: 0;
+        background: var(--sem-ok);
+        border-radius: 1.5px;
+        opacity: var(--bar-rest);
+        transition: opacity 120ms ease;
+    }
+
+    .bar:hover {
+        opacity: 1;
+    }
+
+    .bar-minor {
+        background: var(--sem-minor);
+        opacity: 0.85;
+    }
+
+    .bar-major {
+        background: var(--sem-major);
+        opacity: 0.9;
+    }
+
+    .bar-crit {
+        background: var(--sem-crit);
+        opacity: 0.95;
+    }
+
+    /* Days before the service existed: nothing observed them. */
+    .bar-none {
+        background: var(--untracked);
+        opacity: 1;
+    }
+
+    /* Day label. Without the script it is pinned to the nearest end of the
+       row; with it, it follows the day and stays inside the card. */
+    .svc-bars .bar::after {
+        content: attr(data-day-date) "\A" attr(data-day-status);
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 0;
+        z-index: 10;
+        padding: 4px 8px;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.35;
+        text-align: center;
+        white-space: pre;
+        color: var(--ground);
+        background: var(--ink);
+        border-radius: 4px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 80ms ease-out;
+    }
+
+    .svc-bars .bar:nth-last-child(-n + 15)::after {
+        right: 0;
+        left: auto;
+    }
+
+    .svc-bars.tip-js .bar::after {
+        right: auto;
+        left: var(--tt-x, 0);
+    }
+
+    .svc-bars .bar:hover::after {
+        opacity: 1;
+    }
+
+    .svc-icon {
+        display: inline-flex;
+        flex: none;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        color: var(--muted);
+    }
+
+    .svc-icon svg,
+    .svc-icon img {
+        width: 18px;
+        height: 18px;
+        object-fit: contain;
+    }
+
+    /* Activity rows, shared by the dashboard and the events list. */
+    .log-day {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0;
+        padding: 14px 16px 6px;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.2;
+        color: var(--muted);
+    }
+
+    .log-day::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--hairline);
+    }
+
+    .log-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .log-row {
+        display: grid;
+        grid-template-columns: 48px minmax(0, 1fr) auto;
+        align-items: baseline;
+        gap: 4px 12px;
+        padding: 10px 16px;
+        border-top: 1px solid var(--hairline);
+        transition: background-color 120ms ease;
+    }
+
+    .log-list > li:first-child > .log-row {
+        border-top: 0;
+    }
+
+    .log-row:hover {
+        background: var(--surface-hover);
+    }
+
+    .log-time {
+        font-size: 12px;
+        color: var(--muted);
+        font-feature-settings: 'tnum' 1;
+    }
+
+    .log-body {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    .log-head {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .log-title {
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.4;
+        letter-spacing: -0.005em;
+        color: var(--ink);
+        overflow-wrap: anywhere;
+    }
+
+    .log-row:hover .log-title {
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-underline-offset: 3px;
+    }
+
+    .log-row-open .log-title {
+        font-weight: 600;
+    }
+
+    .log-excerpt {
+        display: -webkit-box;
+        margin-top: 2px;
+        overflow: hidden;
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--muted);
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    .search-hit {
+        font-weight: 700;
+        color: inherit;
+        background: transparent;
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+    }
+
+    @media (max-width: 520px) {
+        .log-row {
+            grid-template-columns: 44px minmax(0, 1fr);
+            gap: 4px 10px;
+        }
+
+        .log-row > .state {
+            grid-column: 2;
+            justify-self: start;
+        }
+    }
+
+    /* Maintenances card. */
+    .card-group {
+        margin: 0;
+        padding: 12px 16px 4px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+    }
+
+    .card-group + ul > li:first-child > .mnt {
+        border-top: 0;
+    }
+
+    .mnt {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 10px 16px 12px;
+        border-top: 1px solid var(--hairline);
+        transition: background-color 120ms ease;
+    }
+
+    .mnt:hover {
+        background: var(--surface-hover);
+    }
+
+    .mnt-title {
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.35;
+        color: var(--ink);
+        overflow-wrap: anywhere;
+    }
+
+    .mnt:hover .mnt-title {
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-underline-offset: 3px;
+    }
+
+    .mnt-past .mnt-title {
+        font-size: 13px;
+        font-weight: 400;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        html:not(.is-settled) .ring-dot::after {
+            animation: none;
+        }
+
+        .hero-link svg,
+        .bar,
+        .svc-bars .bar::after {
+            transition: none;
+        }
+    }
+}

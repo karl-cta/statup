@@ -1,71 +1,58 @@
-{# Scheduled maintenances, dashboard right card. Expects: active_maintenance, resolved_maintenance, i18n #}
-<section class="card">
+<section class="card" aria-labelledby="maintenance-title">
     <header class="card-head">
-        {# No count here: it would only cover the upcoming group, while the two
-           group headers below already count themselves. #}
-        <h2>
-            <span>{{ i18n.t("dashboard.maintenance") }}</span>
-        </h2>
+        <h2 id="maintenance-title" class="card-title">{{ i18n.t("dashboard.maintenance") }}</h2>
+        {% if !self.is_empty() %}
         <a href="/events?kind=maintenance" class="card-action">{{ i18n.t("dashboard.view_all") }}</a>
+        {% endif %}
     </header>
 
-    {% if active_maintenance.is_empty() && resolved_maintenance.is_empty() %}
-    <p class="card-empty">{{ i18n.t("dashboard.no_maintenance_at_all") }}</p>
+    {% if self.is_empty() %}
+    <div class="empty-state">
+        <p class="empty-state-text">{{ i18n.t("dashboard.no_maintenance") }}</p>
+    </div>
     {% else %}
-
-    {% if !active_maintenance.is_empty() %}
-    <div class="mnt-group-h">
-        <span>{{ i18n.t("dashboard.maintenance_upcoming") }}</span>
-        <span>{{ active_maintenance.len() }}</span>
-    </div>
-    {% for event in active_maintenance %}
-    <a href="/events/{{ event.id }}" data-drawer="/events/{{ event.id }}/drawer" class="mnt">
-        <div class="mnt-top">
-            <span class="mnt-tag {% if event.is_overdue() || event.is_soon() %}mnt-tag-soon{% else %}mnt-tag-scheduled{% endif %}">
-                <span class="mnt-tag-dot" aria-hidden="true"></span>
-                {% if event.is_overdue() %}
-                {{ i18n.t("dashboard.maintenance_tag_overdue") }}
-                {% else if event.is_soon() %}
-                {{ i18n.t("dashboard.maintenance_tag_soon") }}
-                {% else %}
-                {{ i18n.t("dashboard.maintenance_tag_scheduled") }}
-                {% endif %}
-            </span>
-            {% match i18n.format_countdown_opt(event.countdown()) %}
-            {% when Some with (text) %}
-            <span class="mnt-countdown{% if event.is_soon() %} mnt-countdown-soon{% endif %}">{{ text }}</span>
-            {% when None %}
-            {% endmatch %}
-        </div>
-        <div class="mnt-title">{{ event.title }}</div>
-        {% match event.planned_start %}
-        {% when Some with (start) %}
-        <div class="mnt-meta">{{ i18n.format_datetime(start) }}</div>
-        {% when None %}
-        {% endmatch %}
-        {% if !event.services().is_empty() %}
-        <div class="mnt-chips">
-            {% for svc in event.services() %}
-            <span class="mnt-chip">{{ svc }}</span>
-            {% endfor %}
-        </div>
-        {% endif %}
-    </a>
-    {% endfor %}
+    {% if !ongoing.is_empty() %}
+    <h3 class="card-group">{{ i18n.t("maintenance.group_ongoing") }}</h3>
+    <ul class="log-list">
+        {% for m in ongoing %}
+        <li>
+            <a class="mnt" href="/events/{{ m.id }}" data-drawer="/events/{{ m.id }}/drawer">
+                <span class="mnt-title">{{ m.title }}</span>
+                {% if !m.when.is_empty() %}<span class="meta">{{ m.when }}</span>{% endif %}
+                {% if !m.services.is_empty() %}<span class="meta">{{ m.services|join(", ") }}</span>{% endif %}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
     {% endif %}
 
-    {% if !resolved_maintenance.is_empty() %}
-    <div class="mnt-group-h">
-        <span>{{ i18n.t("dashboard.maintenance_past") }}</span>
-        <span>{{ resolved_maintenance.len() }}</span>
-    </div>
-    {% for event in resolved_maintenance %}
-    <a href="/events/{{ event.id }}" data-drawer="/events/{{ event.id }}/drawer" class="mnt-past">
-        <span class="mnt-past-title">{{ event.title }}</span>
-        <span class="mnt-past-meta">{{ i18n.format_time(event.updated_at) }}</span>
-    </a>
-    {% endfor %}
+    {% if !upcoming.is_empty() %}
+    <h3 class="card-group">{{ i18n.t("maintenance.group_upcoming") }}</h3>
+    <ul class="log-list">
+        {% for m in upcoming %}
+        <li>
+            <a class="mnt" href="/events/{{ m.id }}" data-drawer="/events/{{ m.id }}/drawer">
+                <span class="mnt-title">{{ m.title }}</span>
+                {% if !m.when.is_empty() %}<span class="meta">{{ m.when }}{% if let Some(countdown) = m.countdown %}&nbsp;<span aria-hidden="true">·</span> {{ countdown }}{% endif %}</span>{% endif %}
+                {% if !m.services.is_empty() %}<span class="meta">{{ m.services|join(", ") }}</span>{% endif %}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
     {% endif %}
 
+    {% if !finished.is_empty() %}
+    <h3 class="card-group">{{ i18n.t("maintenance.group_finished") }}</h3>
+    <ul class="log-list">
+        {% for m in finished %}
+        <li>
+            <a class="mnt mnt-past" href="/events/{{ m.id }}" data-drawer="/events/{{ m.id }}/drawer">
+                <span class="mnt-title">{{ m.title }}</span>
+                <span class="meta">{{ m.state }}&nbsp;<span aria-hidden="true">·</span> {{ m.when }}</span>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
     {% endif %}
 </section>

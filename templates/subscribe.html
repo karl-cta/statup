@@ -1,0 +1,45 @@
+{% extends "_layout.html" %}
+{% import "components/macros.html" as ui %}
+
+{% block title %}{{ i18n.t("subscribe.title") }} | {{ crate::brand_name() }}{% endblock %}
+{% block section %}home{% endblock %}
+
+{% block content %}
+<div class="page page-narrow">
+    <header class="page-head">
+        <div>
+            <a href="/" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("subscribe.back") }}</a>
+            <h1 class="page-title">{{ i18n.t("subscribe.heading") }}</h1>
+            <p class="page-lede">{{ i18n.t("subscribe.lede") }}</p>
+        </div>
+    </header>
+
+    {% if !feed_readable %}
+    <div class="form-notice"><p>{{ i18n.t("subscribe.members_only") }}</p></div>
+    {% endif %}
+
+    <section class="event-section" aria-labelledby="feed-title">
+        <h2 id="feed-title" class="section-title">{{ i18n.t("subscribe.reader_title") }}</h2>
+        <div class="copy-field">
+            <label for="feed-url" class="sr-only">{{ i18n.t("subscribe.address") }}</label>
+            <input id="feed-url" class="input" type="text" value="{{ feed_url }}" readonly data-select-on-focus>
+            <button type="button" class="btn btn-ghost" data-copy="#feed-url" data-copied="{{ i18n.t("subscribe.copied") }}">{{ i18n.t("subscribe.copy") }}</button>
+        </div>
+        <ol class="steps">
+            <li>{{ i18n.t("subscribe.step_copy") }}</li>
+            <li>{{ i18n.t("subscribe.step_add") }}</li>
+            <li>{{ i18n.t("subscribe.step_done") }}</li>
+        </ol>
+    </section>
+
+    <section class="event-section" aria-labelledby="chat-title">
+        <h2 id="chat-title" class="section-title">{{ i18n.t("subscribe.chat_title") }}</h2>
+        <p class="page-lede">{{ i18n.t("subscribe.chat_text") }}</p>
+    </section>
+
+    <section class="event-section" aria-labelledby="page-title">
+        <h2 id="page-title" class="section-title">{{ i18n.t("subscribe.page_title") }}</h2>
+        <p class="page-lede">{{ i18n.t("subscribe.page_text") }}</p>
+    </section>
+</div>
+{% endblock %}

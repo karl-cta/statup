@@ -1,118 +1,57 @@
-//! Services module.
-//!
-//! Renders the list of services with 30-day availability sparklines. Shown
-//! as a left sidebar on desktop and a horizontal strip on mobile.
+//! Services card: every service with its current status and thirty days of
+//! incident history.
 
 use std::collections::HashMap;
 
 use askama::Template;
 use async_trait::async_trait;
-use chrono::{Duration, NaiveDate, Utc};
+use chrono::{Duration, NaiveDate};
 
+use crate::clock;
 use crate::error::AppError;
 use crate::i18n::I18n;
-use crate::models::Service;
-use crate::repositories::{EventRepository, ServiceRepository};
+use crate::models::{Service, Severity};
+use crate::repositories::{EventRepository, IncidentSpan, ServiceRepository};
 
-use super::{ColumnWidth, Module, ModuleContext, ModuleRenderContext};
+use super::{ColumnWidth, Module, ModuleContext, ModuleRenderContext, render_template};
 
-const SPARKLINE_DAYS: u32 = 30;
+const DAYS: i64 = 30;
 
 pub struct ServicesModule;
 
-pub struct SparklineDay {
-    pub class: &'static str,
-    /// Stacked on two lines in the tooltip: a single line was 152px wide in a
-    /// 260px column, which left it no room to follow the day it describes.
+/// One day of the strip. `level` is `None` before the service existed,
+/// otherwise the worst incident severity of the day, 0 for none.
+pub struct DayCell {
+    pub level: Option<u8>,
     pub date: String,
     pub status: String,
+}
+
+impl DayCell {
+    pub fn class(&self) -> &'static str {
+        match self.level {
+            None => "bar bar-none",
+            Some(0) => "bar",
+            Some(1) => "bar bar-minor",
+            Some(2) => "bar bar-major",
+            Some(_) => "bar bar-crit",
+        }
+    }
+}
+
+pub struct ServiceRow {
+    pub service: Service,
+    pub days: Vec<DayCell>,
+    pub availability: String,
+    pub availability_label: String,
 }
 
 #[derive(Template)]
 #[template(path = "modules/services.html")]
 struct ServicesTemplate {
-    services: Vec<Service>,
-    sparkline_map: HashMap<i64, Vec<u8>>,
-    /// `/services` is publisher-only, so the link to it is not offered to a
-    /// visitor it would only send to the login page.
-    can_edit: bool,
+    rows: Vec<ServiceRow>,
+    can_publish: bool,
     i18n: I18n,
-}
-
-impl ServicesTemplate {
-    /// One entry per day in the window, oldest first. `None` marks a day before
-    /// the service existed: nothing observed it, and painting it operational
-    /// would claim uptime the instance never measured.
-    fn day_levels(&self, service: &Service) -> Vec<(NaiveDate, Option<u8>)> {
-        let empty = vec![0u8; SPARKLINE_DAYS as usize];
-        let points = self.sparkline_map.get(&service.id).unwrap_or(&empty);
-        let today = Utc::now().date_naive();
-        let first_day = service.created_at.date_naive();
-        let count = points.len();
-        points
-            .iter()
-            .enumerate()
-            .map(|(idx, &level)| {
-                let offset =
-                    i64::try_from(count.saturating_sub(1).saturating_sub(idx)).unwrap_or(0);
-                let date = today - Duration::days(offset);
-                let observed = if date < first_day { None } else { Some(level) };
-                (date, observed)
-            })
-            .collect()
-    }
-
-    fn sparkline_days(&self, service: &Service) -> Vec<SparklineDay> {
-        self.day_levels(service)
-            .into_iter()
-            .map(|(date, level)| {
-                let (label_key, class) = match level {
-                    None => ("dashboard.sparkline_legend_none", "bar bar-none"),
-                    Some(0) => ("dashboard.sparkline_legend_ok", "bar"),
-                    Some(1) => ("dashboard.sparkline_legend_minor", "bar bar-minor"),
-                    Some(2) => ("dashboard.sparkline_legend_major", "bar bar-major"),
-                    Some(_) => ("dashboard.sparkline_legend_critical", "bar bar-crit"),
-                };
-                SparklineDay {
-                    class,
-                    date: date.format("%Y-%m-%d").to_string(),
-                    status: self.i18n.t(label_key).to_string(),
-                }
-            })
-            .collect()
-    }
-
-    /// One label for the whole strip, replacing thirty individual ones.
-    fn availability_label(&self, service: &Service) -> String {
-        let levels = self.day_levels(service);
-        let unknown = levels.iter().filter(|(_, l)| l.is_none()).count();
-        let ok = levels.iter().filter(|(_, l)| *l == Some(0)).count();
-        let incidents = levels.len() - unknown - ok;
-        self.i18n.format_availability(ok, incidents, unknown)
-    }
-
-    /// Availability over the days the service actually existed, not over the
-    /// whole window. A service with nothing observed yet prints a placeholder:
-    /// a fresh instance cannot claim thirty perfect days on its first morning.
-    /// One decimal, because thirty day-buckets only ever yield 31 values and a
-    /// second decimal would advertise a precision the computation lacks.
-    #[allow(clippy::naive_bytecount, clippy::cast_precision_loss)]
-    fn uptime_pct(&self, service: &Service) -> String {
-        let observed: Vec<u8> = self
-            .day_levels(service)
-            .into_iter()
-            .filter_map(|(_, level)| level)
-            .collect();
-        // A single observed day is the partial day the service was created on,
-        // which is not a measurement. The bars still show whatever happened.
-        let total = observed.len();
-        if total < 2 {
-            return self.i18n.t("dashboard.availability_unknown").to_string();
-        }
-        let ok_days = observed.iter().filter(|&&level| level == 0).count();
-        let pct = ok_days as f64 / total as f64 * 100.0;
-        format!("{pct:.1}%")
-    }
 }
 
 #[async_trait]
@@ -133,7 +72,7 @@ impl Module for ServicesModule {
         &[ModuleContext::Public, ModuleContext::Admin]
     }
 
-    fn default_position(&self, _context: ModuleContext) -> i64 {
+    fn default_position(&self) -> i64 {
         20
     }
 
@@ -142,15 +81,185 @@ impl Module for ServicesModule {
     }
 
     async fn render(&self, ctx: &ModuleRenderContext<'_>) -> Result<String, AppError> {
-        let services = ServiceRepository::list_all_with_icons(ctx.pool).await?;
-        let sparkline_map = EventRepository::sparkline_data(ctx.pool, SPARKLINE_DAYS).await?;
-        let tpl = ServicesTemplate {
-            services,
-            sparkline_map,
-            can_edit: ctx.user.is_some_and(|u| u.role.can_publish()),
+        let today = clock::today();
+        let first_day = today - Duration::days(DAYS - 1);
+        let since = clock::day_start(first_day).unwrap_or_default();
+        let services = ServiceRepository::list_all(ctx.pool).await?;
+        let spans = EventRepository::incident_spans(ctx.pool, since).await?;
+        let rows = services
+            .into_iter()
+            .map(|service| service_row(service, &spans, today, ctx.i18n))
+            .collect();
+        let template = ServicesTemplate {
+            rows,
+            can_publish: ctx.can_publish(),
             i18n: ctx.i18n.clone(),
         };
-        tpl.render()
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("services render: {e}")))
+        render_template(self.id(), &template)
+    }
+}
+
+fn service_row(
+    service: Service,
+    spans: &HashMap<i64, Vec<IncidentSpan>>,
+    today: NaiveDate,
+    i18n: &I18n,
+) -> ServiceRow {
+    let levels = day_levels(
+        spans.get(&service.id).map_or(&[], Vec::as_slice),
+        clock::local_date(&service.created_at),
+        today,
+    );
+    let days = levels
+        .iter()
+        .map(|(date, level)| DayCell {
+            level: *level,
+            date: i18n.format_date_short(date),
+            status: day_status(*level, i18n),
+        })
+        .collect();
+    ServiceRow {
+        service,
+        days,
+        availability: availability(&levels, i18n),
+        availability_label: availability_label(&levels, i18n),
+    }
+}
+
+/// Worst incident level of each of the last thirty days, oldest first.
+fn day_levels(
+    spans: &[IncidentSpan],
+    created: NaiveDate,
+    today: NaiveDate,
+) -> Vec<(NaiveDate, Option<u8>)> {
+    (0..DAYS)
+        .rev()
+        .map(|offset| {
+            let date = today - Duration::days(offset);
+            let level = (date >= created).then(|| worst_level_on(spans, date, today));
+            (date, level)
+        })
+        .collect()
+}
+
+fn worst_level_on(spans: &[IncidentSpan], date: NaiveDate, today: NaiveDate) -> u8 {
+    spans
+        .iter()
+        .filter(|span| {
+            let start = clock::local_date(&span.start);
+            let end = span.end.map_or(today, |end| clock::local_date(&end));
+            start <= date && date <= end
+        })
+        .map(|span| severity_level(span.severity))
+        .max()
+        .unwrap_or(0)
+}
+
+fn severity_level(severity: Option<Severity>) -> u8 {
+    match severity {
+        Some(Severity::Critical) => 3,
+        Some(Severity::Major) => 2,
+        Some(Severity::Minor) | None => 1,
+    }
+}
+
+fn day_status(level: Option<u8>, i18n: &I18n) -> String {
+    let key = match level {
+        None => "availability.day_untracked",
+        Some(0) => "availability.day_ok",
+        Some(1) => Severity::Minor.i18n_key(),
+        Some(2) => Severity::Major.i18n_key(),
+        Some(_) => Severity::Critical.i18n_key(),
+    };
+    i18n.t(key).to_string()
+}
+
+/// Share of the observed days without an incident. The first, partial day
+/// alone is not a measurement.
+fn availability(levels: &[(NaiveDate, Option<u8>)], i18n: &I18n) -> String {
+    let observed = levels.iter().filter(|(_, level)| level.is_some()).count();
+    if observed < 2 {
+        return i18n.t("availability.too_recent").to_string();
+    }
+    let clear = levels.iter().filter(|(_, level)| *level == Some(0)).count();
+    let percent = (clear * 100 + observed / 2) / observed;
+    i18n.format_percent(u32::try_from(percent).unwrap_or(100))
+}
+
+fn availability_label(levels: &[(NaiveDate, Option<u8>)], i18n: &I18n) -> String {
+    let untracked = levels.iter().filter(|(_, l)| l.is_none()).count();
+    let clear = levels.iter().filter(|(_, l)| *l == Some(0)).count();
+    i18n.format_availability(clear, levels.len() - untracked - clear, untracked)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{TimeZone, Utc};
+
+    fn span(
+        severity: Option<Severity>,
+        start_days_ago: i64,
+        end_days_ago: Option<i64>,
+    ) -> IncidentSpan {
+        let now = Utc::now();
+        IncidentSpan {
+            severity,
+            start: now - Duration::days(start_days_ago),
+            end: end_days_ago.map(|d| now - Duration::days(d)),
+        }
+    }
+
+    #[test]
+    fn days_before_creation_are_untracked() {
+        let today = clock::today();
+        let levels = day_levels(&[], today - Duration::days(1), today);
+        assert_eq!(levels.len(), 30);
+        assert_eq!(levels.iter().filter(|(_, l)| l.is_none()).count(), 28);
+        assert_eq!(levels.last().map(|(d, _)| *d), Some(today));
+    }
+
+    #[test]
+    fn an_open_incident_colours_every_day_until_today() {
+        let today = clock::today();
+        let spans = [span(Some(Severity::Critical), 2, None)];
+        let levels = day_levels(&spans, today - Duration::days(40), today);
+        let coloured: Vec<u8> = levels
+            .iter()
+            .rev()
+            .take(3)
+            .filter_map(|(_, l)| *l)
+            .collect();
+        assert_eq!(coloured, vec![3, 3, 3]);
+        assert_eq!(levels[0].1, Some(0));
+    }
+
+    #[test]
+    fn the_worst_incident_of_the_day_wins() {
+        let today = clock::today();
+        let spans = [span(Some(Severity::Minor), 0, None), span(None, 0, Some(0))];
+        assert_eq!(worst_level_on(&spans, today, today), 1);
+        let spans = [
+            span(Some(Severity::Major), 0, None),
+            span(Some(Severity::Minor), 0, None),
+        ];
+        assert_eq!(worst_level_on(&spans, today, today), 2);
+    }
+
+    #[test]
+    fn availability_is_rounded_and_honest_when_new() {
+        let i18n = I18n::new("en");
+        let date = Utc
+            .with_ymd_and_hms(2026, 1, 1, 0, 0, 0)
+            .unwrap()
+            .date_naive();
+        let mut levels = vec![(date, Some(0)); 29];
+        levels.push((date, Some(2)));
+        assert_eq!(availability(&levels, &i18n), "97%");
+        let fresh = vec![(date, None), (date, Some(0))];
+        assert_eq!(
+            availability(&fresh, &i18n),
+            i18n.t("availability.too_recent")
+        );
     }
 }

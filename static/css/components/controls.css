@@ -1,0 +1,792 @@
+@layer components {
+    /* Buttons. The primary never moves: under the pointer a pale sheen
+       crosses it once, on a pseudo-element, so the label stays crisp. */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 40px;
+        padding: 9px 18px;
+        font-family: var(--font-sans);
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.2;
+        letter-spacing: 0.005em;
+        white-space: nowrap;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+    }
+
+    .btn svg {
+        width: 14px;
+        height: 14px;
+        flex: none;
+    }
+
+    .btn-sm {
+        min-height: 32px;
+        padding: 5px 12px;
+        font-size: 13px;
+    }
+
+    .btn-primary {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        color: var(--on-primary);
+        background: var(--primary);
+        border-color: var(--primary);
+    }
+
+    .btn-primary::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background: linear-gradient(100deg, transparent 0%, var(--primary-sheen) 45%, var(--primary-sheen) 55%, transparent 100%);
+        transform: translateX(-101%);
+        transition: transform 420ms var(--ease-out);
+        pointer-events: none;
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-hover);
+        border-color: var(--primary-hover);
+    }
+
+    .btn-primary:hover::before {
+        transform: translateX(0);
+    }
+
+    .btn-primary:active {
+        background: var(--primary-active);
+        border-color: var(--primary-active);
+    }
+
+    .btn-ghost {
+        color: var(--ink);
+        background: var(--raised);
+        border-color: var(--edge);
+    }
+
+    .btn-ghost:hover {
+        background: var(--hover);
+    }
+
+    .btn-ghost:active {
+        background: var(--line);
+    }
+
+    /* Readable as a button at rest without competing with the primary. */
+    .btn-danger {
+        color: var(--sem-crit-text);
+        background: transparent;
+        border-color: var(--sem-crit-border);
+    }
+
+    .btn-danger:hover {
+        background: var(--surface-hover);
+        border-color: var(--sem-crit-text);
+    }
+
+    /* Text actions inside a row: quiet at rest, full ink under the pointer. */
+    .text-action {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 0 2px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--muted);
+        background: none;
+        border: 0;
+        border-radius: 4px;
+        transition: color 150ms ease;
+    }
+
+    .text-action:hover {
+        color: var(--ink);
+    }
+
+    .text-action-danger:hover {
+        color: var(--sem-crit-text);
+    }
+
+    .link {
+        color: var(--ink);
+        font-weight: 500;
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-underline-offset: 3px;
+        transition: text-decoration-color 150ms ease;
+    }
+
+    .link:hover {
+        text-decoration-color: currentColor;
+    }
+
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--muted);
+        transition: color 150ms ease;
+    }
+
+    .back-link svg {
+        width: 14px;
+        height: 14px;
+        transition: transform 150ms var(--ease-out);
+    }
+
+    .back-link:hover {
+        color: var(--ink);
+    }
+
+    .back-link:hover svg {
+        transform: translateX(-2px);
+    }
+
+    /* Fields. */
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .field-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--ink-soft);
+    }
+
+    .field-note {
+        font-weight: 400;
+        color: var(--muted);
+    }
+
+    .field-hint {
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--muted);
+    }
+
+    .field-error {
+        font-size: 13px;
+        color: var(--sem-crit-text);
+    }
+
+    .input {
+        width: 100%;
+        min-height: 40px;
+        padding: 8px 12px;
+        font-family: var(--font-sans);
+        font-size: 14px;
+        line-height: 1.4;
+        color: var(--ink);
+        background: var(--raised);
+        border: 1px solid var(--edge-input);
+        border-radius: 6px;
+        transition: border-color 150ms ease, box-shadow 150ms ease;
+    }
+
+    .input:hover {
+        border-color: var(--focus);
+    }
+
+    .input:focus {
+        border-color: var(--focus);
+        box-shadow: 0 0 0 3px var(--focus-halo);
+        outline: none;
+    }
+
+    .input::placeholder {
+        color: var(--muted);
+        opacity: 1;
+    }
+
+    .input[aria-invalid="true"] {
+        border-color: var(--sem-crit-text);
+    }
+
+    textarea.input {
+        min-height: 104px;
+        line-height: 1.55;
+        resize: vertical;
+    }
+
+    /* Custom select over a native one; the list is portaled to the body. */
+    .cs-wrap {
+        position: relative;
+        display: block;
+        width: 100%;
+    }
+
+    .cs-native {
+        position: absolute !important;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .cs-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        width: 100%;
+        min-height: 40px;
+        padding: 8px 10px 8px 12px;
+        font-family: var(--font-sans);
+        font-size: 14px;
+        line-height: 1.4;
+        color: var(--ink);
+        text-align: left;
+        background: var(--raised);
+        border: 1px solid var(--edge-input);
+        border-radius: 6px;
+        transition: border-color 150ms ease, box-shadow 150ms ease;
+    }
+
+    .cs-trigger:hover {
+        border-color: var(--focus);
+    }
+
+    .cs-trigger:focus-visible,
+    .cs-open .cs-trigger {
+        border-color: var(--focus);
+        box-shadow: 0 0 0 3px var(--focus-halo);
+        outline: none;
+    }
+
+    .cs-disabled .cs-trigger {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .cs-face {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .cs-label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .cs-caret {
+        display: inline-flex;
+        flex: 0 0 12px;
+        width: 12px;
+        height: 12px;
+        color: var(--muted);
+        transition: transform 150ms ease;
+    }
+
+    .cs-open .cs-caret {
+        transform: rotate(180deg);
+    }
+
+    .cs-list {
+        position: fixed;
+        z-index: 100;
+        margin: 0;
+        padding: 4px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        list-style: none;
+        background: var(--menu);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        box-shadow: var(--shadow-menu);
+    }
+
+    .cs-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 36px;
+        padding: 7px 10px;
+        font-size: 14px;
+        color: var(--ink);
+        border-radius: 4px;
+    }
+
+    .cs-option.cs-active {
+        background: var(--hover);
+    }
+
+    .cs-option[aria-selected="true"] {
+        font-weight: 600;
+    }
+
+    .cs-option-disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    @media (max-width: 639px) {
+        /* iOS zooms into any field under 16px. */
+        .input,
+        .cs-trigger {
+            font-size: 16px;
+        }
+    }
+
+    .checkbox {
+        position: relative;
+        flex: none;
+        width: 18px;
+        height: 18px;
+        appearance: none;
+        background: var(--raised);
+        border: 1.5px solid var(--edge-input);
+        border-radius: 4px;
+        transition: background-color 150ms ease, border-color 150ms ease;
+    }
+
+    .checkbox:hover,
+    .checkbox:focus-visible {
+        border-color: var(--focus);
+    }
+
+    .checkbox:checked {
+        background: var(--primary);
+        border-color: var(--primary);
+    }
+
+    /* A transition, not an animation: a box ticked on arrival shows its
+       mark without drawing it. */
+    .checkbox::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 5px;
+        width: 5px;
+        height: 9px;
+        border: solid var(--on-primary);
+        border-width: 0 2px 2px 0;
+        opacity: 0;
+        transform: rotate(45deg) scale(0.4);
+        transition: opacity 150ms ease, transform 200ms var(--ease-out);
+    }
+
+    .checkbox:checked::after {
+        opacity: 1;
+        transform: rotate(45deg);
+    }
+
+    .check-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        color: var(--ink);
+        user-select: none;
+    }
+
+    /* A choice among a few is a row of buttons, not a menu: every option in
+       sight, one click. The radio stays native underneath. */
+    .choice-group {
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .choice-group legend {
+        margin-bottom: 8px;
+        padding: 0;
+    }
+
+    .choice-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .choice {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
+        padding: 8px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--ink);
+        background: var(--raised);
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+    }
+
+    .choice:hover {
+        border-color: var(--focus);
+    }
+
+    .choice:has(:checked) {
+        color: var(--on-primary);
+        background: var(--primary);
+        border-color: var(--primary);
+    }
+
+    .choice:has(:focus-visible) {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+    }
+
+    /* A status dot keeps its edge on the light ground of a chosen button. */
+    .dark .choice:has(:checked) .dot {
+        box-shadow: 0 0 0 1.5px var(--on-primary);
+    }
+
+    .choice:has(:disabled) {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Switch. */
+    .toggle {
+        position: relative;
+        display: inline-flex;
+        flex: none;
+        align-items: center;
+        width: 40px;
+        height: 24px;
+        background: var(--surface-subtle);
+        border: 1px solid var(--edge-input);
+        border-radius: 999px;
+        transition: background-color 180ms var(--ease-out), border-color 180ms var(--ease-out);
+    }
+
+    .toggle:hover {
+        background: var(--line);
+    }
+
+    .toggle[aria-checked="true"] {
+        background: var(--primary);
+        border-color: var(--primary);
+    }
+
+    .toggle-thumb {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--muted);
+        transition: transform 220ms var(--ease-out), background-color 180ms ease;
+    }
+
+    .toggle[aria-checked="true"] .toggle-thumb {
+        background: var(--on-primary);
+        transform: translateX(16px);
+    }
+
+    /* Status in words: a colored dot and a neutral word. The hue never
+       paints the text or a ground, so the word reads the same for everyone.
+       What is fine stays muted; emphasis is kept for what is not. */
+    .state {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.35;
+        color: var(--ink);
+        white-space: nowrap;
+    }
+
+    .state::before {
+        content: "";
+        flex: none;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--tone, var(--muted));
+    }
+
+    .state[data-tone="ok"],
+    .state[data-tone="neutral"] {
+        color: var(--muted);
+    }
+
+    .state[data-tone="neutral"]::before {
+        background: transparent;
+        box-shadow: inset 0 0 0 1.5px var(--muted);
+    }
+
+    /* What an event is, and how serious: a neutral label whose dot takes
+       the severity, so the word stays ink. */
+    .kind {
+        display: inline-flex;
+        flex: none;
+        align-items: center;
+        gap: 6px;
+        padding: 1px 7px;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.5;
+        color: var(--ink);
+        white-space: nowrap;
+        border: 1px solid var(--line-strong);
+        border-radius: 4px;
+    }
+
+    .kind::before {
+        content: "";
+        flex: none;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--tone);
+    }
+
+    .kind[data-tone="neutral"]::before {
+        content: none;
+    }
+
+    .event-kind-line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 8px;
+    }
+
+    .dot {
+        display: inline-block;
+        flex: none;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--tone, var(--muted));
+    }
+
+    /* A line of facts under a title: kind, services, time. */
+    .meta {
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--muted);
+        font-feature-settings: 'tnum' 1;
+    }
+
+    /* A section label: sentence case, never spaced capitals. */
+    .label {
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.35;
+        color: var(--muted);
+    }
+
+    .count {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--muted);
+        font-feature-settings: 'tnum' 1;
+    }
+
+    /* Form-level messages. An error reads in ink behind a critical dot and
+       edge; a confirmation is not a status and stays neutral. */
+    .form-error,
+    .form-notice {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--ink);
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+    }
+
+    .form-error {
+        border-color: color-mix(in srgb, var(--sem-crit) 55%, transparent);
+    }
+
+    .form-error::before {
+        content: "";
+        flex: none;
+        width: 7px;
+        height: 7px;
+        margin-top: 6px;
+        border-radius: 50%;
+        background: var(--sem-crit);
+    }
+
+    .form-notice {
+        background: var(--surface-subtle);
+    }
+
+    .form-error p,
+    .form-notice p {
+        margin: 0;
+    }
+
+    q {
+        quotes: "\201C" "\201D";
+    }
+
+    q:lang(fr) {
+        quotes: "\00AB\00A0" "\00A0\00BB";
+    }
+
+    /* A question asked in place, next to what it concerns. Cancel comes
+       first and stays quiet; the verb is the only emphasis. */
+    .confirm {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 14px;
+        font-size: 13px;
+        color: var(--ink);
+    }
+
+    .confirm-text {
+        font-weight: 500;
+    }
+
+    .confirm-desc {
+        flex-basis: 100%;
+        font-size: 12px;
+        color: var(--muted);
+    }
+
+    .confirm-go,
+    .confirm-cancel,
+    .receipt-undo {
+        min-height: 28px;
+        padding: 0 4px;
+        margin: 0 -4px;
+        font: inherit;
+        background: none;
+        border: 0;
+        border-radius: 4px;
+        transition: color 150ms ease;
+    }
+
+    .confirm-go {
+        font-weight: 600;
+        color: var(--ink);
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-underline-offset: 3px;
+    }
+
+    .confirm-go:hover {
+        text-decoration-color: currentColor;
+    }
+
+    .confirm-go[data-danger] {
+        color: var(--sem-crit-text);
+    }
+
+    .confirm-cancel,
+    .receipt-undo {
+        color: var(--muted);
+    }
+
+    .confirm-cancel:hover,
+    .receipt-undo:hover {
+        color: var(--ink);
+    }
+
+    .receipt {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 12px;
+        font-size: 12px;
+        color: var(--muted);
+        animation: receipt-in 240ms var(--ease-out) both;
+    }
+
+    .receipt-undo {
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+
+    @keyframes receipt-in {
+        from {
+            opacity: 0;
+            transform: translateY(-3px);
+        }
+    }
+
+    /* htmx loading indicator; htmx's own injected style is turned off so the
+       page needs no inline style. */
+    /* Hidden from screen readers too until a request runs. */
+    .htmx-indicator {
+        visibility: hidden;
+        opacity: 0;
+        transition: opacity 200ms ease-in, visibility 0s linear 200ms;
+    }
+
+    .htmx-request .htmx-indicator,
+    .htmx-request.htmx-indicator {
+        visibility: visible;
+        opacity: 1;
+        transition-delay: 0s;
+    }
+
+    /* Freshly swapped content fades in instead of blinking. */
+    .swap-fade > * {
+        transition: opacity 180ms ease-out;
+    }
+
+    .swap-fade > .htmx-added {
+        opacity: 0;
+    }
+
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--line);
+        border-top-color: var(--ink);
+        border-radius: 50%;
+        animation: spin 700ms linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .btn-primary::before,
+        .back-link svg,
+        .toggle,
+        .toggle-thumb,
+        .swap-fade > *,
+        .cs-caret,
+        .checkbox::after {
+            transition: none;
+        }
+
+        .receipt {
+            animation: none;
+        }
+
+        .spinner {
+            animation-duration: 2s;
+        }
+    }
+}

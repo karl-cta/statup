@@ -1,35 +1,16 @@
-//! Service repository - database queries for services.
-//!
-//! All methods return `sqlx::Error` on database failure.
+//! Service repository: SQL queries on services.
 
 use crate::db::DbPool;
 use crate::models::{Service, ServiceStatus};
 
-/// Encapsulates all service-related database queries.
 pub struct ServiceRepository;
 
-impl ServiceRepository {
-    /// Create a new service and return the created record.
-    pub async fn create(
-        pool: &DbPool,
-        name: &str,
-        slug: &str,
-        description: Option<&str>,
-    ) -> Result<Service, sqlx::Error> {
-        sqlx::query_as::<_, Service>(
-            "INSERT INTO services (name, slug, description) \
-             VALUES (?, ?, ?) \
-             RETURNING *",
-        )
-        .bind(name)
-        .bind(slug)
-        .bind(description)
-        .fetch_one(pool)
-        .await
-    }
+const WITH_ICON: &str = "SELECT s.*, i.filename AS icon_filename, \
+     EXISTS(SELECT 1 FROM event_services es WHERE es.service_id = s.id) AS has_history \
+     FROM services s LEFT JOIN icons i ON i.id = s.icon_id";
 
-    /// Create a new service with an icon and return the created record.
-    pub async fn create_with_icon(
+impl ServiceRepository {
+    pub async fn create(
         pool: &DbPool,
         name: &str,
         slug: &str,
@@ -39,8 +20,7 @@ impl ServiceRepository {
     ) -> Result<Service, sqlx::Error> {
         sqlx::query_as::<_, Service>(
             "INSERT INTO services (name, slug, description, icon_id, icon_name) \
-             VALUES (?, ?, ?, ?, ?) \
-             RETURNING *",
+             VALUES (?, ?, ?, ?, ?) RETURNING *",
         )
         .bind(name)
         .bind(slug)
@@ -51,66 +31,34 @@ impl ServiceRepository {
         .await
     }
 
-    /// Find a service by ID.
     pub async fn find_by_id(pool: &DbPool, id: i64) -> Result<Option<Service>, sqlx::Error> {
-        sqlx::query_as::<_, Service>("SELECT * FROM services WHERE id = ?")
+        sqlx::query_as::<_, Service>(&format!("{WITH_ICON} WHERE s.id = ?"))
             .bind(id)
             .fetch_optional(pool)
             .await
     }
 
-    /// Find a service by its unique slug.
-    pub async fn find_by_slug(pool: &DbPool, slug: &str) -> Result<Option<Service>, sqlx::Error> {
-        sqlx::query_as::<_, Service>("SELECT * FROM services WHERE slug = ?")
+    pub async fn slug_exists(pool: &DbPool, slug: &str) -> Result<bool, sqlx::Error> {
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM services WHERE slug = ?)")
             .bind(slug)
-            .fetch_optional(pool)
-            .await
-    }
-
-    /// Number of configured services. Used to tell "everything is fine" apart
-    /// from "nothing is being watched", which must never look the same.
-    pub async fn count(pool: &DbPool) -> Result<i64, sqlx::Error> {
-        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM services")
             .fetch_one(pool)
             .await
     }
 
-    /// List all services ordered alphabetically by name.
+    /// Whether the instance watches anything yet.
+    pub async fn any(pool: &DbPool) -> Result<bool, sqlx::Error> {
+        sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM services)")
+            .fetch_one(pool)
+            .await
+    }
+
+    /// Every service with its uploaded icon, by name.
     pub async fn list_all(pool: &DbPool) -> Result<Vec<Service>, sqlx::Error> {
-        sqlx::query_as::<_, Service>("SELECT * FROM services ORDER BY name ASC")
+        sqlx::query_as::<_, Service>(&format!("{WITH_ICON} ORDER BY s.name COLLATE NOCASE ASC"))
             .fetch_all(pool)
             .await
     }
 
-    /// List all services with their icon filenames (LEFT JOIN).
-    pub async fn list_all_with_icons(pool: &DbPool) -> Result<Vec<Service>, sqlx::Error> {
-        sqlx::query_as::<_, Service>(
-            "SELECT s.*, i.filename AS icon_filename \
-             FROM services s \
-             LEFT JOIN icons i ON i.id = s.icon_id \
-             ORDER BY s.name ASC",
-        )
-        .fetch_all(pool)
-        .await
-    }
-
-    /// Find a service by ID with its icon filename.
-    pub async fn find_by_id_with_icon(
-        pool: &DbPool,
-        id: i64,
-    ) -> Result<Option<Service>, sqlx::Error> {
-        sqlx::query_as::<_, Service>(
-            "SELECT s.*, i.filename AS icon_filename \
-             FROM services s \
-             LEFT JOIN icons i ON i.id = s.icon_id \
-             WHERE s.id = ?",
-        )
-        .bind(id)
-        .fetch_optional(pool)
-        .await
-    }
-
-    /// Update a service's name, description, and icon.
     pub async fn update(
         pool: &DbPool,
         id: i64,
@@ -120,7 +68,8 @@ impl ServiceRepository {
         icon_name: Option<&str>,
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
-            "UPDATE services SET name = ?, description = ?, icon_id = ?, icon_name = ? WHERE id = ?",
+            "UPDATE services SET name = ?, description = ?, icon_id = ?, icon_name = ? \
+             WHERE id = ?",
         )
         .bind(name)
         .bind(description)
@@ -132,51 +81,29 @@ impl ServiceRepository {
         Ok(())
     }
 
-    /// Get the icon filename for a service (if any).
-    pub async fn get_icon_filename(
-        pool: &DbPool,
-        icon_id: i64,
-    ) -> Result<Option<String>, sqlx::Error> {
-        let row: Option<(String,)> = sqlx::query_as("SELECT filename FROM icons WHERE id = ?")
-            .bind(icon_id)
-            .fetch_optional(pool)
-            .await?;
-        Ok(row.map(|r| r.0))
-    }
-
-    /// Update only the status of a service.
+    /// Writes the status only when it changes, so an unchanged service keeps
+    /// its last update time.
     pub async fn update_status(
         pool: &DbPool,
         id: i64,
         status: ServiceStatus,
     ) -> Result<(), sqlx::Error> {
-        let status_str = match status {
-            ServiceStatus::Operational => "operational",
-            ServiceStatus::Degraded => "degraded",
-            ServiceStatus::PartialOutage => "partial_outage",
-            ServiceStatus::MajorOutage => "major_outage",
-            ServiceStatus::Maintenance => "maintenance",
-        };
-
-        sqlx::query("UPDATE services SET status = ? WHERE id = ?")
-            .bind(status_str)
+        sqlx::query("UPDATE services SET status = ? WHERE id = ? AND status != ?")
+            .bind(status)
             .bind(id)
+            .bind(status)
             .execute(pool)
             .await?;
         Ok(())
     }
 
-    /// Check if a service has any associated events.
     pub async fn has_events(pool: &DbPool, service_id: i64) -> Result<bool, sqlx::Error> {
-        let row: (bool,) =
-            sqlx::query_as("SELECT EXISTS(SELECT 1 FROM event_services WHERE service_id = ?)")
-                .bind(service_id)
-                .fetch_one(pool)
-                .await?;
-        Ok(row.0)
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM event_services WHERE service_id = ?)")
+            .bind(service_id)
+            .fetch_one(pool)
+            .await
     }
 
-    /// Delete a service by ID.
     pub async fn delete(pool: &DbPool, id: i64) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM services WHERE id = ?")
             .bind(id)
@@ -191,119 +118,84 @@ mod tests {
     use super::*;
     use crate::test_helpers::test_pool;
 
+    async fn create(pool: &DbPool, name: &str, slug: &str) -> Service {
+        ServiceRepository::create(pool, name, slug, None, None, None)
+            .await
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn create_and_find_by_id() {
         let pool = test_pool().await;
-
-        let svc = ServiceRepository::create(&pool, "API", "api", Some("The API"))
+        let svc = ServiceRepository::create(&pool, "API", "api", Some("The API"), None, None)
             .await
             .unwrap();
-
-        assert_eq!(svc.name, "API");
-        assert_eq!(svc.slug, "api");
-        assert_eq!(svc.description.as_deref(), Some("The API"));
         assert_eq!(svc.status, ServiceStatus::Operational);
 
-        let found = ServiceRepository::find_by_id(&pool, svc.id).await.unwrap();
-        assert!(found.is_some());
+        let found = ServiceRepository::find_by_id(&pool, svc.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(found.name, "API");
+        assert_eq!(found.description.as_deref(), Some("The API"));
     }
 
     #[tokio::test]
-    async fn find_by_slug() {
+    async fn slug_lookup() {
         let pool = test_pool().await;
-        ServiceRepository::create(&pool, "Web", "web-app", None)
-            .await
-            .unwrap();
-
-        let found = ServiceRepository::find_by_slug(&pool, "web-app")
-            .await
-            .unwrap();
-        assert!(found.is_some());
-        assert_eq!(found.unwrap().name, "Web");
-
-        let missing = ServiceRepository::find_by_slug(&pool, "nope")
-            .await
-            .unwrap();
-        assert!(missing.is_none());
+        create(&pool, "Web", "web-app").await;
+        assert!(
+            ServiceRepository::slug_exists(&pool, "web-app")
+                .await
+                .unwrap()
+        );
+        assert!(!ServiceRepository::slug_exists(&pool, "nope").await.unwrap());
     }
 
     #[tokio::test]
-    async fn list_all_ordered_alphabetically() {
+    async fn list_all_ignores_case() {
         let pool = test_pool().await;
-        ServiceRepository::create(&pool, "Zzz", "zzz", None)
+        create(&pool, "zzz", "zzz").await;
+        create(&pool, "Aaa", "aaa").await;
+        create(&pool, "Mmm", "mmm").await;
+        let names: Vec<String> = ServiceRepository::list_all(&pool)
             .await
-            .unwrap();
-        ServiceRepository::create(&pool, "Aaa", "aaa", None)
-            .await
-            .unwrap();
-        ServiceRepository::create(&pool, "Mmm", "mmm", None)
-            .await
-            .unwrap();
-
-        let all = ServiceRepository::list_all(&pool).await.unwrap();
-        assert_eq!(all.len(), 3);
-        assert_eq!(all[0].name, "Aaa");
-        assert_eq!(all[1].name, "Mmm");
-        assert_eq!(all[2].name, "Zzz");
+            .unwrap()
+            .into_iter()
+            .map(|s| s.name)
+            .collect();
+        assert_eq!(names, vec!["Aaa", "Mmm", "zzz"]);
     }
 
     #[tokio::test]
-    async fn update_service() {
+    async fn update_and_status() {
         let pool = test_pool().await;
-        let svc = ServiceRepository::create(&pool, "Old", "old", None)
-            .await
-            .unwrap();
-
+        let svc = create(&pool, "Old", "old").await;
         ServiceRepository::update(&pool, svc.id, "New", Some("desc"), None, None)
             .await
             .unwrap();
-
+        ServiceRepository::update_status(&pool, svc.id, ServiceStatus::MajorOutage)
+            .await
+            .unwrap();
         let updated = ServiceRepository::find_by_id(&pool, svc.id)
             .await
             .unwrap()
             .unwrap();
         assert_eq!(updated.name, "New");
-        assert_eq!(updated.description.as_deref(), Some("desc"));
-    }
-
-    #[tokio::test]
-    async fn update_status() {
-        let pool = test_pool().await;
-        let svc = ServiceRepository::create(&pool, "S", "s", None)
-            .await
-            .unwrap();
-
-        ServiceRepository::update_status(&pool, svc.id, ServiceStatus::MajorOutage)
-            .await
-            .unwrap();
-
-        let updated = ServiceRepository::find_by_id(&pool, svc.id)
-            .await
-            .unwrap()
-            .unwrap();
         assert_eq!(updated.status, ServiceStatus::MajorOutage);
     }
 
     #[tokio::test]
-    async fn delete_service() {
+    async fn delete_and_history() {
         let pool = test_pool().await;
-        let svc = ServiceRepository::create(&pool, "Del", "del", None)
-            .await
-            .unwrap();
-
-        ServiceRepository::delete(&pool, svc.id).await.unwrap();
-
-        let found = ServiceRepository::find_by_id(&pool, svc.id).await.unwrap();
-        assert!(found.is_none());
-    }
-
-    #[tokio::test]
-    async fn has_events_returns_false_when_no_events() {
-        let pool = test_pool().await;
-        let svc = ServiceRepository::create(&pool, "X", "x", None)
-            .await
-            .unwrap();
-
+        let svc = create(&pool, "Del", "del").await;
         assert!(!ServiceRepository::has_events(&pool, svc.id).await.unwrap());
+        ServiceRepository::delete(&pool, svc.id).await.unwrap();
+        assert!(
+            ServiceRepository::find_by_id(&pool, svc.id)
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 }

@@ -1,407 +1,175 @@
 {% extends "_layout.html" %}
+{% import "components/macros.html" as ui %}
 
-{% block title %}
-{% match edit_id %}
-{% when Some with (_id) %}{{ i18n.t("events.edit_title") }} | {{ crate::brand_name() }}{% when None %}{{ i18n.t("events.new_title") }} | {{ crate::brand_name() }}{% endmatch %}
+{% block title %}{% if edit_id.is_some() %}{{ i18n.t("events.edit_title") }}{% else %}{{ i18n.t("events.new_title") }}{% endif %} | {{ crate::brand_name() }}{% endblock %}
+{% block section %}events{% endblock %}
+
+{% block htmx %}{% include "components/htmx.html" %}{% endblock %}
+
+{% block scripts %}
+<script src="{{ crate::asset("js/event-form.js") }}" defer></script>
 {% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
-
-    <header class="animate-in">
-        <a href="/events" class="inline-flex items-center gap-1.5 text-[10.5px] font-mono uppercase tracking-[0.12em] text-muted hover:text-ink dark:hover:text-sand-light transition-colors">
-            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-            </svg>
-            {{ i18n.t("events.back_to_events") }}
-        </a>
-        <h1 class="mt-2 text-[28px] font-semibold tracking-tight text-ink dark:text-sand-light">
+<div class="page page-form">
+    <header class="page-head">
+        <div>
             {% match edit_id %}
-            {% when Some with (_id) %}{{ i18n.t("events.edit") }}{% when None %}{{ i18n.t("events.new") }}{% endmatch %}
-        </h1>
+            {% when Some with (id) %}
+            <a href="/events/{{ id }}" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("events.back_to_event") }}</a>
+            <h1 class="page-title">{{ i18n.t("events.edit_heading") }}</h1>
+            {% when None %}
+            <a href="/events" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("events.back_to_events") }}</a>
+            <h1 class="page-title">{{ i18n.t("events.new_heading") }}</h1>
+            {% endmatch %}
+        </div>
     </header>
 
-    {% match error %}
-    {% when Some with (msg) %}
-    <div id="form-error" class="mt-6 form-error" role="alert">
-        <p>{{ msg }}</p>
-    </div>
-    {% when None %}
-    {% endmatch %}
+    {% if let Some(message) = error %}
+    <div id="form-error" class="form-error" role="alert"><p>{{ message }}</p></div>
+    {% endif %}
 
-    <form
-        method="post"
-        action="{% match edit_id %}{% when Some with (id) %}/events/{{ id }}/edit{% when None %}/events/new{% endmatch %}"
-        class="mt-8 animate-in delay-1 max-w-[720px]"
-        {% match error %}{% when Some with (_msg) %}aria-describedby="form-error"{% when None %}{% endmatch %}
-    >
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <form method="post"
+          action="{% match edit_id %}{% when Some with (id) %}/events/{{ id }}/edit{% when None %}/events/new{% endmatch %}"
+          class="mt-6" data-event-form{% if edit_id.is_some() %} data-editing{% endif %}
+          {% if error.is_some() %}aria-describedby="form-error"{% endif %}>
+        <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
 
-        {# One column, in the order an admin thinks at 3am: what kind of thing,
-           how bad, which services, and only then the words. #}
+        {% if edit_id.is_some() %}
+        <input type="hidden" name="kind" value="{{ form.kind.as_str() }}">
+        <p class="field-label">{{ i18n.t("events.kind") }}</p>
+        <p class="meta mt-1">{{ i18n.t(form.kind.i18n_key()) }}{% if form.kind_is("maintenance") %}&nbsp;<span aria-hidden="true">·</span> {% if form.planned %}{{ i18n.t("events.planned_yes") }}{% else %}{{ i18n.t("events.planned_no") }}{% endif %}{% endif %}</p>
+        {% else %}
         <fieldset class="choice-group">
             <legend class="field-label">{{ i18n.t("events.kind") }}</legend>
             <div class="choice-row">
-                <label class="choice">
-                    <input type="radio" name="kind" value="incident" class="sr-only" required
-                           {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "incident" %}checked{% endif %}{% when None %}checked{% endmatch %}>
-                    <span>{{ i18n.t("kind.incident") }}</span>
-                </label>
-                <label class="choice">
-                    <input type="radio" name="kind" value="maintenance" class="sr-only"
-                           {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "maintenance" %}checked{% endif %}{% when None %}{% endmatch %}>
-                    <span>{{ i18n.t("kind.maintenance") }}</span>
-                </label>
-                <label class="choice">
-                    <input type="radio" name="kind" value="publication" class="sr-only"
-                           {% match event %}{% when Some with (e) %}{% if e.kind.as_str() == "publication" %}checked{% endif %}{% when None %}{% endmatch %}>
-                    <span>{{ i18n.t("kind.publication") }}</span>
-                </label>
+                <label class="choice"><input type="radio" name="kind" value="incident" class="sr-only" required{% if form.kind_is("incident") %} checked{% endif %}><span>{{ i18n.t("kind.incident") }}</span></label>
+                <label class="choice"><input type="radio" name="kind" value="maintenance" class="sr-only"{% if form.kind_is("maintenance") %} checked{% endif %}><span>{{ i18n.t("kind.maintenance") }}</span></label>
+                <label class="choice"><input type="radio" name="kind" value="publication" class="sr-only"{% if form.kind_is("publication") %} checked{% endif %}><span>{{ i18n.t("kind.publication") }}</span></label>
             </div>
         </fieldset>
+        {% endif %}
 
-        <div class="collapse-row collapse-row-gap" id="severity-field">
-            <div class="collapse-inner">
-                <fieldset class="choice-group">
-                    <legend class="field-label">{{ i18n.t("events.severity") }}</legend>
-                    <div class="choice-row">
-                        <label class="choice">
-                            <input type="radio" name="severity" value="minor" class="sr-only" required
-                                   {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (sev) %}{% if sev.as_str() == "minor" %}checked{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>
-                            <span class="choice-dot status-dot-minor" aria-hidden="true"></span>
-                            <span>{{ i18n.t("severity.minor") }}</span>
-                        </label>
-                        <label class="choice">
-                            <input type="radio" name="severity" value="major" class="sr-only"
-                                   {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (sev) %}{% if sev.as_str() == "major" %}checked{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>
-                            <span class="choice-dot status-dot-major" aria-hidden="true"></span>
-                            <span>{{ i18n.t("severity.major") }}</span>
-                        </label>
-                        <label class="choice">
-                            <input type="radio" name="severity" value="critical" class="sr-only"
-                                   {% match event %}{% when Some with (e) %}{% match e.severity %}{% when Some with (sev) %}{% if sev.as_str() == "critical" %}checked{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>
-                            <span class="choice-dot status-dot-crit" aria-hidden="true"></span>
-                            <span>{{ i18n.t("severity.critical") }}</span>
-                        </label>
-                    </div>
-                </fieldset>
-            </div>
-        </div>
-
-        <div class="collapse-row collapse-row-gap" id="planned-field">
-            <div class="collapse-inner">
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="planned" name="planned" value="on" class="checkbox-fancy"
-                           {% match event %}{% when Some with (e) %}{% if e.planned %}checked{% endif %}{% when None %}checked{% endmatch %}>
-                    <span class="text-sm font-medium text-ink/85 dark:text-sand-light/85">{{ i18n.t("events.planned_label") }}</span>
-                </label>
-                <p class="mt-1 text-[12px] text-muted">{{ i18n.t("events.planned_hint") }}</p>
-            </div>
-        </div>
-
-        <div class="collapse-row collapse-row-gap" id="planned-dates">
-            <div class="collapse-inner grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                    <label for="planned_start" class="field-label">
-                        {{ i18n.t("events.planned_start_short") }}
-                    </label>
-                    <input
-                        id="planned_start"
-                        name="planned_start"
-                        type="datetime-local"
-                        value="{% match event %}{% when Some with (e) %}{% match e.planned_start %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}{% when None %}{% endmatch %}"
-                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm"
-                    >
+        <div class="reveal-row form-block{% if form.kind_is("incident") %} is-open{% endif %}" data-for-kind="incident">
+            <fieldset class="choice-group">
+                <legend class="field-label">{{ i18n.t("events.severity") }}</legend>
+                <div class="choice-row">
+                    <label class="choice" data-tone="minor"><input type="radio" name="severity" value="minor" class="sr-only" data-required{% if form.severity_is("minor") %} checked{% endif %}><span class="dot" aria-hidden="true"></span><span>{{ i18n.t("severity.minor") }}</span></label>
+                    <label class="choice" data-tone="major"><input type="radio" name="severity" value="major" class="sr-only"{% if form.severity_is("major") %} checked{% endif %}><span class="dot" aria-hidden="true"></span><span>{{ i18n.t("severity.major") }}</span></label>
+                    <label class="choice" data-tone="crit"><input type="radio" name="severity" value="critical" class="sr-only"{% if form.severity_is("critical") %} checked{% endif %}><span class="dot" aria-hidden="true"></span><span>{{ i18n.t("severity.critical") }}</span></label>
                 </div>
-                <div>
-                    <label for="planned_end" class="field-label">
-                        {{ i18n.t("events.planned_end_short") }} <span class="field-note">{{ i18n.t("events.optional") }}</span>
-                    </label>
-                    <input
-                        id="planned_end"
-                        name="planned_end"
-                        type="datetime-local"
-                        value="{% match event %}{% when Some with (e) %}{% match e.planned_end %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}{% when None %}{% endmatch %}"
-                        class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm"
-                    >
+            </fieldset>
+        </div>
+
+        {% if edit_id.is_none() %}
+        <div class="reveal-row form-block{% if form.kind_is("maintenance") %} is-open{% endif %}" data-for-kind="maintenance">
+            <label class="check-row">
+                <input type="checkbox" id="planned" name="planned" value="on" class="checkbox"{% if form.planned %} checked{% endif %}>
+                <span>{{ i18n.t("events.planned_label") }}</span>
+            </label>
+        </div>
+        {% endif %}
+
+        <div class="reveal-row form-block{% if form.kind_is("maintenance") && form.planned %} is-open{% endif %}" data-for-kind="maintenance" data-when-planned>
+            <div class="form-grid form-grid-2">
+                <div class="field">
+                    <label for="planned_start" class="field-label">{{ i18n.t("events.planned_start") }}</label>
+                    <input id="planned_start" name="planned_start" type="datetime-local" class="input" value="{{ form.planned_start }}" data-required aria-describedby="zone-hint">
+                </div>
+                <div class="field">
+                    <label for="planned_end" class="field-label">{{ i18n.t("events.planned_end") }} <span class="field-note">{{ i18n.t("common.optional") }}</span></label>
+                    <input id="planned_end" name="planned_end" type="datetime-local" class="input" value="{{ form.planned_end }}" aria-describedby="zone-hint">
                 </div>
             </div>
+            <p id="zone-hint" class="field-hint mt-2">{{ zone_hint }}</p>
         </div>
 
-        <div class="collapse-row collapse-row-gap" id="category-field">
-            <div class="collapse-inner">
-                <fieldset class="choice-group">
-                    <legend class="field-label">{{ i18n.t("events.category") }}</legend>
-                    <div class="choice-row">
-                        <label class="choice">
-                            <input type="radio" name="category" value="changelog" class="sr-only"
-                                   {% match event %}{% when Some with (e) %}{% match e.category %}{% when Some with (c) %}{% if c.as_str() == "changelog" %}checked{% endif %}{% when None %}{% endmatch %}{% when None %}checked{% endmatch %}>
-                            <span>{{ i18n.t("category.changelog") }}</span>
-                        </label>
-                        <label class="choice">
-                            <input type="radio" name="category" value="info" class="sr-only"
-                                   {% match event %}{% when Some with (e) %}{% match e.category %}{% when Some with (c) %}{% if c.as_str() == "info" %}checked{% endif %}{% when None %}{% endmatch %}{% when None %}{% endmatch %}>
-                            <span>{{ i18n.t("category.info") }}</span>
-                        </label>
-                    </div>
-                </fieldset>
-            </div>
+        <div class="reveal-row form-block{% if form.kind_is("publication") %} is-open{% endif %}" data-for-kind="publication">
+            <fieldset class="choice-group">
+                <legend class="field-label">{{ i18n.t("events.category") }}</legend>
+                <div class="choice-row">
+                    <label class="choice"><input type="radio" name="category" value="info" class="sr-only"{% if form.category_is("info") %} checked{% endif %}><span>{{ i18n.t("category.info") }}</span></label>
+                    <label class="choice"><input type="radio" name="category" value="changelog" class="sr-only"{% if form.category_is("changelog") %} checked{% endif %}><span>{{ i18n.t("category.changelog") }}</span></label>
+                </div>
+            </fieldset>
         </div>
 
         <section class="form-block" aria-labelledby="services-label">
-            <p id="services-label" class="field-label">{{ i18n.t("events.affected_services_sidebar") }}</p>
+            <h2 id="services-label" class="field-label">{{ i18n.t("events.services_concerned") }}</h2>
             {% if services.is_empty() %}
-            <p class="mt-2 text-sm text-muted">
-                {{ i18n.t("events.no_services_available") }}
-                <a href="/services/new" class="text-ink dark:text-sand-light underline underline-offset-4 decoration-ink/25 dark:decoration-sand-light/30 hover:decoration-ink dark:hover:decoration-sand-light">{{ i18n.t("events.create_service_link") }}</a>
-            </p>
+            <p class="field-hint mt-1">{{ i18n.t("events.no_services_available") }} <a href="/services/new" class="link">{{ i18n.t("events.create_service_link") }}</a></p>
             {% else %}
-            <div class="mt-2 svc-pick-list" role="group" aria-labelledby="services-label">
-                {% for svc in services %}
+            <div class="svc-pick-list" role="group" aria-labelledby="services-label">
+                {% for service in services %}
                 <label class="svc-pick">
-                    <input
-                        type="checkbox"
-                        name="service_ids"
-                        value="{{ svc.id }}"
-                        data-service-name="{{ svc.name }}"
-                        {% match event %}
-                        {% when Some with (e) %}{% if e.has_service(svc.id) %}checked{% endif %}
-                        {% when None %}
-                        {% endmatch %}
-                        class="checkbox-fancy"
-                    >
-                    <span class="svc-pick-name">{{ svc.name }}</span>
-                    <span class="svc-pick-status" title="{{ i18n.t(svc.status.i18n_key()) }}">
-                        <span class="h-2 w-2 rounded-full {{ svc.status.dot_class() }}" aria-hidden="true"></span>
-                        <span class="text-[10.5px] font-mono uppercase tracking-[0.06em] text-muted">{{ i18n.t(svc.status.i18n_key()) }}</span>
-                    </span>
+                    <input type="checkbox" name="service_ids" value="{{ service.id }}" class="checkbox" data-service-name="{{ service.name }}"{% if form.has_service(service.id) %} checked{% endif %}>
+                    <span class="svc-pick-name">{{ service.name }}</span>
+                    <span class="state" data-tone="{{ service.status.tone().as_str() }}">{{ i18n.t(service.status.i18n_key()) }}</span>
                 </label>
                 {% endfor %}
             </div>
             {% endif %}
         </section>
 
-        <div class="form-block relative">
-            <label for="title" class="field-label">
-                {{ i18n.t("events.title_label") }}
-            </label>
-            <input
-                id="title"
-                name="title"
-                type="text"
-                required
-                aria-required="true"
-                maxlength="200"
-                autocomplete="off"
-                role="combobox"
-                aria-autocomplete="list"
-                aria-expanded="false"
-                aria-controls="template-suggestions-container"
-                value="{% match event %}{% when Some with (e) %}{{ e.title }}{% when None %}{% endmatch %}"
-                class="mt-1.5 block w-full input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
-                placeholder="{{ i18n.t("events.title_placeholder") }}"
-                hx-get="/events/templates/search"
-                hx-trigger="keyup changed delay:300ms"
-                hx-target="#template-suggestions-container"
-                hx-swap="innerHTML"
-                hx-params="title"
-            >
-            <div id="template-suggestions-container"></div>
+        <div class="form-block field suggest">
+            <label for="title" class="field-label">{{ i18n.t("events.title_label") }}</label>
+            <input id="title" name="title" type="text" class="input" required maxlength="200" autocomplete="off"
+                   value="{{ form.title }}" placeholder="{{ i18n.t("events.title_placeholder") }}"
+                   {% if edit_id.is_none() %}hx-get="/events/templates/search" hx-trigger="input changed delay:300ms" hx-target="#template-suggestions" hx-swap="innerHTML" hx-params="title"{% endif %}>
+            {% if edit_id.is_none() %}
+            <div id="template-suggestions" data-suggestions></div>
+            <input type="hidden" name="template_id" value="" data-template-id>
+            {% endif %}
         </div>
 
-        <div class="mt-5">
-            <label for="description" class="field-label">
-                {{ i18n.t("events.description") }} <span class="field-note">{{ i18n.t("events.optional") }} · {{ i18n.t("events.markdown_plain") }}</span>
-            </label>
-            <textarea
-                id="description"
-                name="description"
-                rows="6"
-                class="mt-1.5 block w-full min-h-[160px] resize-y input-raised px-3.5 py-2.5 text-sm placeholder-ink/35 dark:placeholder-sand-light/30"
-                placeholder="{{ i18n.t("events.description_placeholder") }}"
-            >{% match event %}{% when Some with (e) %}{{ e.description }}{% when None %}{% endmatch %}</textarea>
+        <div class="form-block field">
+            <label for="description" class="field-label">{{ i18n.t("events.description") }} <span class="field-note">{{ i18n.t("common.optional") }}</span></label>
+            <textarea id="description" name="description" class="input" rows="6" placeholder="{{ i18n.t("events.description_placeholder") }}" aria-describedby="description-hint">{{ form.description }}</textarea>
+            <p id="description-hint" class="field-hint">{{ i18n.t("events.markdown_hint") }}</p>
         </div>
 
-        {# Saving as a template is a side wish, not part of the publishing
-           gesture: it lives under the description, away from the button. #}
-        {% match edit_id %}
-        {% when None %}
-        <label class="mt-4 flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" name="save_as_template" class="checkbox-fancy">
-            <span class="text-sm font-medium text-muted">{{ i18n.t("events.save_as_template_label") }}</span>
+        {% if edit_id.is_none() %}
+        <label class="check-row mt-4">
+            <input type="checkbox" name="save_as_template" value="on" class="checkbox">
+            <span>{{ i18n.t("events.save_as_template") }}</span>
         </label>
-        {% when Some with (_id) %}
-        {% endmatch %}
+        {% endif %}
 
-        {# The consequence and the button travel together, pinned to the
-           bottom of the window while the form is filled: what the public
-           page will show is in sight at every click. Announced to assistive
-           tech whenever it changes. #}
         <div class="action-bar">
-            <div class="consequence" id="consequence" role="status" aria-live="polite">
-                <span class="consequence-dot" id="consequence-dot" aria-hidden="true"></span>
-                <p class="consequence-text" id="consequence-text"></p>
+            <div class="consequence" role="status">
+                <span class="dot" data-consequence-dot hidden aria-hidden="true"></span>
+                <p class="consequence-text" data-consequence></p>
             </div>
             <div class="action-bar-buttons">
-                <a href="/events" class="text-sm font-medium text-muted hover:text-ink dark:hover:text-sand-light transition-colors">
-                    {{ i18n.t("common.cancel") }}
-                </a>
-                <button type="submit" class="btn-3d text-sm" id="submit-btn" {% match edit_id %}{% when Some with (_id) %}data-editing="true"{% when None %}{% endmatch %}>
-                    <span id="submit-label">{% match edit_id %}
-                    {% when Some with (_id) %}{{ i18n.t("common.save") }}{% when None %}{{ i18n.t("events.submit_incident") }}{% endmatch %}</span>
-                </button>
+                <a href="{% match edit_id %}{% when Some with (id) %}/events/{{ id }}{% when None %}/events{% endmatch %}" class="text-action">{{ i18n.t("common.cancel") }}</a>
+                <button type="submit" class="btn btn-primary" data-submit-label>{% if edit_id.is_some() %}{{ i18n.t("common.save") }}{% else %}{{ i18n.t("events.submit_incident") }}{% endif %}</button>
             </div>
         </div>
     </form>
 </div>
 
-<script>
-var consequenceCopy = {
-    incident_minor: {{ i18n.t("consequence.incident_minor")|json|safe }},
-    incident_major: {{ i18n.t("consequence.incident_major")|json|safe }},
-    incident_critical: {{ i18n.t("consequence.incident_critical")|json|safe }},
-    pick_severity: {{ i18n.t("consequence.pick_severity")|json|safe }},
-    maintenance: {{ i18n.t("consequence.maintenance")|json|safe }},
-    publication: {{ i18n.t("consequence.publication")|json|safe }},
-    no_services: {{ i18n.t("consequence.no_services")|json|safe }},
-    for: {{ i18n.t("consequence.for")|json|safe }},
-    services: {{ i18n.t("consequence.services")|json|safe }},
-    and: {{ i18n.t("common.and")|json|safe }}
-};
-
-var titleCopy = {
-    incident_minor: {{ i18n.t("title.incident_minor")|json|safe }},
-    incident_major: {{ i18n.t("title.incident_major")|json|safe }},
-    incident_critical: {{ i18n.t("title.incident_critical")|json|safe }},
-    maintenance: {{ i18n.t("title.maintenance")|json|safe }}
-};
-
-var submitCopy = {
-    incident: {{ i18n.t("events.submit_incident")|json|safe }},
-    maintenance: {{ i18n.t("events.submit_maintenance")|json|safe }},
-    publication: {{ i18n.t("events.submit_publication")|json|safe }}
-};
-
-function checkedValue(name) {
-    var el = document.querySelector('input[name="' + name + '"]:checked');
-    return el ? el.value : '';
+{% if edit_id.is_none() %}
+<script type="application/json" id="event-form-copy">
+{
+    "incident_minor": {{ i18n.t("consequence.incident_minor")|json|safe }},
+    "incident_major": {{ i18n.t("consequence.incident_major")|json|safe }},
+    "incident_critical": {{ i18n.t("consequence.incident_critical")|json|safe }},
+    "pick_severity": {{ i18n.t("consequence.pick_severity")|json|safe }},
+    "maintenance_planned": {{ i18n.t("consequence.maintenance_planned")|json|safe }},
+    "maintenance_now": {{ i18n.t("consequence.maintenance_now")|json|safe }},
+    "publication": {{ i18n.t("consequence.publication")|json|safe }},
+    "no_services": {{ i18n.t("consequence.no_services")|json|safe }},
+    "services_many": {{ i18n.t("consequence.services_many")|json|safe }},
+    "and": {{ i18n.t("common.and")|json|safe }},
+    "title_incident_minor": {{ i18n.t("title.incident_minor")|json|safe }},
+    "title_incident_major": {{ i18n.t("title.incident_major")|json|safe }},
+    "title_incident_critical": {{ i18n.t("title.incident_critical")|json|safe }},
+    "title_maintenance": {{ i18n.t("title.maintenance")|json|safe }},
+    "submit_incident": {{ i18n.t("events.submit_incident")|json|safe }},
+    "submit_maintenance": {{ i18n.t("events.submit_maintenance")|json|safe }},
+    "submit_publication": {{ i18n.t("events.submit_publication")|json|safe }},
+    "template_error": {{ i18n.t("events.template_error")|json|safe }}
 }
-
-function checkRadio(name, value) {
-    var el = document.querySelector('input[name="' + name + '"][value="' + value + '"]');
-    if (el) el.checked = true;
-}
-
-function applyTemplate(templateId) {
-    fetch('/events/templates/' + templateId)
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            document.getElementById('title').value = data.title;
-            document.getElementById('description').value = data.description;
-            if (data.kind) checkRadio('kind', data.kind);
-            if (data.severity) checkRadio('severity', data.severity);
-            document.getElementById('planned').checked = !!data.planned;
-            if (data.category) checkRadio('category', data.category);
-            document.getElementById('template-suggestions-container').innerHTML = '';
-            updateForm();
-        });
-}
-
-// The title is a combobox whose suggestions come and go by htmx swap and by
-// script: the observer keeps aria-expanded honest whichever way they move.
-(function () {
-    var title = document.getElementById('title');
-    var container = document.getElementById('template-suggestions-container');
-    new MutationObserver(function () {
-        title.setAttribute('aria-expanded', container.children.length > 0 ? 'true' : 'false');
-    }).observe(container, { childList: true });
-})();
-document.addEventListener('click', function(e) {
-    var container = document.getElementById('template-suggestions-container');
-    var title = document.getElementById('title');
-    if (container && !container.contains(e.target) && e.target !== title) {
-        container.innerHTML = '';
-    }
-});
-
-// A folded row is out of the form entirely: inert keeps the keyboard and
-// assistive tech from reaching fields nobody can see, and disabling them keeps
-// their values out of the request.
-function setOpen(el, open) {
-    if (!el) return;
-    el.classList.toggle('is-open', open);
-    el.inert = !open;
-    el.querySelectorAll('input, select, textarea').forEach(function (field) {
-        field.disabled = !open;
-    });
-}
-
-function checkedServiceNames() {
-    return Array.prototype.map.call(
-        document.querySelectorAll('input[name="service_ids"]:checked'),
-        function (box) { return box.dataset.serviceName; }
-    );
-}
-
-// Up to three services are named; past that the count reads better than a
-// list, and a proposed title stays under the 200 characters the server takes.
-function joinNames(names) {
-    if (names.length === 1) return names[0];
-    if (names.length > 3) return names.length + ' ' + consequenceCopy.services;
-    return names.slice(0, -1).join(', ') + ' ' + consequenceCopy.and + ' ' + names[names.length - 1];
-}
-
-function consequenceFor(kind, severity, names) {
-    if (kind === 'publication') return { text: consequenceCopy.publication, dot: '' };
-    if (kind === 'incident' && !severity) return { text: consequenceCopy.pick_severity, dot: '' };
-    if (names.length === 0) return { text: consequenceCopy.no_services, dot: '' };
-    var effect = kind === 'maintenance' ? consequenceCopy.maintenance : consequenceCopy['incident_' + severity];
-    var dot = kind === 'maintenance' ? 'status-dot-info'
-        : severity === 'critical' ? 'status-dot-crit'
-        : severity === 'major' ? 'status-dot-major' : 'status-dot-minor';
-    return { text: effect + ' ' + consequenceCopy.for + ' ' + joinNames(names) + '.', dot: dot };
-}
-
-// The title writes itself from the choices above it ("Major outage on
-// Network") until the admin types in it, and never on an existing event.
-var titleTouched = false;
-document.getElementById('title').addEventListener('input', function () { titleTouched = true; });
-
-function proposeTitle(kind, severity, names) {
-    var title = document.getElementById('title');
-    if (titleTouched || document.getElementById('submit-btn').dataset.editing) return;
-    var lead = kind === 'maintenance' ? titleCopy.maintenance
-        : kind === 'incident' && severity ? titleCopy['incident_' + severity] : '';
-    var proposal = lead && names.length ? (lead + ' ' + joinNames(names)).slice(0, 200) : '';
-    if (proposal !== title.value) title.value = proposal;
-}
-
-function updateForm() {
-    var kind = checkedValue('kind');
-    var severity = checkedValue('severity');
-    var names = checkedServiceNames();
-
-    setOpen(document.getElementById('severity-field'), kind === 'incident');
-    setOpen(document.getElementById('planned-field'), kind === 'maintenance');
-    setOpen(document.getElementById('planned-dates'), kind === 'maintenance');
-    setOpen(document.getElementById('category-field'), kind === 'publication');
-
-    var outcome = consequenceFor(kind, severity, names);
-    proposeTitle(kind, severity, names);
-    document.getElementById('consequence-text').textContent = outcome.text;
-    var dot = document.getElementById('consequence-dot');
-    dot.className = 'consequence-dot' + (outcome.dot ? ' ' + outcome.dot : '');
-    dot.hidden = !outcome.dot;
-
-    var submit = document.getElementById('submit-btn');
-    if (!submit.dataset.editing) {
-        document.getElementById('submit-label').textContent = submitCopy[kind] || submitCopy.incident;
-    }
-}
-
-document.querySelectorAll('input[name="kind"], input[name="severity"], input[name="category"], input[name="service_ids"], #planned').forEach(function (el) {
-    el.addEventListener('change', updateForm);
-});
-updateForm();
 </script>
+{% endif %}
 {% endblock %}

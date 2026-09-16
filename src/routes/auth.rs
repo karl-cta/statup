@@ -82,8 +82,6 @@ struct LoginTemplate {
     email: String,
     instance: String,
     powered_by: bool,
-    /// An empty instance offers to create its administrator.
-    offer_first_account: bool,
     i18n: I18n,
 }
 
@@ -131,8 +129,7 @@ async fn instance_is_empty(state: &AppState) -> Result<bool, AppError> {
     Ok(UserRepository::count_all(&state.pool).await? == 0)
 }
 
-async fn render_login(
-    state: &AppState,
+fn render_login(
     csrf_token: String,
     i18n: I18n,
     error: Option<String>,
@@ -145,7 +142,6 @@ async fn render_login(
         email,
         instance,
         powered_by,
-        offer_first_account: instance_is_empty(state).await?,
         i18n,
     })
 }
@@ -159,8 +155,13 @@ pub async fn login_form(
     if user.is_some() {
         return Ok(Redirect::to("/").into_response());
     }
+    // Nobody can sign in yet: whoever installed the instance creates its
+    // administrator first.
+    if instance_is_empty(&state).await? {
+        return Ok(Redirect::to("/register").into_response());
+    }
     let csrf_token = form_token(&session).await?;
-    render_login(&state, csrf_token, i18n, None, String::new()).await
+    render_login(csrf_token, i18n, None, String::new())
 }
 
 pub async fn login(
@@ -179,7 +180,7 @@ pub async fn login(
     let refusal = missing_credentials(&input).or_else(|| blocked(&state, &ip));
     if let Some(key) = refusal {
         let message = Some(i18n.t(key).to_string());
-        return render_login(&state, csrf_token, i18n, message, input.email).await;
+        return render_login(csrf_token, i18n, message, input.email);
     }
 
     match AuthService::login(&state.pool, &input.email, &input.password).await {
@@ -191,7 +192,7 @@ pub async fn login(
         Err(AppError::Validation(key)) => {
             state.login_limiter.record_failure(&ip);
             let message = Some(i18n.t(&key).to_string());
-            render_login(&state, csrf_token, i18n, message, input.email).await
+            render_login(csrf_token, i18n, message, input.email)
         }
         Err(e) => Err(e),
     }

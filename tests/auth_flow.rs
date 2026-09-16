@@ -95,7 +95,7 @@ async fn register_password_mismatch() {
     assert_eq!(status, StatusCode::OK, "should re-render form on error");
     assert!(location.is_none());
     assert!(
-        body.contains("ne correspondent pas"),
+        body.contains("pas identiques"),
         "should show password mismatch error"
     );
 }
@@ -140,7 +140,7 @@ async fn an_empty_sign_in_field_is_refused_in_the_page() {
 async fn protected_route_without_auth_redirects() {
     let app = TestApp::spawn().await;
 
-    for route in ["/", "/events", "/search"] {
+    for route in ["/", "/events", "/subscribe"] {
         let (status, _body) = app.get(route).await;
         assert_eq!(
             status,
@@ -214,6 +214,7 @@ async fn publisher_can_access_publisher_routes() {
 #[tokio::test]
 async fn post_without_csrf_token_is_rejected() {
     let app = TestApp::spawn().await;
+    seed_admin(&app).await;
 
     let resp = app
         .client
@@ -397,6 +398,7 @@ async fn proxy_headers_are_ignored_when_not_trusted() {
 #[tokio::test]
 async fn login_form_is_public() {
     let app = TestApp::spawn().await;
+    seed_admin(&app).await;
 
     let (status, body) = app.get("/login").await;
     assert_eq!(status, StatusCode::OK);
@@ -505,8 +507,9 @@ async fn fresh_instance_offers_the_first_account() {
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("administrateur"));
 
-    let (_, body) = app.get("/login").await;
-    assert!(body.contains(r#"href="/register""#));
+    let (status, location) = app.redirect_of("/login").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/register"));
 }
 
 #[tokio::test]
@@ -633,8 +636,35 @@ async fn signed_in_sessions_keep_their_own_lifetime() {
 }
 
 #[tokio::test]
+async fn background_requests_leave_a_members_only_page() {
+    let app = TestApp::spawn().await;
+    seed_admin(&app).await;
+
+    for path in ["/", "/events", "/events/1/drawer"] {
+        let resp = app
+            .client
+            .get(app.url(path))
+            .header("HX-Request", "true")
+            .send()
+            .await
+            .expect("request failed");
+        assert_eq!(resp.status(), StatusCode::OK, "{path}");
+        let target = resp
+            .headers()
+            .get("hx-redirect")
+            .and_then(|v| v.to_str().ok());
+        assert_eq!(
+            target,
+            Some("/login"),
+            "{path} sends the page to the sign-in form"
+        );
+    }
+}
+
+#[tokio::test]
 async fn anonymous_pages_open_no_session() {
     let app = TestApp::spawn_public().await;
+    seed_admin(&app).await;
 
     for path in ["/", "/events", "/feed", "/health", "/wp-login.php"] {
         let resp = app.get_response(path).await;
@@ -944,7 +974,7 @@ async fn admin_is_sent_to_the_team_page_from_register() {
 async fn public_mode_read_routes_accessible_without_auth() {
     let app = TestApp::spawn_public().await;
 
-    for route in ["/", "/events", "/search"] {
+    for route in ["/", "/events", "/subscribe"] {
         let (status, _body) = app.get(route).await;
         assert_eq!(
             status,
@@ -952,6 +982,15 @@ async fn public_mode_read_routes_accessible_without_auth() {
             "GET {route} in public mode should be accessible without auth"
         );
     }
+}
+
+#[tokio::test]
+async fn search_links_land_on_the_events_list() {
+    let app = TestApp::spawn_public().await;
+
+    let (status, location) = app.redirect_of("/search?q=disk").await;
+    assert_eq!(status, StatusCode::PERMANENT_REDIRECT);
+    assert_eq!(location.as_deref(), Some("/events?q=disk"));
 }
 
 #[tokio::test]
@@ -969,7 +1008,7 @@ async fn missing_event_renders_a_styled_error_page_in_the_request_language() {
 
     let (status, body) = app.get("/events/999999").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(body.contains("Page non trouvée") && body.contains("style.css"));
+    assert!(body.contains("existe pas") && body.contains("style.css"));
     assert!(body.contains(r#"href="/""#), "offers a way back");
 
     let resp = app
@@ -981,7 +1020,7 @@ async fn missing_event_renders_a_styled_error_page_in_the_request_language() {
         .expect("GET failed");
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     let body = resp.text().await.unwrap_or_default();
-    assert!(body.contains("Page not found"));
+    assert!(body.contains("does not exist"));
 }
 
 #[tokio::test]
@@ -997,7 +1036,7 @@ async fn unknown_paths_render_the_error_page() {
         Some("no-cache, private")
     );
     let body = resp.text().await.unwrap_or_default();
-    assert!(body.contains("Page non trouvée") && body.contains("style.css"));
+    assert!(body.contains("existe pas") && body.contains("style.css"));
 
     let (status, _body) = app.get("/uploads/statup.db").await;
     assert_eq!(status, StatusCode::NOT_FOUND, "only icons are served");
@@ -1016,13 +1055,14 @@ async fn htmx_request_gets_an_error_fragment_instead_of_a_page() {
         .expect("GET failed");
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     let body = resp.text().await.unwrap_or_default();
-    assert!(body.contains(r#"class="form-error""#) && body.contains("Page non trouvée"));
+    assert!(body.contains(r#"class="form-error""#) && body.contains("existe pas"));
     assert!(!body.contains("<html"), "a fragment, not a page");
 }
 
 #[tokio::test]
 async fn an_oversized_form_gets_the_error_page() {
     let app = TestApp::spawn().await;
+    seed_admin(&app).await;
     let csrf = app.csrf_from("/login").await;
     let padding = "a".repeat(70 * 1024);
 
@@ -1070,6 +1110,7 @@ async fn an_https_instance_asks_for_https_and_secure_cookies() {
         ..Options::default()
     })
     .await;
+    seed_admin(&app).await;
 
     let resp = app.get_response("/login").await;
     let header = |name| {

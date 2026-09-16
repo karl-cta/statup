@@ -126,6 +126,18 @@ const XLINK_NAMESPACE: &str = "http://www.w3.org/1999/xlink";
 pub struct IconService;
 
 impl IconService {
+    /// Uploaded icons that can be drawn: one whose file is gone is not
+    /// offered.
+    pub async fn choosable(pool: &DbPool, upload_dir: &str) -> Result<Vec<Icon>, AppError> {
+        let mut icons = Vec::new();
+        for icon in IconRepository::list_all(pool).await? {
+            if file_exists(&icon_path(upload_dir, &icon.filename)).await {
+                icons.push(icon);
+            }
+        }
+        Ok(icons)
+    }
+
     /// Upload a new icon: validate, process, save to disk, create DB record.
     pub async fn upload(
         pool: &DbPool,

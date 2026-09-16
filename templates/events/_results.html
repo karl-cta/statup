@@ -1,0 +1,60 @@
+{% import "components/macros.html" as ui %}
+{% if results.total == 0 && !results.has_filters %}
+<div class="card empty-state">
+    <p class="empty-state-title">{{ i18n.t("events.empty_title") }}</p>
+    <p class="empty-state-text">{{ i18n.t("events.empty_text") }}</p>
+</div>
+{% else if results.total == 0 %}
+<div class="card empty-state">
+    <p class="empty-state-title" data-results-count>{{ i18n.t("events.no_match_title") }}</p>
+    <p class="empty-state-text">{{ i18n.t("events.no_match_text") }}</p>
+    <a href="/events" class="btn btn-ghost btn-sm">{{ i18n.t("events.clear_filters") }}</a>
+</div>
+{% else %}
+<p class="results-count" data-results-count>{{ results.count_label }}</p>
+<div class="card">
+    {% for group in results.groups %}
+    <h2 class="log-day">{{ group.label }}</h2>
+    <ul class="log-list">
+        {% for event in group.events %}
+        {% let excerpt = event.description_excerpt(180) %}
+        <li>
+            <a class="log-row{% if event.is_open() %} log-row-open{% endif %}" href="/events/{{ event.id }}" data-drawer="/events/{{ event.id }}/drawer">
+                <span class="log-time">{{ i18n.format_time(event.created_at) }}</span>
+                <span class="log-body">
+                    <span class="log-head">
+                        {% call ui::kind_chip(i18n.t(event.kind.i18n_key()), event.kind_tone()) %}
+                        <span class="log-title">{% for part in results.title_parts(event.title) %}{% if part.hit %}<mark class="search-hit">{{ part.text }}</mark>{% else %}{{ part.text }}{% endif %}{% endfor %}</span>
+                    </span>
+                    {% let meta = event.meta_parts(i18n) %}
+                    {% if !meta.is_empty() %}
+                    <span class="meta">{% for part in meta %}{% if !loop.first %}&nbsp;<span aria-hidden="true">·</span> {% endif %}{{ part }}{% endfor %}</span>
+                    {% endif %}
+                    {% if !excerpt.is_empty() %}<span class="log-excerpt">{{ excerpt }}</span>{% endif %}
+                </span>
+                {% if let Some(key) = event.lifecycle_key() %}
+                <span class="state" data-tone="{{ event.tone().as_str() }}">{{ i18n.t(key) }}</span>
+                {% endif %}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endfor %}
+</div>
+
+{% if results.page > 1 || results.has_next %}
+<nav class="pager" aria-label="{{ i18n.t("common.pagination_aria") }}">
+    {% if results.page > 1 %}
+    <a class="btn btn-ghost btn-sm" rel="prev" href="{{ results.page_link_base }}page={{ results.page - 1 }}">{{ i18n.t("common.previous") }}</a>
+    {% else %}
+    <span></span>
+    {% endif %}
+    <span class="pager-page">{{ results.page_label }}</span>
+    {% if results.has_next %}
+    <a class="btn btn-ghost btn-sm" rel="next" href="{{ results.page_link_base }}page={{ results.page + 1 }}">{{ i18n.t("common.next") }}</a>
+    {% else %}
+    <span></span>
+    {% endif %}
+</nav>
+{% endif %}
+{% endif %}

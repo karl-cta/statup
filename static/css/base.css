@@ -1,107 +1,65 @@
 @layer base {
-    /* Single source of truth for status across hero, chips, dots, bars, tags. */
     :root {
-        /* Operational shares the brand hue on purpose: two near-identical
-           greens on one screen read as a mistake. The dot and the uptime bars
-           carry the exact brand sage; the text is the same hue darkened to
-           4.5:1, because sage itself only reaches 2.5:1 on white and this is
-           the label a visitor must read first. */
-        --sem-ok: #8BAE66;
-        --sem-ok-text: #517232;
-        --sem-ok-soft: rgb(139 174 102 / 0.16);
-
-        /* The four status hues below were drawn for this ink and this ground.
-           They used to be Tailwind's factory steps, which sat two to three
-           times more saturated than the brand sage beside them: a soft green
-           next to a neon red reads as two origins, not as one system. Critical
-           keeps its signal strength because an outage has to carry, and the
-           other three recede toward the warm axis so red stays the only hue
-           that shouts. */
-        --sem-minor: #D2B373;
-        --sem-minor-text: #826931;
-        --sem-minor-soft: rgb(210 179 115 / 0.14);
-        --sem-minor-border: rgb(210 179 115 / 0.4);
-
-        --sem-major: #CA874E;
-        --sem-major-text: #925A25;
-        --sem-major-soft: rgb(202 135 78 / 0.12);
-        --sem-major-border: rgb(202 135 78 / 0.34);
-
-        --sem-crit: #D03833;
-        --sem-crit-text: #B01F1F;
-        --sem-crit-soft: rgb(208 56 51 / 0.1);
-        --sem-crit-border: rgb(208 56 51 / 0.26);
-
-        --sem-info: #507FA7;
-        --sem-info-text: #336288;
-        --sem-info-soft: rgb(80 127 167 / 0.1);
-        --sem-info-border: rgb(80 127 167 / 0.3);
+        color-scheme: light;
     }
 
     .dark {
-        --sem-ok: #8BAE66;
-        --sem-ok-text: #8BAE66;
-        --sem-ok-soft: rgb(139 174 102 / 0.16);
+        color-scheme: dark;
+    }
 
-        /* Composed for the dark ground, not lightened mechanically from the
-           light set: same hues, lifted until each clears AA on #1C1B18, with
-           critical still the most saturated of the four. */
-        --sem-minor: #E3C78E;
-        --sem-minor-text: #E3C78E;
-        --sem-minor-soft: rgb(227 199 142 / 0.14);
-        --sem-minor-border: rgb(227 199 142 / 0.4);
-
-        --sem-major: #E4A067;
-        --sem-major-text: #E4A067;
-        --sem-major-soft: rgb(228 160 103 / 0.12);
-        --sem-major-border: rgb(228 160 103 / 0.36);
-
-        --sem-crit: #EF675C;
-        --sem-crit-text: #EF675C;
-        --sem-crit-soft: rgb(239 103 92 / 0.08);
-        --sem-crit-border: rgb(239 103 92 / 0.28);
-
-        --sem-info: #73ABDA;
-        --sem-info-text: #73ABDA;
-        --sem-info-soft: rgb(115 171 218 / 0.12);
-        --sem-info-border: rgb(115 171 218 / 0.32);
+    /* A hidden element stays hidden whatever display its component sets. */
+    [hidden]:where(:not([hidden="until-found"])) {
+        display: none !important;
     }
 
     html {
+        font-family: var(--font-sans);
+        color: var(--ink);
+        background: var(--ground);
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-        scroll-behavior: smooth;
         scrollbar-gutter: stable;
-        font-family: var(--font-sans);
+        /* The closed drawer is parked off-screen to the right. `clip` keeps it
+           from widening the page without creating a scroll container, so the
+           sticky masthead keeps working. The drawer is fixed, so the root
+           needs it as well as the body. */
+        overflow-x: clip;
+        /* Anchors and keyboard focus stop clear of the sticky masthead, and
+           of the action bar under the long forms. */
+        scroll-padding-top: 96px;
     }
 
+    html:has(.action-bar) {
+        scroll-padding-bottom: 96px;
+    }
 
-    /* The closed event drawer is parked off-screen right, which would otherwise
-       widen the scrollable area and let every page slide sideways. `clip` stops
-       that without creating a scroll container, so the sticky masthead still works.
-       It has to sit on the root too: the drawer is position: fixed, so body's own
-       clip does not reach it. */
-    html {
-        overflow-x: clip;
+    @media (max-width: 720px) {
+        html:has(.action-bar) {
+            scroll-padding-bottom: 150px;
+        }
     }
 
     body {
-        font-family: var(--font-sans);
         overflow-x: clip;
     }
 
-    code, pre, kbd, samp, .font-mono {
+    @media (prefers-reduced-motion: no-preference) {
+        html {
+            scroll-behavior: smooth;
+        }
+    }
+
+    code,
+    pre,
+    kbd,
+    samp {
         font-family: var(--font-mono);
         font-feature-settings: 'tnum' 1;
     }
 
     :focus-visible {
-        outline: 2px solid var(--color-ink);
+        outline: 2px solid var(--focus);
         outline-offset: 2px;
-    }
-
-    :is(.dark *) :focus-visible {
-        outline-color: var(--color-sand);
     }
 
     :focus:not(:focus-visible) {
@@ -109,26 +67,21 @@
     }
 
     ::selection {
-        background-color: var(--color-ink);
-        color: var(--color-sand);
+        background-color: var(--ink);
+        color: var(--ground);
     }
 
-    .dark ::selection {
-        background-color: var(--color-sand);
-        color: var(--color-ink);
-    }
-
-    a, button, [role="button"], select, summary,
-    input[type="submit"], input[type="button"], input[type="reset"] {
+    a,
+    button,
+    [role="button"],
+    select,
+    summary,
+    label[for] {
         cursor: pointer;
     }
 
-    [hx-get]:not(input):not(textarea),
-    [hx-post]:not(input):not(textarea),
-    [hx-put]:not(input):not(textarea),
-    [hx-delete]:not(input):not(textarea),
-    [hx-patch]:not(input):not(textarea) {
-        cursor: pointer;
+    button:disabled {
+        cursor: not-allowed;
     }
 
     ::-webkit-scrollbar {
@@ -141,21 +94,11 @@
     }
 
     ::-webkit-scrollbar-thumb {
-        background: color-mix(in srgb, var(--color-ink) 18%, transparent);
+        background: var(--line-strong);
         border-radius: 3px;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-        background: color-mix(in srgb, var(--color-ink) 32%, transparent);
-    }
-
-    :is(.dark *) {
-        ::-webkit-scrollbar-thumb {
-            background: color-mix(in srgb, var(--color-sand) 18%, transparent);
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: color-mix(in srgb, var(--color-sand) 34%, transparent);
-        }
+        background: color-mix(in srgb, var(--ink) 32%, transparent);
     }
 }
-

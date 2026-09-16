@@ -1,64 +1,61 @@
-//! Dashboard layout resolution.
-//!
-//! Reads the persisted layout rows for a context, reconciles them with the
-//! module registry (seeds new modules, prunes removed ones), and returns an
-//! ordered list of modules along with their enabled flag and config blob.
-
-use serde_json::Value;
+//! Dashboard layouts: stored rows reconciled with the modules the binary
+//! ships.
 
 use crate::db::DbPool;
 use crate::error::AppError;
-use crate::modules::{Module, ModuleContext, ModuleRegistry};
+use crate::modules::{ColumnWidth, Module, ModuleContext, ModuleRegistry};
 use crate::repositories::DashboardLayoutRepository;
 
-pub struct ResolvedModule<'a> {
-    pub module: &'a dyn Module,
+pub struct ResolvedModule {
+    pub module: &'static dyn Module,
     pub enabled: bool,
-    pub config: Value,
-    pub position: i64,
 }
 
 pub struct DashboardLayoutService;
 
 impl DashboardLayoutService {
-    /// Return the ordered layout for a context, seeding missing modules and
-    /// pruning unknown ones in a single pass.
-    pub async fn resolve<'a>(
+    /// Stores a row for every shipped module and drops rows of modules that
+    /// are gone. Runs once at startup, so page views only read.
+    pub async fn reconcile(pool: &DbPool) -> Result<(), AppError> {
+        let registry = ModuleRegistry::global();
+        for context in ModuleContext::ALL {
+            let modules = registry.for_context(context);
+            let ids: Vec<&str> = modules.iter().map(|m| m.id()).collect();
+            DashboardLayoutRepository::prune_unknown(pool, context, &ids).await?;
+            for module in modules {
+                DashboardLayoutRepository::insert_if_missing(
+                    pool,
+                    context,
+                    module.id(),
+                    module.default_position(),
+                )
+                .await?;
+            }
+        }
+        Ok(())
+    }
+
+    /// The modules of a dashboard in saved order. A module without a stored
+    /// row is shown at its default place; the pinned banner is always on.
+    pub async fn resolve(
         pool: &DbPool,
-        registry: &'a ModuleRegistry,
         context: ModuleContext,
-    ) -> Result<Vec<ResolvedModule<'a>>, AppError> {
-        let available: Vec<&'a dyn Module> = registry.for_context(context);
-        let known_ids: Vec<&'static str> = available.iter().map(|m| m.id()).collect();
-        DashboardLayoutRepository::prune_unknown(pool, context, &known_ids).await?;
-
-        for module in &available {
-            DashboardLayoutRepository::insert_default_if_missing(
-                pool,
-                context,
-                module.id(),
-                module.default_position(context),
-                module.default_enabled(context),
-                "{}",
-            )
-            .await?;
-        }
-
-        let rows = DashboardLayoutRepository::list_default(pool, context).await?;
-        let mut resolved = Vec::with_capacity(rows.len());
-        for row in rows {
-            let Some(module) = registry.get(&row.module_id) else {
-                continue;
-            };
-            let config = serde_json::from_str::<Value>(&row.config).unwrap_or(Value::Null);
-            resolved.push(ResolvedModule {
-                module,
-                enabled: row.enabled,
-                config,
-                position: row.position,
-            });
-        }
-        Ok(resolved)
+    ) -> Result<Vec<ResolvedModule>, AppError> {
+        let registry = ModuleRegistry::global();
+        let stored = DashboardLayoutRepository::list(pool, context).await?;
+        let mut entries: Vec<(i64, ResolvedModule)> = registry
+            .for_context(context)
+            .into_iter()
+            .map(|module| {
+                let row = stored.iter().find(|r| r.module_id == module.id());
+                let position = row.map_or(module.default_position(), |r| r.position);
+                let pinned = module.column_width() == ColumnWidth::Full;
+                let enabled = pinned || row.is_none_or(|r| r.enabled);
+                (position, ResolvedModule { module, enabled })
+            })
+            .collect();
+        entries.sort_by_key(|(position, resolved)| (*position, resolved.module.id()));
+        Ok(entries.into_iter().map(|(_, resolved)| resolved).collect())
     }
 }
 
@@ -68,28 +65,45 @@ mod tests {
     use crate::test_helpers::test_pool;
 
     #[tokio::test]
-    async fn resolve_seeds_all_registered_modules() {
+    async fn resolve_works_before_any_row_exists() {
         let pool = test_pool().await;
-        let registry = ModuleRegistry::builtin();
-        let resolved = DashboardLayoutService::resolve(&pool, &registry, ModuleContext::Admin)
+        let resolved = DashboardLayoutService::resolve(&pool, ModuleContext::Public)
             .await
-            .expect("resolve");
-        assert!(
-            !resolved.is_empty(),
-            "builtin registry should provide at least one admin module"
-        );
+            .unwrap();
+        assert_eq!(resolved.len(), 4);
+        assert_eq!(resolved[0].module.id(), "status_banner");
+        assert!(resolved.iter().all(|r| r.enabled));
     }
 
     #[tokio::test]
-    async fn resolve_is_idempotent() {
+    async fn saved_order_and_hidden_modules_are_honoured() {
         let pool = test_pool().await;
-        let registry = ModuleRegistry::builtin();
-        let first = DashboardLayoutService::resolve(&pool, &registry, ModuleContext::Public)
+        DashboardLayoutService::reconcile(&pool).await.unwrap();
+        DashboardLayoutService::reconcile(&pool).await.unwrap();
+        let context = ModuleContext::Admin;
+        let order = [
+            "status_banner",
+            "scheduled_maintenances",
+            "services",
+            "recent_activity",
+        ]
+        .map(String::from);
+        DashboardLayoutRepository::save_order(&pool, context, &order)
             .await
-            .expect("first");
-        let second = DashboardLayoutService::resolve(&pool, &registry, ModuleContext::Public)
+            .unwrap();
+        DashboardLayoutRepository::set_enabled(&pool, context, "services", false)
             .await
-            .expect("second");
-        assert_eq!(first.len(), second.len());
+            .unwrap();
+        DashboardLayoutRepository::set_enabled(&pool, context, "status_banner", false)
+            .await
+            .unwrap();
+
+        let resolved = DashboardLayoutService::resolve(&pool, context)
+            .await
+            .unwrap();
+        let ids: Vec<&str> = resolved.iter().map(|r| r.module.id()).collect();
+        assert_eq!(ids, order.iter().map(String::as_str).collect::<Vec<_>>());
+        assert!(!resolved[2].enabled);
+        assert!(resolved[0].enabled, "the banner cannot be hidden");
     }
 }

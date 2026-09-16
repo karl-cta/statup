@@ -13,6 +13,7 @@ mod feed;
 mod health;
 mod icons;
 mod locale;
+mod page;
 mod password;
 mod profile;
 mod services;
@@ -20,7 +21,6 @@ mod services;
 use std::any::Any;
 use std::time::Duration;
 
-use askama::Template;
 use axum::Router;
 use axum::body::Body;
 use axum::http::header::{
@@ -29,7 +29,7 @@ use axum::http::header::{
 };
 use axum::http::{HeaderName, HeaderValue, Request};
 use axum::middleware;
-use axum::response::{Html, IntoResponse, Redirect, Response};
+use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, post};
 use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::classify::{ServerErrorsAsFailures, SharedClassifier};
@@ -51,6 +51,8 @@ use crate::middleware::load_session_user;
 use crate::middleware::rate_limit::RateLimit;
 use crate::state::AppState;
 
+pub(crate) use page::{Frame, members_only, render};
+
 /// Forms carry text only.
 const FORM_BODY_LIMIT: usize = 64 * 1024;
 
@@ -60,17 +62,11 @@ const UPLOAD_BODY_LIMIT: usize = 2 * 1024 * 1024;
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
-const APP_CSP: &str = "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'";
+/// No inline script, handler or style anywhere: behavior lives in
+/// `static/js`, presentation in the stylesheet.
+const APP_CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'";
 
 const PERMISSIONS_POLICY: &str = "camera=(), microphone=(), geolocation=(), interest-cohort=()";
-
-/// Renders an Askama template into an HTML response.
-pub(crate) fn render(template: &impl Template) -> Result<Response, AppError> {
-    let html = template
-        .render()
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("template render error: {e}")))?;
-    Ok(Html(html).into_response())
-}
 
 /// Builds the application router. The session layer is added by the caller.
 pub fn create_router(state: AppState, rate_limit: &RateLimit) -> Router {
@@ -141,6 +137,7 @@ fn public_routes() -> Router<AppState> {
         .route("/history", get(|| async { Redirect::permanent("/events") }))
         .route("/search", get(events::search))
         .route("/feed", get(feed::atom))
+        .route("/subscribe", get(dashboard::subscribe))
 }
 
 /// Events, templates, services and icons, for publishers and admins.
@@ -151,13 +148,16 @@ fn publisher_routes() -> Router<AppState> {
             "/events/:id/edit",
             get(events::edit_form).post(events::update),
         )
-        .route("/events/:id/lifecycle", post(events::update_lifecycle))
         .route(
             "/events/:id/revert-lifecycle",
             post(events::revert_lifecycle),
         )
         .route("/events/:id/delete", post(events::delete))
         .route("/events/:id/updates", post(events::add_update))
+        .route(
+            "/events/:id/updates/:update_id/delete",
+            post(events::delete_update),
+        )
         .route("/events/templates/search", get(events::template_search))
         .route("/events/templates/:id", get(events::template_detail))
         .route(

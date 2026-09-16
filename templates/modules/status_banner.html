@@ -1,80 +1,53 @@
-{# Status banner, magazine hero. Expects: active_incidents (Vec<EventSummary>), has_services, can_configure, i18n #}
+{% import "components/macros.html" as ui %}
 {% if !has_services %}
-{# No service configured: state that nothing is watched rather than claiming health. #}
-<section class="hero hero-idle">
-    <h2 class="hero-title">
-        <span class="hero-dot hero-dot-idle" aria-hidden="true"></span>
-        {{ i18n.t("dashboard.nothing_watched") }}
+<section class="hero" aria-labelledby="status-headline">
+    <h2 id="status-headline" class="hero-title">
+        <span class="ring-dot" data-tone="neutral" aria-hidden="true"></span>
+        <span>{{ i18n.t("banner.nothing_watched") }}</span>
     </h2>
-    <p class="hero-meta">{{ i18n.t("dashboard.nothing_watched_hint") }}</p>
-    {% if can_configure %}
-    <a href="/services/new" class="hero-action">
-        {{ i18n.t("dashboard.add_first_service") }}
-        <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M5 12h14M13 6l6 6-6 6"/>
-        </svg>
-    </a>
-    {% endif %}
-</section>
-{% else if active_incidents.is_empty() %}
-<section class="hero hero-ok">
-    <h2 class="hero-title">
-        <span class="hero-dot hero-dot-ok" aria-hidden="true"></span>
-        {{ i18n.t("dashboard.all_operational") }}
-    </h2>
-    <a href="/feed" class="hero-subscribe" title="{{ i18n.t("feed.subscribe_hint") }}">
-        <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1" fill="currentColor"/>
-        </svg>
-        {{ i18n.t("feed.subscribe") }}
-    </a>
+    <div class="hero-body">
+        <p class="hero-meta">{{ i18n.t("banner.nothing_watched_hint") }}</p>
+        {% if can_publish %}
+        <a href="/services/new" class="btn btn-primary btn-sm">{% call ui::plus() %}{{ i18n.t("banner.add_first_service") }}</a>
+        {% endif %}
+    </div>
 </section>
 {% else %}
-{# The query hands back the worst incident first, so the head of the list sets
-   both the ground and the title dot. #}
-{% match active_incidents.first() %}
-{% when Some with (first) %}
-<section class="hero hero-incident {{ first.hero_tone_class() }}">
-    <h2 class="hero-title">
-        <span class="hero-dot {{ first.hero_dot_class() }}" aria-hidden="true"></span>
-        {# The single-incident title is the incident's own, so without this the
-           state would be carried by the ground colour alone. #}
-        <span class="sr-only">{{ i18n.t("dashboard.status_incident_mono") }} :</span>
-        {% if active_incidents.len() == 1 %}
-        {{ first.title }}
-        {% else %}
-        {{ active_incidents.len() }} {{ i18n.t("dashboard.active_incidents") }}
-        {% endif %}
+<section class="hero{% if tone != "neutral" %} hero-alert{% endif %}" data-tone="{{ tone }}" aria-labelledby="status-headline">
+    <h2 id="status-headline" class="hero-title">
+        <span class="ring-dot" data-tone="{% if tone == "neutral" %}ok{% else %}{{ tone }}{% endif %}" aria-hidden="true"></span>
+        <span>{{ headline }}</span>
     </h2>
-    <p class="hero-meta">
-        {% if !first.service_names.is_empty() %}
-        <b>{{ first.service_names }}</b>
-        <span class="hero-meta-sep" aria-hidden="true">·</span>
-        {% endif %}
-        <span data-relative-from="{{ first.created_at.to_rfc3339() }}"></span>
-    </p>
-    {% if active_incidents.len() > 1 %}
+
+    {% if !rows.is_empty() %}
     <ul class="hero-list">
-        {% for inc in active_incidents %}
-        <li>
-            <a href="/events/{{ inc.id }}" data-drawer="/events/{{ inc.id }}/drawer" class="hero-list-item">
-                <span class="hero-dot-sm {{ inc.hero_dot_class() }}" aria-hidden="true"></span>
-                <span class="hero-list-title">{{ inc.title }}</span>
-                {% if !inc.service_names.is_empty() %}
-                <span class="hero-list-svc">{{ inc.service_names }}</span>
+        {% for row in rows %}
+        <li class="hero-item" data-tone="{{ row.tone }}">
+            <a class="hero-item-link" href="{{ row.href() }}"{% if let Some(url) = row.drawer_url() %} data-drawer="{{ url }}"{% endif %}>
+                <span class="dot" aria-hidden="true"></span>
+                <span class="hero-item-title">{{ row.service }}</span>
+                <span class="hero-item-state">{{ row.state }}</span>
+                {% if let Some(cause) = row.cause %}
+                <span class="hero-item-meta">
+                    {%- if let Some(since) = cause.since %}{{ cause.title }}&nbsp;<span aria-hidden="true">·</span> {{ since }}{% else %}{{ cause.title }}{% endif -%}
+                </span>
                 {% endif %}
             </a>
         </li>
         {% endfor %}
     </ul>
     {% endif %}
-    <a href="/feed" class="hero-subscribe" title="{{ i18n.t("feed.subscribe_hint") }}">
-        <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1" fill="currentColor"/>
-        </svg>
-        {{ i18n.t("feed.subscribe") }}
-    </a>
+
+    {% if let Some((update, time)) = self.single_update() %}
+    <p class="hero-update">
+        {% if let Some(label) = time %}<span class="hero-update-time">{{ label }}</span>{% endif %}
+        {{ update }}
+    </p>
+    {% endif %}
+
+    <div class="hero-foot">
+        <p><span data-stamp>{{ refreshed_at }}</span> <span data-stale hidden>{{ i18n.t("banner.refresh_lost") }}</span></p>
+        <a class="hero-follow" href="/subscribe">{% call ui::feed_icon() %}{{ i18n.t("banner.follow_updates") }}</a>
+    </div>
 </section>
-{% when None %}
-{% endmatch %}
 {% endif %}

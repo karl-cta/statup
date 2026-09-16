@@ -1,132 +1,70 @@
 {% extends "_layout.html" %}
+{% import "components/macros.html" as ui %}
 
 {% block title %}{{ i18n.t("modules.layout_title") }} | {{ crate::brand_name() }}{% endblock %}
+{% block section %}admin{% endblock %}
+
+{% block scripts %}
+<script src="{{ crate::asset("js/dashboard-layout.js") }}" defer></script>
+{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
-
-    <header class="animate-in">
-        <div class="flex items-baseline justify-between gap-4">
-            <h1 class="text-[28px] font-semibold tracking-tight text-ink dark:text-sand-light">
-                {{ i18n.t("modules.layout_title") }}
-            </h1>
-            <a href="/admin/settings" class="text-[12px] font-medium text-ink/55 hover:text-ink dark:text-sand-light/45 dark:hover:text-sand-light transition-colors shrink-0">
-                &larr; {{ i18n.t("modules.layout_back") }}
-            </a>
-        </div>
-        <p class="mt-1 text-[13px] text-ink/60 dark:text-sand-light/50 max-w-[60ch]">
-            {{ i18n.t("modules.layout_hint") }}
-        </p>
-        <div class="mt-5 flex gap-2">
-            <a href="/admin/dashboard/public/layout"
-               class="nav-pill {% if context == "public" %}active{% endif %}">
-                {{ i18n.t("modules.layout_context_public") }}
-            </a>
-            <a href="/admin/dashboard/admin/layout"
-               class="nav-pill {% if context == "admin" %}active{% endif %}">
-                {{ i18n.t("modules.layout_context_admin") }}
-            </a>
+<div class="page page-form">
+    <header class="page-head">
+        <div>
+            <a href="/admin/settings" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("admin.back_to_settings") }}</a>
+            <h1 class="page-title">{{ i18n.t("modules.layout_title") }}</h1>
+            <p class="page-lede">{{ i18n.t("modules.layout_hint") }}</p>
         </div>
     </header>
 
-    {# Rendered on every visit so a background save can reveal it. #}
-    <div id="layout-saved" class="mt-6 form-notice animate-in delay-1" role="status"{% if !saved_flash %} hidden{% endif %}>
-        {{ i18n.t("modules.layout_saved") }}
-    </div>
+    <nav class="tabs" aria-label="{{ i18n.t("modules.layout_contexts") }}">
+        <a href="/admin/dashboard/public/layout" class="tab"{% if context == "public" %} aria-current="page"{% endif %}>{{ i18n.t("modules.layout_context_public") }}</a>
+        <a href="/admin/dashboard/admin/layout" class="tab"{% if context == "admin" %} aria-current="page"{% endif %}>{{ i18n.t("modules.layout_context_admin") }}</a>
+    </nav>
 
-    <form id="layout-order-form"
-          method="post"
-          action="/admin/dashboard/{{ context }}/layout/order"
-          class="hidden">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div id="layout-saved" class="form-notice mb-5" role="status"{% if !saved %} hidden{% endif %}><p>{{ i18n.t("modules.layout_saved") }}</p></div>
+
+    <form id="layout-order-form" method="post" action="/admin/dashboard/{{ context }}/layout/order" hidden>
+        <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
     </form>
     <p id="layout-status" class="sr-only" role="status" data-template="{{ i18n.t("modules.position_announce") }}"></p>
     <p id="layout-drag-hint" class="sr-only">{{ i18n.t("modules.drag_keyboard_hint") }}</p>
 
-    {% if pinned.is_none() && rows.is_empty() %}
-    <section class="mt-6 card animate-in delay-2">
-        <p class="card-empty">{{ i18n.t("dashboard.no_modules") }}</p>
-    </section>
-    {% else %}
-    <section class="mt-6 card animate-in delay-2">
-        {% match pinned %}
-        {% when Some with (row) %}
-        <div class="set-row opacity-95">
-            <span class="flex-shrink-0 text-ink/30 dark:text-sand-light/25" aria-hidden="true" title="{{ i18n.t("modules.layout_pinned_top") }}">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
-                </svg>
+    <section class="card">
+        {% if let Some(row) = pinned %}
+        <div class="set-row layout-pinned">
+            <span class="layout-pin" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg>
             </span>
-            <div class="min-w-0 flex-1">
-                <div class="set-label">{{ row.name }}</div>
+            <div class="set-text">
+                <p class="set-label">{{ row.name }}</p>
                 <p class="set-help">{{ row.description }}</p>
-                <span class="set-state">{{ i18n.t("modules.layout_pinned_top") }}</span>
             </div>
-            <form method="post" class="shrink-0"
-                  action="/admin/dashboard/{{ context }}/layout/{{ row.module_id }}/toggle">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <input type="hidden" name="enabled" value="{% if row.enabled %}false{% else %}true{% endif %}">
-                {% if row.enabled %}
-                <button type="submit" class="toggle" role="switch"
-                        aria-checked="true"
-                        aria-label="{{ i18n.t("modules.toggle_disable") }} {{ row.name }}">
-                    <span class="toggle-thumb" aria-hidden="true"></span>
-                </button>
-                {% else %}
-                <button type="submit" class="toggle" role="switch"
-                        aria-checked="false"
-                        aria-label="{{ i18n.t("modules.toggle_enable") }} {{ row.name }}">
-                    <span class="toggle-thumb" aria-hidden="true"></span>
-                </button>
-                {% endif %}
-            </form>
         </div>
-        {% when None %}
-        {% endmatch %}
-        <ul data-modules-list>
+        {% endif %}
+        <ul class="layout-list" data-modules-list>
             {% for row in rows %}
-            {# One way to reorder: the handle, dragged with any pointer or moved
-               with the arrow keys once focused. #}
-            <li data-module-row
-                data-module-id="{{ row.module_id }}"
-                data-module-name="{{ row.name }}"
-                class="set-row set-row-draggable {% if !row.enabled %}opacity-60{% endif %}">
+            <li class="set-row layout-row" data-module-row data-module-id="{{ row.module_id }}" data-module-name="{{ row.name }}"{% if !row.enabled %} data-hidden{% endif %}>
                 <button type="button" class="row-handle" data-drag-handle
-                        aria-label="{{ i18n.t("modules.drag_handle") }} {{ row.name }}"
-                        aria-describedby="layout-drag-hint">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
-                    </svg>
+                        aria-label="{{ i18n.t("modules.drag_handle") }} {{ row.name }}" aria-describedby="layout-drag-hint">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3.75 9h16.5M3.75 15h16.5"/></svg>
                 </button>
-                <div class="min-w-0 flex-1">
-                    <div class="set-label">{{ row.name }}</div>
+                <div class="set-text">
+                    <p class="set-label">{{ row.name }}{% if !row.enabled %} <span class="count">{{ i18n.t("modules.hidden") }}</span>{% endif %}</p>
                     <p class="set-help">{{ row.description }}</p>
                 </div>
-                <div class="row-actions">
-                    <form method="post"
-                          action="/admin/dashboard/{{ context }}/layout/{{ row.module_id }}/toggle">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <input type="hidden" name="enabled" value="{% if row.enabled %}false{% else %}true{% endif %}">
-                        {% if row.enabled %}
-                        <button type="submit" class="toggle" role="switch"
-                                aria-checked="true"
-                                aria-label="{{ i18n.t("modules.toggle_disable") }} {{ row.name }}">
-                            <span class="toggle-thumb" aria-hidden="true"></span>
-                        </button>
-                        {% else %}
-                        <button type="submit" class="toggle" role="switch"
-                                aria-checked="false"
-                                aria-label="{{ i18n.t("modules.toggle_enable") }} {{ row.name }}">
-                            <span class="toggle-thumb" aria-hidden="true"></span>
-                        </button>
-                        {% endif %}
-                    </form>
-                </div>
+                <form class="row-actions" method="post" action="/admin/dashboard/{{ context }}/layout/{{ row.module_id }}/toggle">
+                    <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                    <input type="hidden" name="enabled" value="{% if row.enabled %}false{% else %}true{% endif %}">
+                    <button type="submit" class="toggle" role="switch" aria-checked="{% if row.enabled %}true{% else %}false{% endif %}"
+                            aria-label="{{ i18n.t("modules.show") }} {{ row.name }}">
+                        <span class="toggle-thumb" aria-hidden="true"></span>
+                    </button>
+                </form>
             </li>
             {% endfor %}
         </ul>
     </section>
-    {% endif %}
 </div>
-<script src="/static/js/dashboard-layout.js" defer></script>
 {% endblock %}
