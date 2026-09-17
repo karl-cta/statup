@@ -292,16 +292,17 @@ impl EventRepository {
     pub async fn transition(
         pool: &DbPool,
         id: i64,
+        from: Lifecycle,
         next: Lifecycle,
         now: DateTime<Utc>,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<bool, sqlx::Error> {
         let at = clock::db(now);
-        sqlx::query(
+        let result = sqlx::query(
             "UPDATE events SET previous_lifecycle = lifecycle, lifecycle = ?, \
                started_at = CASE WHEN ? = 'in_progress' THEN COALESCE(started_at, ?) \
                             ELSE started_at END, \
                ended_at = CASE WHEN ? IN ('resolved', 'completed') THEN ? ELSE ended_at END \
-             WHERE id = ?",
+             WHERE id = ? AND lifecycle = ?",
         )
         .bind(next)
         .bind(next.as_str())
@@ -309,9 +310,10 @@ impl EventRepository {
         .bind(next.as_str())
         .bind(&at)
         .bind(id)
+        .bind(from)
         .execute(pool)
         .await?;
-        Ok(())
+        Ok(result.rows_affected() > 0)
     }
 
     /// Undoes the last transition. A maintenance sent back to its schedule
@@ -706,9 +708,15 @@ mod tests {
             1
         );
 
-        EventRepository::transition(&pool, open.id, Lifecycle::Monitoring, Utc::now())
-            .await
-            .unwrap();
+        EventRepository::transition(
+            &pool,
+            open.id,
+            Lifecycle::Investigating,
+            Lifecycle::Monitoring,
+            Utc::now(),
+        )
+        .await
+        .unwrap();
         assert!(
             EventRepository::status_drivers(&pool, sid)
                 .await
@@ -789,9 +797,29 @@ mod tests {
         let event = EventRepository::create(&pool, &incident("Issue", uid, vec![sid]))
             .await
             .unwrap();
-        EventRepository::transition(&pool, event.id, Lifecycle::Resolved, Utc::now())
+        assert!(
+            EventRepository::transition(
+                &pool,
+                event.id,
+                Lifecycle::Investigating,
+                Lifecycle::Resolved,
+                Utc::now()
+            )
             .await
-            .unwrap();
+            .unwrap()
+        );
+        assert!(
+            !EventRepository::transition(
+                &pool,
+                event.id,
+                Lifecycle::Investigating,
+                Lifecycle::Resolved,
+                Utc::now()
+            )
+            .await
+            .unwrap(),
+            "a transition from a state the event has left is refused"
+        );
         let closed = EventRepository::find_by_id(&pool, event.id)
             .await
             .unwrap()

@@ -42,6 +42,9 @@ impl AppError {
             Self::Forbidden => (StatusCode::FORBIDDEN, "error.forbidden"),
             Self::Validation(key) => (StatusCode::BAD_REQUEST, key.as_str()),
             Self::PayloadTooLarge => (StatusCode::PAYLOAD_TOO_LARGE, "error.payload_too_large"),
+            Self::Database(err) if is_foreign_key_violation(err) => {
+                (StatusCode::BAD_REQUEST, "error.invalid_data")
+            }
             Self::Database(_) | Self::Internal(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "error.internal")
             }
@@ -58,6 +61,9 @@ impl AppError {
             }
             Self::Forbidden => {
                 tracing::warn!("Forbidden access attempt");
+            }
+            Self::Database(err) if is_foreign_key_violation(err) => {
+                tracing::warn!("Request named a row that does not exist: {err}");
             }
             Self::Database(err) => {
                 tracing::error!("Database error: {err:?}");
@@ -150,8 +156,15 @@ fn error_to_render(response: &Response) -> Option<(StatusCode, String)> {
 }
 
 /// Statuses the timeout and body limit layers answer without a page.
+/// A form that names a service or an icon that no longer exists: the
+/// request is wrong, the server is fine.
+fn is_foreign_key_violation(error: &sqlx::Error) -> bool {
+    matches!(error, sqlx::Error::Database(db) if db.is_foreign_key_violation())
+}
+
 fn bare_status_key(status: StatusCode) -> Option<&'static str> {
     match status {
+        StatusCode::BAD_REQUEST => Some("error.invalid_data"),
         StatusCode::REQUEST_TIMEOUT => Some("error.timeout"),
         StatusCode::PAYLOAD_TOO_LARGE => Some("error.payload_too_large"),
         _ => None,

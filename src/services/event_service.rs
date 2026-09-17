@@ -94,7 +94,15 @@ impl EventService {
             EventRepository::add_update(pool, id, &sanitize_markdown(message), author.id).await?;
         }
         if let Some(next) = next {
-            EventRepository::transition(pool, id, next, Utc::now()).await?;
+            let current = event.lifecycle.ok_or_else(|| {
+                AppError::Validation("validation.event_has_no_lifecycle".to_string())
+            })?;
+            // A second submit, or a colleague's, finds the event elsewhere.
+            if !EventRepository::transition(pool, id, current, next, Utc::now()).await? {
+                return Err(AppError::Validation(
+                    "validation.invalid_transition".to_string(),
+                ));
+            }
             recalculate_event_services(pool, id).await?;
         }
         Ok(())
