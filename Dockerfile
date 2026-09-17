@@ -10,7 +10,7 @@ COPY Cargo.toml Cargo.lock ./
 # Builds the dependencies alone, for the layer cache. The stub is not the
 # crate, so this step may fail without consequence: it only warms the cache.
 RUN mkdir src && echo "fn main() {}" > src/main.rs && \
-    (cargo build --release || true) && \
+    (cargo build --release --locked || true) && \
     rm -rf src
 
 COPY src ./src

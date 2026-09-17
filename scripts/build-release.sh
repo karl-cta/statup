@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage: scripts/build-release.sh [target...]
-# Builds dist/statup-<version>-<target>.tar.gz (binary, static files, LICENSE) for the host or each given Rust target.
+# Builds dist/statup-<version>-<target>.tar.gz (binary, static files, README and licenses) for the host or each given Rust target.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -37,7 +37,7 @@ package() {
     cp -R "$ROOT/static" "$stage/static"
     find "$stage/static/css" -name '*.css' ! -name style.css -delete
     find "$stage/static/css" -mindepth 1 -type d -exec rm -rf {} +
-    cp "$ROOT/LICENSE" "$ROOT/README.md" "$stage/"
+    cp "$ROOT/LICENSE" "$ROOT/THIRD_PARTY_NOTICES.md" "$ROOT/README.md" "$stage/"
 
     tar -C "$OUTPUT_DIR" -czf "$OUTPUT_DIR/$name.tar.gz" "$name"
     rm -rf "$stage"

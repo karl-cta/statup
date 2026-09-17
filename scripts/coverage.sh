@@ -62,32 +62,23 @@ check_module_coverage() {
         }')
 
     if [ -z "$lines" ]; then
-        echo "  ⚠ $module: no coverage data found"
-        return 0
-    fi
-
-    local total=0
-    local count=0
-    while IFS= read -r pct; do
-        total=$(echo "$total + $pct" | bc)
-        count=$((count + 1))
-    done <<< "$lines"
-
-    if [ "$count" -eq 0 ]; then
-        echo "  ⚠ $module: no files found"
+        echo "  warning: $module: no coverage data found"
         return 0
     fi
 
     local avg
-    avg=$(echo "scale=1; $total / $count" | bc)
-    local int_avg
-    int_avg=$(echo "$avg" | cut -d. -f1)
+    avg=$(printf '%s\n' "$lines" | awk '{ total += $1; count++ } END { if (count) printf "%.1f", total / count }')
+    if [ -z "$avg" ]; then
+        echo "  warning: $module: no files found"
+        return 0
+    fi
+    local int_avg="${avg%.*}"
 
     if [ "$int_avg" -ge "$THRESHOLD" ]; then
-        echo "  ✓ $module: ${avg}% (threshold: ${THRESHOLD}%)"
+        echo "  ok: $module: ${avg}% (threshold: ${THRESHOLD}%)"
         return 0
     else
-        echo "  ✗ $module: ${avg}% < ${THRESHOLD}% threshold"
+        echo "  below threshold: $module: ${avg}% < ${THRESHOLD}%"
         return 1
     fi
 }

@@ -66,10 +66,6 @@ impl ServiceStatus {
         }
     }
 
-    pub fn is_operational(self) -> bool {
-        self == Self::Operational
-    }
-
     /// A tool that works badly or not at all, maintenance aside.
     pub fn is_disruption(self) -> bool {
         matches!(
