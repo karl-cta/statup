@@ -16,8 +16,9 @@ use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, HtmlForm, OptionalUser, RequirePublisher};
 use crate::models::{
-    Category, CreateEventInput, DayGroup, Event, EventFilters, EventUpdateWithAuthor, Kind,
-    Lifecycle, LifecycleGroup, Service, Severity, UpdateEventInput, User, group_by_day,
+    Category, CreateEventInput, DayGroup, Event, EventFilters, EventUpdateWithAuthor,
+    EventWithServices, Kind, Lifecycle, LifecycleGroup, Service, Severity, UpdateEventInput, User,
+    group_by_day,
 };
 use crate::repositories::{
     CreateTemplateInput, EventRepository, EventTemplateRepository, ServiceRepository,
@@ -278,6 +279,9 @@ struct EventDetailTemplate {
     frame: Frame,
     view: EventView,
     can_edit: bool,
+    /// A finished maintenance offers a publisher the announcement of what
+    /// is new after it.
+    changelog_offer: bool,
     transitions: Vec<TransitionOption>,
     revert_label: Option<String>,
     published_notice: bool,
@@ -477,7 +481,11 @@ async fn detail_page(
 ) -> Result<EventDetailTemplate, AppError> {
     let view = load_view(state, id, user, &i18n).await?;
     let can_edit = user.is_some_and(|u| can_modify(&view.event, u.role));
+    let changelog_offer = user.is_some_and(|u| u.role.can_publish())
+        && view.event.kind == Kind::Maintenance
+        && view.event.lifecycle == Some(Lifecycle::Completed);
     Ok(EventDetailTemplate {
+        changelog_offer,
         frame: Frame::load(&state.pool, user, csrf_token, &i18n).await?,
         transitions: transition_options(&view.event, composer.lifecycle, &i18n),
         revert_label: view
@@ -656,6 +664,26 @@ impl EventFormData {
         }
     }
 
+    /// What is new after a maintenance: an announcement on the same
+    /// services, its text opening with a link back to the work.
+    fn changelog_after(ews: &EventWithServices, i18n: &I18n) -> Self {
+        let id = ews.event.id.to_string();
+        Self {
+            title: i18n.tf("title.changelog_after", &[("title", &ews.event.title)]),
+            description: i18n.tf(
+                "events.changelog_after_body",
+                &[("title", &ews.event.title), ("id", &id)],
+            ),
+            kind: Kind::Publication,
+            severity: None,
+            planned: false,
+            category: Some(Category::Changelog),
+            service_ids: ews.services.iter().map(|s| s.id).collect(),
+            planned_start: String::new(),
+            planned_end: String::new(),
+        }
+    }
+
     fn from_event(event: &Event, service_ids: Vec<i64>) -> Self {
         Self {
             title: event.title.clone(),
@@ -750,6 +778,9 @@ async fn render_form(
 pub struct NewFormQuery {
     #[serde(default, deserialize_with = "deserialize_blank_as_none")]
     kind: Option<Kind>,
+    /// A maintenance the announcement follows: the form opens on what is
+    /// new after it.
+    after: Option<i64>,
 }
 
 pub async fn new_form(
@@ -759,7 +790,16 @@ pub async fn new_form(
     csrf_token: CsrfToken,
     Locale(i18n): Locale,
 ) -> Result<Response, AppError> {
-    let form = EventFormData::blank(query.kind.unwrap_or(Kind::Incident));
+    let followed = match query.after {
+        Some(id) => EventRepository::find_with_services(&state.pool, id)
+            .await?
+            .filter(|ews| ews.event.kind == Kind::Maintenance),
+        None => None,
+    };
+    let form = match followed {
+        Some(ews) => EventFormData::changelog_after(&ews, &i18n),
+        None => EventFormData::blank(query.kind.unwrap_or(Kind::Incident)),
+    };
     render_form(&state, &user, csrf_token.0, i18n, None, form, None).await
 }
 

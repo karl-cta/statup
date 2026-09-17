@@ -117,6 +117,13 @@
                 </div>
                 {% endif %}
 
+                {% if changelog_offer %}
+                <div class="rail-block">
+                    <h2 class="label">{{ i18n.t("events.after_maintenance") }}</h2>
+                    <a href="/events/new?kind=publication&amp;after={{ view.event.id }}" class="btn btn-primary btn-sm">{{ i18n.t("events.publish_changelog") }}</a>
+                </div>
+                {% endif %}
+
                 {% if can_edit %}
                 <div class="rail-block">
                     <h2 class="label">{{ i18n.t("events.manage") }}</h2>

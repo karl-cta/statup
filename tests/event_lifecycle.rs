@@ -715,3 +715,56 @@ async fn detail_page_says_an_incident_is_still_ongoing() {
         "the closing message is shown"
     );
 }
+
+#[tokio::test]
+async fn a_finished_maintenance_offers_the_announcement_of_what_is_new() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Payroll").await;
+    let path = app
+        .create_planned_maintenance("Payroll update", "New version", "minor", &[service_id])
+        .await;
+    let event_id = event_id_from_path(&path);
+
+    let (_, body) = app.get(&path).await;
+    assert!(
+        !body.contains(&format!("after={event_id}")),
+        "nothing to announce before the work is done"
+    );
+
+    for lifecycle in ["in_progress", "completed"] {
+        let (status, _, _) = app
+            .post_form_with_header_csrf(
+                &format!("/events/{event_id}/updates"),
+                &[("lifecycle", lifecycle), ("message", "Done")],
+            )
+            .await;
+        assert_eq!(status, StatusCode::SEE_OTHER);
+    }
+
+    let (_, body) = app.get(&path).await;
+    assert!(
+        body.contains(&format!(
+            "/events/new?kind=publication&amp;after={event_id}"
+        )),
+        "a finished maintenance offers the announcement: {body}"
+    );
+
+    let (status, body) = app
+        .get(&format!("/events/new?kind=publication&after={event_id}"))
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains("Payroll update"),
+        "the title names the maintenance"
+    );
+    assert!(
+        body.contains(&format!("(/events/{event_id})")),
+        "the text links back to the maintenance"
+    );
+    assert!(
+        body.contains(r#"value="changelog" class="sr-only" checked"#)
+            || body.contains(r#"value="changelog" class="sr-only" data-required checked"#),
+        "the announcement is a changelog: {body}"
+    );
+}
