@@ -177,7 +177,7 @@ pub async fn login(
     let ip = client_ip(&headers, peer, state.trust_proxy_headers)
         .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
 
-    let refusal = missing_credentials(&input).or_else(|| blocked(&state, &ip));
+    let refusal = missing_credentials(&input).or_else(|| blocked(&state, &ip, &input.email));
     if let Some(key) = refusal {
         let message = Some(i18n.t(key).to_string());
         return render_login(csrf_token, i18n, message, input.email);
@@ -185,12 +185,12 @@ pub async fn login(
 
     match AuthService::login(&state.pool, &input.email, &input.password).await {
         Ok(user) => {
-            state.login_limiter.clear(&ip);
+            state.login_limiter.clear(&ip, &input.email);
             open_session(&session, &user, input.remember_me.is_some()).await?;
             Ok(signed_in_redirect(&user, state.serves_https()))
         }
         Err(AppError::Validation(key)) => {
-            state.login_limiter.record_failure(&ip);
+            state.login_limiter.record_failure(&ip, &input.email);
             let message = Some(i18n.t(&key).to_string());
             render_login(csrf_token, i18n, message, input.email)
         }
@@ -198,8 +198,8 @@ pub async fn login(
     }
 }
 
-fn blocked(state: &AppState, ip: &IpAddr) -> Option<&'static str> {
-    if !state.login_limiter.is_blocked(ip) {
+fn blocked(state: &AppState, ip: &IpAddr, email: &str) -> Option<&'static str> {
+    if !state.login_limiter.is_blocked(ip, email) {
         return None;
     }
     tracing::warn!(ip = %ip, "Login blocked by rate limiter");
