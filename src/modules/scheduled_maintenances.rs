@@ -104,14 +104,25 @@ fn day_of(i18n: &I18n, at: Option<chrono::DateTime<chrono::Utc>>) -> String {
         .unwrap_or_default()
 }
 
-/// The day work began; the line says when it should end.
+/// The day work began; the line says since when, and until when if an end
+/// was announced.
 fn ongoing_row(event: &EventSummary, i18n: &I18n) -> MaintenanceRow {
-    let when = event
-        .planned_end
-        .map(|end| i18n.tf("maintenance.ends", &[("when", &i18n.format_datetime(&end))]))
-        .unwrap_or_default();
-    let day = day_of(i18n, event.started_at.or(event.planned_start));
-    row(event, i18n, day, when)
+    let start = event.started_at.or(event.planned_start);
+    let mut parts = Vec::new();
+    if let Some(start) = start {
+        parts.push(i18n.tf("maintenance.since", &[("when", &i18n.format_time(&start))]));
+    }
+    if let Some(end) = event.planned_end {
+        let same_day =
+            start.is_some_and(|s| crate::clock::local_date(&s) == crate::clock::local_date(&end));
+        let when = if same_day {
+            i18n.format_time(&end)
+        } else {
+            i18n.format_datetime(&end)
+        };
+        parts.push(i18n.tf("maintenance.until", &[("when", &when)]));
+    }
+    row(event, i18n, day_of(i18n, start), parts.join(", "))
 }
 
 /// The day it starts; the line says at what time.
@@ -123,12 +134,13 @@ fn upcoming_row(event: &EventSummary, i18n: &I18n) -> MaintenanceRow {
     row(event, i18n, day_of(i18n, event.planned_start), when)
 }
 
-/// The day it ended.
+/// The day and the time it ended.
 fn finished_row(event: &EventSummary, i18n: &I18n) -> MaintenanceRow {
+    let closed = event.closed_at();
     row(
         event,
         i18n,
-        day_of(i18n, Some(event.closed_at())),
-        String::new(),
+        day_of(i18n, Some(closed)),
+        i18n.format_time(&closed),
     )
 }
