@@ -16,6 +16,7 @@ use axum::middleware::Next;
 use axum::response::Response;
 use rand::Rng;
 use rand::distributions::Alphanumeric;
+use subtle::ConstantTimeEq;
 use tower_sessions::Session;
 
 use super::body::buffer_body;
@@ -260,15 +261,10 @@ fn validate_token(expected: &str, submitted: Option<&str>) -> Result<(), AppErro
     Ok(())
 }
 
-/// Constant-time byte comparison to prevent timing attacks.
+/// Constant-time byte comparison, so the check does not tell how many
+/// leading bytes were right.
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-    a.iter()
-        .zip(b.iter())
-        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
-        == 0
+    a.len() == b.len() && bool::from(a.ct_eq(b))
 }
 
 #[cfg(test)]

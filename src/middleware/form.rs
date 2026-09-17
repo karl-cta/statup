@@ -1,11 +1,9 @@
-//! Form extractors: `application/x-www-form-urlencoded` bodies decoded with
-//! `serde_html_form`, which turns repeated keys into a `Vec`, with an
-//! optional `validator` pass.
+//! Form extractor: `application/x-www-form-urlencoded` bodies decoded with
+//! `serde_html_form`, which turns repeated keys into a `Vec`.
 
 use async_trait::async_trait;
 use axum::extract::{FromRequest, Request};
 use serde::de::DeserializeOwned;
-use validator::Validate;
 
 use super::body::buffer_body;
 use crate::error::AppError;
@@ -25,24 +23,6 @@ where
 
     async fn from_request(req: Request, _state: &S) -> Result<Self, Self::Rejection> {
         decode_form(req).await.map(Self)
-    }
-}
-
-/// Axum extractor that decodes a form body **and** validates it.
-pub struct ValidatedForm<T>(pub T);
-
-#[async_trait]
-impl<S, T> FromRequest<S> for ValidatedForm<T>
-where
-    S: Send + Sync,
-    T: DeserializeOwned + Validate,
-{
-    type Rejection = AppError;
-
-    async fn from_request(req: Request, _state: &S) -> Result<Self, Self::Rejection> {
-        let value: T = decode_form(req).await?;
-        value.validate()?;
-        Ok(Self(value))
     }
 }
 

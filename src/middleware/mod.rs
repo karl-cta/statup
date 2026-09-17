@@ -5,10 +5,10 @@ mod auth;
 mod body;
 pub mod client_ip;
 pub mod csrf;
+mod form;
 pub mod headers;
 pub mod rate_limit;
-mod validated_form;
 
 pub use auth::*;
 pub use csrf::{CsrfToken, FormCsrfToken};
-pub use validated_form::{HtmlForm, ValidatedForm};
+pub use form::HtmlForm;

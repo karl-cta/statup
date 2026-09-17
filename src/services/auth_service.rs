@@ -71,7 +71,7 @@ impl AuthService {
     /// The email as stored: trimmed, lowercase, and well formed.
     pub fn normalize_email(raw: &str) -> Result<String, AppError> {
         let email = raw.trim().to_lowercase();
-        if validator::validate_email(&email) {
+        if is_well_formed_email(&email) {
             Ok(email)
         } else {
             Err(AppError::Validation("validation.email_invalid".to_string()))
@@ -224,6 +224,28 @@ impl AuthService {
         Ok(user)
     }
 }
+/// The HTML5 rule for an email address: a local part made of the usual
+/// characters, one `@`, then domain labels of letters, digits and inner
+/// hyphens. Enough to catch a typo without refusing a valid address.
+fn is_well_formed_email(email: &str) -> bool {
+    let Some((local, domain)) = email.rsplit_once('@') else {
+        return false;
+    };
+    let local_ok = !local.is_empty()
+        && local.len() <= 64
+        && local
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || ".!#$%&'*+/=?^_`{|}~-".contains(c));
+    local_ok && domain.len() <= 253 && domain.split('.').all(is_domain_label)
+}
+
+fn is_domain_label(label: &str) -> bool {
+    !label.is_empty()
+        && label.len() <= 63
+        && !label.starts_with('-')
+        && !label.ends_with('-')
+        && label.chars().all(|c| c.is_alphanumeric() || c == '-')
+}
 
 fn email_taken() -> AppError {
     AppError::Validation("validation.email_taken".to_string())
@@ -345,6 +367,12 @@ mod tests {
         );
         assert!(AuthService::normalize_email("not-an-email").is_err());
         assert!(AuthService::normalize_email("").is_err());
+        assert!(AuthService::normalize_email("two@at@example.org").is_err());
+        assert!(AuthService::normalize_email("a b@example.org").is_err());
+        assert!(AuthService::normalize_email("a@-example.org").is_err());
+        assert!(AuthService::normalize_email("a@example.").is_err());
+        assert!(AuthService::normalize_email("o.neil+it@intranet").is_ok());
+        assert!(AuthService::normalize_email("paie@société.fr").is_ok());
     }
 
     #[tokio::test]

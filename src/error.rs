@@ -33,21 +33,6 @@ pub enum AppError {
     Internal(#[from] anyhow::Error),
 }
 
-impl From<validator::ValidationErrors> for AppError {
-    /// The message of the first invalid field in name order, so the same
-    /// input always gets the same message.
-    fn from(errors: validator::ValidationErrors) -> Self {
-        let mut fields: Vec<_> = errors.field_errors().into_iter().collect();
-        fields.sort_by_key(|(field, _)| *field);
-        let message = fields
-            .first()
-            .and_then(|(_, errs)| errs.first())
-            .and_then(|e| e.message.as_ref())
-            .map_or_else(|| "error.invalid_data".to_string(), ToString::to_string);
-        Self::Validation(message)
-    }
-}
-
 impl AppError {
     /// The status and the translation key of the message shown to the person.
     fn status_and_key(&self) -> (StatusCode, &str) {
@@ -193,27 +178,7 @@ fn error_page(status: StatusCode, message: String, i18n: I18n) -> ErrorTemplate 
 
 #[cfg(test)]
 mod tests {
-    use validator::Validate;
-
     use super::*;
-
-    #[derive(Validate)]
-    struct TwoRules {
-        #[validate(length(min = 2, message = "validation.b_message"))]
-        b_field: String,
-        #[validate(length(min = 2, message = "validation.a_message"))]
-        a_field: String,
-    }
-
-    #[test]
-    fn the_first_invalid_field_by_name_gives_the_message() {
-        let input = TwoRules {
-            b_field: String::new(),
-            a_field: String::new(),
-        };
-        let error = AppError::from(input.validate().unwrap_err());
-        assert!(matches!(error, AppError::Validation(key) if key == "validation.a_message"));
-    }
 
     #[test]
     fn only_layer_statuses_are_rendered_without_a_payload() {
