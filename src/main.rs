@@ -59,6 +59,9 @@ async fn main() -> anyhow::Result<()> {
 /// Behind a proxy that terminates TLS, `PUBLIC_URL` is what marks the
 /// cookies `Secure` and turns HSTS on.
 fn warn_on_plain_proxy(config: &Config) {
+    if config.public_url.is_none() {
+        tracing::info!("PUBLIC_URL is not set: links in the feed use the host of each request");
+    }
     if config.trust_proxy_headers && !config.secure_cookies() {
         tracing::warn!(
             "TRUST_PROXY_HEADERS is on but PUBLIC_URL is not an https address: \
