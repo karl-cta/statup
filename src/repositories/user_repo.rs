@@ -99,6 +99,14 @@ impl UserRepository {
             .await
     }
 
+    /// Records a visit, and only logs a failure: a page is worth showing
+    /// even when the visit could not be written.
+    pub async fn mark_seen(pool: &DbPool, user_id: i64) {
+        if let Err(e) = Self::update_last_seen(pool, user_id).await {
+            tracing::warn!(user_id, error = %e, "Failed to update last_seen_at");
+        }
+    }
+
     /// Record a visit. Written at most every five minutes per account, so
     /// browsing does not take the write lock on every page.
     pub async fn update_last_seen(pool: &DbPool, user_id: i64) -> Result<(), sqlx::Error> {

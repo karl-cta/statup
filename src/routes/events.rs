@@ -21,6 +21,7 @@ use crate::models::{
 };
 use crate::repositories::{
     CreateTemplateInput, EventRepository, EventTemplateRepository, ServiceRepository,
+    UserRepository,
 };
 use crate::services::{
     EventService, EventTemplateService, can_delete_update, can_modify, sanitize_markdown,
@@ -224,8 +225,12 @@ pub async fn list(
     if is_htmx(&headers) {
         return render(&EventResultsTemplate { results, i18n });
     }
+    let frame = Frame::load(&state.pool, user.as_ref(), csrf_token.0, &i18n).await?;
+    if let Some(u) = &user {
+        UserRepository::mark_seen(&state.pool, u.id).await;
+    }
     render(&EventListTemplate {
-        frame: Frame::load(&state.pool, user.as_ref(), csrf_token.0, &i18n).await?,
+        frame,
         results,
         query,
         services: ServiceRepository::list_all(&state.pool).await?,

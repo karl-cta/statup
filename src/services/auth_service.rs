@@ -219,7 +219,6 @@ impl AuthService {
             return Err(invalid_credentials());
         }
 
-        UserRepository::update_last_seen(pool, user.id).await?;
         tracing::info!(user_id = user.id, "User logged in");
         Ok(user)
     }

@@ -128,10 +128,8 @@ pub async fn index(
         return live_response(live);
     }
     let frame = Frame::load(&state.pool, user.as_ref(), csrf_token.0, &i18n).await?;
-    if let Some(u) = &user
-        && let Err(e) = UserRepository::update_last_seen(&state.pool, u.id).await
-    {
-        tracing::warn!(user_id = u.id, error = %e, "Failed to update last_seen_at");
+    if let Some(u) = &user {
+        UserRepository::mark_seen(&state.pool, u.id).await;
     }
     let has_services = ServiceRepository::any(&state.pool).await?;
     render(&DashboardTemplate {
