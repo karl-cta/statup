@@ -42,9 +42,11 @@ jobs:
       - uses: rustsec/audit-check@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          # sqlx 0.7: the advisory concerns the Postgres wire protocol, which
-          # Statup does not use. Lifted with the move to sqlx 0.8.
-          ignore: RUSTSEC-2024-0363
+          # RUSTSEC-2024-0363, sqlx 0.7: concerns the Postgres wire protocol,
+          # which Statup does not use; lifted with the move to sqlx 0.8.
+          # RUSTSEC-2023-0071, rsa: listed in the lock file by the MySQL
+          # driver of sqlx, which is never compiled into Statup.
+          ignore: RUSTSEC-2024-0363,RUSTSEC-2023-0071
 
   stylesheet:
     name: Stylesheet builds

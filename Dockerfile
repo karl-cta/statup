@@ -24,7 +24,10 @@ RUN touch src/main.rs src/lib.rs && cargo build --release --locked
 # Stylesheet, built apart so a change in static/ does not rebuild the binary
 FROM alpine:3.21 AS styles
 
-# Tailwind CSS v4 standalone CLI, the musl build since the image is Alpine
+# Tailwind CSS v4 standalone CLI, the musl build since the image is Alpine.
+# It links the C++ runtime dynamically.
+RUN apk add --no-cache libstdc++ libgcc
+
 ARG TARGETARCH
 RUN case "${TARGETARCH:-amd64}" in \
       amd64) TW_ARCH=x64 ;; \
