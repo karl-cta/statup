@@ -1,5 +1,7 @@
-//! Request rate limit for the dynamic routes: 100 requests a minute per
-//! client address, and the page shown past it.
+//! Request rate limit for the dynamic routes, per client address, and the
+//! page shown past it. The budget is sized for an office behind one
+//! address opening the page together during an incident, not for one
+//! person: brute force on sign-in has its own, stricter limiter.
 
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
@@ -21,9 +23,9 @@ use super::client_ip::client_ip;
 use crate::error::AppError;
 use crate::i18n::I18n;
 
-/// One request slot comes back every 600 ms, 100 a minute.
-const REPLENISH_EVERY_MS: u64 = 600;
-const BURST: u32 = 100;
+/// Requests a minute per client address, also the size of the burst
+/// allowed before the limit bites.
+pub const DEFAULT_PER_MINUTE: u32 = 600;
 const CLEANUP_PERIOD: Duration = Duration::from_secs(60);
 
 type Config = GovernorConfig<ClientIpKeyExtractor, NoOpMiddleware>;
@@ -57,10 +59,20 @@ impl RateLimit {
     ///
     /// Returns an error if the quota constants are invalid.
     pub fn new(trust_proxy: bool) -> anyhow::Result<Self> {
+        Self::with_quota(DEFAULT_PER_MINUTE, trust_proxy)
+    }
+
+    /// A limiter allowing `per_minute` requests a minute per address.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `per_minute` is zero.
+    pub fn with_quota(per_minute: u32, trust_proxy: bool) -> anyhow::Result<Self> {
+        let replenish_every_ms = 60_000 / u64::from(per_minute.max(1));
         let config = GovernorConfigBuilder::default()
             .key_extractor(ClientIpKeyExtractor { trust_proxy })
-            .per_millisecond(REPLENISH_EVERY_MS)
-            .burst_size(BURST)
+            .per_millisecond(replenish_every_ms)
+            .burst_size(per_minute)
             .error_handler(|error| limit_response(&error))
             .finish()
             .ok_or_else(|| anyhow::anyhow!("invalid rate limit quota"))?;
@@ -193,5 +205,7 @@ mod tests {
     #[test]
     fn the_quota_is_valid() {
         assert!(RateLimit::new(false).is_ok());
+        assert!(RateLimit::with_quota(1, false).is_ok());
+        assert!(RateLimit::with_quota(0, false).is_err());
     }
 }

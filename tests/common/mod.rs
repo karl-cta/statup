@@ -75,8 +75,9 @@ impl TestApp {
             trust_proxy_headers: options.trust_proxy_headers,
             public_url: options.public_url.map(ToOwned::to_owned),
         };
-        let rate_limit =
-            RateLimit::new(options.trust_proxy_headers).expect("invalid rate limit quota");
+        // A small budget, so a test can exhaust it with a short burst.
+        let rate_limit = RateLimit::with_quota(100, options.trust_proxy_headers)
+            .expect("invalid rate limit quota");
         let secure = state.serves_https();
         let sessions = session::session_layer(store, Duration::from_secs(3600), secure);
         let app = create_router(state, &rate_limit).layer(sessions);
