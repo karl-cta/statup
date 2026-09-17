@@ -37,6 +37,10 @@ jobs:
   audit:
     name: Dependency advisories
     runs-on: ubuntu-latest
+    # The action publishes its report as a check on the commit.
+    permissions:
+      contents: read
+      checks: write
     steps:
       - uses: actions/checkout@v4
       - uses: rustsec/audit-check@v2
