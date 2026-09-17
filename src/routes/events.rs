@@ -32,6 +32,9 @@ use crate::state::AppState;
 const PAGE_SIZE: i64 = 20;
 const MAX_PAGE: i64 = 10_000;
 
+/// How many recent maintenances the announcement form offers.
+const MAINTENANCE_CHOICES: i64 = 20;
+
 fn deserialize_blank_as_none<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where
     D: Deserializer<'de>,
@@ -42,6 +45,20 @@ where
         return Ok(None);
     }
     T::deserialize(serde::de::value::StringDeserializer::<D::Error>::new(raw)).map(Some)
+}
+
+/// A number field left blank means none; a filled one is parsed, since a
+/// form sends text.
+fn deserialize_blank_as_none_id<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw = String::deserialize(deserializer)?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    trimmed.parse().map(Some).map_err(serde::de::Error::custom)
 }
 
 fn is_htmx(headers: &HeaderMap) -> bool {
@@ -301,6 +318,8 @@ struct DrawerTemplate {
 pub struct EventView {
     pub event: Event,
     pub services: Vec<Service>,
+    /// The maintenance this announcement follows.
+    pub follows: Option<MaintenanceChoice>,
     pub description_html: String,
     pub updates: Vec<UpdateView>,
     /// "published on Sep 5 at 2:05 PM (UTC+2) by Jane", the name for members only.
@@ -333,7 +352,14 @@ async fn load_view(
         .into_iter()
         .map(|u| update_view(u, &ews.event, user, i18n))
         .collect();
+    let follows = match ews.event.follows_event_id {
+        Some(id) => EventRepository::find_by_id(&state.pool, id)
+            .await?
+            .map(|m| MaintenanceChoice { id, title: m.title }),
+        None => None,
+    };
     Ok(EventView {
+        follows,
         description_html: sanitize_markdown(&ews.event.description),
         published: published_line(&ews.event, author.as_deref(), i18n),
         state: state_line(&ews.event, i18n),
@@ -601,12 +627,14 @@ pub struct EventInput {
     service_ids: Vec<i64>,
     #[serde(default)]
     save_as_template: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_blank_as_none")]
+    #[serde(default, deserialize_with = "deserialize_blank_as_none_id")]
     template_id: Option<i64>,
     #[serde(default)]
     planned_start: String,
     #[serde(default)]
     planned_end: String,
+    #[serde(default, deserialize_with = "deserialize_blank_as_none_id")]
+    follows_event_id: Option<i64>,
 }
 
 impl EventInput {
@@ -647,6 +675,13 @@ pub struct EventFormData {
     pub service_ids: Vec<i64>,
     pub planned_start: String,
     pub planned_end: String,
+    pub follows_event_id: Option<i64>,
+}
+
+/// A maintenance an announcement may follow.
+pub struct MaintenanceChoice {
+    pub id: i64,
+    pub title: String,
 }
 
 impl EventFormData {
@@ -661,19 +696,16 @@ impl EventFormData {
             service_ids: Vec::new(),
             planned_start: String::new(),
             planned_end: String::new(),
+            follows_event_id: None,
         }
     }
 
     /// What is new after a maintenance: an announcement on the same
     /// services, its text opening with a link back to the work.
     fn changelog_after(ews: &EventWithServices, i18n: &I18n) -> Self {
-        let id = ews.event.id.to_string();
         Self {
             title: i18n.tf("title.changelog_after", &[("title", &ews.event.title)]),
-            description: i18n.tf(
-                "events.changelog_after_body",
-                &[("title", &ews.event.title), ("id", &id)],
-            ),
+            description: String::new(),
             kind: Kind::Publication,
             severity: None,
             planned: false,
@@ -681,6 +713,7 @@ impl EventFormData {
             service_ids: ews.services.iter().map(|s| s.id).collect(),
             planned_start: String::new(),
             planned_end: String::new(),
+            follows_event_id: Some(ews.event.id),
         }
     }
 
@@ -703,6 +736,7 @@ impl EventFormData {
                 .as_ref()
                 .map(clock::format_input)
                 .unwrap_or_default(),
+            follows_event_id: event.follows_event_id,
         }
     }
 
@@ -717,7 +751,14 @@ impl EventFormData {
             service_ids: input.service_ids,
             planned_start: input.planned_start,
             planned_end: input.planned_end,
+            follows_event_id: input.follows_event_id,
         }
+    }
+
+    // The template hands a field over by reference.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    fn follows(&self, id: &i64) -> bool {
+        self.follows_event_id == Some(*id)
     }
 
     fn kind_is(&self, kind: &str) -> bool {
@@ -744,6 +785,8 @@ struct EventFormTemplate {
     frame: Frame,
     error: Option<String>,
     services: Vec<Service>,
+    /// Recent maintenances an announcement may follow.
+    maintenances: Vec<MaintenanceChoice>,
     edit_id: Option<i64>,
     form: EventFormData,
     /// "Times are in the instance zone (UTC+2)."
@@ -763,6 +806,7 @@ async fn render_form(
     render(&EventFormTemplate {
         frame: Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?,
         services: ServiceRepository::list_all(&state.pool).await?,
+        maintenances: maintenance_choices(state, form.follows_event_id).await?,
         zone_hint: i18n.tf(
             "events.zone_hint",
             &[("zone", &clock::offset_label(&chrono::Utc::now()))],
@@ -772,6 +816,36 @@ async fn render_form(
         form,
         i18n,
     })
+}
+
+/// The last finished maintenances, and the one the form already follows
+/// when it is older than those.
+async fn maintenance_choices(
+    state: &AppState,
+    followed: Option<i64>,
+) -> Result<Vec<MaintenanceChoice>, AppError> {
+    let mut choices: Vec<MaintenanceChoice> =
+        EventRepository::list_finished_maintenance(&state.pool, MAINTENANCE_CHOICES)
+            .await?
+            .into_iter()
+            .map(|m| MaintenanceChoice {
+                id: m.id,
+                title: m.title,
+            })
+            .collect();
+    if let Some(id) = followed
+        && !choices.iter().any(|c| c.id == id)
+        && let Some(event) = EventRepository::find_by_id(&state.pool, id).await?
+    {
+        choices.insert(
+            0,
+            MaintenanceChoice {
+                id,
+                title: event.title,
+            },
+        );
+    }
+    Ok(choices)
 }
 
 #[derive(Deserialize)]
@@ -822,6 +896,7 @@ pub async fn create(
         planned_start: input.start().filter(|_| planned),
         planned_end: input.end().filter(|_| planned),
         service_ids: input.service_ids.clone(),
+        follows_event_id: input.follows_event_id,
         author_id: user.id,
     };
     match EventService::create(&state.pool, create_input).await {
@@ -901,6 +976,7 @@ pub async fn update(
         planned_start: input.start().filter(|_| planned),
         planned_end: input.end().filter(|_| planned),
         service_ids: input.service_ids.clone(),
+        follows_event_id: input.follows_event_id,
     };
     match EventService::update(&state.pool, id, changes, user.role).await {
         Ok(()) => Ok(Redirect::to(&format!("/events/{id}")).into_response()),

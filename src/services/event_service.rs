@@ -37,6 +37,9 @@ impl EventService {
         {
             return Err(AppError::Validation(key.to_string()));
         }
+        let mut input = input;
+        input.follows_event_id =
+            followed_maintenance(pool, input.kind, input.follows_event_id).await?;
         let event = EventRepository::create(pool, &input).await?;
         if affects_services(event.kind) {
             ServiceService::recalculate_many(pool, &input.service_ids).await?;
@@ -68,6 +71,8 @@ impl EventService {
         {
             return Err(AppError::Validation(key.to_string()));
         }
+        input.follows_event_id =
+            followed_maintenance(pool, event.kind, input.follows_event_id).await?;
         let touched = EventRepository::update(pool, id, &input).await?;
         if affects_services(event.kind) {
             ServiceService::recalculate_many(pool, &touched).await?;
@@ -250,6 +255,22 @@ fn update_error(event: &Event, message: &str, next: Option<Lifecycle>) -> Option
         .then_some("validation.closing_message_required")
 }
 
+/// The maintenance an announcement follows, checked to be one; nothing
+/// for the other kinds.
+async fn followed_maintenance(
+    pool: &DbPool,
+    kind: Kind,
+    id: Option<i64>,
+) -> Result<Option<i64>, AppError> {
+    let (Kind::Publication, Some(id)) = (kind, id) else {
+        return Ok(None);
+    };
+    match EventRepository::find_by_id(pool, id).await? {
+        Some(followed) if followed.kind == Kind::Maintenance => Ok(Some(id)),
+        _ => Err(AppError::Validation("error.invalid_data".to_string())),
+    }
+}
+
 /// Announcements never change a service status.
 fn affects_services(kind: Kind) -> bool {
     kind != Kind::Publication
@@ -328,6 +349,7 @@ mod tests {
             ended_at: None,
             author_id: 1,
             previous_lifecycle: None,
+            follows_event_id: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

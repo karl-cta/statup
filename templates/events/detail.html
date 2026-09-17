@@ -30,6 +30,10 @@
                 {% if let Some(schedule) = view.schedule %}
                 <p class="meta event-dates">{{ schedule }}</p>
                 {% endif %}
+                {% if let Some(followed) = view.follows %}
+                <p class="meta event-follows">{{ i18n.t("events.follows") }} <a class="link" href="/events/{{ followed.id }}">{{ followed.title }}</a></p>
+                {% endif %}
+
             </header>
 
             {% if !view.description_html.is_empty() %}

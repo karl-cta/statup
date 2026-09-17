@@ -366,6 +366,8 @@ pub struct Event {
     pub ended_at: Option<DateTime<Utc>>,
     pub author_id: i64,
     pub previous_lifecycle: Option<Lifecycle>,
+    /// The maintenance this announcement follows.
+    pub follows_event_id: Option<i64>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -595,6 +597,7 @@ pub struct CreateEventInput {
     pub planned_start: Option<DateTime<Utc>>,
     pub planned_end: Option<DateTime<Utc>>,
     pub service_ids: Vec<i64>,
+    pub follows_event_id: Option<i64>,
     pub author_id: i64,
 }
 
@@ -631,6 +634,7 @@ pub struct UpdateEventInput {
     pub planned_start: Option<DateTime<Utc>>,
     pub planned_end: Option<DateTime<Utc>>,
     pub service_ids: Vec<i64>,
+    pub follows_event_id: Option<i64>,
 }
 
 #[derive(Debug, Default)]
@@ -714,6 +718,7 @@ mod tests {
             planned_start: None,
             planned_end: None,
             service_ids: vec![],
+            follows_event_id: None,
             author_id: 1,
         }
     }
@@ -855,6 +860,7 @@ mod tests {
             planned_end: None,
             started_at: None,
             ended_at: None,
+            follows_event_id: None,
             author_id: 1,
             previous_lifecycle: None,
             created_at: Utc::now(),

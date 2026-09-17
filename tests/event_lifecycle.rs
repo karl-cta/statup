@@ -759,12 +759,50 @@ async fn a_finished_maintenance_offers_the_announcement_of_what_is_new() {
         "the title names the maintenance"
     );
     assert!(
-        body.contains(&format!("(/events/{event_id})")),
-        "the text links back to the maintenance"
+        body.contains(&format!(r#"<option value="{event_id}" selected>"#)),
+        "the maintenance is preselected: {body}"
     );
     assert!(
         body.contains(r#"value="changelog" class="sr-only" checked"#)
             || body.contains(r#"value="changelog" class="sr-only" data-required checked"#),
         "the announcement is a changelog: {body}"
+    );
+}
+
+#[tokio::test]
+async fn an_announcement_names_the_maintenance_it_follows() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Payroll").await;
+    let path = app
+        .create_planned_maintenance("Payroll update", "New version", "minor", &[service_id])
+        .await;
+    let maintenance_id = event_id_from_path(&path);
+    for lifecycle in ["in_progress", "completed"] {
+        app.post_form_with_header_csrf(
+            &format!("/events/{maintenance_id}/updates"),
+            &[("lifecycle", lifecycle), ("message", "Done")],
+        )
+        .await;
+    }
+
+    let announcement = app
+        .submit_create_event(
+            vec![
+                ("title", "What is new".to_string()),
+                ("description", "Faster payslips".to_string()),
+                ("kind", "publication".to_string()),
+                ("category", "changelog".to_string()),
+                ("follows_event_id", maintenance_id.to_string()),
+            ],
+            &[service_id],
+        )
+        .await;
+    let (status, body) = app.get(&announcement).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains(&format!(r#"href="/events/{maintenance_id}""#))
+            && body.contains("Payroll update"),
+        "the announcement links to the maintenance it follows: {body}"
     );
 }

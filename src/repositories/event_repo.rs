@@ -42,8 +42,8 @@ impl EventRepository {
         let mut tx = pool.begin().await?;
         let event = sqlx::query_as::<_, Event>(
             "INSERT INTO events (kind, severity, planned, lifecycle, category, title, \
-             description, planned_start, planned_end, started_at, author_id) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
+             description, planned_start, planned_end, started_at, follows_event_id, author_id) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
         )
         .bind(input.kind)
         .bind(input.severity)
@@ -55,6 +55,7 @@ impl EventRepository {
         .bind(input.planned_start.map(clock::db))
         .bind(input.planned_end.map(clock::db))
         .bind(input.initial_started_at().map(clock::db))
+        .bind(input.follows_event_id)
         .bind(input.author_id)
         .fetch_one(&mut *tx)
         .await?;
@@ -74,7 +75,8 @@ impl EventRepository {
         let mut touched = service_ids_in(&mut tx, id).await?;
         sqlx::query(
             "UPDATE events SET title = ?, description = ?, severity = ?, planned = ?, \
-             category = ?, planned_start = ?, planned_end = ? WHERE id = ?",
+             category = ?, planned_start = ?, planned_end = ?, follows_event_id = ? \
+             WHERE id = ?",
         )
         .bind(&input.title)
         .bind(&input.description)
@@ -83,6 +85,7 @@ impl EventRepository {
         .bind(input.category)
         .bind(input.planned_start.map(clock::db))
         .bind(input.planned_end.map(clock::db))
+        .bind(input.follows_event_id)
         .bind(id)
         .execute(&mut *tx)
         .await?;
@@ -582,6 +585,7 @@ mod tests {
             planned_start: None,
             planned_end: None,
             service_ids,
+            follows_event_id: None,
             author_id,
         }
     }
@@ -601,6 +605,7 @@ mod tests {
             planned_start: Some(start),
             planned_end: Some(start + chrono::Duration::hours(1)),
             service_ids,
+            follows_event_id: None,
             author_id,
         }
     }

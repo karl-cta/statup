@@ -7,6 +7,7 @@
 {% block htmx %}{% include "components/htmx.html" %}{% endblock %}
 
 {% block scripts %}
+<script src="{{ crate::asset("js/custom-select.js") }}" defer></script>
 <script src="{{ crate::asset("js/event-form.js") }}" defer></script>
 {% endblock %}
 
@@ -92,6 +93,17 @@
                     <label class="choice"><input type="radio" name="category" value="changelog" class="sr-only"{% if form.category_is("changelog") %} checked{% endif %}><span>{{ i18n.t("category.changelog") }}</span></label>
                 </div>
             </fieldset>
+            {% if !maintenances.is_empty() %}
+            <div class="field mt-4">
+                <label for="follows_event_id" class="field-label">{{ i18n.t("events.follows_label") }}</label>
+                <select id="follows_event_id" name="follows_event_id" class="input" data-custom-select>
+                    <option value="">{{ i18n.t("events.follows_none") }}</option>
+                    {% for m in maintenances %}
+                    <option value="{{ m.id }}"{% if form.follows(m.id) %} selected{% endif %}>{{ m.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
         </div>
 
         <section class="form-block" aria-labelledby="services-label">
