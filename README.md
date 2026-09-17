@@ -17,6 +17,11 @@ A self-hosted status page for IT teams. One Rust binary and its static files, on
 
 Stop answering "is it down?" at the helpdesk. Statup gives your whole organization one place to check whether the tools work, follow an incident as it unfolds and read about planned maintenance. The IT team publishes; accounting, payroll, HR and everyone else read it in plain words, from a desk or a phone.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/status-page-dark.png">
+  <img src=".github/assets/status-page.png" alt="The status page: a banner saying one service is disrupted, with the incident and its latest update, then the services with thirty days of availability, the recent activity and the maintenance schedule" width="1280">
+</picture>
+
 ### Status
 
 Statup is **pre-v1**. It is usable and self-hostable, and the interface is being finished before the first stable release. Expect changes between versions, and back up before upgrading.
@@ -36,7 +41,7 @@ Statup is **pre-v1**. It is usable and self-hostable, and the interface is being
 ### Why Statup
 
 - **Small footprint.** Templates, translations and migrations are compiled into the binary. SQLite in WAL mode; no Redis, no Postgres.
-- **Secure defaults.** Argon2id password hashing, CSRF tokens on every form, a Content Security Policy that allows the instance's own files only, rate limits on pages and on sign-in, parameterized SQL, sanitized Markdown and SVG.
+- **Secure defaults.** Argon2id password hashing, CSRF tokens on every form, a Content Security Policy that allows the instance's own files only, rate limits on pages and on sign-in, parameterized SQL, sanitized Markdown and SVG. See [SECURITY.md](SECURITY.md) for reporting a problem.
 - **Server-rendered.** Askama templates, htmx for the parts that update in place, a few small scripts, no JavaScript framework.
 - **Private.** Fonts and scripts are served by the instance: a visitor's browser never calls a third party.
 
@@ -165,8 +170,10 @@ cargo fmt
 
 The server serves `static/` from its working directory; templates live in `templates/`, translations in `locales/`, migrations in `migrations/`. A release build is `cargo build --release`, run next to a built `static/` directory.
 
+Other scripts: `scripts/build-release.sh` packages a release archive for the host or the given Rust targets, `scripts/coverage.sh` runs the tests under `cargo-llvm-cov`, `scripts/build-icons.py` regenerates the favicons from the logo. Continuous integration runs the format check, clippy, the tests on stable and on Rust 1.88, the dependency advisories, the stylesheet and the Docker build.
+
 ### License
 
 Statup is licensed under the [GNU Affero General Public License v3.0 or later](LICENSE). If you run a modified version for others over a network, offer them its source code.
 
-It ships htmx, the Hanken Grotesk font and icons from Heroicons, under their own licenses: see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+It ships htmx, the Hanken Grotesk font, icons from Heroicons and the base styles of Tailwind CSS, under their own licenses: see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

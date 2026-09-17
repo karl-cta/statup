@@ -25,7 +25,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 Copyright 2021 The Hanken Grotesk Project Authors ([github.com/marcologous/hanken-grotesk](https://github.com/marcologous/hanken-grotesk)).
 
-This Font Software is licensed under the SIL Open Font License, Version 1.1, available with a FAQ at [openfontlicense.org](https://openfontlicense.org).
+This Font Software is licensed under the SIL Open Font License, Version 1.1. The license text is in [`static/fonts/OFL.txt`](static/fonts/OFL.txt), next to the font, and available with a FAQ at [openfontlicense.org](https://openfontlicense.org).
 
 ## Heroicons
 
