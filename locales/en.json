@@ -348,7 +348,7 @@
   "subscribe.step_done": "Each new publication shows up there on its own, usually within minutes.",
   "subscribe.chat_title": "In your team chat",
   "subscribe.chat_text": "Most team chat tools can follow an RSS or Atom feed, often through an app added to the channel. Paste the same address there.",
-  "subscribe.page_title": "Or simply this page",
+  "subscribe.page_title": "Or this page",
   "subscribe.page_text": "Keep the tab open: the state updates on its own every minute.",
   "kind.incident": "Incident",
   "kind.maintenance": "Maintenance",

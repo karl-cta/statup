@@ -825,7 +825,8 @@
             transition: none;
         }
 
-        .icon-choices-body.is-revealing {
+        .icon-choices-body.is-revealing,
+        .row-saved {
             animation: none;
         }
     }

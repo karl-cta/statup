@@ -62,7 +62,7 @@
                             <span class="mnav-tool-label">{{ i18n.t("nav.theme") }}</span>
                         </button>
                         {% if frame.is_authenticated %}
-                        <a class="mnav-tool mnav-tool-user" href="/profile" title="{{ i18n.t("nav.profile") }}"><span class="sr-only">{{ i18n.t("nav.profile") }}, </span><span>{{ frame.user_name }}</span></a>
+                        <a class="mnav-tool mnav-tool-user" href="/profile"><span class="sr-only">{{ i18n.t("nav.profile") }}, </span><span>{{ frame.user_name }}</span></a>
                         <form method="post" action="/logout">
                             <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
                             <button type="submit" class="mnav-tool" aria-label="{{ i18n.t("nav.logout") }}">
