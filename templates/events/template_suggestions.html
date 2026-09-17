@@ -1,6 +1,7 @@
 {% if !templates.is_empty() %}
 <div class="suggestions" role="group" aria-labelledby="suggestions-title">
     <p id="suggestions-title" class="label suggestions-title">{{ i18n.t("events.template_suggestions") }}</p>
+    <span class="sr-only" data-announce>{{ i18n.plural("events.template_suggestions_count", templates.len()) }}</span>
     {% for template in templates %}
     <button type="button" class="suggestion" data-template="{{ template.id }}">
         <span class="min-w-0 flex-1">

@@ -165,6 +165,8 @@
   "events.title_label": "Titre",
   "events.title_placeholder": "Par exemple : Messagerie indisponible",
   "events.template_suggestions": "Modèles enregistrés",
+  "events.template_suggestions_count.one": "{n} modèle proposé, flèche bas pour le choisir",
+  "events.template_suggestions_count.other": "{n} modèles proposés, flèche bas pour les parcourir",
   "events.template_used.one": "utilisé {n} fois",
   "events.template_used.other": "utilisé {n} fois",
   "events.template_error": "Ce modèle n'a pas pu être chargé.",

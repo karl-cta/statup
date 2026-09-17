@@ -165,6 +165,8 @@
   "events.title_label": "Title",
   "events.title_placeholder": "For example: Email unavailable",
   "events.template_suggestions": "Saved templates",
+  "events.template_suggestions_count.one": "{n} template suggested, press the down arrow to pick it",
+  "events.template_suggestions_count.other": "{n} templates suggested, press the down arrow to browse them",
   "events.template_used.one": "used once",
   "events.template_used.other": "used {n} times",
   "events.template_error": "This template could not be loaded.",

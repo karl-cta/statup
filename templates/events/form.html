@@ -115,7 +115,7 @@
             <label for="title" class="field-label">{{ i18n.t("events.title_label") }}</label>
             <input id="title" name="title" type="text" class="input" required maxlength="200" autocomplete="off"
                    value="{{ form.title }}" placeholder="{{ i18n.t("events.title_placeholder") }}"
-                   {% if edit_id.is_none() %}hx-get="/events/templates/search" hx-trigger="input changed delay:300ms" hx-target="#template-suggestions" hx-swap="innerHTML" hx-params="title"{% endif %}>
+                   {% if edit_id.is_none() %}hx-get="/events/templates/search" hx-trigger="input changed delay:300ms" hx-target="#template-suggestions" hx-swap="innerHTML" hx-params="title" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="template-suggestions"{% endif %}>
             {% if edit_id.is_none() %}
             <div id="template-suggestions" data-suggestions></div>
             <input type="hidden" name="template_id" value="" data-template-id>

@@ -5,8 +5,27 @@
     "use strict";
 
     const form = document.querySelector("[data-event-form]");
+    if (!form) return;
+
+    // The rows that do not apply to the event's kind are hidden by the
+    // stylesheet; their fields must leave the request too.
+    function settleRows() {
+        form.querySelectorAll(".reveal-row").forEach((row) => {
+            const open = row.classList.contains("is-open");
+            row.querySelectorAll("input, select, textarea").forEach((field) => {
+                field.disabled = !open;
+                if (field.hasAttribute("data-required")) field.required = open;
+            });
+        });
+    }
+
+    // An edited event keeps its kind: the rows are settled once and the
+    // wording of a new event is not needed.
     const copyNode = document.getElementById("event-form-copy");
-    if (!form || form.hasAttribute("data-editing") || !copyNode) return;
+    if (form.hasAttribute("data-editing") || !copyNode) {
+        settleRows();
+        return;
+    }
 
     const copy = JSON.parse(copyNode.textContent);
     const title = form.querySelector("#title");
@@ -94,6 +113,7 @@
 
     function closeSuggestions() {
         if (suggestions) suggestions.replaceChildren();
+        title.setAttribute("aria-expanded", "false");
     }
 
     function showTemplateError() {
@@ -132,8 +152,16 @@
         titleTouched = title.value.trim() !== "";
         form.querySelector("[data-template-id]").value = "";
     });
+    // A proposed title is a suggestion: typing replaces it rather than
+    // extending it.
+    title.addEventListener("focus", () => {
+        if (!titleTouched && title.value) title.select();
+    });
 
     if (suggestions) {
+        suggestions.addEventListener("htmx:afterSwap", () => {
+            title.setAttribute("aria-expanded", String(Boolean(suggestions.querySelector("[data-template]"))));
+        });
         suggestions.addEventListener("click", (event) => {
             const option = event.target.closest("[data-template]");
             if (option) applyTemplate(option.dataset.template);
