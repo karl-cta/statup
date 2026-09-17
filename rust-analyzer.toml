@@ -1,5 +1,0 @@
-check.command = "clippy"
-check.extraArgs = ["--", "-D", "warnings"]
-
-inlayHints.closureReturnTypeHints.enable = "with_block"
-inlayHints.lifetimeElisionHints.enable = "skip_trivial"
