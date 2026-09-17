@@ -150,38 +150,14 @@
         });
     }
 
-    // Masthead clock, in the instance zone the server gave.
+    // The instance zone, as the server gave it with the page.
     function clockOffset() {
-        const clock = document.querySelector("[data-clock]");
-        return clock ? Number(clock.dataset.offset) || 0 : 0;
+        const zone = document.querySelector("[data-clock-offset]");
+        return zone ? Number(zone.dataset.clockOffset) || 0 : 0;
     }
 
     function instanceDay() {
         return Math.floor((Date.now() + clockOffset() * 60000) / 86400000);
-    }
-
-    function startClock() {
-        const clock = document.querySelector("[data-clock]");
-        if (!clock) return;
-        const offset = clockOffset();
-        const hour12 = clock.dataset.hour12 === "true";
-        const label = clock.textContent.trim().split(" ").pop();
-        const tick = () => {
-            const now = new Date(Date.now() + offset * 60000);
-            let hours = now.getUTCHours();
-            const minutes = String(now.getUTCMinutes()).padStart(2, "0");
-            let time;
-            if (hour12) {
-                const suffix = hours < 12 ? "AM" : "PM";
-                hours = hours % 12 || 12;
-                time = `${hours}:${minutes} ${suffix}`;
-            } else {
-                time = `${String(hours).padStart(2, "0")}:${minutes}`;
-            }
-            clock.textContent = label ? `${time} ${label}` : time;
-        };
-        tick();
-        window.setInterval(tick, 30000);
     }
 
     // Side panel with an event's detail.
@@ -620,7 +596,6 @@
     function onReady() {
         markCurrentSection();
         syncThemeButtons();
-        startClock();
         startLiveRefresh();
         hideBrokenImages(document);
         document.querySelectorAll("form[data-autosubmit] [data-apply]").forEach((button) => {

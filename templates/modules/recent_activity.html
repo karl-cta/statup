@@ -24,9 +24,8 @@
                         {% call ui::kind_chip(i18n.t(event.kind.i18n_key()), event.kind_tone()) %}
                         <span class="log-title">{{ event.title }}</span>
                     </span>
-                    {% let meta = event.meta_parts(i18n) %}
-                    {% if !meta.is_empty() %}
-                    <span class="meta">{% for part in meta %}{% if !loop.first %}&nbsp;<span aria-hidden="true">·</span> {% endif %}{{ part }}{% endfor %}</span>
+                    {% if event.has_services() %}
+                    <span class="meta">{{ event.services_label() }}</span>
                     {% endif %}
                 </span>
                 {% if let Some(key) = event.lifecycle_key() %}

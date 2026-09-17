@@ -208,8 +208,8 @@
         gap: 6px;
         min-height: 28px;
         font-size: 13px;
-        font-weight: 500;
-        color: inherit;
+        font-weight: 600;
+        color: var(--ink);
         text-decoration: underline;
         text-decoration-color: transparent;
         text-underline-offset: 3px;
@@ -369,7 +369,7 @@
 
     .svc-pct {
         flex: none;
-        min-width: 3ch;
+        white-space: nowrap;
         font-size: 12px;
         font-weight: 500;
         text-align: right;

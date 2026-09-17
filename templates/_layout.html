@@ -11,6 +11,17 @@
     <a href="#main" class="skip-link">{{ i18n.t("nav.skip_to_content") }}</a>
 
     <header class="mast" data-tabs="{{ frame.tab_count() }}">
+        <div class="mast-strip">
+            <div class="mast-strip-inner">
+                <p class="mast-top-left">
+                    <span>{{ frame.dateline }}</span>
+                    <span class="mast-zone" data-clock-offset="{{ frame.clock_offset }}">{{ frame.zone }}</span>
+                </p>
+                <p class="mast-top-right">
+                    <a class="mast-lang" href="/i18n?locale={{ i18n.other_locale() }}" hreflang="{{ i18n.other_locale() }}" lang="{{ i18n.other_locale() }}">{{ i18n.t("lang.other") }}</a>
+                </p>
+            </div>
+        </div>
         <div class="mast-inner">
             <div class="mast-title-cell">
                 {# The host's own name takes the wordmark's place; the accented
@@ -25,62 +36,50 @@
                     {% endif %}
                 </a>
             </div>
-            <div class="mast-rows">
-                <div class="mast-top">
-                    <p class="mast-top-left">
-                        <span>{{ frame.dateline }}</span>
-                        <span class="mast-top-sep" aria-hidden="true"></span>
-                        <span class="mast-top-clock" data-clock data-offset="{{ frame.clock_offset }}" data-hour12="{% if i18n.is_fr() %}false{% else %}true{% endif %}">{{ frame.clock }}</span>
-                    </p>
-                    <p class="mast-top-right">
-                        <a class="mast-lang" href="/i18n?locale={{ i18n.other_locale() }}" hreflang="{{ i18n.other_locale() }}" lang="{{ i18n.other_locale() }}">{{ i18n.t("lang.other") }}</a>
-                    </p>
-                </div>
-                <nav class="mast-nav" aria-label="{{ i18n.t("nav.main_nav") }}">
-                    <a class="mnav" data-nav="home" href="/">{{ i18n.t("nav.dashboard") }}</a>
-                    <a class="mnav" data-nav="events" href="/events">
-                        {{ i18n.t("nav.events") }}
-                        {% if frame.unread_count > 0 %}
-                        <span class="unread" aria-hidden="true">{% if frame.unread_count > 99 %}99+{% else %}{{ frame.unread_count }}{% endif %}</span>
-                        <span class="sr-only">{{ frame.unread_label }}</span>
-                        {% endif %}
+            <nav class="mast-nav" aria-label="{{ i18n.t("nav.main_nav") }}">
+                <a class="mnav" data-nav="home" href="/">{{ i18n.t("nav.dashboard") }}</a>
+                <a class="mnav" data-nav="events" href="/events">
+                    {{ i18n.t("nav.events") }}
+                    {% if frame.unread_count > 0 %}
+                    <span class="unread" aria-hidden="true">{% if frame.unread_count > 99 %}99+{% else %}{{ frame.unread_count }}{% endif %}</span>
+                    <span class="sr-only">{{ frame.unread_label }}</span>
+                    {% endif %}
+                </a>
+                {% if frame.can_publish %}
+                <a class="mnav" data-nav="services" href="/services">{{ i18n.t("nav.services") }}</a>
+                {% endif %}
+                {% if frame.is_admin %}
+                <a class="mnav" data-nav="admin" href="/admin/settings">{{ i18n.t("nav.admin") }}</a>
+                {% endif %}
+                <span class="mnav-spacer"></span>
+                <div class="mnav-tools">
+                    <a class="mnav-tool" href="/events#q" aria-label="{{ i18n.t("nav.search") }} {{ i18n.t("nav.search_hint") }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                        <span class="mnav-tool-label">{{ i18n.t("nav.search") }}</span>
                     </a>
-                    {% if frame.can_publish %}
-                    <a class="mnav" data-nav="services" href="/services">{{ i18n.t("nav.services") }}</a>
-                    {% endif %}
-                    {% if frame.is_admin %}
-                    <a class="mnav" data-nav="admin" href="/admin/settings">{{ i18n.t("nav.admin") }}</a>
-                    {% endif %}
-                    <span class="mnav-spacer"></span>
-                    <div class="mnav-tools">
-                        <a class="mnav-tool" href="/events#q" aria-label="{{ i18n.t("nav.search") }} {{ i18n.t("nav.search_hint") }}">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                            <span class="mnav-tool-label">{{ i18n.t("nav.search") }}</span>
-                        </a>
-                        <button type="button" class="mnav-tool" data-theme-toggle aria-pressed="false" aria-label="{{ i18n.t("nav.dark_theme") }}">
-                            {% include "components/theme_icons.html" %}
-                            <span class="mnav-tool-label">{{ i18n.t("nav.theme") }}</span>
-                        </button>
-                        {% if frame.is_authenticated %}
-                        <a class="mnav-tool mnav-tool-user" href="/profile"><span class="sr-only">{{ i18n.t("nav.profile") }}, </span><span>{{ frame.user_name }}</span></a>
-                        <form method="post" action="/logout">
-                            <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                            <button type="submit" class="mnav-tool" aria-label="{{ i18n.t("nav.logout") }}">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11"/></svg>
-                                <span class="mnav-tool-label">{{ i18n.t("nav.logout") }}</span>
-                            </button>
-                        </form>
-                        {% else %}
-                        <a class="mnav-tool" href="/login">{{ i18n.t("nav.login") }}</a>
-                        {% endif %}
-                    </div>
-                    <button type="button" class="mast-burger" data-menu-toggle aria-expanded="false" aria-controls="mast-menu">
-                        <span class="sr-only">{{ i18n.t("nav.main_menu") }}</span>
-                        <svg class="mast-burger-icon mast-burger-icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5"/></svg>
-                        <svg class="mast-burger-icon mast-burger-icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                    <button type="button" class="mnav-tool" data-theme-toggle aria-pressed="false" aria-label="{{ i18n.t("nav.dark_theme") }}">
+                        {% include "components/theme_icons.html" %}
+                        <span class="mnav-tool-label">{{ i18n.t("nav.theme") }}</span>
                     </button>
-                </nav>
-            </div>
+                    {% if frame.is_authenticated %}
+                    <a class="mnav-tool mnav-tool-user" href="/profile"><span class="sr-only">{{ i18n.t("nav.profile") }}, </span><span>{{ frame.user_name }}</span></a>
+                    <form method="post" action="/logout">
+                        <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                        <button type="submit" class="mnav-tool" aria-label="{{ i18n.t("nav.logout") }}">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11"/></svg>
+                            <span class="mnav-tool-label">{{ i18n.t("nav.logout") }}</span>
+                        </button>
+                    </form>
+                    {% else %}
+                    <a class="mnav-tool" href="/login">{{ i18n.t("nav.login") }}</a>
+                    {% endif %}
+                </div>
+                <button type="button" class="mast-burger" data-menu-toggle aria-expanded="false" aria-controls="mast-menu">
+                    <span class="sr-only">{{ i18n.t("nav.main_menu") }}</span>
+                    <svg class="mast-burger-icon mast-burger-icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5"/></svg>
+                    <svg class="mast-burger-icon mast-burger-icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                </button>
+            </nav>
         </div>
         <div id="mast-menu" class="mast-menu" hidden>
             <nav class="mast-menu-list mast-menu-tabs" aria-label="{{ i18n.t("nav.main_menu") }}">
@@ -102,7 +101,6 @@
             <div class="mast-menu-list">
                 <a class="mast-menu-item" href="/events#q">{{ i18n.t("nav.search") }}</a>
                 <button type="button" class="mast-menu-item" data-theme-toggle aria-pressed="false">{{ i18n.t("nav.dark_theme") }}</button>
-                <a class="mast-menu-item" href="/i18n?locale={{ i18n.other_locale() }}" hreflang="{{ i18n.other_locale() }}" lang="{{ i18n.other_locale() }}">{{ i18n.t("lang.other") }}</a>
             </div>
             <div class="mast-menu-list">
                 {% if frame.is_authenticated %}

@@ -183,7 +183,8 @@ fn availability(levels: &[(NaiveDate, Option<u8>)], i18n: &I18n) -> String {
     }
     let clear = levels.iter().filter(|(_, level)| *level == Some(0)).count();
     let percent = (clear * 100 + observed / 2) / observed;
-    i18n.format_percent(u32::try_from(percent).unwrap_or(100))
+    let share = i18n.format_percent(u32::try_from(percent).unwrap_or(100));
+    i18n.tf("availability.share", &[("share", &share)])
 }
 
 fn availability_label(levels: &[(NaiveDate, Option<u8>)], i18n: &I18n) -> String {
@@ -255,7 +256,7 @@ mod tests {
             .date_naive();
         let mut levels = vec![(date, Some(0)); 29];
         levels.push((date, Some(2)));
-        assert_eq!(availability(&levels, &i18n), "97%");
+        assert_eq!(availability(&levels, &i18n), "97% over 30 days");
         let fresh = vec![(date, None), (date, Some(0))];
         assert_eq!(
             availability(&fresh, &i18n),

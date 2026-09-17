@@ -581,9 +581,9 @@
 
     /* A line of facts under a title: kind, services, time. */
     .meta {
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.55;
-        color: var(--muted);
+        color: var(--ink-soft);
         font-feature-settings: 'tnum' 1;
     }
 

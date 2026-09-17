@@ -19,7 +19,6 @@ pub struct MaintenanceRow {
     pub title: String,
     pub state: String,
     pub when: String,
-    pub countdown: Option<String>,
     pub services: Vec<String>,
 }
 
@@ -93,7 +92,6 @@ fn row(event: &EventSummary, i18n: &I18n, when: String) -> MaintenanceRow {
             .map(|key| i18n.t(key).to_string())
             .unwrap_or_default(),
         when,
-        countdown: None,
         services: event.services().into_iter().map(String::from).collect(),
     }
 }
@@ -117,10 +115,7 @@ fn upcoming_row(event: &EventSummary, i18n: &I18n) -> MaintenanceRow {
         .planned_start
         .map(|start| i18n.format_datetime(&start))
         .unwrap_or_default();
-    MaintenanceRow {
-        countdown: i18n.format_countdown(event.countdown()),
-        ..row(event, i18n, when)
-    }
+    row(event, i18n, when)
 }
 
 fn finished_row(event: &EventSummary, i18n: &I18n) -> MaintenanceRow {

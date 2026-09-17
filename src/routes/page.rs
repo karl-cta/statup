@@ -43,7 +43,8 @@ pub struct Frame {
     pub unread_count: i64,
     pub unread_label: String,
     pub dateline: String,
-    pub clock: String,
+    /// "UTC+2", the instance zone.
+    pub zone: String,
     pub clock_offset: i32,
     pub last_update_iso: Option<String>,
     pub last_update_label: Option<String>,
@@ -77,7 +78,7 @@ impl Frame {
             unread_count,
             unread_label: i18n.plural("nav.unread", usize::try_from(unread_count).unwrap_or(0)),
             dateline: i18n.format_dateline(&clock::today()),
-            clock: i18n.format_clock(&now),
+            zone: clock::offset_label(&now),
             clock_offset: clock::offset_minutes(&now),
             last_update_iso: last_update.map(|t| t.to_rfc3339()),
             last_update_label: last_update.map(|t| i18n.format_datetime_long(&t)),

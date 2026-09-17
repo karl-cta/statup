@@ -15,7 +15,6 @@
         <p class="empty-state-text">{{ i18n.t("dashboard.no_services") }}</p>
     </div>
     {% else %}
-    <p class="card-note">{{ i18n.t("availability.note") }}</p>
     <ul class="log-list">
         {% for row in rows %}
         <li class="svc" id="{{ row.service.anchor() }}">

@@ -175,11 +175,6 @@ impl I18n {
         }
     }
 
-    /// The masthead clock: "10:25 UTC+2".
-    pub fn format_clock(&self, dt: &DateTime<Utc>) -> String {
-        format!("{} {}", self.format_time(dt), clock::offset_label(dt))
-    }
-
     /// "3 j 2 h", "3 j", "5 h 30 min", "5 h" or "42 min".
     pub fn format_duration(&self, parts: &(i64, i64, i64)) -> String {
         let (days, hours, minutes) = *parts;

@@ -43,8 +43,7 @@
         flex: 0 1 auto;
         align-items: center;
         min-width: 62px;
-        padding-right: 24px;
-        border-right: 1px solid var(--line);
+        padding-right: 28px;
     }
 
     .mast-title {
@@ -81,39 +80,40 @@
         text-overflow: ellipsis;
     }
 
-    .mast-rows {
-        display: flex;
-        flex: 1 0 auto;
-        flex-direction: column;
+    /* The strip: the day, the zone and the other language, full width. */
+    .mast-strip {
+        border-bottom: 1px solid var(--line);
     }
 
-    .mast-top {
+    .mast-strip-inner {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        min-height: 32px;
-        padding: 4px 0 4px 16px;
+        max-width: 1320px;
+        min-height: 26px;
+        margin: 0 auto;
+        padding: 0 16px;
         font-size: 12px;
         font-weight: 500;
         color: var(--muted);
-        border-bottom: 1px solid var(--line);
         font-feature-settings: 'tnum' 1;
     }
 
-    .mast-top-left {
+    .mast-strip-inner p {
         display: flex;
         align-items: center;
         min-width: 0;
+        margin: 0;
+    }
+
+    .mast-top-left {
         white-space: nowrap;
     }
 
-    .mast-top-sep {
-        display: inline-block;
-        width: 1px;
-        height: 10px;
-        margin: 0 10px;
-        background: var(--line-strong);
+    .mast-zone {
+        margin-left: 8px;
+        font-weight: 400;
     }
 
     .mast-lang {
@@ -131,8 +131,9 @@
 
     .mast-nav {
         display: flex;
+        flex: 1;
         align-items: stretch;
-        height: 44px;
+        height: 52px;
     }
 
     .mnav {
@@ -142,17 +143,27 @@
         align-items: center;
         gap: 6px;
         height: 100%;
-        padding: 0 16px;
+        padding: 0 14px;
         font-size: 13px;
         font-weight: 500;
         color: var(--muted);
         white-space: nowrap;
-        border-right: 1px solid var(--line);
-        transition: color 150ms ease, background-color 150ms ease;
+        transition: color 150ms ease;
     }
 
     .mnav:hover {
         color: var(--ink);
+    }
+
+    /* The current tab is underlined into the rule below. */
+    .mnav::after {
+        content: "";
+        position: absolute;
+        right: 14px;
+        bottom: 0;
+        left: 14px;
+        height: 2px;
+        background: transparent;
     }
 
     /* The page names its section on the shell, so the tab is marked
@@ -164,7 +175,14 @@
     [data-section="admin"] .mnav[data-nav="admin"] {
         font-weight: 600;
         color: var(--ink);
-        background: var(--hover);
+    }
+
+    .mnav[aria-current="page"]::after,
+    [data-section="home"] .mnav[data-nav="home"]::after,
+    [data-section="events"] .mnav[data-nav="events"]::after,
+    [data-section="services"] .mnav[data-nav="services"]::after,
+    [data-section="admin"] .mnav[data-nav="admin"]::after {
+        background: var(--ink);
     }
 
     /* Unread count: a neutral ink token, never the outage red. */
@@ -191,26 +209,22 @@
     .mnav-tools {
         display: flex;
         flex: none;
-        align-items: stretch;
-        border-left: 1px solid var(--line);
+        align-items: center;
+        gap: 2px;
     }
 
     .mnav-tool {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        height: 100%;
-        padding: 0 12px;
+        height: 36px;
+        padding: 0 10px;
         font-size: 13px;
         font-weight: 500;
         color: var(--muted);
         white-space: nowrap;
-        border-right: 1px solid var(--line);
+        border-radius: 6px;
         transition: color 150ms ease, background-color 150ms ease;
-    }
-
-    .mnav-tool:last-child {
-        border-right: 0;
     }
 
     .mnav-tool:hover {
@@ -257,10 +271,11 @@
         flex: none;
         align-items: center;
         justify-content: center;
-        width: 48px;
+        align-self: center;
+        width: 44px;
         height: 44px;
         color: var(--muted);
-        border-left: 1px solid var(--line);
+        border-radius: 6px;
         transition: color 150ms ease;
     }
 
@@ -343,13 +358,15 @@
        language, with an unread count and a long member name. The menu shows
        for as long as the burger does. */
     @media (min-width: 640px) {
-        .mast-inner {
+        .mast-inner,
+        .mast-strip-inner {
             padding: 0 24px;
         }
     }
 
     @media (min-width: 1024px) {
-        .mast-inner {
+        .mast-inner,
+        .mast-strip-inner {
             padding: 0 40px;
         }
     }
@@ -445,17 +462,9 @@
 
     @media (max-width: 599px) {
         .mast-title-cell {
-            padding-right: 16px;
-            border-right: 0;
+            padding-right: 12px;
         }
 
-        .mast-top {
-            padding-left: 0;
-        }
-
-        .mast-top-clock,
-        .mast-top-sep,
-        .mast-top-right,
         .mast-nav > .mnav,
         .mast-nav > .mnav-tools {
             display: none;
@@ -584,14 +593,6 @@
     .card-action:hover {
         color: var(--ink);
         background: var(--surface-hover);
-    }
-
-    .card-note {
-        margin: 0;
-        padding: 10px 16px;
-        font-size: 12px;
-        color: var(--muted);
-        border-bottom: 1px solid var(--hairline);
     }
 
     /* An empty state says what belongs here and how to put it there. */
