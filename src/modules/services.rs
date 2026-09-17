@@ -42,7 +42,6 @@ impl DayCell {
 pub struct ServiceRow {
     pub service: Service,
     pub days: Vec<DayCell>,
-    pub availability: String,
     pub availability_label: String,
 }
 
@@ -121,7 +120,6 @@ fn service_row(
     ServiceRow {
         service,
         days,
-        availability: availability(&levels, i18n),
         availability_label: availability_label(&levels, i18n),
     }
 }
@@ -174,19 +172,6 @@ fn day_status(level: Option<u8>, i18n: &I18n) -> String {
     i18n.t(key).to_string()
 }
 
-/// Share of the observed days without an incident. The first, partial day
-/// alone is not a measurement.
-fn availability(levels: &[(NaiveDate, Option<u8>)], i18n: &I18n) -> String {
-    let observed = levels.iter().filter(|(_, level)| level.is_some()).count();
-    if observed < 2 {
-        return i18n.t("availability.too_recent").to_string();
-    }
-    let clear = levels.iter().filter(|(_, level)| *level == Some(0)).count();
-    let percent = (clear * 100 + observed / 2) / observed;
-    let share = i18n.format_percent(u32::try_from(percent).unwrap_or(100));
-    i18n.tf("availability.share", &[("share", &share)])
-}
-
 fn availability_label(levels: &[(NaiveDate, Option<u8>)], i18n: &I18n) -> String {
     let untracked = levels.iter().filter(|(_, l)| l.is_none()).count();
     let clear = levels.iter().filter(|(_, l)| *l == Some(0)).count();
@@ -196,7 +181,7 @@ fn availability_label(levels: &[(NaiveDate, Option<u8>)], i18n: &I18n) -> String
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{TimeZone, Utc};
+    use chrono::Utc;
 
     fn span(
         severity: Option<Severity>,
@@ -245,22 +230,5 @@ mod tests {
             span(Some(Severity::Minor), 0, None),
         ];
         assert_eq!(worst_level_on(&spans, today, today), 2);
-    }
-
-    #[test]
-    fn availability_is_rounded_and_honest_when_new() {
-        let i18n = I18n::new("en");
-        let date = Utc
-            .with_ymd_and_hms(2026, 1, 1, 0, 0, 0)
-            .unwrap()
-            .date_naive();
-        let mut levels = vec![(date, Some(0)); 29];
-        levels.push((date, Some(2)));
-        assert_eq!(availability(&levels, &i18n), "97% over 30 days");
-        let fresh = vec![(date, None), (date, Some(0))];
-        assert_eq!(
-            availability(&fresh, &i18n),
-            i18n.t("availability.too_recent")
-        );
     }
 }

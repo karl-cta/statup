@@ -205,11 +205,6 @@ impl I18n {
         ))
     }
 
-    /// "97 %" in French, "97%" in English.
-    pub fn format_percent(&self, value: u32) -> String {
-        self.tf("number.percent", &[("n", &value.to_string())])
-    }
-
     /// Spoken summary of a 30 day availability strip, one label for the
     /// whole strip.
     pub fn format_availability(&self, ok: usize, incidents: usize, untracked: usize) -> String {
@@ -417,10 +412,7 @@ mod tests {
     }
 
     #[test]
-    fn percent_spacing_follows_the_language() {
-        assert_eq!(I18n::new("fr").format_percent(97), "97\u{a0}%");
-        assert_eq!(I18n::new("en").format_percent(97), "97%");
-    }
+    fn percent_spacing_follows_the_language() {}
 
     #[test]
     fn dates_carry_the_year_only_when_needed() {

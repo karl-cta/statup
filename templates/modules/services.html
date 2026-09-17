@@ -32,7 +32,6 @@
                 <div class="svc-bars" role="img" aria-label="{{ row.availability_label }}">
                     {% for day in row.days %}<span class="{{ day.class() }}" data-day-date="{{ day.date }}" data-day-status="{{ day.status }}"></span>{% endfor %}
                 </div>
-                <span class="svc-pct">{{ row.availability }}</span>
             </div>
         </li>
         {% endfor %}

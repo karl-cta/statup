@@ -486,16 +486,6 @@
         gap: 10px;
     }
 
-    .svc-pct {
-        flex: none;
-        white-space: nowrap;
-        font-size: 12px;
-        font-weight: 500;
-        text-align: right;
-        color: var(--muted);
-        font-feature-settings: 'tnum' 1;
-    }
-
     .svc-bars {
         position: relative;
         display: flex;
