@@ -9,6 +9,8 @@ use crate::repositories::DashboardLayoutRepository;
 pub struct ResolvedModule {
     pub module: &'static dyn Module,
     pub enabled: bool,
+    /// The width chosen for this dashboard, or the module's own.
+    pub width: ColumnWidth,
 }
 
 pub struct DashboardLayoutService;
@@ -51,12 +53,33 @@ impl DashboardLayoutService {
                 let position = row.map_or(module.default_position(), |r| r.position);
                 let pinned = module.column_width() == ColumnWidth::Full;
                 let enabled = pinned || row.is_none_or(|r| r.enabled);
-                (position, ResolvedModule { module, enabled })
+                let width = if pinned {
+                    ColumnWidth::Full
+                } else {
+                    row.and_then(|r| stored_width(&r.config))
+                        .unwrap_or_else(|| module.column_width())
+                };
+                (
+                    position,
+                    ResolvedModule {
+                        module,
+                        enabled,
+                        width,
+                    },
+                )
             })
             .collect();
         entries.sort_by_key(|(position, resolved)| (*position, resolved.module.id()));
         Ok(entries.into_iter().map(|(_, resolved)| resolved).collect())
     }
+}
+
+fn stored_width(config: &str) -> Option<ColumnWidth> {
+    serde_json::from_str::<serde_json::Value>(config)
+        .ok()?
+        .get("width")?
+        .as_str()
+        .and_then(ColumnWidth::parse)
 }
 
 #[cfg(test)]

@@ -115,71 +115,7 @@
         }
     }
 
-    /* Layout editor. Neighbours glide while a row is moved; the dragged row
-       follows the pointer on the card's own ground. */
-    .tabs {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-        margin-bottom: 20px;
-        border-bottom: 1px solid var(--line);
-    }
-
-    .tab {
-        display: inline-flex;
-        align-items: center;
-        min-height: 40px;
-        margin-bottom: -1px;
-        padding: 0 12px;
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--muted);
-        border-bottom: 2px solid transparent;
-        transition: color 150ms ease, border-color 150ms ease;
-    }
-
-    .tab:hover {
-        color: var(--ink);
-    }
-
-    .tab[aria-current="page"] {
-        font-weight: 600;
-        color: var(--ink);
-        border-bottom-color: var(--ink);
-    }
-
-    .layout-list {
-        margin: 0;
-        padding: 0;
-        list-style: none;
-    }
-
-    .layout-row {
-        transition: transform 180ms cubic-bezier(0.25, 1, 0.5, 1);
-    }
-
-    .layout-row.is-dragging {
-        position: relative;
-        z-index: 1;
-        background: var(--card);
-        border-radius: 4px;
-        outline: 1px solid var(--line-strong);
-        user-select: none;
-    }
-
-    .layout-pin {
-        display: inline-flex;
-        flex: none;
-        width: 32px;
-        justify-content: center;
-        color: var(--muted);
-    }
-
-    .layout-pin svg {
-        width: 16px;
-        height: 16px;
-    }
-
+    /* The handle a block is dragged by. */
     .row-handle {
         display: inline-flex;
         flex-shrink: 0;
@@ -206,14 +142,6 @@
 
     .row-handle:focus-visible {
         outline-offset: -2px;
-    }
-
-    .layout-row.is-dragging .row-handle {
-        cursor: grabbing;
-    }
-
-    .layout-row[data-hidden] .set-label {
-        color: var(--muted);
     }
 
     .row-actions {

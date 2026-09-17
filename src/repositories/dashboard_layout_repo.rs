@@ -9,6 +9,8 @@ pub struct LayoutEntry {
     pub module_id: String,
     pub position: i64,
     pub enabled: bool,
+    /// JSON settings of the module on this dashboard, `width` among them.
+    pub config: String,
 }
 
 pub struct DashboardLayoutRepository;
@@ -19,7 +21,7 @@ impl DashboardLayoutRepository {
         context: ModuleContext,
     ) -> Result<Vec<LayoutEntry>, sqlx::Error> {
         sqlx::query_as::<_, LayoutEntry>(
-            "SELECT module_id, position, enabled FROM dashboard_layouts \
+            "SELECT module_id, position, enabled, config FROM dashboard_layouts \
              WHERE context = ? AND user_id IS NULL ORDER BY position ASC, id ASC",
         )
         .bind(context.as_str())
@@ -81,6 +83,26 @@ impl DashboardLayoutRepository {
              WHERE context = ? AND user_id IS NULL AND module_id = ?",
         )
         .bind(enabled)
+        .bind(context.as_str())
+        .bind(module_id)
+        .execute(pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Stores the width chosen for a module on a dashboard.
+    pub async fn set_width(
+        pool: &DbPool,
+        context: ModuleContext,
+        module_id: &str,
+        width: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE dashboard_layouts \
+             SET config = json_set(config, '$.width', ?), updated_at = datetime('now') \
+             WHERE context = ? AND user_id IS NULL AND module_id = ?",
+        )
+        .bind(width)
         .bind(context.as_str())
         .bind(module_id)
         .execute(pool)

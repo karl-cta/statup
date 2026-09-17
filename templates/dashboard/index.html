@@ -8,23 +8,46 @@
 
 {% block scripts %}
 <script src="{{ crate::asset("js/uptime-tooltip.js") }}" defer></script>
+{% if live.arrangeable %}
+<script src="{{ crate::asset("js/dashboard-arrange.js") }}" defer></script>
+{% endif %}
 {% endblock %}
 
 {% block content %}
-<div class="page">
+<div class="page"{% if live.arrangeable %} data-arrange-context="{{ context }}"{% if arranging %} data-arrange-start{% endif %} data-saved="{{ i18n.t("dashboard.layout_saved") }}" data-moved="{{ i18n.t("dashboard.block_moved") }}"{% endif %}>
     <h1 class="sr-only">{{ i18n.t("dashboard.heading") }}</h1>
 
-    {# An instance without services first needs one: the banner offers it. #}
-    {% if frame.can_publish && has_services %}
-    <div class="quick-actions">
-        <a href="/events/new" class="btn btn-primary btn-sm">{% call ui::plus() %}{{ i18n.t("dashboard.report_incident") }}</a>
-        <a href="/events/new?kind=maintenance" class="btn btn-ghost btn-sm">{{ i18n.t("dashboard.plan_maintenance") }}</a>
-        <a href="/events/new?kind=publication" class="btn btn-ghost btn-sm">{{ i18n.t("dashboard.post_announcement") }}</a>
+    {% if frame.can_publish %}
+    <div class="dash-tools">
+        {# An instance without services first needs one: the banner offers it. #}
+        {% if has_services %}
+        <div class="quick-actions">
+            <a href="/events/new" class="btn btn-primary btn-sm">{% call ui::plus() %}{{ i18n.t("dashboard.report_incident") }}</a>
+            <a href="/events/new?kind=maintenance" class="btn btn-ghost btn-sm">{{ i18n.t("dashboard.plan_maintenance") }}</a>
+            <a href="/events/new?kind=publication" class="btn btn-ghost btn-sm">{{ i18n.t("dashboard.post_announcement") }}</a>
+        </div>
+        {% endif %}
+        {% if live.arrangeable %}
+        <div class="arrange-bar">
+            <nav class="arrange-scope" aria-label="{{ i18n.t("dashboard.arrange_scope") }}" data-arrange-only hidden>
+                <a href="/?arrange=1"{% if !viewing_public %} aria-current="page"{% endif %}>{{ i18n.t("dashboard.arrange_members") }}</a>
+                <a href="/?view=public&amp;arrange=1"{% if viewing_public %} aria-current="page"{% endif %}>{{ i18n.t("dashboard.arrange_public") }}</a>
+            </nav>
+            <button type="button" class="text-action" data-arrange-toggle aria-pressed="false"
+                    data-label-open="{{ i18n.t("dashboard.arrange") }}" data-label-close="{{ i18n.t("dashboard.arrange_done") }}">{{ i18n.t("dashboard.arrange") }}</button>
+        </div>
+        {% endif %}
     </div>
+    {% if live.arrangeable %}
+    <p id="arrange-hint" class="sr-only">{{ i18n.t("dashboard.move_hint") }}</p>
+    {% if viewing_public %}
+    <p class="arrange-note" data-arrange-only hidden>{{ i18n.t("dashboard.arrange_public_note") }}</p>
+    {% endif %}
+    {% endif %}
     {% endif %}
 
     {# Refreshed every minute while the tab is visible. #}
-    <div id="live" data-live="/" data-version="{{ live.version }}">
+    <div id="live" data-live="{% if viewing_public %}/?view=public{% else %}/{% endif %}" data-version="{{ live.version }}">
         {% include "dashboard/_live.html" %}
     </div>
 </div>

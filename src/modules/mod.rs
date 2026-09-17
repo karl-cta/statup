@@ -67,12 +67,28 @@ impl ModuleRenderContext<'_> {
 /// Width a module takes in the dashboard row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColumnWidth {
-    /// Full width, pinned above the row and always shown (the banner).
+    /// Full width: the pinned banner, or a module given its own row.
     Full,
-    /// Takes the remaining space.
+    /// Two shares of the row.
     Wide,
-    /// Fixed side column.
+    /// One share of the row.
     Narrow,
+}
+
+impl ColumnWidth {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Full => "full",
+            Self::Wide => "wide",
+            Self::Narrow => "narrow",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        [Self::Full, Self::Wide, Self::Narrow]
+            .into_iter()
+            .find(|w| w.as_str() == s)
+    }
 }
 
 /// Rendering contract of a dashboard module. The returned fragment is

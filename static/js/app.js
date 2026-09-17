@@ -525,6 +525,7 @@
         let last = Date.now();
         const refresh = () => {
             if (document.visibilityState !== "visible" || drawerIsOpen() || live.contains(document.activeElement)) return;
+            if (document.body.classList.contains("is-arranging")) return;
             if (instanceDay() !== day) {
                 window.location.reload();
                 return;

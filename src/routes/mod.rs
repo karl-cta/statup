@@ -213,6 +213,10 @@ fn admin_routes() -> Router<AppState> {
             "/admin/dashboard/:context/layout/:module_id/toggle",
             post(dashboard_layout::toggle_module),
         )
+        .route(
+            "/admin/dashboard/:context/layout/:module_id/width",
+            post(dashboard_layout::set_width),
+        )
 }
 
 /// A signed-in person's own account.

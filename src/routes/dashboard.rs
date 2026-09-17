@@ -4,10 +4,11 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 use askama::Template;
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, header};
 use axum::response::Response;
 use chrono::Utc;
+use serde::Deserialize;
 
 use super::{Frame, members_only, render};
 use crate::clock;
@@ -24,13 +25,24 @@ use crate::state::AppState;
 pub struct LiveModules {
     pub banner_html: Option<String>,
     pub row: Vec<RenderedModule>,
+    /// Modules an administrator may add back, empty for everyone else.
+    pub hidden: Vec<ModuleChoice>,
+    /// Whether the reader may arrange this dashboard.
+    pub arrangeable: bool,
     /// Changes when what the modules show changes, the time stamp aside.
     pub version: String,
 }
 
 pub struct RenderedModule {
     pub html: String,
-    pub is_wide: bool,
+    pub module_id: &'static str,
+    pub name: String,
+    pub width: &'static str,
+}
+
+pub struct ModuleChoice {
+    pub module_id: &'static str,
+    pub name: String,
 }
 
 #[derive(Template)]
@@ -39,6 +51,12 @@ struct DashboardTemplate {
     frame: Frame,
     live: LiveModules,
     has_services: bool,
+    /// The dashboard being shown, `public` or `admin`.
+    context: &'static str,
+    /// An administrator looking at the visitors' page.
+    viewing_public: bool,
+    /// Opened in arrange mode.
+    arranging: bool,
     i18n: I18n,
 }
 
@@ -46,19 +64,32 @@ struct DashboardTemplate {
 #[template(path = "dashboard/_live.html")]
 struct LiveTemplate {
     live: LiveModules,
+    i18n: I18n,
 }
 
-fn context_for(user: Option<&User>) -> ModuleContext {
-    if user.is_some() {
-        ModuleContext::Admin
-    } else {
-        ModuleContext::Public
+#[derive(Deserialize)]
+pub struct DashboardQuery {
+    /// `public`: an administrator previews and arranges the visitors' page.
+    view: Option<String>,
+    /// `1` opens the arrange mode.
+    #[serde(default)]
+    arrange: String,
+}
+
+fn context_for(user: Option<&User>, query: &DashboardQuery) -> ModuleContext {
+    match user {
+        Some(u) if u.role.can_admin() && query.view.as_deref() == Some("public") => {
+            ModuleContext::Public
+        }
+        Some(_) => ModuleContext::Admin,
+        None => ModuleContext::Public,
     }
 }
 
 async fn render_modules(
     state: &AppState,
     user: Option<&User>,
+    context: ModuleContext,
     i18n: &I18n,
 ) -> Result<LiveModules, AppError> {
     let ctx = ModuleRenderContext {
@@ -69,19 +100,31 @@ async fn render_modules(
     let mut live = LiveModules {
         banner_html: None,
         row: Vec::new(),
+        hidden: Vec::new(),
+        arrangeable: user.is_some_and(|u| u.role.can_admin()),
         version: String::new(),
     };
-    for item in DashboardLayoutService::resolve(&state.pool, context_for(user)).await? {
+    for item in DashboardLayoutService::resolve(&state.pool, context).await? {
+        let name = i18n.t(item.module.name_key()).to_string();
         if !item.enabled {
+            if live.arrangeable {
+                live.hidden.push(ModuleChoice {
+                    module_id: item.module.id(),
+                    name,
+                });
+            }
             continue;
         }
         let html = item.module.render(&ctx).await?;
-        match item.module.column_width() {
-            ColumnWidth::Full => live.banner_html = Some(html),
-            width => live.row.push(RenderedModule {
+        if item.module.column_width() == ColumnWidth::Full {
+            live.banner_html = Some(html);
+        } else {
+            live.row.push(RenderedModule {
                 html,
-                is_wide: width == ColumnWidth::Wide,
-            }),
+                module_id: item.module.id(),
+                name,
+                width: item.width.as_str(),
+            });
         }
     }
     live.version = live_version(&live);
@@ -98,6 +141,12 @@ fn live_version(live: &LiveModules) -> String {
         .chain(live.row.iter().map(|m| &m.html));
     for html in modules {
         without_stamp(html).hash(&mut hasher);
+    }
+    for module in &live.row {
+        module.width.hash(&mut hasher);
+    }
+    for choice in &live.hidden {
+        choice.module_id.hash(&mut hasher);
     }
     format!("{:016x}", hasher.finish())
 }
@@ -116,6 +165,7 @@ fn without_stamp(html: &str) -> (&str, &str) {
 pub async fn index(
     OptionalUser(user): OptionalUser,
     State(state): State<AppState>,
+    Query(query): Query<DashboardQuery>,
     headers: HeaderMap,
     csrf_token: CsrfToken,
     Locale(i18n): Locale,
@@ -123,9 +173,10 @@ pub async fn index(
     if let Some(redirect) = members_only(&state, user.as_ref(), &headers) {
         return Ok(redirect);
     }
-    let live = render_modules(&state, user.as_ref(), &i18n).await?;
+    let context = context_for(user.as_ref(), &query);
+    let live = render_modules(&state, user.as_ref(), context, &i18n).await?;
     if headers.contains_key("hx-request") {
-        return live_response(live);
+        return live_response(live, i18n);
     }
     let frame = Frame::load(&state.pool, user.as_ref(), csrf_token.0, &i18n).await?;
     if let Some(u) = &user {
@@ -136,6 +187,9 @@ pub async fn index(
         frame,
         live,
         has_services,
+        context: context.as_str(),
+        viewing_public: user.is_some() && context == ModuleContext::Public,
+        arranging: matches!(query.arrange.as_str(), "1" | "true"),
         i18n,
     })
 }
@@ -143,10 +197,10 @@ pub async fn index(
 /// The refreshed fragment, with what the script needs to decide: whether
 /// the content changed, and whether the instance clock moved (daylight
 /// saving).
-fn live_response(live: LiveModules) -> Result<Response, AppError> {
+fn live_response(live: LiveModules, i18n: I18n) -> Result<Response, AppError> {
     let version = HeaderValue::from_str(&live.version).map_err(|e| AppError::Internal(e.into()))?;
     let offset = HeaderValue::from(clock::offset_minutes(&Utc::now()));
-    let mut response = render(&LiveTemplate { live })?;
+    let mut response = render(&LiveTemplate { live, i18n })?;
     let headers = response.headers_mut();
     headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     headers.insert(HeaderName::from_static("x-live-version"), version);

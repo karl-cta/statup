@@ -267,33 +267,153 @@
         gap: 32px;
     }
 
+    /* A column measures itself: rows inside it stack their state under
+       the title when the column is narrow, whatever the window width. */
     .dash-cell {
         min-width: 0;
+        container-type: inline-size;
     }
 
+    /* A module takes one share of the row, two, or a row of its own. */
     @media (min-width: 1024px) {
         .dash-row {
             flex-direction: row;
+            flex-wrap: wrap;
             align-items: flex-start;
-            gap: 0;
         }
 
         .dash-cell {
-            flex: 0 0 260px;
-        }
-
-        .dash-cell-wide {
             flex: 1 1 0;
         }
 
-        .dash-cell + .dash-cell {
-            padding-left: 32px;
-            border-left: 1px solid var(--line);
+        .dash-cell[data-width="wide"] {
+            flex: 2 1 0;
         }
 
-        .dash-cell:not(:last-child) {
-            padding-right: 32px;
+        .dash-cell[data-width="full"] {
+            flex: 0 0 100%;
         }
+    }
+
+    .dash-tools {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 12px;
+        margin-bottom: 20px;
+    }
+
+    .arrange-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 16px;
+        margin-left: auto;
+    }
+
+    .arrange-scope {
+        display: flex;
+        gap: 12px;
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    .arrange-scope a {
+        color: var(--muted);
+    }
+
+    .arrange-scope a:hover {
+        color: var(--ink);
+    }
+
+    .arrange-scope a[aria-current="page"] {
+        font-weight: 600;
+        color: var(--ink);
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-underline-offset: 3px;
+    }
+
+    .arrange-note {
+        margin: -8px 0 16px;
+        font-size: 13px;
+        color: var(--ink-soft);
+    }
+
+    /* The tools above a block, in arrange mode only. */
+    .cell-tools {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 10px;
+        margin-bottom: 8px;
+        padding: 6px 8px;
+        border: 1px dashed var(--line-strong);
+        border-radius: 6px;
+    }
+
+    .cell-tools .row-handle {
+        height: 32px;
+        margin: 0;
+    }
+
+    .cell-tools-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .cell-sizes {
+        display: flex;
+        margin-left: auto;
+    }
+
+    .cell-size {
+        min-height: 28px;
+        padding: 0 10px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted);
+        background: var(--raised);
+        border: 1px solid var(--edge-input);
+        transition: color 150ms ease, background-color 150ms ease;
+    }
+
+    .cell-size + .cell-size {
+        margin-left: -1px;
+    }
+
+    .cell-size:first-child {
+        border-radius: 6px 0 0 6px;
+    }
+
+    .cell-size:last-child {
+        border-radius: 0 6px 6px 0;
+    }
+
+    .cell-size:hover {
+        color: var(--ink);
+    }
+
+    .cell-size[aria-pressed="true"] {
+        position: relative;
+        z-index: 1;
+        color: var(--on-primary);
+        background: var(--primary);
+        border-color: var(--primary);
+    }
+
+    .dash-cell.is-dragging {
+        opacity: 0.6;
+    }
+
+    .arrange-add {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+        margin-top: 24px;
     }
 
     .quick-actions {
@@ -301,7 +421,6 @@
         flex-wrap: wrap;
         align-items: center;
         gap: 8px 12px;
-        margin-bottom: 20px;
     }
 
     /* Services card. */
@@ -579,51 +698,19 @@
         }
     }
 
+    @container (max-width: 560px) {
+        .log-row {
+            grid-template-columns: 52px minmax(0, 1fr);
+            gap: 4px 10px;
+        }
+
+        .log-row > .state {
+            grid-column: 2;
+            justify-self: start;
+        }
+    }
+
     /* Maintenances card. */
-    .card-group {
-        margin: 0;
-        padding: 12px 16px 4px;
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--muted);
-    }
-
-    .card-group + ul > li:first-child > .mnt {
-        border-top: 0;
-    }
-
-    .mnt {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-        padding: 10px 16px 12px;
-        border-top: 1px solid var(--hairline);
-        transition: background-color 120ms ease;
-    }
-
-    .mnt:hover {
-        background: var(--surface-hover);
-    }
-
-    .mnt-title {
-        font-size: 14px;
-        font-weight: 500;
-        line-height: 1.35;
-        color: var(--ink);
-        overflow-wrap: anywhere;
-    }
-
-    .mnt:hover .mnt-title {
-        text-decoration: underline;
-        text-decoration-color: var(--line-strong);
-        text-underline-offset: 3px;
-    }
-
-    .mnt-past .mnt-title {
-        font-size: 13px;
-        font-weight: 400;
-    }
-
     @media (prefers-reduced-motion: reduce) {
         html:not(.is-settled) .ring-dot::after {
             animation: none;

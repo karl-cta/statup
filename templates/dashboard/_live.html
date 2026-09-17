@@ -1,3 +1,4 @@
+{% import "components/macros.html" as ui %}
 {% match live.banner_html %}
 {% when Some with (html) %}
 {{ html|safe }}
@@ -11,9 +12,33 @@
 {% if !live.row.is_empty() %}
 <div class="dash-row">
     {% for module in live.row %}
-    <div class="dash-cell{% if module.is_wide %} dash-cell-wide{% endif %}">
+    <div class="dash-cell" data-width="{{ module.width }}"{% if live.arrangeable %} data-module-id="{{ module.module_id }}" data-module-name="{{ module.name }}"{% endif %}>
+        {% if live.arrangeable %}
+        {# Shown by the script in arrange mode only. #}
+        <div class="cell-tools" data-arrange-only hidden>
+            <button type="button" class="row-handle" data-drag-handle aria-label="{{ i18n.t("dashboard.move_block") }} {{ module.name }}" aria-describedby="arrange-hint">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3.75 9h16.5M3.75 15h16.5"/></svg>
+            </button>
+            <span class="cell-tools-name">{{ module.name }}</span>
+            <div class="cell-sizes" role="group" aria-label="{{ i18n.t("dashboard.width_of") }} {{ module.name }}">
+                <button type="button" class="cell-size" data-size="narrow" aria-pressed="{% if module.width == "narrow" %}true{% else %}false{% endif %}">{{ i18n.t("dashboard.width_narrow") }}</button>
+                <button type="button" class="cell-size" data-size="wide" aria-pressed="{% if module.width == "wide" %}true{% else %}false{% endif %}">{{ i18n.t("dashboard.width_wide") }}</button>
+                <button type="button" class="cell-size" data-size="full" aria-pressed="{% if module.width == "full" %}true{% else %}false{% endif %}">{{ i18n.t("dashboard.width_full") }}</button>
+            </div>
+            <button type="button" class="text-action text-action-danger" data-hide aria-label="{{ i18n.t("dashboard.hide_block") }} {{ module.name }}">{{ i18n.t("dashboard.hide_block") }}</button>
+        </div>
+        {% endif %}
         {{ module.html|safe }}
     </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if !live.hidden.is_empty() %}
+<div class="arrange-add" data-arrange-only hidden>
+    <span class="label">{{ i18n.t("dashboard.add_block") }}</span>
+    {% for choice in live.hidden %}
+    <button type="button" class="btn btn-ghost btn-sm" data-show="{{ choice.module_id }}">{% call ui::plus() %}{{ choice.name }}</button>
     {% endfor %}
 </div>
 {% endif %}
