@@ -1,4 +1,5 @@
-//! Maintenances card: work under way, work to come, and what recently ended.
+//! Maintenances card: work under way, work to come, and what recently
+//! ended, as one list on the activity row model, worst first.
 
 use askama::Template;
 use async_trait::async_trait;
@@ -17,24 +18,22 @@ pub struct ScheduledMaintenancesModule;
 pub struct MaintenanceRow {
     pub id: i64,
     pub title: String,
-    pub state: String,
+    /// The day the row is about: the start to come, the day work began,
+    /// or the day it ended.
+    pub day: String,
+    /// The time, then the services, on one line.
     pub when: String,
-    pub services: Vec<String>,
+    pub services: String,
+    pub state: String,
+    pub tone: &'static str,
+    pub is_open: bool,
 }
 
 #[derive(Template)]
 #[template(path = "modules/scheduled_maintenances.html")]
 struct MaintenancesTemplate {
-    ongoing: Vec<MaintenanceRow>,
-    upcoming: Vec<MaintenanceRow>,
-    finished: Vec<MaintenanceRow>,
+    rows: Vec<MaintenanceRow>,
     i18n: I18n,
-}
-
-impl MaintenancesTemplate {
-    fn is_empty(&self) -> bool {
-        self.ongoing.is_empty() && self.upcoming.is_empty() && self.finished.is_empty()
-    }
 }
 
 #[async_trait]
@@ -70,55 +69,66 @@ impl Module for ScheduledMaintenancesModule {
             .iter()
             .partition(|m| m.lifecycle == Some(Lifecycle::InProgress));
         let finished = EventRepository::list_finished_maintenance(ctx.pool, FINISHED_LIMIT).await?;
+        let rows = ongoing
+            .into_iter()
+            .map(|m| ongoing_row(m, i18n))
+            .chain(upcoming.into_iter().map(|m| upcoming_row(m, i18n)))
+            .chain(finished.iter().map(|m| finished_row(m, i18n)))
+            .collect();
         let template = MaintenancesTemplate {
-            ongoing: ongoing.into_iter().map(|m| ongoing_row(m, i18n)).collect(),
-            upcoming: upcoming
-                .into_iter()
-                .map(|m| upcoming_row(m, i18n))
-                .collect(),
-            finished: finished.iter().map(|m| finished_row(m, i18n)).collect(),
+            rows,
             i18n: i18n.clone(),
         };
         render_template(self.id(), &template)
     }
 }
 
-fn row(event: &EventSummary, i18n: &I18n, when: String) -> MaintenanceRow {
+fn row(event: &EventSummary, i18n: &I18n, day: String, when: String) -> MaintenanceRow {
     MaintenanceRow {
         id: event.id,
         title: event.title.clone(),
+        day,
+        when,
+        services: event.services().join(", "),
         state: event
             .lifecycle_key()
             .map(|key| i18n.t(key).to_string())
             .unwrap_or_default(),
-        when,
-        services: event.services().into_iter().map(String::from).collect(),
+        tone: event.tone().as_str(),
+        is_open: event.lifecycle.is_some_and(Lifecycle::is_active),
     }
 }
 
-/// "Fin prévue le 16 sept. à 23:00" when an end is planned, otherwise the
-/// start.
-fn ongoing_row(event: &EventSummary, i18n: &I18n) -> MaintenanceRow {
-    let when = match (event.planned_end, event.started_at) {
-        (Some(end), _) => i18n.tf("maintenance.ends", &[("when", &i18n.format_datetime(&end))]),
-        (None, Some(start)) => i18n.tf(
-            "maintenance.since",
-            &[("when", &i18n.format_datetime(&start))],
-        ),
-        (None, None) => String::new(),
-    };
-    row(event, i18n, when)
+fn day_of(i18n: &I18n, at: Option<chrono::DateTime<chrono::Utc>>) -> String {
+    at.map(|dt| i18n.format_date_short(&crate::clock::local_date(&dt)))
+        .unwrap_or_default()
 }
 
+/// The day work began; the line says when it should end.
+fn ongoing_row(event: &EventSummary, i18n: &I18n) -> MaintenanceRow {
+    let when = event
+        .planned_end
+        .map(|end| i18n.tf("maintenance.ends", &[("when", &i18n.format_datetime(&end))]))
+        .unwrap_or_default();
+    let day = day_of(i18n, event.started_at.or(event.planned_start));
+    row(event, i18n, day, when)
+}
+
+/// The day it starts; the line says at what time.
 fn upcoming_row(event: &EventSummary, i18n: &I18n) -> MaintenanceRow {
     let when = event
         .planned_start
-        .map(|start| i18n.format_datetime(&start))
+        .map(|start| i18n.format_time(&start))
         .unwrap_or_default();
-    row(event, i18n, when)
+    row(event, i18n, day_of(i18n, event.planned_start), when)
 }
 
+/// The day it ended.
 fn finished_row(event: &EventSummary, i18n: &I18n) -> MaintenanceRow {
-    let when = i18n.format_date_short(&crate::clock::local_date(&event.closed_at()));
-    row(event, i18n, when)
+    row(
+        event,
+        i18n,
+        day_of(i18n, Some(event.closed_at())),
+        String::new(),
+    )
 }
