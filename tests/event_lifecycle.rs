@@ -175,7 +175,7 @@ async fn create_incident_and_verify_detail() {
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("Database outage"), "should show event title");
     assert!(
-        body.contains("analyse") || body.contains("Investigating"),
+        body.contains("On cherche la cause") || body.contains("Looking into it"),
         "incident should start in Investigating lifecycle"
     );
 }

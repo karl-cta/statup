@@ -483,16 +483,6 @@ impl EventSummary {
         !self.service_names.is_empty()
     }
 
-    /// First line of the description, without Markdown markers, cut on a
-    /// character boundary.
-    pub fn description_excerpt(&self, max_chars: usize) -> String {
-        let line = self.description.lines().next().unwrap_or("");
-        excerpt(
-            line.trim_start_matches(['#', '-', '*', '>']).trim(),
-            max_chars,
-        )
-    }
-
     /// Plain text of the latest update, for the status banner.
     pub fn latest_update_excerpt(&self, max_chars: usize) -> Option<String> {
         let html = self.latest_update.as_deref()?;
@@ -837,8 +827,6 @@ mod tests {
     fn excerpt_counts_characters() {
         let mut event = summary(Kind::Incident, None, None);
         event.description = "é".repeat(150);
-        assert!(!event.description_excerpt(180).ends_with('…'));
-        assert!(event.description_excerpt(10).ends_with('…'));
     }
 
     #[test]

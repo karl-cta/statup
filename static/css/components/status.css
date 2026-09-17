@@ -557,17 +557,6 @@
         font-weight: 600;
     }
 
-    .log-excerpt {
-        display: -webkit-box;
-        margin-top: 2px;
-        overflow: hidden;
-        font-size: 13px;
-        line-height: 1.5;
-        color: var(--muted);
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-    }
-
     .search-hit {
         font-weight: 700;
         color: inherit;

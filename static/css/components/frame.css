@@ -526,7 +526,7 @@
         margin-top: 8px;
         font-size: 14px;
         line-height: 1.6;
-        color: var(--muted);
+        color: var(--ink-soft);
     }
 
     .page-actions {
@@ -611,7 +611,7 @@
         margin-top: 6px;
         font-size: 13px;
         line-height: 1.55;
-        color: var(--muted);
+        color: var(--ink-soft);
     }
 
     .empty-state-text:first-child {

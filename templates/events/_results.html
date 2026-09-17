@@ -17,7 +17,6 @@
     <h2 class="log-day">{{ group.label }}</h2>
     <ul class="log-list">
         {% for event in group.events %}
-        {% let excerpt = event.description_excerpt(180) %}
         <li>
             <a class="log-row{% if event.is_open() %} log-row-open{% endif %}" href="/events/{{ event.id }}" data-drawer="/events/{{ event.id }}/drawer">
                 <span class="log-time">{{ i18n.format_time(event.created_at) }}</span>
@@ -30,7 +29,6 @@
                     {% if !meta.is_empty() %}
                     <span class="meta">{% for part in meta %}{% if !loop.first %}&nbsp;<span aria-hidden="true">·</span> {% endif %}{{ part }}{% endfor %}</span>
                     {% endif %}
-                    {% if !excerpt.is_empty() %}<span class="log-excerpt">{{ excerpt }}</span>{% endif %}
                 </span>
                 {% if let Some(key) = event.lifecycle_key() %}
                 <span class="state" data-tone="{{ event.tone().as_str() }}">{{ i18n.t(key) }}</span>

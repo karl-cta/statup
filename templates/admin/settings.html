@@ -8,7 +8,6 @@
     <header class="page-head">
         <div>
             <h1 class="page-title">{{ i18n.t("admin.settings") }}</h1>
-            <p class="page-lede">{{ i18n.t("admin.settings_intro") }}</p>
         </div>
     </header>
 
@@ -70,28 +69,24 @@
         <div class="set-row">
             <div class="set-text">
                 <p class="set-label">{{ i18n.t("admin.section_team") }}<span class="count">{{ self.team_count() }}</span></p>
-                <p class="set-help">{{ i18n.t("admin.team_help") }}</p>
             </div>
             <a href="/admin/users" class="btn btn-ghost btn-sm">{{ i18n.t("admin.team_manage") }}</a>
         </div>
         <div class="set-row">
             <div class="set-text">
                 <p class="set-label">{{ i18n.t("admin.section_icons") }}<span class="count">{{ self.icons_label() }}</span></p>
-                <p class="set-help">{{ i18n.t("admin.icons_help") }}</p>
             </div>
             <a href="/icons" class="btn btn-ghost btn-sm">{{ i18n.t("admin.icons_manage") }}</a>
         </div>
         <div class="set-row">
             <div class="set-text">
                 <p id="modules-public-label" class="set-label">{{ i18n.t("admin.modules_public_label") }}</p>
-                <p class="set-help">{{ i18n.t("admin.modules_public_help") }}</p>
             </div>
             <a id="modules-public-action" href="/admin/dashboard/public/layout" class="btn btn-ghost btn-sm" aria-labelledby="modules-public-action modules-public-label">{{ i18n.t("admin.modules_manage") }}</a>
         </div>
         <div class="set-row">
             <div class="set-text">
                 <p id="modules-admin-label" class="set-label">{{ i18n.t("admin.modules_admin_label") }}</p>
-                <p class="set-help">{{ i18n.t("admin.modules_admin_help") }}</p>
             </div>
             <a id="modules-admin-action" href="/admin/dashboard/admin/layout" class="btn btn-ghost btn-sm" aria-labelledby="modules-admin-action modules-admin-label">{{ i18n.t("admin.modules_manage") }}</a>
         </div>

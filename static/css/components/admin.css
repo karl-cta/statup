@@ -37,7 +37,7 @@
         margin-top: 4px;
         font-size: 13px;
         line-height: 1.5;
-        color: var(--muted);
+        color: var(--ink-soft);
     }
 
     .set-inline-form {
@@ -266,7 +266,7 @@
         margin-top: 2px;
         font-size: 13px;
         line-height: 1.45;
-        color: var(--muted);
+        color: var(--ink-soft);
         overflow-wrap: anywhere;
     }
 
