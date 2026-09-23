@@ -21,7 +21,7 @@
                 <span class="log-time">{{ i18n.format_time(event.created_at) }}</span>
                 <span class="log-body">
                     <span class="log-head">
-                        {% call ui::kind_chip(i18n.t(event.kind.i18n_key()), event.kind_tone()) %}
+                        {% call ui::kind_chip(i18n.t(event.kind.i18n_key())) %}
                         <span class="log-title">{{ event.title }}</span>
                     </span>
                     {% if event.has_services() %}

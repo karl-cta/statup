@@ -528,10 +528,6 @@ impl EventSummary {
         describe_kind(self.kind, self.severity, self.category, i18n)
     }
 
-    pub fn kind_tone(&self) -> &'static str {
-        kind_tone(self.kind, self.severity).as_str()
-    }
-
     /// The line under a title: the severity or the category, then the
     /// services.
     pub fn meta_parts(&self, i18n: &I18n) -> Vec<String> {
@@ -857,7 +853,7 @@ mod tests {
             note.row_state(&i18n).as_deref(),
             Some(i18n.t(Category::Changelog.i18n_key()))
         );
-        assert_eq!(note.kind_tone(), "ink");
+        assert_eq!(note.tone(), Tone::Ink);
     }
 
     #[test]
