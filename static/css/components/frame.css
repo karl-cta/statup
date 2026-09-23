@@ -478,13 +478,43 @@
         padding: 32px 16px 56px;
     }
 
-    /* Narrow pages keep the page's left edge, under the masthead mark. */
-    .page-narrow > * {
-        max-width: 720px;
+    /* Every screen lays its content on cards across the page: two or three
+       side by side on a wide screen, stacked on a phone. */
+    .card-grid {
+        display: grid;
+        gap: 24px;
+        align-items: start;
     }
 
-    .page-form > * {
-        max-width: 800px;
+    @media (min-width: 1024px) {
+        .card-grid-2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .card-grid-3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    /* A form on a card, in two columns on a wide screen, read left then
+       right. */
+    .form-card {
+        padding: 24px 24px 28px;
+    }
+
+    .form-columns {
+        display: grid;
+        gap: 28px 48px;
+    }
+
+    .form-col > :first-child {
+        margin-top: 0;
+    }
+
+    @media (min-width: 1024px) {
+        .form-columns {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
     }
 
     @media (min-width: 640px) {

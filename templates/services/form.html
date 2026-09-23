@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="page page-narrow">
+<div class="page">
     <header class="page-head">
         <div>
             <a href="/services" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("services.back_to_services") }}</a>
@@ -34,32 +34,39 @@
           class="mt-6"{% if error.is_some() %} aria-describedby="form-error"{% endif %}>
         <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
 
-        <div class="field">
-            <label for="name" class="field-label">{{ i18n.t("services.name_label") }}</label>
-            <input id="name" name="name" type="text" class="input" required maxlength="100"
-                   value="{{ form.name }}" placeholder="{{ i18n.t("services.name_placeholder") }}"
-                   {% if name_error.is_some() %}aria-invalid="true" aria-describedby="name-error" autofocus{% endif %}>
-            {% if let Some(message) = name_error %}
-            <p id="name-error" class="field-error" role="alert">{{ message }}</p>
-            {% endif %}
-        </div>
+        <div class="card form-card">
+            <div class="form-columns">
+                <div class="form-col">
+                    <div class="field">
+                        <label for="name" class="field-label">{{ i18n.t("services.name_label") }}</label>
+                        <input id="name" name="name" type="text" class="input" required maxlength="100"
+                               value="{{ form.name }}" placeholder="{{ i18n.t("services.name_placeholder") }}"
+                               {% if name_error.is_some() %}aria-invalid="true" aria-describedby="name-error" autofocus{% endif %}>
+                        {% if let Some(message) = name_error %}
+                        <p id="name-error" class="field-error" role="alert">{{ message }}</p>
+                        {% endif %}
+                    </div>
 
-        <div class="form-block field">
-            <label for="description" class="field-label">{{ i18n.t("services.description") }} <span class="field-note">{{ i18n.t("common.optional") }}</span></label>
-            <textarea id="description" name="description" class="input" rows="3" maxlength="500"
-                      placeholder="{{ i18n.t("services.description_placeholder") }}">{{ form.description }}</textarea>
-        </div>
+                    <div class="form-block field">
+                        <label for="description" class="field-label">{{ i18n.t("services.description") }} <span class="field-note">{{ i18n.t("common.optional") }}</span></label>
+                        <textarea id="description" name="description" class="input" rows="3" maxlength="500"
+                                  placeholder="{{ i18n.t("services.description_placeholder") }}">{{ form.description }}</textarea>
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-block">
+                        {% include "components/icon_picker.html" %}
+                    </div>
 
-        <div class="form-block">
-            {% include "components/icon_picker.html" %}
+                    {% if edit_id.is_none() %}
+                    <div class="form-block consequence" data-tone="ok">
+                        <span class="dot" aria-hidden="true"></span>
+                        <p class="consequence-text">{{ i18n.t("services.consequence_new") }} <span class="field-note">{{ i18n.t("services.consequence_new_status") }}</span></p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-
-        {% if edit_id.is_none() %}
-        <div class="form-block consequence" data-tone="ok">
-            <span class="dot" aria-hidden="true"></span>
-            <p class="consequence-text">{{ i18n.t("services.consequence_new") }} <span class="field-note">{{ i18n.t("services.consequence_new_status") }}</span></p>
-        </div>
-        {% endif %}
 
         <div class="action-bar">
             <div class="action-bar-buttons">

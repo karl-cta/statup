@@ -4,7 +4,7 @@
 {% block section %}admin{% endblock %}
 
 {% block content %}
-<div class="page page-form">
+<div class="page">
     <header class="page-head">
         <div>
             <h1 class="page-title">{{ i18n.t("admin.settings") }}</h1>
@@ -27,56 +27,58 @@
     <div id="form-error" class="form-error mb-5" role="alert"><p>{{ message }}</p></div>
     {% endif %}
 
-    <section class="card" aria-labelledby="public-title">
-        <header class="card-head">
-            <h2 id="public-title" class="card-title">{{ i18n.t("admin.section_public") }}</h2>
-        </header>
-        <div class="set-row">
-            <div class="set-text">
-                <label for="instance-name" class="set-label">{{ i18n.t("admin.instance_name") }}</label>
-                <p class="set-help">{{ i18n.t("admin.instance_name_help") }}</p>
-            </div>
-            <form method="post" action="/admin/settings/instance-name" class="set-inline-form">
-                <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                <div class="set-field">
-                    <input id="instance-name" type="text" name="instance_name" class="input" maxlength="40"
-                           value="{{ instance_name }}" placeholder="{{ i18n.t("admin.instance_name_placeholder") }}"
-                           {% if error.is_some() %}aria-describedby="form-error" {% endif %}{% if error.is_some() %} aria-invalid="true"{% endif %}>
+    <div class="card-grid card-grid-2">
+        <section class="card" aria-labelledby="public-title">
+            <header class="card-head">
+                <h2 id="public-title" class="card-title">{{ i18n.t("admin.section_public") }}</h2>
+            </header>
+            <div class="set-row">
+                <div class="set-text">
+                    <label for="instance-name" class="set-label">{{ i18n.t("admin.instance_name") }}</label>
+                    <p class="set-help">{{ i18n.t("admin.instance_name_help") }}</p>
                 </div>
-                <button type="submit" class="btn btn-primary">{{ i18n.t("common.save") }}</button>
-            </form>
-        </div>
-        <div class="set-row">
-            <div class="set-text">
-                <p id="access-label" class="set-label">{{ i18n.t("admin.public_mode") }}</p>
+                <form method="post" action="/admin/settings/instance-name" class="set-inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                    <div class="set-field">
+                        <input id="instance-name" type="text" name="instance_name" class="input" maxlength="40"
+                               value="{{ instance_name }}" placeholder="{{ i18n.t("admin.instance_name_placeholder") }}"
+                               {% if error.is_some() %}aria-describedby="form-error" {% endif %}{% if error.is_some() %} aria-invalid="true"{% endif %}>
+                    </div>
+                    <button type="submit" class="btn btn-primary">{{ i18n.t("common.save") }}</button>
+                </form>
             </div>
-            <form method="post" action="/admin/settings/public-mode" class="set-access-form" data-autosubmit>
-                <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                <div class="segmented" role="radiogroup" aria-labelledby="access-label">
-                    <label class="choice"><input type="radio" name="access" value="everyone" class="sr-only"{% if public_mode %} checked{% endif %}><span>{{ i18n.t("admin.access_everyone") }}</span></label>
-                    <label class="choice"><input type="radio" name="access" value="members" class="sr-only"{% if !public_mode %} checked{% endif %}><span>{{ i18n.t("admin.access_members") }}</span></label>
+            <div class="set-row">
+                <div class="set-text">
+                    <p id="access-label" class="set-label">{{ i18n.t("admin.public_mode") }}</p>
                 </div>
-                <button type="submit" class="btn btn-ghost btn-sm mt-2" data-apply>{{ i18n.t("admin.access_apply") }}</button>
-            </form>
-        </div>
-    </section>
+                <form method="post" action="/admin/settings/public-mode" class="set-access-form" data-autosubmit>
+                    <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                    <div class="segmented" role="radiogroup" aria-labelledby="access-label">
+                        <label class="choice"><input type="radio" name="access" value="everyone" class="sr-only"{% if public_mode %} checked{% endif %}><span>{{ i18n.t("admin.access_everyone") }}</span></label>
+                        <label class="choice"><input type="radio" name="access" value="members" class="sr-only"{% if !public_mode %} checked{% endif %}><span>{{ i18n.t("admin.access_members") }}</span></label>
+                    </div>
+                    <button type="submit" class="btn btn-ghost btn-sm mt-2" data-apply>{{ i18n.t("admin.access_apply") }}</button>
+                </form>
+            </div>
+        </section>
 
-    <section class="card mt-6" aria-labelledby="manage-title">
-        <header class="card-head">
-            <h2 id="manage-title" class="card-title">{{ i18n.t("admin.section_manage") }}</h2>
-        </header>
-        <div class="set-row">
-            <div class="set-text">
-                <p class="set-label">{{ i18n.t("admin.section_team") }}<span class="count">{{ self.team_count() }}</span></p>
+        <section class="card" aria-labelledby="manage-title">
+            <header class="card-head">
+                <h2 id="manage-title" class="card-title">{{ i18n.t("admin.section_manage") }}</h2>
+            </header>
+            <div class="set-row">
+                <div class="set-text">
+                    <p class="set-label">{{ i18n.t("admin.section_team") }}<span class="count">{{ self.team_count() }}</span></p>
+                </div>
+                <a href="/admin/users" class="btn btn-ghost btn-sm">{{ i18n.t("admin.team_manage") }}</a>
             </div>
-            <a href="/admin/users" class="btn btn-ghost btn-sm">{{ i18n.t("admin.team_manage") }}</a>
-        </div>
-        <div class="set-row">
-            <div class="set-text">
-                <p class="set-label">{{ i18n.t("admin.section_icons") }}<span class="count">{{ self.icons_label() }}</span></p>
+            <div class="set-row">
+                <div class="set-text">
+                    <p class="set-label">{{ i18n.t("admin.section_icons") }}<span class="count">{{ self.icons_label() }}</span></p>
+                </div>
+                <a href="/icons" class="btn btn-ghost btn-sm">{{ i18n.t("admin.icons_manage") }}</a>
             </div>
-            <a href="/icons" class="btn btn-ghost btn-sm">{{ i18n.t("admin.icons_manage") }}</a>
-        </div>
-    </section>
+        </section>
+    </div>
 </div>
 {% endblock %}

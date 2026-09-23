@@ -5,7 +5,7 @@
 {% block section %}home{% endblock %}
 
 {% block content %}
-<div class="page page-narrow">
+<div class="page">
     <header class="page-head">
         <div>
             <a href="/" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("subscribe.back") }}</a>
@@ -15,31 +15,45 @@
     </header>
 
     {% if !feed_readable %}
-    <div class="form-notice"><p>{{ i18n.t("subscribe.members_only") }}</p></div>
+    <div class="form-notice mb-6"><p>{{ i18n.t("subscribe.members_only") }}</p></div>
     {% endif %}
 
-    <section class="event-section" aria-labelledby="feed-title">
-        <h2 id="feed-title" class="section-title">{{ i18n.t("subscribe.reader_title") }}</h2>
-        <div class="copy-field">
-            <label for="feed-url" class="sr-only">{{ i18n.t("subscribe.address") }}</label>
-            <input id="feed-url" class="input" type="text" value="{{ feed_url }}" readonly data-select-on-focus>
-            <button type="button" class="btn btn-ghost" data-copy="#feed-url" data-copied="{{ i18n.t("subscribe.copied") }}">{{ i18n.t("subscribe.copy") }}</button>
-        </div>
-        <ol class="steps">
-            <li>{{ i18n.t("subscribe.step_copy") }}</li>
-            <li>{{ i18n.t("subscribe.step_add") }}</li>
-            <li>{{ i18n.t("subscribe.step_done") }}</li>
-        </ol>
-    </section>
+    <div class="card-grid card-grid-3">
+        <section class="card" aria-labelledby="feed-title">
+            <header class="card-head">
+                <h2 id="feed-title" class="card-title">{{ i18n.t("subscribe.reader_title") }}</h2>
+            </header>
+            <div class="card-body">
+                <div class="copy-field">
+                    <label for="feed-url" class="sr-only">{{ i18n.t("subscribe.address") }}</label>
+                    <input id="feed-url" class="input" type="text" value="{{ feed_url }}" readonly data-select-on-focus>
+                    <button type="button" class="btn btn-ghost" data-copy="#feed-url" data-copied="{{ i18n.t("subscribe.copied") }}">{{ i18n.t("subscribe.copy") }}</button>
+                </div>
+                <ol class="steps">
+                    <li>{{ i18n.t("subscribe.step_copy") }}</li>
+                    <li>{{ i18n.t("subscribe.step_add") }}</li>
+                    <li>{{ i18n.t("subscribe.step_done") }}</li>
+                </ol>
+            </div>
+        </section>
 
-    <section class="event-section" aria-labelledby="chat-title">
-        <h2 id="chat-title" class="section-title">{{ i18n.t("subscribe.chat_title") }}</h2>
-        <p class="page-lede">{{ i18n.t("subscribe.chat_text") }}</p>
-    </section>
+        <section class="card" aria-labelledby="chat-title">
+            <header class="card-head">
+                <h2 id="chat-title" class="card-title">{{ i18n.t("subscribe.chat_title") }}</h2>
+            </header>
+            <div class="card-body">
+                <p class="page-lede">{{ i18n.t("subscribe.chat_text") }}</p>
+            </div>
+        </section>
 
-    <section class="event-section" aria-labelledby="page-title">
-        <h2 id="page-title" class="section-title">{{ i18n.t("subscribe.page_title") }}</h2>
-        <p class="page-lede">{{ i18n.t("subscribe.page_text") }}</p>
-    </section>
+        <section class="card" aria-labelledby="page-title">
+            <header class="card-head">
+                <h2 id="page-title" class="card-title">{{ i18n.t("subscribe.page_title") }}</h2>
+            </header>
+            <div class="card-body">
+                <p class="page-lede">{{ i18n.t("subscribe.page_text") }}</p>
+            </div>
+        </section>
+    </div>
 </div>
 {% endblock %}
