@@ -122,7 +122,7 @@
                 <form method="post" action="/admin/users/{{ u.id }}/disable"{% if u.is_active %} data-confirm{% endif %}>
                     <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
                     {% if u.is_active %}
-                    <button type="button" class="btn btn-danger btn-sm" data-confirm-open aria-label="{{ i18n.t("admin.disable") }} {{ u.display_name }}">{{ i18n.t("admin.disable") }}</button>
+                    <button type="button" class="btn btn-danger" data-confirm-open aria-label="{{ i18n.t("admin.disable") }} {{ u.display_name }}">{{ i18n.t("admin.disable") }}</button>
                     <div class="confirm" role="group" aria-label="{{ i18n.t("admin.confirm_disable_aria") }}" aria-describedby="disable-q-{{ u.id }} disable-d-{{ u.id }}" data-confirm-box hidden>
                         <span id="disable-q-{{ u.id }}" class="confirm-text">{{ i18n.t("admin.disable") }} <q>{{ u.display_name }}</q>{{ i18n.t("common.question_mark") }}</span>
                         <span id="disable-d-{{ u.id }}" class="confirm-desc">{{ i18n.t("admin.disable_consequence") }}</span>
@@ -130,7 +130,7 @@
                         <button type="submit" class="confirm-go" data-danger>{{ i18n.t("admin.disable") }}</button>
                     </div>
                     {% else %}
-                    <button type="submit" class="btn btn-ghost btn-sm" aria-label="{{ i18n.t("admin.enable") }} {{ u.display_name }}">{{ i18n.t("admin.enable") }}</button>
+                    <button type="submit" class="btn btn-ghost" aria-label="{{ i18n.t("admin.enable") }} {{ u.display_name }}">{{ i18n.t("admin.enable") }}</button>
                     {% endif %}
                 </form>
                 {% endif %}

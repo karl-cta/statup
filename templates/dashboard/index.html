@@ -22,7 +22,7 @@
         {# An instance without services first needs one: the banner offers it. #}
         {% if has_services %}
         <div class="quick-actions">
-            <a href="/events/new" class="btn btn-primary btn-sm">{% call ui::plus() %}{{ i18n.t("events.new") }}</a>
+            <a href="/events/new" class="btn btn-primary">{% call ui::plus() %}{{ i18n.t("events.new") }}</a>
         </div>
         {% endif %}
         {% if live.arrangeable %}

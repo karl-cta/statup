@@ -194,7 +194,7 @@
         text.textContent = panel.dataset.error || "";
         const retry = document.createElement("button");
         retry.type = "button";
-        retry.className = "btn btn-ghost btn-sm";
+        retry.className = "btn btn-ghost";
         retry.dataset.drawerRetry = "";
         retry.textContent = panel.dataset.retry || "";
         box.append(text, retry);

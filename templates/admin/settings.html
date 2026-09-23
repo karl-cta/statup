@@ -57,7 +57,7 @@
                         <label class="choice"><input type="radio" name="access" value="everyone" class="sr-only"{% if public_mode %} checked{% endif %}><span>{{ i18n.t("admin.access_everyone") }}</span></label>
                         <label class="choice"><input type="radio" name="access" value="members" class="sr-only"{% if !public_mode %} checked{% endif %}><span>{{ i18n.t("admin.access_members") }}</span></label>
                     </div>
-                    <button type="submit" class="btn btn-ghost btn-sm mt-2" data-apply>{{ i18n.t("admin.access_apply") }}</button>
+                    <button type="submit" class="btn btn-ghost mt-2" data-apply>{{ i18n.t("admin.access_apply") }}</button>
                 </form>
             </div>
         </section>
@@ -70,13 +70,13 @@
                 <div class="set-text">
                     <p class="set-label">{{ i18n.t("admin.section_team") }}<span class="count">{{ self.team_count() }}</span></p>
                 </div>
-                <a href="/admin/users" class="btn btn-ghost btn-sm">{{ i18n.t("admin.team_manage") }}</a>
+                <a href="/admin/users" class="btn btn-ghost">{{ i18n.t("admin.team_manage") }}</a>
             </div>
             <div class="set-row">
                 <div class="set-text">
                     <p class="set-label">{{ i18n.t("admin.section_icons") }}<span class="count">{{ self.icons_label() }}</span></p>
                 </div>
-                <a href="/icons" class="btn btn-ghost btn-sm">{{ i18n.t("admin.icons_manage") }}</a>
+                <a href="/icons" class="btn btn-ghost">{{ i18n.t("admin.icons_manage") }}</a>
             </div>
         </section>
     </div>

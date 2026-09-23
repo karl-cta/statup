@@ -8,7 +8,7 @@
     <div class="hero-body">
         <p class="hero-meta">{{ i18n.t("banner.nothing_watched_hint") }}</p>
         {% if can_publish %}
-        <a href="/services/new" class="btn btn-primary btn-sm">{% call ui::plus() %}{{ i18n.t("banner.add_first_service") }}</a>
+        <a href="/services/new" class="btn btn-primary">{% call ui::plus() %}{{ i18n.t("banner.add_first_service") }}</a>
         {% endif %}
     </div>
 </section>

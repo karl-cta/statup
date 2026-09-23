@@ -8,7 +8,7 @@
 <div class="card empty-state">
     <p class="empty-state-title" data-results-count>{{ i18n.t("events.no_match_title") }}</p>
     <p class="empty-state-text">{{ i18n.t("events.no_match_text") }}</p>
-    <a href="/events" class="btn btn-ghost btn-sm">{{ i18n.t("events.clear_filters") }}</a>
+    <a href="/events" class="btn btn-ghost">{{ i18n.t("events.clear_filters") }}</a>
 </div>
 {% else %}
 <p class="results-count" data-results-count>{{ results.count_label }}</p>
@@ -46,13 +46,13 @@
 {% if results.page > 1 || results.has_next %}
 <nav class="pager" aria-label="{{ i18n.t("common.pagination_aria") }}">
     {% if results.page > 1 %}
-    <a class="btn btn-ghost btn-sm" rel="prev" href="{{ results.page_link_base }}page={{ results.page - 1 }}">{{ i18n.t("common.previous") }}</a>
+    <a class="btn btn-ghost" rel="prev" href="{{ results.page_link_base }}page={{ results.page - 1 }}">{{ i18n.t("common.previous") }}</a>
     {% else %}
     <span></span>
     {% endif %}
     <span class="pager-page">{{ results.page_label }}</span>
     {% if results.has_next %}
-    <a class="btn btn-ghost btn-sm" rel="next" href="{{ results.page_link_base }}page={{ results.page + 1 }}">{{ i18n.t("common.next") }}</a>
+    <a class="btn btn-ghost" rel="next" href="{{ results.page_link_base }}page={{ results.page + 1 }}">{{ i18n.t("common.next") }}</a>
     {% else %}
     <span></span>
     {% endif %}

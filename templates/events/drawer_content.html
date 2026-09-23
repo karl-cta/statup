@@ -12,7 +12,7 @@
     <div class="drawer-foot">
         <a class="hero-link" href="/events/{{ view.event.id }}">{{ i18n.t("events.open_full_page") }}{% call ui::arrow_right() %}</a>
         {% if can_edit %}
-        <a class="btn btn-ghost btn-sm" href="/events/{{ view.event.id }}/edit">{{ i18n.t("events.edit") }}</a>
+        <a class="btn btn-ghost" href="/events/{{ view.event.id }}/edit">{{ i18n.t("events.edit") }}</a>
         {% endif %}
     </div>
 </div>

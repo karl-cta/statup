@@ -1,13 +1,14 @@
 @layer components {
-    /* Buttons. The primary never moves: under the pointer a pale sheen
-       crosses it once, on a pseudo-element, so the label stays crisp. */
+    /* Buttons, one size everywhere, the height of a field. The primary
+       never moves: under the pointer a pale sheen crosses it once, on a
+       pseudo-element, so the label stays crisp. */
     .btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 6px;
-        min-height: 36px;
-        padding: 7px 16px;
+        min-height: 34px;
+        padding: 6px 14px;
         font-family: var(--font-sans);
         font-size: var(--text-sm);
         font-weight: 500;
@@ -23,12 +24,6 @@
         width: 14px;
         height: 14px;
         flex: none;
-    }
-
-    .btn-sm {
-        min-height: 32px;
-        padding: 5px 12px;
-        font-size: var(--text-sm);
     }
 
     .btn-primary {
@@ -187,8 +182,8 @@
        an edge that still reads 3:1 against the ground. */
     .input {
         width: 100%;
-        min-height: 36px;
-        padding: 6px 11px;
+        min-height: 34px;
+        padding: 5px 11px;
         font-family: var(--font-sans);
         font-size: var(--text-sm);
         line-height: 1.4;
@@ -249,8 +244,8 @@
         justify-content: space-between;
         gap: 10px;
         width: 100%;
-        min-height: 36px;
-        padding: 6px 10px 6px 11px;
+        min-height: 34px;
+        padding: 5px 10px 5px 11px;
         font-family: var(--font-sans);
         font-size: var(--text-sm);
         line-height: 1.4;
@@ -325,7 +320,7 @@
         gap: 8px;
         min-height: 36px;
         padding: 7px 10px;
-        font-size: var(--text-md);
+        font-size: var(--text-sm);
         color: var(--ink);
         border-radius: 4px;
     }
@@ -346,6 +341,7 @@
     /* iOS zooms into any field under 16px: touch screens get the larger
        text and a taller target, a narrow desktop window does not. */
     @media (pointer: coarse) {
+        .btn,
         .input,
         .cs-trigger {
             min-height: 44px;
@@ -429,8 +425,8 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        min-height: 36px;
-        padding: 6px 14px;
+        min-height: 34px;
+        padding: 5px 14px;
         font-size: var(--text-sm);
         font-weight: 500;
         color: var(--ink);

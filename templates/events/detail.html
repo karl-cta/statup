@@ -21,13 +21,13 @@
         {% if can_edit || changelog_offer %}
         <div class="event-actions">
             {% if changelog_offer %}
-            <a href="/events/new?kind=publication&amp;after={{ view.event.id }}" class="btn btn-primary btn-sm">{{ i18n.t("events.publish_changelog") }}</a>
+            <a href="/events/new?kind=publication&amp;after={{ view.event.id }}" class="btn btn-primary">{{ i18n.t("events.publish_changelog") }}</a>
             {% endif %}
             {% if can_edit %}
-            <a href="#composer" class="btn {% if changelog_offer %}btn-ghost{% else %}btn-primary{% endif %} btn-sm" data-composer-open>{{ i18n.t("events.publish_update") }}</a>
-            <a href="/events/{{ view.event.id }}/edit" class="btn btn-ghost btn-sm">{{ i18n.t("events.edit") }}</a>
+            <a href="#composer" class="btn {% if changelog_offer %}btn-ghost{% else %}btn-primary{% endif %}" data-composer-open>{{ i18n.t("events.publish_update") }}</a>
+            <a href="/events/{{ view.event.id }}/edit" class="btn btn-ghost">{{ i18n.t("events.edit") }}</a>
             <details class="more-actions" data-more-actions>
-                <summary class="btn btn-ghost btn-sm" aria-label="{{ i18n.t("events.more_actions") }}">{% call ui::more_icon() %}</summary>
+                <summary class="btn btn-ghost" aria-label="{{ i18n.t("events.more_actions") }}">{% call ui::more_icon() %}</summary>
                 <div class="more-actions-menu">
                     {% if let Some(label) = revert_label %}
                     <form method="post" action="/events/{{ view.event.id }}/revert-lifecycle">

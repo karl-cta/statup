@@ -15,7 +15,7 @@
         {% if let Some(note) = service.outranked_note(i18n) %}
         <p class="field-hint mt-1">{{ note }}</p>
         {% endif %}
-        <noscript><button type="submit" class="btn btn-ghost btn-sm mt-2">{{ i18n.t("services.publish_status") }}</button></noscript>
+        <noscript><button type="submit" class="btn btn-ghost mt-2">{{ i18n.t("services.publish_status") }}</button></noscript>
     </form>
 
     <div class="confirm" role="group" aria-label="{{ i18n.t("services.confirm_status_aria") }}" aria-describedby="status-q-{{ service.id }}" data-status-confirm hidden>

@@ -38,7 +38,7 @@
 <div class="arrange-add" data-arrange-only hidden>
     <span class="label">{{ i18n.t("dashboard.add_block") }}</span>
     {% for choice in live.hidden %}
-    <button type="button" class="btn btn-ghost btn-sm" data-show="{{ choice.module_id }}">{% call ui::plus() %}{{ choice.name }}</button>
+    <button type="button" class="btn btn-ghost" data-show="{{ choice.module_id }}">{% call ui::plus() %}{{ choice.name }}</button>
     {% endfor %}
 </div>
 {% endif %}
