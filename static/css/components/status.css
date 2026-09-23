@@ -638,7 +638,11 @@
         flex-wrap: wrap;
         align-items: center;
         gap: 4px 8px;
-        margin-top: 4px;
+        margin-top: 8px;
+    }
+
+    .log-body > .svc-tags {
+        margin-top: 8px;
     }
 
     .log-head {
@@ -663,8 +667,14 @@
         text-underline-offset: 3px;
     }
 
+    /* What is still going on comes forward; what is closed steps back. */
     .log-row-open .log-title {
         font-weight: 600;
+    }
+
+    .log-row-closed .log-title,
+    .log-row-closed .state {
+        color: var(--muted);
     }
 
     .search-hit {

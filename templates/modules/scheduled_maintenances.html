@@ -15,7 +15,7 @@
     <ul class="log-list">
         {% for m in rows %}
         <li>
-            <a class="log-row{% if m.is_open %} log-row-open{% endif %}" href="/events/{{ m.id }}" data-drawer="/events/{{ m.id }}/drawer">
+            <a class="log-row{% if m.is_open %} log-row-open{% else %} log-row-closed{% endif %}" href="/events/{{ m.id }}" data-drawer="/events/{{ m.id }}/drawer">
                 <span class="log-time">{{ m.day }}</span>
                 <span class="log-body">
                     <span class="log-head"><span class="log-title">{{ m.title }}</span></span>

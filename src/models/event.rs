@@ -557,6 +557,12 @@ impl EventSummary {
         self.lifecycle.is_some_and(Lifecycle::is_active)
     }
 
+    /// Still worth the reader's eye: work open or to come, and every
+    /// announcement, which never closes.
+    pub fn is_current(&self) -> bool {
+        self.is_open() || self.kind == Kind::Publication
+    }
+
     pub fn tone(&self) -> Tone {
         state_tone(self.kind, self.severity, self.lifecycle)
     }

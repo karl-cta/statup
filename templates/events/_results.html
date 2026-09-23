@@ -18,11 +18,11 @@
     <ul class="log-list">
         {% for event in group.events %}
         <li>
-            <a class="log-row{% if event.is_open() %} log-row-open{% endif %}" href="/events/{{ event.id }}" data-drawer="/events/{{ event.id }}/drawer">
+            <a class="log-row{% if event.is_current() %} log-row-open{% else %} log-row-closed{% endif %}" href="/events/{{ event.id }}" data-drawer="/events/{{ event.id }}/drawer">
                 <span class="log-time">{{ i18n.format_time(event.created_at) }}</span>
                 <span class="log-body">
                     <span class="log-head">
-                        {% call ui::kind_chip(i18n.t(event.kind.i18n_key())) %}
+                        {% call ui::kind_chip(i18n.t(event.kind.i18n_key()), event.tone().as_str()) %}
                         <span class="log-title">{% for part in results.title_parts(event.title) %}{% if part.hit %}<mark class="search-hit">{{ part.text }}</mark>{% else %}{{ part.text }}{% endif %}{% endfor %}</span>
                     </span>
                     {% let severity = event.severity_word(i18n) %}
@@ -34,7 +34,7 @@
                     {% endif %}
                 </span>
                 {% if let Some(word) = event.row_state(i18n) %}
-                <span class="state" data-tone="{{ event.tone().as_str() }}">{{ word }}</span>
+                <span class="state state-word" data-tone="{{ event.tone().as_str() }}">{{ word }}</span>
                 {% endif %}
             </a>
         </li>
