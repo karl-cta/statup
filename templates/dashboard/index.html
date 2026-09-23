@@ -24,7 +24,6 @@
         <div class="quick-actions">
             <a href="/events/new" class="btn btn-primary btn-sm">{% call ui::plus() %}{{ i18n.t("dashboard.report_incident") }}</a>
             <a href="/events/new?kind=maintenance" class="btn btn-ghost btn-sm">{{ i18n.t("dashboard.plan_maintenance") }}</a>
-            <a href="/events/new?kind=publication" class="btn btn-ghost btn-sm">{{ i18n.t("dashboard.post_announcement") }}</a>
         </div>
         {% endif %}
         {% if live.arrangeable %}

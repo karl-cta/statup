@@ -273,7 +273,7 @@ impl EventRepository {
         .await
     }
 
-    /// Completes every announced maintenance whose planned end has come.
+    /// Completes every maintenance under way whose announced end has come.
     pub async fn complete_due_maintenance(
         pool: &DbPool,
         now: DateTime<Utc>,
@@ -281,7 +281,7 @@ impl EventRepository {
         sqlx::query_scalar(
             "UPDATE events SET previous_lifecycle = NULL, lifecycle = 'completed', \
                ended_at = COALESCE(ended_at, planned_end) \
-             WHERE kind = 'maintenance' AND planned = 1 AND lifecycle = 'in_progress' \
+             WHERE kind = 'maintenance' AND lifecycle = 'in_progress' \
                AND planned_end IS NOT NULL AND planned_end <= ? \
              RETURNING id",
         )

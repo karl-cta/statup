@@ -918,3 +918,23 @@ async fn availability_ends_when_the_service_came_back() {
         "an incident under watch no longer counts as down time"
     );
 }
+
+#[tokio::test]
+async fn a_maintenance_without_a_start_begins_right_away() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("File server").await;
+    app.submit_create_event(
+        vec![
+            ("title", "Disk replacement".to_string()),
+            ("kind", "maintenance".to_string()),
+            ("planned_start", String::new()),
+        ],
+        &[service_id],
+    )
+    .await;
+    assert_eq!(
+        app.service(service_id).await.status,
+        ServiceStatus::Maintenance
+    );
+}

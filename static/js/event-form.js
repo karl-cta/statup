@@ -30,7 +30,7 @@
     const copy = JSON.parse(copyNode.textContent);
     const title = form.querySelector("#title");
     const suggestions = form.querySelector("[data-suggestions]");
-    const planned = form.querySelector("#planned");
+    const start = form.querySelector("#planned_start");
     let titleTouched = title.value.trim() !== "";
 
     const checked = (name) => {
@@ -69,7 +69,7 @@
         if (names.length === 0) return { text: copy.no_services, tone: "" };
         const services = joinNames(names);
         if (kind === "maintenance") {
-            const key = planned && planned.checked ? "maintenance_planned" : "maintenance_now";
+            const key = start && start.value ? "maintenance_planned" : "maintenance_now";
             return { text: fill(copy[key], services), tone: "info" };
         }
         const tone = severity === "critical" ? "crit" : severity;
@@ -90,9 +90,7 @@
         const severity = checked("severity");
         const names = serviceNames();
         form.querySelectorAll(".reveal-row").forEach((row) => {
-            let open = row.dataset.forKind === kind;
-            if (row.hasAttribute("data-when-planned")) open = open && Boolean(planned && planned.checked);
-            setOpen(row, open);
+            setOpen(row, row.dataset.forKind === kind);
         });
 
         const result = outcome(kind, severity, names);
@@ -138,7 +136,6 @@
                 check("kind", template.kind);
                 check("severity", template.severity);
                 check("category", template.category);
-                if (planned) planned.checked = Boolean(template.planned);
                 form.querySelector("[data-template-id]").value = String(template.id);
                 closeSuggestions();
                 update();

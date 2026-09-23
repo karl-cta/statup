@@ -514,6 +514,41 @@
         }
     }
 
+    /* Options a first publication never needs, folded under one line. */
+    .more-options {
+        margin-top: 24px;
+    }
+
+    .more-options > summary {
+        width: fit-content;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--muted);
+        cursor: pointer;
+        list-style: none;
+        transition: color 150ms ease;
+    }
+
+    .more-options > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .more-options > summary::after {
+        content: " +";
+    }
+
+    .more-options[open] > summary::after {
+        content: " \2212";
+    }
+
+    .more-options > summary:hover {
+        color: var(--ink);
+    }
+
+    .more-options > :not(summary) {
+        margin-top: 16px;
+    }
+
     /* A row that only concerns some kinds. Without script every row shows;
        with it, rows that do not apply leave the form entirely. */
     .js .reveal-row:not(.is-open) {

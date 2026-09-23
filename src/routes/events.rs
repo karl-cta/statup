@@ -619,8 +619,6 @@ pub struct EventInput {
     kind: Option<Kind>,
     #[serde(default, deserialize_with = "deserialize_blank_as_none")]
     severity: Option<Severity>,
-    #[serde(default)]
-    planned: Option<String>,
     #[serde(default, deserialize_with = "deserialize_blank_as_none")]
     category: Option<Category>,
     #[serde(default)]
@@ -651,8 +649,9 @@ impl EventInput {
         (kind == Kind::Publication).then(|| self.category.unwrap_or(Category::Info))
     }
 
+    /// A maintenance with a start is announced; without one it begins now.
     fn planned(&self, kind: Kind) -> bool {
-        kind == Kind::Maintenance && self.planned.as_deref() == Some("on")
+        kind == Kind::Maintenance && !self.planned_start.trim().is_empty()
     }
 
     fn start(&self) -> Option<chrono::DateTime<chrono::Utc>> {
@@ -759,6 +758,11 @@ impl EventFormData {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     fn follows(&self, id: &i64) -> bool {
         self.follows_event_id == Some(*id)
+    }
+
+    /// Opens the extra options when they already hold a choice.
+    fn follows_any(&self) -> bool {
+        self.follows_event_id.is_some()
     }
 
     fn kind_is(&self, kind: &str) -> bool {

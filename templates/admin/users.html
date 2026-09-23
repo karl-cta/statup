@@ -87,7 +87,7 @@
                 <p class="admin-row-sub">{{ i18n.t("admin.last_seen") }} {% if let Some(seen) = u.last_seen_at %}{{ seen }}{% else %}{{ i18n.t("admin.never") }}{% endif %}</p>
             </div>
 
-            <p class="member-status{% if !u.is_active %} member-status-off{% endif %}">{% if u.is_active %}{{ i18n.t("admin.active") }}{% else %}{{ i18n.t("admin.disabled") }}{% endif %}</p>
+            <p class="member-status{% if !u.is_active %} member-status-off{% endif %}">{% if !u.is_active %}{{ i18n.t("admin.disabled") }}{% endif %}</p>
 
             <div class="admin-row-cell member-role">
                 {% if u.id == current_user_id %}

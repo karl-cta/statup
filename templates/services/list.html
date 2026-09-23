@@ -55,9 +55,7 @@
             </div>
             <div class="admin-row-actions">
                 <a class="text-action" href="/services/{{ service.id }}/edit" aria-label="{{ i18n.t("common.edit") }} {{ service.name }}">{{ i18n.t("common.edit") }}</a>
-                {% if service.has_history %}
-                <span class="field-hint" title="{{ i18n.t("services.kept_hint") }}">{{ i18n.t("services.kept") }}<span class="sr-only">. {{ i18n.t("services.kept_hint") }}</span></span>
-                {% else %}
+                {% if !service.has_history %}
                 <form method="post" action="/services/{{ service.id }}/delete" data-confirm>
                     <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
                     <button type="button" class="text-action text-action-danger" data-confirm-open aria-label="{{ i18n.t("common.delete") }} {{ service.name }}">{{ i18n.t("common.delete") }}</button>

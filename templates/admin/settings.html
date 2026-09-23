@@ -41,8 +41,7 @@
                 <div class="set-field">
                     <input id="instance-name" type="text" name="instance_name" class="input" maxlength="40"
                            value="{{ instance_name }}" placeholder="{{ i18n.t("admin.instance_name_placeholder") }}"
-                           aria-describedby="instance-name-limit{% if error.is_some() %} form-error{% endif %}"{% if error.is_some() %} aria-invalid="true"{% endif %}>
-                    <span id="instance-name-limit" class="field-hint">{{ i18n.t("admin.instance_name_limit") }}</span>
+                           {% if error.is_some() %}aria-describedby="form-error" {% endif %}{% if error.is_some() %} aria-invalid="true"{% endif %}>
                 </div>
                 <button type="submit" class="btn btn-primary">{{ i18n.t("common.save") }}</button>
             </form>
@@ -77,18 +76,6 @@
                 <p class="set-label">{{ i18n.t("admin.section_icons") }}<span class="count">{{ self.icons_label() }}</span></p>
             </div>
             <a href="/icons" class="btn btn-ghost btn-sm">{{ i18n.t("admin.icons_manage") }}</a>
-        </div>
-        <div class="set-row">
-            <div class="set-text">
-                <p id="modules-public-label" class="set-label">{{ i18n.t("admin.modules_public_label") }}</p>
-            </div>
-            <a id="modules-public-action" href="/?view=public&amp;arrange=1" class="btn btn-ghost btn-sm" aria-labelledby="modules-public-action modules-public-label">{{ i18n.t("admin.modules_manage") }}</a>
-        </div>
-        <div class="set-row">
-            <div class="set-text">
-                <p id="modules-admin-label" class="set-label">{{ i18n.t("admin.modules_admin_label") }}</p>
-            </div>
-            <a id="modules-admin-action" href="/?arrange=1" class="btn btn-ghost btn-sm" aria-labelledby="modules-admin-action modules-admin-label">{{ i18n.t("admin.modules_manage") }}</a>
         </div>
     </section>
 </div>
