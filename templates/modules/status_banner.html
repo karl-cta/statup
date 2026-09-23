@@ -38,10 +38,16 @@
     </ul>
     {% endif %}
 
-    {% if let Some((update, time)) = self.single_update() %}
+    {% if let Some((update, time)) = self.lead_update() %}
     <p class="hero-update">
         {% if let Some(label) = time %}<span class="hero-update-time">{{ label }}</span>{% endif %}
         {{ update }}
+    </p>
+    {% endif %}
+
+    {% if let Some(next) = next_maintenance %}
+    <p class="hero-next">
+        <a href="/events/{{ next.event_id }}" data-drawer="/events/{{ next.event_id }}/drawer">{{ next.when }}&nbsp;<span aria-hidden="true">·</span> {{ next.title }}</a>
     </p>
     {% endif %}
 

@@ -11,7 +11,6 @@ use crate::db::DbPool;
 use crate::error::AppError;
 use crate::i18n::I18n;
 use crate::models::User;
-use crate::repositories::EventRepository;
 use crate::services::EventService;
 use crate::state::AppState;
 
@@ -46,8 +45,6 @@ pub struct Frame {
     /// "UTC+2", the instance zone.
     pub zone: String,
     pub clock_offset: i32,
-    pub last_update_iso: Option<String>,
-    pub last_update_label: Option<String>,
 }
 
 impl Frame {
@@ -68,7 +65,6 @@ impl Frame {
             Some(u) => EventService::unread_count(pool, u.last_seen_at).await?,
             None => 0,
         };
-        let last_update = EventRepository::last_admin_action(pool).await?;
         Ok(Self {
             csrf_token,
             user_name: user.map(|u| u.display_name.clone()).unwrap_or_default(),
@@ -80,8 +76,6 @@ impl Frame {
             dateline: i18n.format_dateline(&clock::today()),
             zone: clock::offset_label(&now),
             clock_offset: clock::offset_minutes(&now),
-            last_update_iso: last_update.map(|t| t.to_rfc3339()),
-            last_update_label: last_update.map(|t| i18n.format_datetime_long(&t)),
         })
     }
 }

@@ -464,19 +464,6 @@ impl EventRepository {
         }
         Ok(spans)
     }
-
-    /// Time of the last change the team made: an event, an update or a
-    /// service.
-    pub async fn last_admin_action(pool: &DbPool) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
-        sqlx::query_scalar(
-            "SELECT MAX(ts) FROM ( \
-                 SELECT MAX(updated_at) AS ts FROM events \
-                 UNION ALL SELECT MAX(created_at) FROM event_updates \
-                 UNION ALL SELECT MAX(updated_at) FROM services)",
-        )
-        .fetch_one(pool)
-        .await
-    }
 }
 
 /// One incident on one service, as the availability strip reads it.
@@ -893,21 +880,6 @@ mod tests {
         assert_eq!(
             EventRepository::count_since(&pool, before).await.unwrap(),
             1
-        );
-    }
-
-    #[tokio::test]
-    async fn last_admin_action_is_read() {
-        let pool = test_pool().await;
-        let (uid, sid) = seed_user_and_service(&pool).await;
-        EventRepository::create(&pool, &incident("X", uid, vec![sid]))
-            .await
-            .unwrap();
-        assert!(
-            EventRepository::last_admin_action(&pool)
-                .await
-                .unwrap()
-                .is_some()
         );
     }
 

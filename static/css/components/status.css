@@ -109,6 +109,24 @@
         color: var(--muted);
     }
 
+    /* The next announced maintenance: one line, in the ink of a fact. */
+    .hero-next {
+        margin-top: 12px;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .hero-next a {
+        color: var(--ink);
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-underline-offset: 3px;
+    }
+
+    .hero-next a:hover {
+        text-decoration-color: currentColor;
+    }
+
     .hero-link {
         display: inline-flex;
         align-items: center;

@@ -830,7 +830,10 @@ async fn a_state_set_by_hand_outlasts_the_events_on_its_service() {
     app.setup_publisher().await;
     let service_id = app.create_service("HR portal").await;
     app.set_state_by_hand(service_id, "major_outage").await;
-    assert_eq!(app.service(service_id).await.status, ServiceStatus::MajorOutage);
+    assert_eq!(
+        app.service(service_id).await.status,
+        ServiceStatus::MajorOutage
+    );
 
     let incident = app
         .create_incident("HR portal slow", "Pages take long", "minor", &[service_id])
@@ -862,7 +865,10 @@ async fn a_state_set_by_hand_outlasts_the_events_on_its_service() {
         &[("lifecycle", "in_progress")],
     )
     .await;
-    assert_eq!(app.service(service_id).await.status, ServiceStatus::Degraded);
+    assert_eq!(
+        app.service(service_id).await.status,
+        ServiceStatus::Degraded
+    );
     app.post_form_with_header_csrf(
         &format!("/events/{maintenance_id}/updates"),
         &[("lifecycle", "completed"), ("message", "Done")],

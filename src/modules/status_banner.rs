@@ -3,21 +3,25 @@
 //! Answers one question: do the tools work right now? It names the services
 //! that do not, each with the open incident that explains it. Maintenance
 //! work, announcements and history have their own blocks; the banner only
-//! turns to maintenance when nothing is disrupted. A fresh install says
-//! nothing is watched rather than claiming that everything is fine.
+//! turns to maintenance when nothing is disrupted. It says until when work
+//! runs and names the next announced maintenance, since the reader's second
+//! question is when it comes back. A fresh install says nothing is watched
+//! rather than claiming that everything is fine.
 
 use askama::Template;
 use async_trait::async_trait;
-use chrono::Utc;
+use chrono::{Duration, Utc};
 
 use crate::error::AppError;
 use crate::i18n::I18n;
-use crate::models::{EventSummary, Kind, Service, ServiceStatus, Tone};
+use crate::models::{EventSummary, Kind, Lifecycle, Service, ServiceStatus, Tone};
 use crate::repositories::{EventRepository, ServiceRepository};
 
 use super::{ColumnWidth, Module, ModuleContext, ModuleRenderContext, render_template};
 
 const UPDATE_EXCERPT_CHARS: usize = 180;
+/// How far ahead an announced maintenance is worth a line.
+const NEXT_MAINTENANCE_DAYS: i64 = 7;
 
 pub struct StatusBannerModule;
 
@@ -55,6 +59,13 @@ impl BannerRow {
     }
 }
 
+/// The soonest announced maintenance, when it starts within the week.
+pub struct NextMaintenance {
+    pub event_id: i64,
+    pub when: String,
+    pub title: String,
+}
+
 #[derive(Template)]
 #[template(path = "modules/status_banner.html")]
 struct StatusBannerTemplate {
@@ -62,20 +73,21 @@ struct StatusBannerTemplate {
     tone: &'static str,
     headline: String,
     rows: Vec<BannerRow>,
+    next_maintenance: Option<NextMaintenance>,
     refreshed_at: String,
     can_publish: bool,
     i18n: I18n,
 }
 
 impl StatusBannerTemplate {
-    /// The latest word on the work, when a single service is affected.
-    fn single_update(&self) -> Option<(&str, Option<&str>)> {
-        let [only] = self.rows.as_slice() else {
-            return None;
-        };
-        let cause = only.cause.as_ref()?;
-        let update = cause.update.as_deref()?;
-        Some((update, cause.update_time.as_deref()))
+    /// The latest word on the worst work under way, however many services
+    /// it touches.
+    fn lead_update(&self) -> Option<(&str, Option<&str>)> {
+        self.rows.iter().find_map(|row| {
+            let cause = row.cause.as_ref()?;
+            let update = cause.update.as_deref()?;
+            Some((update, cause.update_time.as_deref()))
+        })
     }
 }
 
@@ -108,6 +120,7 @@ impl Module for StatusBannerModule {
     async fn render(&self, ctx: &ModuleRenderContext<'_>) -> Result<String, AppError> {
         let services = ServiceRepository::list_all(ctx.pool).await?;
         let events = EventRepository::list_open_for_banner(ctx.pool).await?;
+        let maintenance = EventRepository::list_open_maintenance(ctx.pool).await?;
         let i18n = ctx.i18n;
         let affected = affected_services(&services);
         let template = StatusBannerTemplate {
@@ -118,6 +131,7 @@ impl Module for StatusBannerModule {
                 .iter()
                 .map(|service| row(service, &events, i18n))
                 .collect(),
+            next_maintenance: next_maintenance(&maintenance, i18n),
             refreshed_at: refreshed_label(i18n),
             can_publish: ctx.can_publish(),
             i18n: i18n.clone(),
@@ -170,7 +184,7 @@ fn cause(event: &EventSummary, i18n: &I18n) -> Cause {
     Cause {
         event_id: event.id,
         title: event.title.clone(),
-        since: event.elapsed_text(i18n),
+        since: until_text(event, i18n).or_else(|| event.elapsed_text(i18n)),
         update: event.latest_update_excerpt(UPDATE_EXCERPT_CHARS),
         update_time: event.latest_update_at.map(|t| {
             i18n.tf(
@@ -179,6 +193,40 @@ fn cause(event: &EventSummary, i18n: &I18n) -> Cause {
             )
         }),
     }
+}
+
+/// "until 18:00" for work with an announced end: what the reader waits for,
+/// rather than how long it has lasted.
+fn until_text(event: &EventSummary, i18n: &I18n) -> Option<String> {
+    if event.kind != Kind::Maintenance {
+        return None;
+    }
+    let end = event.planned_end?;
+    let when = if crate::clock::local_date(&end) == crate::clock::today() {
+        i18n.format_time(&end)
+    } else {
+        i18n.format_datetime(&end)
+    };
+    Some(i18n.tf("maintenance.until", &[("when", &when)]))
+}
+
+/// The soonest maintenance still to come within the week. The list comes
+/// work under way first, then by start.
+fn next_maintenance(open: &[EventSummary], i18n: &I18n) -> Option<NextMaintenance> {
+    let horizon = Utc::now() + Duration::days(NEXT_MAINTENANCE_DAYS);
+    open.iter()
+        .filter(|m| m.lifecycle == Some(Lifecycle::Scheduled))
+        .find_map(|m| {
+            let start = m.planned_start.filter(|start| *start <= horizon)?;
+            Some(NextMaintenance {
+                event_id: m.id,
+                when: i18n.tf(
+                    "banner.next_maintenance",
+                    &[("when", &i18n.format_datetime(&start))],
+                ),
+                title: m.title.clone(),
+            })
+        })
 }
 
 /// Ground of the banner: the worst state among the listed services.
@@ -366,5 +414,31 @@ mod tests {
         ];
         let found = cause_of(&paie, &events).map(|e| e.kind);
         assert_eq!(found, Some(Kind::Maintenance));
+    }
+
+    #[test]
+    fn the_next_maintenance_is_the_soonest_within_the_week() {
+        let i18n = I18n::new("en");
+        let at = |days: i64, title: &str| {
+            let mut m = event(Kind::Maintenance, None, Lifecycle::Scheduled, "Paie");
+            m.title = title.to_string();
+            m.planned_start = Some(Utc::now() + Duration::days(days));
+            m
+        };
+        let open = [at(2, "Soon"), at(3, "Later")];
+        let next = next_maintenance(&open, &i18n).map(|m| m.title);
+        assert_eq!(next.as_deref(), Some("Soon"));
+        assert!(next_maintenance(&[at(9, "Far")], &i18n).is_none());
+    }
+
+    #[test]
+    fn work_with_an_announced_end_says_until_when() {
+        let i18n = I18n::new("en");
+        let mut work = event(Kind::Maintenance, None, Lifecycle::InProgress, "Paie");
+        assert!(until_text(&work, &i18n).is_none());
+        work.planned_end = Some(Utc::now() + Duration::days(2));
+        assert!(until_text(&work, &i18n).is_some());
+        let incident = event(Kind::Incident, None, Lifecycle::Investigating, "Paie");
+        assert!(until_text(&incident, &i18n).is_none());
     }
 }

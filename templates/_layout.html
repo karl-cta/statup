@@ -129,9 +129,6 @@
                 <span aria-hidden="true">·</span>
                 <a href="https://www.gnu.org/licenses/agpl-3.0.html" rel="license">AGPL-3.0</a>
             </p>
-            {% if let Some(label) = frame.last_update_label %}
-            <p>{{ i18n.t("footer.last_update") }} <time datetime="{{ frame.last_update_iso.as_deref().unwrap_or_default() }}">{{ label }}</time></p>
-            {% endif %}
         </div>
     </footer>
 

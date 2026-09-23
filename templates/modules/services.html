@@ -3,7 +3,6 @@
     <header class="card-head">
         <h2 id="services-title" class="card-title">
             {{ i18n.t("dashboard.services") }}
-            {% if !rows.is_empty() %}<span class="count">{{ rows.len() }}</span>{% endif %}
         </h2>
         {% if can_publish && !rows.is_empty() %}
         <a href="/services" class="card-action">{{ i18n.t("dashboard.manage_services") }}</a>
