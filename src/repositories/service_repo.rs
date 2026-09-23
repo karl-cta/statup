@@ -97,6 +97,21 @@ impl ServiceRepository {
         Ok(())
     }
 
+    /// Records the state set by hand; the shown one follows from it and the
+    /// open events.
+    pub async fn update_manual_status(
+        pool: &DbPool,
+        id: i64,
+        status: ServiceStatus,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE services SET manual_status = ? WHERE id = ?")
+            .bind(status)
+            .bind(id)
+            .execute(pool)
+            .await?;
+        Ok(())
+    }
+
     pub async fn has_events(pool: &DbPool, service_id: i64) -> Result<bool, sqlx::Error> {
         sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM event_services WHERE service_id = ?)")
             .bind(service_id)

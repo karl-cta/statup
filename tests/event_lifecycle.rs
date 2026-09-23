@@ -59,6 +59,23 @@ impl TestApp {
         service.id
     }
 
+    async fn set_state_by_hand(&self, service_id: i64, status: &str) {
+        let (code, _, _) = self
+            .post_form_with_header_csrf(
+                &format!("/services/{service_id}/status"),
+                &[("status", status)],
+            )
+            .await;
+        assert_eq!(code, StatusCode::SEE_OTHER);
+    }
+
+    async fn service(&self, id: i64) -> statup::models::Service {
+        ServiceRepository::find_by_id(&self.pool, id)
+            .await
+            .expect("db error")
+            .expect("service not found")
+    }
+
     async fn submit_create_event(
         &self,
         base_fields: Vec<(&str, String)>,
@@ -804,5 +821,94 @@ async fn an_announcement_names_the_maintenance_it_follows() {
         body.contains(&format!(r#"href="/events/{maintenance_id}""#))
             && body.contains("Payroll update"),
         "the announcement links to the maintenance it follows: {body}"
+    );
+}
+
+#[tokio::test]
+async fn a_state_set_by_hand_outlasts_the_events_on_its_service() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("HR portal").await;
+    app.set_state_by_hand(service_id, "major_outage").await;
+    assert_eq!(app.service(service_id).await.status, ServiceStatus::MajorOutage);
+
+    let incident = app
+        .create_incident("HR portal slow", "Pages take long", "minor", &[service_id])
+        .await;
+    let incident_id = event_id_from_path(&incident);
+    assert_eq!(
+        app.service(service_id).await.status,
+        ServiceStatus::MajorOutage,
+        "a milder incident does not lower what the team declared"
+    );
+    app.post_form_with_header_csrf(
+        &format!("/events/{incident_id}/updates"),
+        &[("lifecycle", "resolved"), ("message", "Back to normal")],
+    )
+    .await;
+    assert_eq!(
+        app.service(service_id).await.status,
+        ServiceStatus::MajorOutage,
+        "closing an incident falls back to the state set by hand"
+    );
+
+    app.set_state_by_hand(service_id, "degraded").await;
+    let path = app
+        .create_planned_maintenance("Upgrade", "New version", "minor", &[service_id])
+        .await;
+    let maintenance_id = event_id_from_path(&path);
+    app.post_form_with_header_csrf(
+        &format!("/events/{maintenance_id}/updates"),
+        &[("lifecycle", "in_progress")],
+    )
+    .await;
+    assert_eq!(app.service(service_id).await.status, ServiceStatus::Degraded);
+    app.post_form_with_header_csrf(
+        &format!("/events/{maintenance_id}/updates"),
+        &[("lifecycle", "completed"), ("message", "Done")],
+    )
+    .await;
+    assert_eq!(
+        app.service(service_id).await.status,
+        ServiceStatus::Degraded,
+        "a finished maintenance leaves the state set by hand"
+    );
+
+    app.set_state_by_hand(service_id, "operational").await;
+    app.create_incident("HR portal down", "No page loads", "critical", &[service_id])
+        .await;
+    let service = app.service(service_id).await;
+    assert_eq!(service.manual_status, ServiceStatus::Operational);
+    assert_eq!(service.status, ServiceStatus::MajorOutage);
+    let (_, list) = app.get("/services").await;
+    assert!(
+        list.contains("un événement est en cours") || list.contains("an event is open"),
+        "the list says why the page shows more than the state set by hand"
+    );
+}
+
+#[tokio::test]
+async fn availability_ends_when_the_service_came_back() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Payroll").await;
+    let path = app
+        .create_incident("Payroll down", "No access", "critical", &[service_id])
+        .await;
+    let event_id = event_id_from_path(&path);
+    app.post_form_with_header_csrf(
+        &format!("/events/{event_id}/updates"),
+        &[("lifecycle", "monitoring")],
+    )
+    .await;
+
+    let since = chrono::Utc::now() - chrono::Duration::days(30);
+    let spans = statup::repositories::EventRepository::incident_spans(&app.pool, since)
+        .await
+        .expect("db error");
+    let span = &spans[&service_id][0];
+    assert!(
+        span.end.is_some(),
+        "an incident under watch no longer counts as down time"
     );
 }

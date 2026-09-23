@@ -3,6 +3,7 @@
 use std::str::FromStr;
 
 use super::Tone;
+use crate::i18n::I18n;
 
 /// Current operational status of a service.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
@@ -97,7 +98,11 @@ pub struct Service {
     pub name: String,
     pub slug: String,
     pub description: Option<String>,
+    /// What the page shows: the worse of the state set by hand and the
+    /// one open events give.
     pub status: ServiceStatus,
+    /// The state someone set by hand, kept through events.
+    pub manual_status: ServiceStatus,
     pub icon_id: Option<i64>,
     pub icon_name: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -129,6 +134,17 @@ impl Service {
     /// renames, so a link can point at one service.
     pub fn anchor(&self) -> String {
         format!("service-{}", self.slug)
+    }
+
+    /// "Shown as Partial outage, an event is open": said next to the state
+    /// set by hand when an open event outranks it.
+    pub fn outranked_note(&self, i18n: &I18n) -> Option<String> {
+        (self.status != self.manual_status).then(|| {
+            i18n.tf(
+                "services.outranked",
+                &[("status", i18n.t(self.status.i18n_key()))],
+            )
+        })
     }
 }
 

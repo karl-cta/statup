@@ -291,7 +291,8 @@ impl EventRepository {
     }
 
     /// Moves to `next`, keeping the current state for a one step undo. The
-    /// start is recorded the first time work begins, the end on closing.
+    /// start is recorded the first time work begins, the restoration when the
+    /// team starts watching, the end on closing.
     pub async fn transition(
         pool: &DbPool,
         id: i64,
@@ -304,7 +305,10 @@ impl EventRepository {
             "UPDATE events SET previous_lifecycle = lifecycle, lifecycle = ?, \
                started_at = CASE WHEN ? = 'in_progress' THEN COALESCE(started_at, ?) \
                             ELSE started_at END, \
-               ended_at = CASE WHEN ? IN ('resolved', 'completed') THEN ? ELSE ended_at END \
+               ended_at = CASE WHEN ? IN ('resolved', 'completed') THEN ? ELSE ended_at END, \
+               restored_at = CASE WHEN ? = 'monitoring' THEN COALESCE(restored_at, ?) \
+                             WHEN ? IN ('investigating', 'in_progress') THEN NULL \
+                             ELSE restored_at END \
              WHERE id = ? AND lifecycle = ?",
         )
         .bind(next)
@@ -312,6 +316,9 @@ impl EventRepository {
         .bind(&at)
         .bind(next.as_str())
         .bind(&at)
+        .bind(next.as_str())
+        .bind(&at)
+        .bind(next.as_str())
         .bind(id)
         .bind(from)
         .execute(pool)
@@ -325,6 +332,7 @@ impl EventRepository {
         sqlx::query(
             "UPDATE events SET lifecycle = previous_lifecycle, previous_lifecycle = NULL, \
                ended_at = NULL, \
+               restored_at = CASE WHEN lifecycle = 'monitoring' THEN NULL ELSE restored_at END, \
                started_at = CASE WHEN previous_lifecycle = 'scheduled' THEN NULL \
                             ELSE started_at END \
              WHERE id = ? AND previous_lifecycle IS NOT NULL",
@@ -429,17 +437,19 @@ impl EventRepository {
     }
 
     /// Incidents that were open at some point after `since`, per service,
-    /// for the availability strip.
+    /// for the availability strip. A span ends when the service came back,
+    /// even if the team kept watching before closing.
     pub async fn incident_spans(
         pool: &DbPool,
         since: DateTime<Utc>,
     ) -> Result<HashMap<i64, Vec<IncidentSpan>>, sqlx::Error> {
         let rows: Vec<SpanRow> = sqlx::query_as(
             "SELECT es.service_id, e.severity, COALESCE(e.started_at, e.created_at), \
-                        e.ended_at \
+                        COALESCE(e.restored_at, e.ended_at) \
                  FROM events e INNER JOIN event_services es ON es.event_id = e.id \
                  WHERE e.kind = 'incident' AND e.lifecycle != 'cancelled' \
-                   AND (e.ended_at IS NULL OR e.ended_at >= ?)",
+                   AND (COALESCE(e.restored_at, e.ended_at) IS NULL \
+                        OR COALESCE(e.restored_at, e.ended_at) >= ?)",
         )
         .bind(clock::db(since))
         .fetch_all(pool)

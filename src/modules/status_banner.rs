@@ -250,6 +250,7 @@ mod tests {
             slug: name.to_lowercase(),
             description: None,
             status,
+            manual_status: status,
             icon_id: None,
             icon_name: None,
             created_at: Utc::now(),

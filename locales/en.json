@@ -242,6 +242,7 @@
   "services.confirm_status_aria": "Confirm publishing the state",
   "services.status_published": "State published:",
   "services.undo_status": "Undo",
+  "services.outranked": "Shown as {status}, an event is open",
   "admin.title": "Settings",
   "admin.settings": "Settings",
   "admin.back_to_settings": "Settings",

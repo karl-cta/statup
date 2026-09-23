@@ -63,17 +63,31 @@ impl ServiceService {
         Ok(())
     }
 
-    /// Sets the service to the worst status its open work implies, or back
-    /// to operational when nothing is open.
+    /// Shows the worse of the state set by hand and the ones open work
+    /// implies, so closing an event falls back to what the team declared.
     pub async fn recalculate_status(pool: &DbPool, service_id: i64) -> Result<(), AppError> {
+        let service = ServiceRepository::find_by_id(pool, service_id)
+            .await?
+            .ok_or(AppError::NotFound)?;
         let drivers = EventRepository::status_drivers(pool, service_id).await?;
         let worst = drivers
             .into_iter()
             .filter_map(|(kind, severity)| derive_status(kind, severity))
+            .chain([service.manual_status])
             .max_by_key(|status| status.priority())
-            .unwrap_or(ServiceStatus::Operational);
+            .unwrap_or(service.manual_status);
         ServiceRepository::update_status(pool, service_id, worst).await?;
         Ok(())
+    }
+
+    /// Records the state set by hand and shows what follows from it.
+    pub async fn set_manual_status(
+        pool: &DbPool,
+        service_id: i64,
+        status: ServiceStatus,
+    ) -> Result<(), AppError> {
+        ServiceRepository::update_manual_status(pool, service_id, status).await?;
+        Self::recalculate_status(pool, service_id).await
     }
 
     pub async fn recalculate_many(pool: &DbPool, service_ids: &[i64]) -> Result<(), AppError> {

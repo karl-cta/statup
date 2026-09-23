@@ -7,11 +7,14 @@
           data-status-form>
         <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
         <label for="status-{{ service.id }}" class="sr-only">{{ i18n.t("services.status_of") }} {{ service.name }}</label>
-        <select id="status-{{ service.id }}" name="status" class="input" data-custom-select data-committed="{{ service.status.as_str() }}">
+        <select id="status-{{ service.id }}" name="status" class="input" data-custom-select data-committed="{{ service.manual_status.as_str() }}">
             {% for status in crate::models::ServiceStatus::ALL %}
-            <option value="{{ status.as_str() }}" data-tone="{{ status.tone().as_str() }}"{% if service.status == status %} selected{% endif %}{% if status.is_outage() %} data-guarded{% endif %}>{{ i18n.t(status.i18n_key()) }}</option>
+            <option value="{{ status.as_str() }}" data-tone="{{ status.tone().as_str() }}"{% if service.manual_status == status %} selected{% endif %}{% if status.is_outage() %} data-guarded{% endif %}>{{ i18n.t(status.i18n_key()) }}</option>
             {% endfor %}
         </select>
+        {% if let Some(note) = service.outranked_note(i18n) %}
+        <p class="field-hint mt-1">{{ note }}</p>
+        {% endif %}
         <noscript><button type="submit" class="btn btn-ghost btn-sm mt-2">{{ i18n.t("services.publish_status") }}</button></noscript>
     </form>
 
@@ -23,7 +26,7 @@
 
     {% if let Some(before) = previous %}
     <div class="receipt">
-        <span data-announce>{{ i18n.t("services.status_published") }} {{ i18n.t(service.status.i18n_key()) }}</span>
+        <span data-announce>{{ i18n.t("services.status_published") }} {{ i18n.t(service.manual_status.i18n_key()) }}</span>
         <form hx-post="/services/{{ service.id }}/status" hx-target="closest .status-cell" hx-swap="outerHTML">
             <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
             <input type="hidden" name="status" value="{{ before.as_str() }}">

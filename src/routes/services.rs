@@ -397,8 +397,8 @@ pub async fn update_status(
     let before = ServiceRepository::find_by_id(&state.pool, id)
         .await?
         .ok_or(AppError::NotFound)?
-        .status;
-    ServiceRepository::update_status(&state.pool, id, status).await?;
+        .manual_status;
+    ServiceService::set_manual_status(&state.pool, id, status).await?;
     if !headers.contains_key("hx-request") {
         return Ok(Redirect::to(&format!("/services?saved={id}")).into_response());
     }
