@@ -632,6 +632,15 @@
         min-width: 0;
     }
 
+    /* Under a title: the severity word, then the services it names. */
+    .log-sub {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 8px;
+        margin-top: 4px;
+    }
+
     .log-head {
         display: flex;
         align-items: baseline;

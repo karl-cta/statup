@@ -285,6 +285,7 @@ mod tests {
             updated_at: Utc::now(),
             author_id: 1,
             service_names: services.to_string(),
+            service_icons: String::new(),
             last_activity_at: None,
             latest_update: None,
             latest_update_at: None,

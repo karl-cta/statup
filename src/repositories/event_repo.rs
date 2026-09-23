@@ -20,7 +20,12 @@ const SUMMARY_COLUMNS: &str = "e.id, e.kind, e.severity, e.planned, e.lifecycle,
      e.created_at, e.updated_at, e.author_id, \
      COALESCE((SELECT GROUP_CONCAT(s.name, char(31) ORDER BY s.name) \
                FROM event_services es JOIN services s ON s.id = es.service_id \
-               WHERE es.event_id = e.id), '') AS service_names";
+               WHERE es.event_id = e.id), '') AS service_names, \
+     COALESCE((SELECT GROUP_CONCAT(COALESCE(s.icon_name, '') || char(30) || COALESCE(i.filename, ''), \
+                                   char(31) ORDER BY s.name) \
+               FROM event_services es JOIN services s ON s.id = es.service_id \
+               LEFT JOIN icons i ON i.id = s.icon_id \
+               WHERE es.event_id = e.id), '') AS service_icons";
 
 const LATEST_UPDATE_COLUMNS: &str = "\
      (SELECT u.message FROM event_updates u WHERE u.event_id = e.id \

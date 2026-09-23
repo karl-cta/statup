@@ -1,3 +1,4 @@
+{% import "components/macros.html" as ui %}
 <section class="card" aria-labelledby="maintenance-title">
     <header class="card-head">
         <h2 id="maintenance-title" class="card-title">{{ i18n.t("dashboard.maintenance") }}</h2>
@@ -19,7 +20,10 @@
                 <span class="log-body">
                     <span class="log-head"><span class="log-title">{{ m.title }}</span></span>
                     {% if !m.when.is_empty() || !m.services.is_empty() %}
-                    <span class="meta">{{ m.when }}{% if !m.when.is_empty() && !m.services.is_empty() %}&nbsp;<span aria-hidden="true">·</span> {% endif %}{{ m.services }}</span>
+                    <span class="log-sub">
+                        {% if !m.when.is_empty() %}<span class="meta">{{ m.when }}</span>{% endif %}
+                        {% if !m.services.is_empty() %}{% call ui::service_tags(m.services, i18n.t("events.concerns")) %}{% endif %}
+                    </span>
                     {% endif %}
                 </span>
                 <span class="state" data-tone="{{ m.tone }}">{{ m.state }}</span>

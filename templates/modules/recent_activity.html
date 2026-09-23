@@ -25,7 +25,7 @@
                         <span class="log-title">{{ event.title }}</span>
                     </span>
                     {% if event.has_services() %}
-                    <span class="meta">{{ event.concerns(i18n) }}</span>
+                    {% call ui::service_tags(event.service_tags(), i18n.t("events.concerns")) %}
                     {% endif %}
                 </span>
                 {% if let Some(word) = event.row_state(i18n) %}

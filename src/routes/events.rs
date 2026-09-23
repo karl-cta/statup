@@ -314,15 +314,6 @@ pub struct EventView {
 }
 
 impl EventView {
-    /// "Payroll, Email": the services named, on one line.
-    pub fn service_names(&self) -> String {
-        self.services
-            .iter()
-            .map(|s| s.name.as_str())
-            .collect::<Vec<_>>()
-            .join(", ")
-    }
-
     /// A row of facts is worth drawing when there is one.
     pub fn has_facts(&self) -> bool {
         self.state.is_some() || !self.services.is_empty() || self.follows.is_some()

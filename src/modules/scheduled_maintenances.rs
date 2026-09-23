@@ -6,7 +6,7 @@ use async_trait::async_trait;
 
 use crate::error::AppError;
 use crate::i18n::I18n;
-use crate::models::{EventSummary, Lifecycle};
+use crate::models::{EventSummary, Lifecycle, ServiceTag};
 use crate::repositories::EventRepository;
 
 use super::{ColumnWidth, Module, ModuleContext, ModuleRenderContext, render_template};
@@ -23,7 +23,7 @@ pub struct MaintenanceRow {
     pub day: String,
     /// The time, then the services, on one line.
     pub when: String,
-    pub services: String,
+    pub services: Vec<ServiceTag>,
     pub state: String,
     pub tone: &'static str,
     pub is_open: bool,
@@ -89,11 +89,7 @@ fn row(event: &EventSummary, i18n: &I18n, day: String, when: String) -> Maintena
         title: event.title.clone(),
         day,
         when,
-        services: if event.has_services() {
-            event.concerns(i18n)
-        } else {
-            String::new()
-        },
+        services: event.service_tags(),
         state: event
             .lifecycle_key()
             .map(|key| i18n.t(key).to_string())

@@ -125,7 +125,7 @@
   "events.publish_update": "Publier une mise à jour",
   "events.more_actions": "Plus d'actions",
   "events.details": "Détails",
-  "events.concerns": "Concerne : {names}",
+  "events.concerns": "Concerne :",
   "events.delete": "Supprimer l'événement",
   "events.publish_changelog": "Publier les nouveautés",
   "events.follows_label": "Fait suite à une maintenance",

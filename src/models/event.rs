@@ -19,6 +19,31 @@ use crate::i18n::I18n;
 /// Unit separator used between service names in list queries, so that a
 /// comma inside a name never splits it.
 pub const NAME_SEPARATOR: char = '\u{1f}';
+/// Between the built-in icon and the uploaded file of one service.
+pub const ICON_SEPARATOR: char = '\u{1e}';
+
+/// A service an event names, with what draws its icon.
+pub struct ServiceTag {
+    pub name: String,
+    icon_name: Option<String>,
+    icon_filename: Option<String>,
+}
+
+impl ServiceTag {
+    /// SVG path data of the built-in icon, `|||` between paths.
+    pub fn builtin_icon_paths(&self) -> Option<&'static str> {
+        self.icon_name
+            .as_deref()
+            .and_then(super::find_builtin_icon)
+            .map(|i| i.paths)
+    }
+
+    pub fn icon_url(&self) -> Option<String> {
+        self.icon_filename
+            .as_ref()
+            .map(|f| format!("/uploads/icons/{f}"))
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Deserialize)]
 #[sqlx(type_name = "TEXT", rename_all = "snake_case")]
@@ -470,6 +495,10 @@ pub struct EventSummary {
     /// Linked service names, joined with [`NAME_SEPARATOR`].
     #[sqlx(default)]
     pub service_names: String,
+    /// Their icons, in the same order: built-in name and uploaded file,
+    /// split by [`ICON_SEPARATOR`].
+    #[sqlx(default)]
+    pub service_icons: String,
     /// Latest of the event's own update time and its last posted update.
     /// Only filled by the feed query.
     #[sqlx(default)]
@@ -497,10 +526,24 @@ impl EventSummary {
         !self.service_names.is_empty()
     }
 
-    /// "Affects: Mail, Payroll": the services named, said as such, so a
-    /// name under a title never reads as a mystery.
-    pub fn concerns(&self, i18n: &I18n) -> String {
-        i18n.tf("events.concerns", &[("names", &self.services_label())])
+    /// The services named, each with its icon, so a name under a title
+    /// reads as a service at a glance.
+    pub fn service_tags(&self) -> Vec<ServiceTag> {
+        let mut icons = self.service_icons.split(NAME_SEPARATOR);
+        self.services()
+            .into_iter()
+            .map(|name| {
+                let (icon_name, icon_filename) = icons
+                    .next()
+                    .and_then(|icon| icon.split_once(ICON_SEPARATOR))
+                    .unwrap_or_default();
+                ServiceTag {
+                    name: name.to_string(),
+                    icon_name: (!icon_name.is_empty()).then(|| icon_name.to_string()),
+                    icon_filename: (!icon_filename.is_empty()).then(|| icon_filename.to_string()),
+                }
+            })
+            .collect()
     }
 
     /// Plain text of the latest update, for the status banner.
@@ -534,17 +577,11 @@ impl EventSummary {
         describe_kind(self.kind, self.severity, self.category, i18n)
     }
 
-    /// The line under a title: the severity or the category, then the
-    /// services.
-    pub fn meta_parts(&self, i18n: &I18n) -> Vec<String> {
-        let qualifier = self
-            .severity
+    /// The severity of an incident, said under its title.
+    pub fn severity_word(&self, i18n: &I18n) -> Option<String> {
+        self.severity
             .filter(|_| self.kind == Kind::Incident)
-            .map(|s| i18n.t(s.i18n_key()).to_string());
-        qualifier
-            .into_iter()
-            .chain(self.has_services().then(|| self.concerns(i18n)))
-            .collect()
+            .map(|s| i18n.t(s.i18n_key()).to_string())
     }
 
     pub fn countdown(&self) -> Option<Countdown> {
@@ -725,6 +762,7 @@ mod tests {
             updated_at: Utc::now(),
             author_id: 1,
             service_names: String::new(),
+            service_icons: String::new(),
             last_activity_at: None,
             latest_update: None,
             latest_update_at: None,
@@ -852,7 +890,7 @@ mod tests {
             Some(Severity::Minor),
             Some(Lifecycle::Completed),
         );
-        assert!(work.meta_parts(&i18n).is_empty());
+        assert!(work.severity_word(&i18n).is_none());
         let mut note = summary(Kind::Publication, None, None);
         note.category = Some(Category::Changelog);
         assert_eq!(
@@ -860,6 +898,22 @@ mod tests {
             Some(i18n.t(Category::Changelog.i18n_key()))
         );
         assert_eq!(note.tone(), Tone::Ink);
+    }
+
+    #[test]
+    fn each_service_keeps_its_own_icon() {
+        let mut event = summary(Kind::Incident, None, None);
+        event.service_names = format!("Mail{NAME_SEPARATOR}Payroll");
+        event.service_icons =
+            format!("mail{ICON_SEPARATOR}{NAME_SEPARATOR}{ICON_SEPARATOR}logo.png");
+        let tags = event.service_tags();
+        assert_eq!(tags.len(), 2);
+        assert!(tags[0].icon_url().is_none());
+        assert_eq!(
+            tags[1].icon_url().as_deref(),
+            Some("/uploads/icons/logo.png")
+        );
+        assert!(tags[1].builtin_icon_paths().is_none());
     }
 
     #[test]

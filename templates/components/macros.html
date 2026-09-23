@@ -16,6 +16,12 @@
 {% endmatch %}
 {% endmacro %}
 
+{# The services an event names, each with its icon on a quiet ground; the
+   hidden label says what the tags are to a screen reader. #}
+{% macro service_tags(services, label) %}
+<span class="svc-tags"><span class="sr-only">{{ label }}</span>{% for service in services.iter() %}<span class="svc-tag"><span class="svc-tag-icon">{% call service_icon(service) %}</span>{{ service.name }}</span>{% endfor %}</span>
+{% endmacro %}
+
 {% macro arrow_right() %}
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
 {% endmacro %}
