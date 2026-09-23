@@ -122,6 +122,7 @@
   "events.published_notice": "Publié. C'est visible sur la page publique dès maintenant.",
   "events.open_for": "ouvert depuis {duration}",
   "events.started_ago": "commencée il y a {duration}",
+  "events.restored_for": "rétabli depuis {duration}",
   "events.services_concerned": "Services concernés",
   "events.edit": "Modifier",
   "events.delete": "Supprimer l'événement",

@@ -398,7 +398,19 @@ impl Event {
         open_elapsed(self.lifecycle, self.started_at)
     }
 
+    /// How long it has been open, or since the service came back while
+    /// the team still watches.
     pub fn elapsed_text(&self, i18n: &I18n) -> Option<String> {
+        if let Some(restored) = self
+            .restored_at
+            .filter(|_| self.lifecycle == Some(Lifecycle::Monitoring))
+        {
+            let parts = split_duration(Utc::now() - restored);
+            return Some(i18n.tf(
+                "events.restored_for",
+                &[("duration", &i18n.format_duration(&parts))],
+            ));
+        }
         self.elapsed()
             .map(|parts| elapsed_label(self.kind, &parts, i18n))
     }
