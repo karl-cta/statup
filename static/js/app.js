@@ -351,6 +351,23 @@
         return false;
     }
 
+    // The folded actions of an event close on any click outside them.
+    function closeMoreActions(except) {
+        document.querySelectorAll("details[data-more-actions][open]").forEach((menu) => {
+            if (menu !== except) menu.open = false;
+        });
+    }
+
+    // The composer opens by its anchor; the cursor goes straight to it.
+    function onComposerOpen(target) {
+        if (!target.closest("[data-composer-open]")) return false;
+        window.setTimeout(() => {
+            const message = document.getElementById("message");
+            if (message) message.focus();
+        }, 0);
+        return true;
+    }
+
     function onDrawerClick(target, event) {
         const link = target.closest("[data-drawer]");
         if (link && !event.metaKey && !event.ctrlKey && !event.shiftKey && event.button === 0) {
@@ -389,7 +406,8 @@
             toggleTheme();
             return;
         }
-        if (onMenuClick(target)) return;
+        closeMoreActions(target.closest("details[data-more-actions]"));
+        if (onMenuClick(target) || onComposerOpen(target)) return;
         if (target.closest("[data-toast-close]")) {
             clearToast();
             return;
@@ -409,6 +427,12 @@
                 setMenu(false);
                 const button = document.querySelector("[data-menu-toggle]");
                 if (button) button.focus();
+                return;
+            }
+            const more = document.querySelector("details[data-more-actions][open]");
+            if (more && !(event.target instanceof Element && event.target.closest(".confirm"))) {
+                more.open = false;
+                more.querySelector("summary").focus();
                 return;
             }
             if (event.target instanceof Element) cancelQuestion(event.target);
@@ -561,9 +585,6 @@
         });
         const saved = document.querySelector("[data-scroll-into-view]");
         if (saved) saved.scrollIntoView({ block: "center" });
-        window.requestAnimationFrame(() => {
-            window.setTimeout(() => root.classList.add("is-settled"), 800);
-        });
     }
 
     if (document.readyState === "loading") {

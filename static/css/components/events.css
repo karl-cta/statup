@@ -60,16 +60,95 @@
     }
 
     /* Event page: reading on the left, acting on the right. */
-    .event-grid {
-        display: grid;
-        gap: 36px;
+    /* One column: read at the top, act beside the title, write only when
+       asked, where the message will appear. */
+    .event-page {
+        max-width: 760px;
     }
 
-    @media (min-width: 1024px) {
-        .event-grid {
-            grid-template-columns: minmax(0, 1fr) 280px;
-            gap: 56px;
+    .event-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 12px 24px;
+    }
+
+    .event-head .event-facts {
+        grid-column: 1 / -1;
+        max-width: none;
+        margin-top: 8px;
+    }
+
+    .event-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    @media (max-width: 639px) {
+        .event-head {
+            grid-template-columns: minmax(0, 1fr);
         }
+
+        .event-actions {
+            justify-content: flex-start;
+        }
+    }
+
+    /* Rare actions, folded under one button. */
+    .more-actions {
+        position: relative;
+    }
+
+    .more-actions > summary {
+        list-style: none;
+    }
+
+    .more-actions > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .more-actions > summary svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .more-actions-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        z-index: 20;
+        display: grid;
+        gap: 2px;
+        min-width: 240px;
+        padding: 6px;
+        background: var(--raised);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+    }
+
+    .more-actions-item {
+        display: block;
+        width: 100%;
+        padding: 8px 10px;
+        font: inherit;
+        font-size: 13px;
+        text-align: left;
+        color: var(--ink);
+        background: none;
+        border: 0;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .more-actions-item:hover {
+        background: var(--hover);
+    }
+
+    .more-actions .confirm {
+        padding: 8px 10px;
     }
 
     .event-title {
@@ -286,7 +365,7 @@
         width: 9px;
         height: 9px;
         background: var(--tone, var(--line-strong));
-        border-radius: 50%;
+        border-radius: var(--mark-radius);
         box-shadow: 0 0 0 3px var(--ground);
     }
 
@@ -324,9 +403,14 @@
         margin-left: auto;
     }
 
+    .composer:not(.is-open, :target) {
+        display: none;
+    }
+
     .composer {
+        position: relative;
         max-width: 72ch;
-        margin-top: 32px;
+        margin: 20px 0 0 22px;
         padding: 16px;
         background: var(--card);
         border: 1px solid var(--line);
@@ -335,6 +419,35 @@
 
     .composer .input {
         background: var(--ground);
+    }
+
+    /* The message to come: a hollow mark on the timeline line. */
+    .composer::before {
+        content: "";
+        position: absolute;
+        top: 18px;
+        left: -27px;
+        width: 9px;
+        height: 9px;
+        border-radius: var(--mark-radius);
+        box-shadow: inset 0 0 0 1.5px var(--line-strong), 0 0 0 3px var(--ground);
+    }
+
+    .composer::after {
+        content: "";
+        position: absolute;
+        top: 30px;
+        bottom: -20px;
+        left: -23px;
+        width: 1px;
+        background: var(--line);
+    }
+
+    .composer-buttons {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-left: auto;
     }
 
     .composer-row {
@@ -353,31 +466,6 @@
 
     .composer .form-error {
         margin-bottom: 12px;
-    }
-
-    /* Action rail. */
-    .rail-block + .rail-block {
-        margin-top: 24px;
-        padding-top: 20px;
-        border-top: 1px solid var(--hairline);
-    }
-
-    .rail-block .label {
-        margin-bottom: 10px;
-    }
-
-    @media (min-width: 1024px) {
-        .rail {
-            position: sticky;
-            top: 104px;
-        }
-    }
-
-    .rail-actions {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 10px 16px;
     }
 
     /* Side panel: a solid sheet that slides in, isolated from the page so a

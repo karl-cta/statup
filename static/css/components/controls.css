@@ -519,7 +519,7 @@
         flex: none;
         width: 7px;
         height: 7px;
-        border-radius: 50%;
+        border-radius: var(--mark-radius);
         background: var(--tone, var(--muted));
     }
 
@@ -555,7 +555,7 @@
         flex: none;
         width: 7px;
         height: 7px;
-        border-radius: 50%;
+        border-radius: var(--mark-radius);
         background: var(--tone);
     }
 
@@ -566,9 +566,9 @@
     .dot {
         display: inline-block;
         flex: none;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
+        width: 7px;
+        height: 7px;
+        border-radius: var(--mark-radius);
         background: var(--tone, var(--muted));
     }
 
@@ -620,7 +620,7 @@
         width: 7px;
         height: 7px;
         margin-top: 6px;
-        border-radius: 50%;
+        border-radius: var(--mark-radius);
         background: var(--sem-crit);
     }
 

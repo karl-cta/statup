@@ -29,27 +29,17 @@
         overflow-wrap: anywhere;
     }
 
-    /* Dot with a detached ring, drawn as its own element so the gap stays
-       transparent on a tinted ground. On a tint the dot takes the text
-       value of its hue, which keeps 3:1 there. */
+    /* The mark of a current state, a size above the others. On a tint it
+       takes the text value of its hue, which keeps 3:1 there. */
     .ring-dot {
         --dot: var(--tone, var(--muted));
         position: relative;
         display: inline-block;
         flex: none;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
+        width: 9px;
+        height: 9px;
+        border-radius: var(--mark-radius);
         background: var(--dot);
-    }
-
-    .ring-dot::after {
-        content: "";
-        position: absolute;
-        inset: -3px;
-        border: 1px solid var(--dot);
-        border-radius: 50%;
-        pointer-events: none;
     }
 
     .hero-alert .ring-dot {
@@ -63,19 +53,6 @@
 
     .hero-title .ring-dot {
         top: -0.16em;
-    }
-
-    /* The ring arrives once, on the first paint; a refresh replaces the
-       markup without replaying it. */
-    html:not(.is-settled) .ring-dot::after {
-        animation: ring-in 560ms var(--ease-out) both;
-    }
-
-    @keyframes ring-in {
-        from {
-            opacity: 0;
-            transform: scale(0.35);
-        }
     }
 
     .hero-body {
@@ -715,10 +692,6 @@
 
     /* Maintenances card. */
     @media (prefers-reduced-motion: reduce) {
-        html:not(.is-settled) .ring-dot::after {
-            animation: none;
-        }
-
         .hero-link svg,
         .bar,
         .svc-bars .bar::after {

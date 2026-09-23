@@ -38,6 +38,9 @@
 /* Roles, resolved per theme. Components read these and never carry a dark
    variant of their own. */
 :root {
+    /* Status marks are small squares, the bars of the logo; the round dot
+       belongs to the mark alone. */
+    --mark-radius: 1px;
     --ink: var(--color-ink);
     --ink-soft: rgb(28 27 24 / 0.85);
     --muted: var(--color-muted-light);
