@@ -1,0 +1,14 @@
+{# Where the event stands, what it touches, what it follows: shared by the
+   page and the side panel. #}
+{% if let Some(state) = view.state %}
+<p class="event-state" data-tone="{{ state.tone }}">
+    <span class="ring-dot" aria-hidden="true"></span>
+    <span class="event-state-words"><strong>{{ state.label }}</strong>{% if let Some(detail) = state.detail %}&nbsp;<span aria-hidden="true">·</span> {{ detail }}{% endif %}</span>
+</p>
+{% endif %}
+{% if let Some(line) = view.services_line(i18n) %}
+<p class="event-fact">{{ line }}</p>
+{% endif %}
+{% if let Some(followed) = view.follows %}
+<p class="event-fact">{{ i18n.t("events.follows") }} <a class="link" href="/events/{{ followed.id }}">{{ followed.title }}</a></p>
+{% endif %}

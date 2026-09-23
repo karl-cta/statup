@@ -563,13 +563,6 @@
         content: none;
     }
 
-    .event-kind-line {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: baseline;
-        gap: 4px 8px;
-    }
-
     .dot {
         display: inline-block;
         flex: none;

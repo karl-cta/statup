@@ -364,6 +364,8 @@ pub struct Event {
     pub planned_end: Option<DateTime<Utc>>,
     pub started_at: Option<DateTime<Utc>>,
     pub ended_at: Option<DateTime<Utc>>,
+    /// When the service came back, while the team may still be watching.
+    pub restored_at: Option<DateTime<Utc>>,
     pub author_id: i64,
     pub previous_lifecycle: Option<Lifecycle>,
     /// The maintenance this announcement follows.
@@ -860,6 +862,7 @@ mod tests {
             planned_end: None,
             started_at: None,
             ended_at: None,
+            restored_at: None,
             follows_event_id: None,
             author_id: 1,
             previous_lifecycle: None,

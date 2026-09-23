@@ -347,6 +347,7 @@ mod tests {
             planned_end: None,
             started_at: None,
             ended_at: None,
+            restored_at: None,
             author_id: 1,
             previous_lifecycle: None,
             follows_event_id: None,

@@ -17,6 +17,7 @@ mod page;
 mod password;
 mod profile;
 mod services;
+mod timeline;
 
 use std::any::Any;
 use std::time::Duration;

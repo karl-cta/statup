@@ -1,0 +1,27 @@
+{# The story of the event, newest first. An announced time still to come
+   has a hollow mark. `timeline_csrf` is set by the including page. #}
+<ol class="timeline">
+    {% for entry in view.timeline %}
+    <li class="moment{% if entry.upcoming %} is-upcoming{% endif %}" data-tone="{{ entry.tone }}"{% if let Some(id) = entry.update_id %} id="update-{{ id }}"{% endif %}>
+        <div class="moment-head">
+            <time datetime="{{ entry.iso }}">{{ entry.time }}</time>
+            {% if let Some(label) = entry.label %}<strong class="moment-label">{{ label }}</strong>{% endif %}
+            {% if let Some(author) = entry.author %}<span class="moment-author">{{ author }}</span>{% endif %}
+            {% if entry.can_delete %}{% if let Some(id) = entry.update_id %}
+            <form class="moment-delete" method="post" action="/events/{{ view.event.id }}/updates/{{ id }}/delete" data-confirm>
+                <input type="hidden" name="csrf_token" value="{{ timeline_csrf }}">
+                <button type="button" class="text-action text-action-danger" data-confirm-open>{{ i18n.t("common.delete") }}</button>
+                <div class="confirm" role="group" aria-label="{{ i18n.t("events.delete_update_aria") }}" aria-describedby="delete-update-q-{{ id }}" data-confirm-box hidden>
+                    <span id="delete-update-q-{{ id }}" class="confirm-text">{{ i18n.t("events.delete_update_question") }}</span>
+                    <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
+                    <button type="submit" class="confirm-go" data-danger>{{ i18n.t("common.delete") }}</button>
+                </div>
+            </form>
+            {% endif %}{% endif %}
+        </div>
+        {% if !entry.html.is_empty() %}
+        <div class="rich-text">{{ entry.html|safe }}</div>
+        {% endif %}
+    </li>
+    {% endfor %}
+</ol>

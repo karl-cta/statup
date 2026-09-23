@@ -20,30 +20,12 @@
         <article class="min-w-0">
             <header class="event-head">
                 <h1 class="event-title">{{ view.event.title }}</h1>
-                <p class="meta event-kind-line">{% call ui::kind_chip(i18n.t(view.event.kind.i18n_key()), view.event.kind_tone()) %}<span>{% if let Some(qualifier) = view.event.qualifier(i18n) %}{{ qualifier }}&nbsp;<span aria-hidden="true">·</span> {% endif %}{{ view.published }}</span></p>
-                {% if let Some(state) = view.state %}
-                <p class="event-state" data-tone="{{ state.tone }}">
-                    <span class="ring-dot" aria-hidden="true"></span>
-                    <span class="event-state-words"><strong>{{ state.label }}</strong>{% if let Some(detail) = state.detail %}&nbsp;<span aria-hidden="true">·</span> {{ detail }}{% endif %}</span>
-                </p>
-                {% endif %}
-                {% if let Some(schedule) = view.schedule %}
-                <p class="meta event-dates">{{ schedule }}</p>
-                {% endif %}
-                {% if let Some(followed) = view.follows %}
-                <p class="meta event-follows">{{ i18n.t("events.follows") }} <a class="link" href="/events/{{ followed.id }}">{{ followed.title }}</a></p>
-                {% endif %}
-
+                {% include "events/_facts.html" %}
             </header>
-
-            {% if !view.description_html.is_empty() %}
-            <div class="rich-text event-body">{{ view.description_html|safe }}</div>
-            {% endif %}
 
             <section class="event-section" aria-labelledby="updates-title">
                 <div class="event-section-head">
-                    <h2 id="updates-title" class="section-title">{{ i18n.t("events.updates") }}</h2>
-                    {% if !view.updates.is_empty() %}<span class="count">{{ view.updates.len() }}</span>{% endif %}
+                    <h2 id="updates-title" class="section-title">{{ i18n.t("timeline.title") }}</h2>
                 </div>
 
                 {% if can_edit %}
@@ -75,51 +57,13 @@
                 </form>
                 {% endif %}
 
-                {% if view.updates.is_empty() %}
-                {% if !can_edit %}<p class="page-lede">{{ i18n.t("events.no_updates") }}</p>{% endif %}
-                {% else %}
-                <ol class="timeline">
-                    {% for update in view.updates %}
-                    <li class="update" id="update-{{ update.id }}">
-                        <div class="update-head">
-                            {% if let Some(author) = update.author %}<span class="update-author">{{ author }}</span>{% endif %}
-                            <time datetime="{{ update.iso }}">{{ update.time }}</time>
-                            {% if update.can_delete %}
-                            <form class="update-delete" method="post" action="/events/{{ view.event.id }}/updates/{{ update.id }}/delete" data-confirm>
-                                <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                                <button type="button" class="text-action text-action-danger" data-confirm-open>{{ i18n.t("common.delete") }}</button>
-                                <div class="confirm" role="group" aria-label="{{ i18n.t("events.delete_update_aria") }}" aria-describedby="delete-update-q-{{ update.id }}" data-confirm-box hidden>
-                                    <span id="delete-update-q-{{ update.id }}" class="confirm-text">{{ i18n.t("events.delete_update_question") }}</span>
-                                    <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
-                                    <button type="submit" class="confirm-go" data-danger>{{ i18n.t("common.delete") }}</button>
-                                </div>
-                            </form>
-                            {% endif %}
-                        </div>
-                        <div class="rich-text">{{ update.html|safe }}</div>
-                    </li>
-                    {% endfor %}
-                </ol>
-                {% endif %}
+                {% let timeline_csrf = frame.csrf_token.as_str() %}
+                {% include "events/_timeline.html" %}
             </section>
         </article>
 
         <aside class="min-w-0" aria-label="{{ i18n.t("events.aside_label") }}">
             <div class="rail">
-                {% if !view.services.is_empty() %}
-                <div class="rail-block">
-                    <h2 class="label">{{ i18n.t("events.services_concerned") }}</h2>
-                    <ul class="rail-services">
-                        {% for service in view.services %}
-                        <li>
-                            <span class="wrap-anywhere">{{ service.name }}</span>
-                            <span class="state" data-tone="{{ service.status.tone().as_str() }}">{{ i18n.t(service.status.i18n_key()) }}</span>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
-
                 {% if changelog_offer %}
                 <div class="rail-block">
                     <a href="/events/new?kind=publication&amp;after={{ view.event.id }}" class="btn btn-primary btn-sm">{{ i18n.t("events.publish_changelog") }}</a>

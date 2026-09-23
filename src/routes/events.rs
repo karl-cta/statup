@@ -10,23 +10,21 @@ use axum::response::{IntoResponse, Redirect, Response};
 use serde::{Deserialize, Deserializer};
 
 use super::page::{TitlePart, title_parts};
+use super::timeline::{self, TimelineEntry};
 use super::{Frame, members_only, render};
 use crate::clock;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, HtmlForm, OptionalUser, RequirePublisher};
 use crate::models::{
-    Category, CreateEventInput, DayGroup, Event, EventFilters, EventUpdateWithAuthor,
-    EventWithServices, Kind, Lifecycle, LifecycleGroup, Service, Severity, UpdateEventInput, User,
-    group_by_day,
+    Category, CreateEventInput, DayGroup, Event, EventFilters, EventWithServices, Kind, Lifecycle,
+    LifecycleGroup, Service, Severity, UpdateEventInput, User, group_by_day,
 };
 use crate::repositories::{
     CreateTemplateInput, EventRepository, EventTemplateRepository, ServiceRepository,
     UserRepository,
 };
-use crate::services::{
-    EventService, EventTemplateService, can_delete_update, can_modify, sanitize_markdown,
-};
+use crate::services::{EventService, EventTemplateService, can_modify, sanitize_markdown};
 use crate::state::AppState;
 
 const PAGE_SIZE: i64 = 20;
@@ -266,15 +264,6 @@ pub async fn search(RawQuery(query): RawQuery) -> Redirect {
 
 // ---- Event page and side panel ----
 
-pub struct UpdateView {
-    pub id: i64,
-    pub html: String,
-    pub author: Option<String>,
-    pub time: String,
-    pub iso: String,
-    pub can_delete: bool,
-}
-
 pub struct TransitionOption {
     pub value: &'static str,
     pub label: String,
@@ -320,13 +309,17 @@ pub struct EventView {
     pub services: Vec<Service>,
     /// The maintenance this announcement follows.
     pub follows: Option<MaintenanceChoice>,
-    pub description_html: String,
-    pub updates: Vec<UpdateView>,
-    /// "published on Sep 5 at 2:05 PM (UTC+2) by Jane", the name for members only.
-    pub published: String,
     pub state: Option<StateLine>,
-    /// The announced window of a planned maintenance.
-    pub schedule: Option<String>,
+    pub timeline: Vec<TimelineEntry>,
+}
+
+impl EventView {
+    /// "Services affected: Payroll, Email", on one line.
+    pub fn services_line(&self, i18n: &I18n) -> Option<String> {
+        let names: Vec<&str> = self.services.iter().map(|s| s.name.as_str()).collect();
+        (!names.is_empty())
+            .then(|| i18n.tf("events.services_line", &[("names", &names.join(", "))]))
+    }
 }
 
 /// Where the event stands, in words: the state and how long it has held.
@@ -348,25 +341,26 @@ async fn load_view(
         Some(_) => Some(author_name(state, ews.event.author_id, i18n).await?),
         None => None,
     };
-    let updates = updates
-        .into_iter()
-        .map(|u| update_view(u, &ews.event, user, i18n))
-        .collect();
     let follows = match ews.event.follows_event_id {
         Some(id) => EventRepository::find_by_id(&state.pool, id)
             .await?
             .map(|m| MaintenanceChoice { id, title: m.title }),
         None => None,
     };
+    let timeline = timeline::build(
+        &ews.event,
+        sanitize_markdown(&ews.event.description),
+        author,
+        updates,
+        user,
+        i18n,
+    );
     Ok(EventView {
         follows,
-        description_html: sanitize_markdown(&ews.event.description),
-        published: published_line(&ews.event, author.as_deref(), i18n),
         state: state_line(&ews.event, i18n),
-        schedule: schedule_line(&ews.event, i18n),
         event: ews.event,
         services: ews.services,
-        updates,
+        timeline,
     })
 }
 
@@ -381,66 +375,24 @@ async fn author_name(state: &AppState, author_id: i64, i18n: &I18n) -> Result<St
     )
 }
 
-fn published_line(event: &Event, author: Option<&str>, i18n: &I18n) -> String {
-    let when = i18n.format_datetime_long(&event.created_at);
-    match author {
-        Some(name) => i18n.tf("events.published_by", &[("when", &when), ("author", name)]),
-        None => i18n.tf("events.published_on", &[("when", &when)]),
-    }
-}
-
 fn state_line(event: &Event, i18n: &I18n) -> Option<StateLine> {
     let lifecycle = event.lifecycle?;
     let detail = match lifecycle {
         Lifecycle::Scheduled => i18n.format_countdown(event.countdown()),
         Lifecycle::Cancelled => None,
         open if open.is_active() => event.elapsed_text(i18n),
-        _ => event.ended_at.map(|end| ended_detail(event, end, i18n)),
+        _ => event.duration().map(|parts| {
+            i18n.tf(
+                "events.lasted",
+                &[("duration", &i18n.format_duration(&parts))],
+            )
+        }),
     };
     Some(StateLine {
         tone: event.tone().as_str(),
         label: i18n.t(lifecycle.label_key(event.kind)).to_string(),
         detail,
     })
-}
-
-fn ended_detail(event: &Event, end: chrono::DateTime<chrono::Utc>, i18n: &I18n) -> String {
-    let when = i18n.format_datetime(&end);
-    match event.duration() {
-        Some(parts) => i18n.tf(
-            "events.ended_after",
-            &[("when", &when), ("duration", &i18n.format_duration(&parts))],
-        ),
-        None => i18n.tf("events.ended_on", &[("when", &when)]),
-    }
-}
-
-fn schedule_line(event: &Event, i18n: &I18n) -> Option<String> {
-    let start = i18n.format_datetime(&event.planned_start?);
-    Some(match event.planned_end {
-        Some(end) => i18n.tf(
-            "events.planned_window",
-            &[("start", &start), ("end", &i18n.format_datetime(&end))],
-        ),
-        None => i18n.tf("events.planned_from", &[("start", &start)]),
-    })
-}
-
-/// Staff names are shown to members only.
-fn update_view(
-    update: EventUpdateWithAuthor,
-    event: &Event,
-    user: Option<&User>,
-    i18n: &I18n,
-) -> UpdateView {
-    UpdateView {
-        id: update.id,
-        can_delete: user.is_some_and(|u| can_delete_update(event, update.author_id, u)),
-        author: user.map(|_| update.author_name),
-        time: i18n.format_datetime(&update.created_at),
-        iso: update.created_at.to_rfc3339(),
-        html: update.message,
-    }
 }
 
 fn transition_options(

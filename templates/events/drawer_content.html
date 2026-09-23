@@ -1,54 +1,13 @@
 {% import "components/macros.html" as ui %}
 <div class="drawer-body">
     <h2 id="drawer-title" class="drawer-title">{{ view.event.title }}</h2>
-    <p class="meta event-kind-line">{% call ui::kind_chip(i18n.t(view.event.kind.i18n_key()), view.event.kind_tone()) %}<span>{% if let Some(qualifier) = view.event.qualifier(i18n) %}{{ qualifier }}&nbsp;<span aria-hidden="true">·</span> {% endif %}{{ view.published }}</span></p>
-    {% if let Some(state) = view.state %}
-    <p class="event-state" data-tone="{{ state.tone }}">
-        <span class="ring-dot" aria-hidden="true"></span>
-        <span class="event-state-words"><strong>{{ state.label }}</strong>{% if let Some(detail) = state.detail %}&nbsp;<span aria-hidden="true">·</span> {{ detail }}{% endif %}</span>
-    </p>
-    {% endif %}
-    {% if let Some(schedule) = view.schedule %}
-    <p class="meta">{{ schedule }}</p>
-    {% endif %}
-    {% if let Some(followed) = view.follows %}
-    <p class="meta">{{ i18n.t("events.follows") }} <a class="link" href="/events/{{ followed.id }}">{{ followed.title }}</a></p>
-    {% endif %}
+    {% include "events/_facts.html" %}
 
-    {% if !view.services.is_empty() %}
-    <div class="drawer-section">
-        <h3 class="label">{{ i18n.t("events.services_concerned") }}</h3>
-        <ul class="rail-services">
-            {% for service in view.services %}
-            <li>
-                <span class="wrap-anywhere">{{ service.name }}</span>
-                <span class="state" data-tone="{{ service.status.tone().as_str() }}">{{ i18n.t(service.status.i18n_key()) }}</span>
-            </li>
-            {% endfor %}
-        </ul>
-    </div>
-    {% endif %}
-
-    {% if !view.description_html.is_empty() %}
-    <div class="drawer-section rich-text">{{ view.description_html|safe }}</div>
-    {% endif %}
-
-    {% if !view.updates.is_empty() %}
-    <section class="drawer-section" aria-labelledby="drawer-updates-title">
-        <h3 id="drawer-updates-title" class="label">{{ i18n.t("events.updates") }} <span class="count">{{ view.updates.len() }}</span></h3>
-        <ol class="timeline">
-            {% for update in view.updates %}
-            <li class="update">
-                <div class="update-head">
-                    {% if let Some(author) = update.author %}<span class="update-author">{{ author }}</span>{% endif %}
-                    <time datetime="{{ update.iso }}">{{ update.time }}</time>
-                </div>
-                <div class="rich-text">{{ update.html|safe }}</div>
-            </li>
-            {% endfor %}
-        </ol>
+    <section class="drawer-section" aria-labelledby="drawer-timeline-title">
+        <h3 id="drawer-timeline-title" class="label">{{ i18n.t("timeline.title") }}</h3>
+        {% let timeline_csrf = "" %}
+        {% include "events/_timeline.html" %}
     </section>
-    {% endif %}
 
     <div class="drawer-foot">
         <a class="hero-link" href="/events/{{ view.event.id }}">{{ i18n.t("events.open_full_page") }}{% call ui::arrow_right() %}</a>
