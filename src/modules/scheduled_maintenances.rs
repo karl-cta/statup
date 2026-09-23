@@ -89,7 +89,11 @@ fn row(event: &EventSummary, i18n: &I18n, day: String, when: String) -> Maintena
         title: event.title.clone(),
         day,
         when,
-        services: event.services().join(", "),
+        services: if event.has_services() {
+            event.concerns(i18n)
+        } else {
+            String::new()
+        },
         state: event
             .lifecycle_key()
             .map(|key| i18n.t(key).to_string())

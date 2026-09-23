@@ -497,6 +497,12 @@ impl EventSummary {
         !self.service_names.is_empty()
     }
 
+    /// "Affects: Mail, Payroll": the services named, said as such, so a
+    /// name under a title never reads as a mystery.
+    pub fn concerns(&self, i18n: &I18n) -> String {
+        i18n.tf("events.concerns", &[("names", &self.services_label())])
+    }
+
     /// Plain text of the latest update, for the status banner.
     pub fn latest_update_excerpt(&self, max_chars: usize) -> Option<String> {
         let html = self.latest_update.as_deref()?;
@@ -537,7 +543,7 @@ impl EventSummary {
             .map(|s| i18n.t(s.i18n_key()).to_string());
         qualifier
             .into_iter()
-            .chain(self.has_services().then(|| self.services_label()))
+            .chain(self.has_services().then(|| self.concerns(i18n)))
             .collect()
     }
 
