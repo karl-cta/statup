@@ -299,7 +299,7 @@ async fn scheduled_maintenance_lifecycle() {
         .create_planned_maintenance(
             "Planned DB migration",
             "Migrating to new schema",
-            "major",
+            "minor",
             &[service_id],
         )
         .await;
@@ -679,13 +679,18 @@ async fn detail_page_says_an_incident_is_still_ongoing() {
     let service_id = app.create_service("Search").await;
 
     let path = app
-        .create_incident("Search is slow", "Latency above 2s", "major", &[service_id])
+        .create_incident(
+            "Search is slow",
+            "Latency above 2s",
+            "critical",
+            &[service_id],
+        )
         .await;
     let event_id = event_id_from_path(&path);
 
     let (_, body) = app.get(&path).await;
     assert!(
-        body.contains(r#"class="event-state" data-tone="major""#),
+        body.contains(r#"class="event-state" data-tone="crit""#),
         "an open incident should carry its tone on its own page"
     );
     assert!(
@@ -724,7 +729,7 @@ async fn detail_page_says_an_incident_is_still_ongoing() {
 
     let (_, body) = app.get(&path).await;
     assert!(
-        !body.contains(r#"class="event-state" data-tone="major""#),
+        !body.contains(r#"class="event-state" data-tone="crit""#),
         "a closed incident should not claim to be ongoing"
     );
     assert!(

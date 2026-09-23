@@ -337,7 +337,7 @@ mod tests {
         Event {
             id: 1,
             kind,
-            severity: Some(Severity::Major),
+            severity: Some(Severity::Critical),
             planned: false,
             lifecycle,
             category: None,

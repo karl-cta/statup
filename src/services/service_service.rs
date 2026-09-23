@@ -145,7 +145,6 @@ fn derive_status(kind: Kind, severity: Option<Severity>) -> Option<ServiceStatus
     match kind {
         Kind::Incident => Some(match severity {
             Some(Severity::Critical) => ServiceStatus::MajorOutage,
-            Some(Severity::Major) => ServiceStatus::PartialOutage,
             Some(Severity::Minor) | None => ServiceStatus::Degraded,
         }),
         Kind::Maintenance => Some(ServiceStatus::Maintenance),
@@ -163,10 +162,6 @@ mod tests {
         assert_eq!(
             derive_status(Kind::Incident, Some(Severity::Critical)),
             Some(ServiceStatus::MajorOutage)
-        );
-        assert_eq!(
-            derive_status(Kind::Incident, Some(Severity::Major)),
-            Some(ServiceStatus::PartialOutage)
         );
         assert_eq!(
             derive_status(Kind::Incident, Some(Severity::Minor)),

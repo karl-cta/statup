@@ -11,7 +11,6 @@ use crate::i18n::I18n;
 pub enum ServiceStatus {
     Operational,
     Degraded,
-    PartialOutage,
     MajorOutage,
     Maintenance,
 }
@@ -29,10 +28,9 @@ impl FromStr for ServiceStatus {
 
 impl ServiceStatus {
     /// Every status, in the order the status menu lists them.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 4] = [
         Self::Operational,
         Self::Degraded,
-        Self::PartialOutage,
         Self::MajorOutage,
         Self::Maintenance,
     ];
@@ -41,7 +39,6 @@ impl ServiceStatus {
         match self {
             Self::Operational => "operational",
             Self::Degraded => "degraded",
-            Self::PartialOutage => "partial_outage",
             Self::MajorOutage => "major_outage",
             Self::Maintenance => "maintenance",
         }
@@ -51,7 +48,6 @@ impl ServiceStatus {
         match self {
             Self::Operational => "status.service.operational",
             Self::Degraded => "status.service.degraded",
-            Self::PartialOutage => "status.service.partial_outage",
             Self::MajorOutage => "status.service.major_outage",
             Self::Maintenance => "status.service.maintenance",
         }
@@ -61,7 +57,6 @@ impl ServiceStatus {
         match self {
             Self::Operational => Tone::Ok,
             Self::Degraded => Tone::Minor,
-            Self::PartialOutage => Tone::Major,
             Self::MajorOutage => Tone::Crit,
             Self::Maintenance => Tone::Info,
         }
@@ -69,15 +64,12 @@ impl ServiceStatus {
 
     /// A tool that works badly or not at all, maintenance aside.
     pub fn is_disruption(self) -> bool {
-        matches!(
-            self,
-            Self::Degraded | Self::PartialOutage | Self::MajorOutage
-        )
+        matches!(self, Self::Degraded | Self::MajorOutage)
     }
 
     /// Asks for a confirmation before it reaches every visitor.
     pub fn is_outage(self) -> bool {
-        matches!(self, Self::PartialOutage | Self::MajorOutage)
+        self == Self::MajorOutage
     }
 
     /// Rank used to pick the worst status (higher is worse).
@@ -86,8 +78,7 @@ impl ServiceStatus {
             Self::Operational => 0,
             Self::Maintenance => 1,
             Self::Degraded => 2,
-            Self::PartialOutage => 3,
-            Self::MajorOutage => 4,
+            Self::MajorOutage => 3,
         }
     }
 }
@@ -166,7 +157,6 @@ mod tests {
             ServiceStatus::Operational,
             ServiceStatus::Maintenance,
             ServiceStatus::Degraded,
-            ServiceStatus::PartialOutage,
             ServiceStatus::MajorOutage,
         ];
         assert!(order.windows(2).all(|w| w[0].priority() < w[1].priority()));
@@ -175,7 +165,6 @@ mod tests {
     #[test]
     fn only_outages_ask_first() {
         assert!(ServiceStatus::MajorOutage.is_outage());
-        assert!(ServiceStatus::PartialOutage.is_outage());
         assert!(!ServiceStatus::Degraded.is_outage());
     }
 }

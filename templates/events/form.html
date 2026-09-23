@@ -56,7 +56,6 @@
                 <legend class="field-label">{{ i18n.t("events.severity") }}</legend>
                 <div class="choice-row">
                     <label class="choice" data-tone="minor"><input type="radio" name="severity" value="minor" class="sr-only" data-required{% if form.severity_is("minor") %} checked{% endif %}><span class="dot" aria-hidden="true"></span><span>{{ i18n.t("severity.minor") }}</span></label>
-                    <label class="choice" data-tone="major"><input type="radio" name="severity" value="major" class="sr-only"{% if form.severity_is("major") %} checked{% endif %}><span class="dot" aria-hidden="true"></span><span>{{ i18n.t("severity.major") }}</span></label>
                     <label class="choice" data-tone="crit"><input type="radio" name="severity" value="critical" class="sr-only"{% if form.severity_is("critical") %} checked{% endif %}><span class="dot" aria-hidden="true"></span><span>{{ i18n.t("severity.critical") }}</span></label>
                 </div>
             </fieldset>
@@ -161,7 +160,6 @@
 <script type="application/json" id="event-form-copy">
 {
     "incident_minor": {{ i18n.t("consequence.incident_minor")|json|safe }},
-    "incident_major": {{ i18n.t("consequence.incident_major")|json|safe }},
     "incident_critical": {{ i18n.t("consequence.incident_critical")|json|safe }},
     "pick_severity": {{ i18n.t("consequence.pick_severity")|json|safe }},
     "maintenance_planned": {{ i18n.t("consequence.maintenance_planned")|json|safe }},
@@ -171,7 +169,6 @@
     "services_many": {{ i18n.t("consequence.services_many")|json|safe }},
     "and": {{ i18n.t("common.and")|json|safe }},
     "title_incident_minor": {{ i18n.t("title.incident_minor")|json|safe }},
-    "title_incident_major": {{ i18n.t("title.incident_major")|json|safe }},
     "title_incident_critical": {{ i18n.t("title.incident_critical")|json|safe }},
     "title_maintenance": {{ i18n.t("title.maintenance")|json|safe }},
     "submit_incident": {{ i18n.t("events.submit_incident")|json|safe }},

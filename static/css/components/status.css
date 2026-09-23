@@ -531,11 +531,6 @@
         opacity: 0.85;
     }
 
-    .bar-major {
-        background: var(--sem-major);
-        opacity: 0.9;
-    }
-
     .bar-crit {
         background: var(--sem-crit);
         opacity: 0.95;

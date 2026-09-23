@@ -348,13 +348,13 @@ mod tests {
     #[test]
     fn the_headline_counts_disrupted_services() {
         let i18n = I18n::new("en");
-        let one = [service("Mail", ServiceStatus::PartialOutage)];
+        let one = [service("Mail", ServiceStatus::MajorOutage)];
         assert_eq!(
             headline(&affected_services(&one), &i18n),
             "1 service disrupted"
         );
         let two = [
-            service("Mail", ServiceStatus::PartialOutage),
+            service("Mail", ServiceStatus::MajorOutage),
             service("Wiki", ServiceStatus::Degraded),
         ];
         assert_eq!(
@@ -376,13 +376,13 @@ mod tests {
             ),
             event(
                 Kind::Incident,
-                Some(Severity::Major),
+                Some(Severity::Minor),
                 Lifecycle::InProgress,
                 &format!("Mail{NAME_SEPARATOR}Wiki"),
             ),
         ];
         let found = cause_of(&mail, &events).map(|e| e.severity);
-        assert_eq!(found, Some(Some(Severity::Major)));
+        assert_eq!(found, Some(Some(Severity::Minor)));
     }
 
     #[test]

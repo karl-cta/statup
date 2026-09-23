@@ -34,7 +34,6 @@ pub enum Kind {
 #[serde(rename_all = "snake_case")]
 pub enum Severity {
     Minor,
-    Major,
     Critical,
 }
 
@@ -69,7 +68,6 @@ pub enum Tone {
     Ok,
     Info,
     Minor,
-    Major,
     Crit,
 }
 
@@ -80,7 +78,6 @@ impl Tone {
             Self::Ok => "ok",
             Self::Info => "info",
             Self::Minor => "minor",
-            Self::Major => "major",
             Self::Crit => "crit",
         }
     }
@@ -128,7 +125,6 @@ impl Severity {
     pub fn i18n_key(self) -> &'static str {
         match self {
             Self::Minor => "severity.minor",
-            Self::Major => "severity.major",
             Self::Critical => "severity.critical",
         }
     }
@@ -136,7 +132,6 @@ impl Severity {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Minor => "minor",
-            Self::Major => "major",
             Self::Critical => "critical",
         }
     }
@@ -144,7 +139,6 @@ impl Severity {
     pub fn tone(self) -> Tone {
         match self {
             Self::Minor => Tone::Minor,
-            Self::Major => Tone::Major,
             Self::Critical => Tone::Crit,
         }
     }

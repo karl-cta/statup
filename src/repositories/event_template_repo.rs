@@ -154,7 +154,7 @@ mod tests {
                 title: "Incident réseau",
                 description: "desc",
                 kind: Kind::Incident,
-                severity: Some(Severity::Major),
+                severity: Some(Severity::Critical),
                 planned: false,
                 category: None,
                 created_by: uid,

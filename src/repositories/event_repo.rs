@@ -199,8 +199,7 @@ impl EventRepository {
             "SELECT {SUMMARY_COLUMNS}, {LATEST_UPDATE_COLUMNS} FROM events e \
              WHERE (e.kind = 'incident' AND e.lifecycle IN ('investigating', 'in_progress')) \
                 OR (e.kind = 'maintenance' AND e.lifecycle = 'in_progress') \
-             ORDER BY CASE e.severity WHEN 'critical' THEN 3 WHEN 'major' THEN 2 \
-                        WHEN 'minor' THEN 1 ELSE 0 END DESC, \
+             ORDER BY CASE e.severity WHEN 'critical' THEN 2 WHEN 'minor' THEN 1 ELSE 0 END DESC, \
                       e.created_at DESC"
         ))
         .fetch_all(pool)
@@ -574,7 +573,7 @@ mod tests {
     fn incident(title: &str, author_id: i64, service_ids: Vec<i64>) -> CreateEventInput {
         CreateEventInput {
             kind: Kind::Incident,
-            severity: Some(Severity::Major),
+            severity: Some(Severity::Critical),
             planned: false,
             category: None,
             title: title.to_string(),

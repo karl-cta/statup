@@ -215,7 +215,7 @@ mod tests {
         Event {
             id: 1,
             kind,
-            severity: (kind == Kind::Incident).then_some(Severity::Major),
+            severity: (kind == Kind::Incident).then_some(Severity::Critical),
             planned,
             lifecycle: Some(lifecycle),
             category: None,

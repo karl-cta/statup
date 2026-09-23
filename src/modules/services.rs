@@ -33,7 +33,6 @@ impl DayCell {
             None => "bar bar-none",
             Some(0) => "bar",
             Some(1) => "bar bar-minor",
-            Some(2) => "bar bar-major",
             Some(_) => "bar bar-crit",
         }
     }
@@ -155,8 +154,7 @@ fn worst_level_on(spans: &[IncidentSpan], date: NaiveDate, today: NaiveDate) -> 
 
 fn severity_level(severity: Option<Severity>) -> u8 {
     match severity {
-        Some(Severity::Critical) => 3,
-        Some(Severity::Major) => 2,
+        Some(Severity::Critical) => 2,
         Some(Severity::Minor) | None => 1,
     }
 }
@@ -166,7 +164,6 @@ fn day_status(level: Option<u8>, i18n: &I18n) -> String {
         None => "availability.day_untracked",
         Some(0) => "availability.day_ok",
         Some(1) => Severity::Minor.i18n_key(),
-        Some(2) => Severity::Major.i18n_key(),
         Some(_) => Severity::Critical.i18n_key(),
     };
     i18n.t(key).to_string()
@@ -216,7 +213,7 @@ mod tests {
             .take(3)
             .filter_map(|(_, l)| *l)
             .collect();
-        assert_eq!(coloured, vec![3, 3, 3]);
+        assert_eq!(coloured, vec![2, 2, 2]);
         assert_eq!(levels[0].1, Some(0));
     }
 
@@ -226,7 +223,7 @@ mod tests {
         let spans = [span(Some(Severity::Minor), 0, None), span(None, 0, Some(0))];
         assert_eq!(worst_level_on(&spans, today, today), 1);
         let spans = [
-            span(Some(Severity::Major), 0, None),
+            span(Some(Severity::Critical), 0, None),
             span(Some(Severity::Minor), 0, None),
         ];
         assert_eq!(worst_level_on(&spans, today, today), 2);
