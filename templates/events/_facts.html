@@ -1,14 +1,27 @@
-{# Where the event stands, what it touches, what it follows: shared by the
-   page and the side panel. #}
-{% if let Some(state) = view.state %}
-<p class="event-state" data-tone="{{ state.tone }}">
-    <span class="ring-dot" aria-hidden="true"></span>
-    <span class="event-state-words"><strong>{{ state.label }}</strong>{% if let Some(detail) = state.detail %}&nbsp;<span aria-hidden="true">·</span> {{ detail }}{% endif %}</span>
-</p>
-{% endif %}
-{% if let Some(line) = view.services_line(i18n) %}
-<p class="event-fact">{{ line }}</p>
-{% endif %}
-{% if let Some(followed) = view.follows %}
-<p class="event-fact">{{ i18n.t("events.follows") }} <a class="link" href="/events/{{ followed.id }}">{{ followed.title }}</a></p>
+{# Where the event stands, what it touches, what it follows, each fact
+   under its label: shared by the page and the side panel. #}
+{% if view.has_facts() %}
+<dl class="event-facts">
+    {% if let Some(state) = view.state %}
+    <div class="fact">
+        <dt>{{ i18n.t("events.fact_state") }}</dt>
+        <dd class="fact-state" data-tone="{{ state.tone }}">
+            <span class="dot" aria-hidden="true"></span><strong>{{ state.label }}</strong>
+            {% if let Some(detail) = state.detail %}<span class="fact-note">{{ detail }}</span>{% endif %}
+        </dd>
+    </div>
+    {% endif %}
+    {% if !view.services.is_empty() %}
+    <div class="fact">
+        <dt>{{ i18n.t("events.services_concerned") }}</dt>
+        <dd>{{ view.service_names() }}</dd>
+    </div>
+    {% endif %}
+    {% if let Some(followed) = view.follows %}
+    <div class="fact">
+        <dt>{{ i18n.t("events.fact_follows") }}</dt>
+        <dd><a class="link" href="/events/{{ followed.id }}">{{ followed.title }}</a></dd>
+    </div>
+    {% endif %}
+</dl>
 {% endif %}

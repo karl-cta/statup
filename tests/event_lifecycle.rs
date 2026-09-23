@@ -192,7 +192,7 @@ async fn create_incident_and_verify_detail() {
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("Database outage"), "should show event title");
     assert!(
-        body.contains("On cherche la cause") || body.contains("Looking into it"),
+        body.contains("En analyse") || body.contains("Investigating"),
         "incident should start in Investigating lifecycle"
     );
 }
@@ -690,7 +690,7 @@ async fn detail_page_says_an_incident_is_still_ongoing() {
 
     let (_, body) = app.get(&path).await;
     assert!(
-        body.contains(r#"class="event-state" data-tone="crit""#),
+        body.contains(r#"class="fact-state" data-tone="crit""#),
         "an open incident should carry its tone on its own page"
     );
     assert!(
@@ -729,7 +729,7 @@ async fn detail_page_says_an_incident_is_still_ongoing() {
 
     let (_, body) = app.get(&path).await;
     assert!(
-        !body.contains(r#"class="event-state" data-tone="crit""#),
+        !body.contains(r#"class="fact-state" data-tone="crit""#),
         "a closed incident should not claim to be ongoing"
     );
     assert!(

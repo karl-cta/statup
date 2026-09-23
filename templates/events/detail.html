@@ -23,39 +23,39 @@
                 {% include "events/_facts.html" %}
             </header>
 
+            {% if can_edit %}
+            <form class="composer" method="post" action="/events/{{ view.event.id }}/updates">
+                <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                {% if let Some(error) = composer.error %}
+                <div id="composer-error" class="form-error" role="alert"><p>{{ error }}</p></div>
+                {% endif %}
+                <div class="field">
+                    <label for="message" class="field-label">{{ i18n.t("events.composer_label") }}</label>
+                    <textarea id="message" name="message" class="input" rows="3"
+                              placeholder="{{ i18n.t("events.composer_placeholder") }}"{% if composer.error.is_some() %} aria-invalid="true" aria-describedby="composer-error"{% endif %}>{{ composer.message }}</textarea>
+                </div>
+                <div class="composer-row">
+                    {% if !transitions.is_empty() %}
+                    <div class="field composer-state">
+                        <label for="lifecycle" class="field-label">{{ i18n.t("events.composer_state") }}</label>
+                        <select id="lifecycle" name="lifecycle" class="input" data-custom-select>
+                            <option value="">{{ i18n.t("events.composer_keep_state") }}</option>
+                            {% for option in transitions %}
+                            <option value="{{ option.value }}"{% if option.selected %} selected{% endif %} data-tone="{{ option.tone }}">{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <button type="submit" class="btn btn-primary">{{ i18n.t("events.composer_submit") }}</button>
+                </div>
+            </form>
+            {% endif %}
+
             <section class="event-section" aria-labelledby="updates-title">
                 <div class="event-section-head">
                     <h2 id="updates-title" class="section-title">{{ i18n.t("timeline.title") }}</h2>
                 </div>
 
-                {% if can_edit %}
-                <form class="composer" method="post" action="/events/{{ view.event.id }}/updates" data-composer>
-                    <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                    {% if let Some(error) = composer.error %}
-                    <div id="composer-error" class="form-error" role="alert"><p>{{ error }}</p></div>
-                    {% endif %}
-                    <div class="field">
-                        <label for="message" class="field-label">{{ i18n.t("events.composer_label") }}</label>
-                        <textarea id="message" name="message" class="input" rows="3"
-                                  placeholder="{{ i18n.t("events.composer_placeholder") }}"{% if composer.error.is_some() %} aria-invalid="true" aria-describedby="composer-error"{% endif %}>{{ composer.message }}</textarea>
-                        <p id="closing-hint" class="field-hint text-ink" data-closing-hint hidden>{{ i18n.t("events.closing_hint") }}</p>
-                    </div>
-                    <div class="composer-row">
-                        {% if !transitions.is_empty() %}
-                        <div class="field composer-state">
-                            <label for="lifecycle" class="field-label">{{ i18n.t("events.composer_state") }}</label>
-                            <select id="lifecycle" name="lifecycle" class="input" data-custom-select>
-                                <option value="">{{ i18n.t("events.composer_keep_state") }}</option>
-                                {% for option in transitions %}
-                                <option value="{{ option.value }}"{% if option.selected %} selected{% endif %}{% if option.closing %} data-closing{% endif %}>{{ option.label }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        {% endif %}
-                        <button type="submit" class="btn btn-primary">{{ i18n.t("events.composer_submit") }}</button>
-                    </div>
-                </form>
-                {% endif %}
 
                 {% let timeline_csrf = frame.csrf_token.as_str() %}
                 {% include "events/_timeline.html" %}

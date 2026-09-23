@@ -93,14 +93,67 @@
         color: var(--ink);
     }
 
-    .event-state-words strong {
+    /* Facts under the title, each under its own label, read across. */
+    .event-facts {
+        display: flex;
+        flex-wrap: wrap;
+        max-width: 72ch;
+        margin: 20px 0 0;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+    }
+
+    .fact {
+        min-width: 0;
+        padding: 12px 28px 12px 0;
+    }
+
+    .fact + .fact {
+        padding-left: 28px;
+        border-left: 1px solid var(--line);
+    }
+
+    .fact dt {
+        font-size: 12px;
+        color: var(--muted);
+    }
+
+    .fact dd {
+        margin: 4px 0 0;
+        font-size: 14px;
+        line-height: 1.45;
+        color: var(--ink);
+        overflow-wrap: anywhere;
+    }
+
+    .fact-state {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 2px 8px;
+    }
+
+    .fact-state strong {
         font-weight: 600;
     }
 
-    .event-fact {
-        margin-top: 8px;
-        font-size: 14px;
-        color: var(--ink);
+    .fact-note {
+        flex-basis: 100%;
+        padding-left: 16px;
+        font-size: 13px;
+        color: var(--muted);
+    }
+
+    @media (max-width: 479px) {
+        .fact + .fact {
+            padding-left: 0;
+            border-left: 0;
+            border-top: 1px solid var(--line);
+        }
+
+        .fact {
+            flex-basis: 100%;
+        }
     }
 
     .event-section {
@@ -272,7 +325,8 @@
     }
 
     .composer {
-        margin-top: 16px;
+        max-width: 72ch;
+        margin-top: 32px;
         padding: 16px;
         background: var(--card);
         border: 1px solid var(--line);
@@ -420,10 +474,6 @@
 
     .drawer-body .meta {
         margin-top: 6px;
-    }
-
-    .drawer-body .event-state {
-        margin-top: 12px;
     }
 
     .drawer-section {

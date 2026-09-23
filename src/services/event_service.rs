@@ -80,8 +80,7 @@ impl EventService {
         Ok(())
     }
 
-    /// Posts a message, moves the event to `next`, or both at once. Closing
-    /// states need the message, which readers see as the last word.
+    /// Posts a message, moves the event to `next`, or both at once.
     pub async fn post_update(
         pool: &DbPool,
         id: i64,
@@ -248,11 +247,7 @@ fn update_error(event: &Event, message: &str, next: Option<Lifecycle>) -> Option
     let Some(current) = event.lifecycle else {
         return Some("validation.event_has_no_lifecycle");
     };
-    if !event.kind.can_transition(current, next) {
-        return Some("validation.invalid_transition");
-    }
-    (next.needs_closing_message() && message.is_empty())
-        .then_some("validation.closing_message_required")
+    (!event.kind.can_transition(current, next)).then_some("validation.invalid_transition")
 }
 
 /// The maintenance an announcement follows, checked to be one; nothing
@@ -418,12 +413,9 @@ mod tests {
     }
 
     #[test]
-    fn closing_needs_a_message() {
+    fn a_state_change_needs_no_message() {
         let open = event(Some(Lifecycle::Investigating), Kind::Incident);
-        assert_eq!(
-            update_error(&open, "", Some(Lifecycle::Resolved)),
-            Some("validation.closing_message_required")
-        );
+        assert!(update_error(&open, "", Some(Lifecycle::Resolved)).is_none());
         assert!(update_error(&open, "Fixed", Some(Lifecycle::Resolved)).is_none());
         assert!(update_error(&open, "", Some(Lifecycle::Monitoring)).is_none());
         assert_eq!(

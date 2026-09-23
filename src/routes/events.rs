@@ -267,7 +267,7 @@ pub async fn search(RawQuery(query): RawQuery) -> Redirect {
 pub struct TransitionOption {
     pub value: &'static str,
     pub label: String,
-    pub closing: bool,
+    pub tone: &'static str,
     pub selected: bool,
 }
 
@@ -314,11 +314,18 @@ pub struct EventView {
 }
 
 impl EventView {
-    /// "Services affected: Payroll, Email", on one line.
-    pub fn services_line(&self, i18n: &I18n) -> Option<String> {
-        let names: Vec<&str> = self.services.iter().map(|s| s.name.as_str()).collect();
-        (!names.is_empty())
-            .then(|| i18n.tf("events.services_line", &[("names", &names.join(", "))]))
+    /// "Payroll, Email": the services named, on one line.
+    pub fn service_names(&self) -> String {
+        self.services
+            .iter()
+            .map(|s| s.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    /// A row of facts is worth drawing when there is one.
+    pub fn has_facts(&self) -> bool {
+        self.state.is_some() || !self.services.is_empty() || self.follows.is_some()
     }
 }
 
@@ -410,7 +417,7 @@ fn transition_options(
         .map(|next| TransitionOption {
             value: next.as_str(),
             label: i18n.t(next.label_key(event.kind)).to_string(),
-            closing: next.needs_closing_message(),
+            tone: event.tone_at(*next),
             selected: selected == Some(*next),
         })
         .collect()

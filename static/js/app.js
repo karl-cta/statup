@@ -341,14 +341,6 @@
         }
     }
 
-    // The search field of the events list, from the masthead tool.
-    function focusSearch() {
-        const search = document.getElementById("q");
-        if (!search) return false;
-        search.focus();
-        return true;
-    }
-
     // The compact menu closes on any click outside it.
     function onMenuClick(target) {
         if (target.closest("[data-menu-toggle]")) {
@@ -357,14 +349,6 @@
         }
         if (menuIsOpen() && !target.closest("#mast-menu")) setMenu(false);
         return false;
-    }
-
-    function onSearchClick(target, event) {
-        const link = target.closest('a[href="/events#q"]');
-        if (!link || window.location.pathname !== "/events" || !focusSearch()) return false;
-        event.preventDefault();
-        setMenu(false);
-        return true;
     }
 
     function onDrawerClick(target, event) {
@@ -405,7 +389,7 @@
             toggleTheme();
             return;
         }
-        if (onMenuClick(target) || onSearchClick(target, event)) return;
+        if (onMenuClick(target)) return;
         if (target.closest("[data-toast-close]")) {
             clearToast();
             return;
@@ -443,36 +427,9 @@
         if (form) form.dataset.pointer = "1";
     });
 
-    // Closing an event needs the sentence readers will see last. The hint is
-    // added to what the field already refers to, never in its place.
-    function syncComposer(form) {
-        const select = form.querySelector('select[name="lifecycle"]');
-        const message = form.querySelector('textarea[name="message"]');
-        const hint = form.querySelector("[data-closing-hint]");
-        if (!select || !message || !hint) return;
-        const option = select.selectedOptions[0];
-        const closing = Boolean(option && option.hasAttribute("data-closing"));
-        hint.hidden = !closing;
-        message.required = closing;
-        const ids = (message.getAttribute("aria-describedby") || "")
-            .split(/\s+/)
-            .filter((id) => id && id !== hint.id);
-        if (closing) ids.push(hint.id);
-        if (ids.length > 0) {
-            message.setAttribute("aria-describedby", ids.join(" "));
-        } else {
-            message.removeAttribute("aria-describedby");
-        }
-    }
-
     document.addEventListener("change", (event) => {
         const target = event.target;
         if (!(target instanceof Element)) return;
-        const composer = target.closest("form[data-composer]");
-        if (composer) {
-            syncComposer(composer);
-            return;
-        }
         const auto = target.closest("form[data-autosubmit]");
         if (auto) {
             const apply = auto.querySelector("[data-apply]");
@@ -602,13 +559,8 @@
         document.querySelectorAll("form[data-autosubmit] [data-apply]").forEach((button) => {
             button.hidden = true;
         });
-        document.querySelectorAll("form[data-composer]").forEach(syncComposer);
         const saved = document.querySelector("[data-scroll-into-view]");
         if (saved) saved.scrollIntoView({ block: "center" });
-        if (window.location.hash === "#q") focusSearch();
-        window.addEventListener("hashchange", () => {
-            if (window.location.hash === "#q") focusSearch();
-        });
         window.requestAnimationFrame(() => {
             window.setTimeout(() => root.classList.add("is-settled"), 800);
         });

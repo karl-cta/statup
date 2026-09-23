@@ -128,12 +128,7 @@ fn milestones(event: &Event, i18n: &I18n) -> Vec<Milestone> {
         add(end, "timeline.planned_end", Tone::Info, false);
     }
     if let Some(at) = event.restored_at {
-        add(
-            at,
-            Lifecycle::Monitoring.label_key(event.kind),
-            Tone::Ok,
-            true,
-        );
+        add(at, "timeline.restored", Tone::Ok, true);
     }
     if let Some((at, lifecycle)) = closing(event) {
         let tone = if lifecycle == Lifecycle::Cancelled {

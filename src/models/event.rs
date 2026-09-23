@@ -196,11 +196,6 @@ impl Lifecycle {
     pub fn is_active(self) -> bool {
         !self.is_terminal()
     }
-
-    /// Closing states ask for a closing message, which is published.
-    pub fn needs_closing_message(self) -> bool {
-        matches!(self, Self::Resolved | Self::Completed)
-    }
 }
 
 /// Filter of the events list: open work or what is over. Announcements
@@ -422,6 +417,11 @@ impl Event {
 
     pub fn tone(&self) -> Tone {
         state_tone(self.kind, self.severity, self.lifecycle)
+    }
+
+    /// The hue the event would take in `lifecycle`, for the state menu.
+    pub fn tone_at(&self, lifecycle: Lifecycle) -> &'static str {
+        state_tone(self.kind, self.severity, Some(lifecycle)).as_str()
     }
 
     pub fn kind_tone(&self) -> &'static str {
