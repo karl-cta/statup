@@ -28,8 +28,8 @@
                     <span class="meta">{{ event.services_label() }}</span>
                     {% endif %}
                 </span>
-                {% if let Some(key) = event.lifecycle_key() %}
-                <span class="state" data-tone="{{ event.tone().as_str() }}">{{ i18n.t(key) }}</span>
+                {% if let Some(word) = event.row_state(i18n) %}
+                <span class="state" data-tone="{{ event.tone().as_str() }}">{{ word }}</span>
                 {% endif %}
             </a>
         </li>

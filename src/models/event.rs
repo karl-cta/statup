@@ -65,6 +65,8 @@ pub enum Lifecycle {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Tone {
     Neutral,
+    /// An announcement: the team speaking, not a state.
+    Ink,
     Ok,
     Info,
     Minor,
@@ -75,6 +77,7 @@ impl Tone {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Neutral => "neutral",
+            Self::Ink => "ink",
             Self::Ok => "ok",
             Self::Info => "info",
             Self::Minor => "minor",
@@ -249,6 +252,7 @@ fn state_tone(kind: Kind, severity: Option<Severity>, lifecycle: Option<Lifecycl
         }
         (_, Some(L::Monitoring | L::Resolved | L::Completed)) => Tone::Ok,
         (Kind::Maintenance, Some(L::Scheduled | L::InProgress)) => Tone::Info,
+        (Kind::Publication, _) => Tone::Ink,
         _ => Tone::Neutral,
     }
 }
@@ -257,12 +261,12 @@ fn state_tone(kind: Kind, severity: Option<Severity>, lifecycle: Option<Lifecycl
 pub(crate) const SEPARATOR: &str = "\u{a0}· ";
 
 /// Hue of what an event is, whatever its progress: an incident takes its
-/// severity, maintenance its blue, an announcement none.
+/// severity, maintenance its blue, an announcement the ink of the text.
 fn kind_tone(kind: Kind, severity: Option<Severity>) -> Tone {
     match kind {
         Kind::Incident => severity.map_or(Tone::Neutral, Severity::tone),
         Kind::Maintenance => Tone::Info,
-        Kind::Publication => Tone::Neutral,
+        Kind::Publication => Tone::Ink,
     }
 }
 
@@ -512,6 +516,14 @@ impl EventSummary {
         self.lifecycle.map(|l| l.label_key(self.kind))
     }
 
+    /// The word at the end of a row: the progress, or the category of an
+    /// announcement, which has none.
+    pub fn row_state(&self, i18n: &I18n) -> Option<String> {
+        self.lifecycle_key()
+            .or_else(|| self.category.map(Category::i18n_key))
+            .map(|key| i18n.t(key).to_string())
+    }
+
     pub fn kind_label(&self, i18n: &I18n) -> String {
         describe_kind(self.kind, self.severity, self.category, i18n)
     }
@@ -523,8 +535,10 @@ impl EventSummary {
     /// The line under a title: the severity or the category, then the
     /// services.
     pub fn meta_parts(&self, i18n: &I18n) -> Vec<String> {
-        let qualifier = qualifier_key(self.kind, self.severity, self.category)
-            .map(|key| i18n.t(key).to_string());
+        let qualifier = self
+            .severity
+            .filter(|_| self.kind == Kind::Incident)
+            .map(|s| i18n.t(s.i18n_key()).to_string());
         qualifier
             .into_iter()
             .chain(self.has_services().then(|| self.services_label()))
@@ -825,7 +839,25 @@ mod tests {
         let planned = summary(Kind::Maintenance, None, Some(Lifecycle::Scheduled));
         assert_eq!(planned.tone(), Tone::Info);
         let note = summary(Kind::Publication, None, None);
-        assert_eq!(note.tone(), Tone::Neutral);
+        assert_eq!(note.tone(), Tone::Ink);
+    }
+
+    #[test]
+    fn only_an_incident_says_its_severity_and_an_announcement_its_category() {
+        let i18n = I18n::new("en");
+        let work = summary(
+            Kind::Maintenance,
+            Some(Severity::Minor),
+            Some(Lifecycle::Completed),
+        );
+        assert!(work.meta_parts(&i18n).is_empty());
+        let mut note = summary(Kind::Publication, None, None);
+        note.category = Some(Category::Changelog);
+        assert_eq!(
+            note.row_state(&i18n).as_deref(),
+            Some(i18n.t(Category::Changelog.i18n_key()))
+        );
+        assert_eq!(note.kind_tone(), "ink");
     }
 
     #[test]

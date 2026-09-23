@@ -183,6 +183,11 @@
     --tone-border: var(--sem-info-border);
 }
 
+[data-tone="ink"] {
+    --tone: var(--ink);
+    --tone-text: var(--ink);
+}
+
 [data-tone="neutral"] {
     --tone: var(--muted);
     --tone-text: var(--muted);
