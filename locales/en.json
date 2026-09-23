@@ -124,6 +124,7 @@
   "events.edit": "Edit",
   "events.publish_update": "Post an update",
   "events.more_actions": "More actions",
+  "events.details": "Details",
   "events.delete": "Delete the event",
   "events.publish_changelog": "Publish what is new",
   "events.follows_label": "Follows a maintenance",

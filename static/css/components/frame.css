@@ -5,7 +5,7 @@
         left: 12px;
         z-index: 60;
         padding: 8px 14px;
-        font-size: 14px;
+        font-size: var(--text-md);
         font-weight: 500;
         color: var(--on-primary);
         background: var(--primary);
@@ -52,7 +52,7 @@
         gap: 10px;
         min-width: 0;
         max-width: 100%;
-        font-size: 28px;
+        font-size: var(--text-3xl);
         font-weight: 600;
         line-height: 1;
         letter-spacing: -0.025em;
@@ -94,7 +94,7 @@
         min-height: 26px;
         margin: 0 auto;
         padding: 0 16px;
-        font-size: 12px;
+        font-size: var(--text-xs);
         font-weight: 500;
         color: var(--muted);
         font-feature-settings: 'tnum' 1;
@@ -144,7 +144,7 @@
         gap: 6px;
         height: 100%;
         padding: 0 14px;
-        font-size: 13px;
+        font-size: var(--text-sm);
         font-weight: 500;
         color: var(--muted);
         white-space: nowrap;
@@ -193,7 +193,7 @@
         min-width: 18px;
         height: 18px;
         padding: 0 5px;
-        font-size: 12px;
+        font-size: var(--text-xs);
         font-weight: 600;
         line-height: 1;
         color: var(--on-primary);
@@ -219,7 +219,7 @@
         gap: 6px;
         height: 36px;
         padding: 0 10px;
-        font-size: 13px;
+        font-size: var(--text-sm);
         font-weight: 500;
         color: var(--muted);
         white-space: nowrap;
@@ -328,7 +328,7 @@
         gap: 8px;
         width: 100%;
         min-height: 44px;
-        font-size: 16px;
+        font-size: var(--text-lg);
         font-weight: 500;
         color: var(--ink-soft);
         text-align: left;
@@ -373,7 +373,7 @@
 
     @media (max-width: 960px) {
         .mast-title {
-            font-size: 24px;
+            font-size: var(--text-2xl);
         }
 
         .mnav {
@@ -456,7 +456,7 @@
 
     @media (max-width: 640px) {
         .mast-word-custom {
-            font-size: 20px;
+            font-size: var(--text-xl);
         }
     }
 
@@ -513,7 +513,7 @@
     }
 
     .page-title {
-        font-size: 28px;
+        font-size: var(--text-3xl);
         font-weight: 600;
         line-height: 1.15;
         letter-spacing: -0.022em;
@@ -524,7 +524,7 @@
     .page-lede {
         max-width: 64ch;
         margin-top: 8px;
-        font-size: 14px;
+        font-size: var(--text-md);
         line-height: 1.6;
         color: var(--ink-soft);
     }
@@ -537,7 +537,7 @@
     }
 
     .section-title {
-        font-size: 16px;
+        font-size: var(--text-lg);
         font-weight: 600;
         letter-spacing: -0.01em;
         color: var(--ink);
@@ -545,7 +545,7 @@
 
     @media (max-width: 639px) {
         .page-title {
-            font-size: 24px;
+            font-size: var(--text-2xl);
         }
     }
 
@@ -553,6 +553,10 @@
     .card {
         background: var(--card);
         border: 1px solid var(--line);
+    }
+
+    .card-body {
+        padding: 18px 20px 22px;
     }
 
     .card-head {
@@ -570,7 +574,7 @@
         align-items: baseline;
         gap: 8px;
         margin: 0;
-        font-size: 16px;
+        font-size: var(--text-lg);
         font-weight: 600;
         letter-spacing: -0.008em;
         color: var(--ink);
@@ -583,7 +587,7 @@
         min-height: 28px;
         margin-right: -8px;
         padding: 0 8px;
-        font-size: 13px;
+        font-size: var(--text-sm);
         font-weight: 500;
         color: var(--muted);
         border-radius: 4px;
@@ -601,7 +605,7 @@
     }
 
     .empty-state-title {
-        font-size: 14px;
+        font-size: var(--text-md);
         font-weight: 600;
         color: var(--ink);
     }
@@ -609,7 +613,7 @@
     .empty-state-text {
         max-width: 56ch;
         margin-top: 6px;
-        font-size: 13px;
+        font-size: var(--text-sm);
         line-height: 1.55;
         color: var(--ink-soft);
     }
@@ -637,7 +641,7 @@
         max-width: 1320px;
         margin: 0 auto;
         padding: 0 16px;
-        font-size: 12px;
+        font-size: var(--text-xs);
         color: var(--muted);
         font-feature-settings: 'tnum' 1;
     }

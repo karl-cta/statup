@@ -35,12 +35,12 @@
     }
 
     .filters .field-label {
-        font-size: 13px;
+        font-size: var(--text-sm);
     }
 
     .results-count {
         margin: 0 0 10px;
-        font-size: 13px;
+        font-size: var(--text-sm);
         color: var(--ink-soft);
         font-feature-settings: 'tnum' 1;
     }
@@ -54,18 +54,13 @@
     }
 
     .pager-page {
-        font-size: 13px;
+        font-size: var(--text-sm);
         color: var(--muted);
         font-feature-settings: 'tnum' 1;
     }
 
     /* Event page: reading on the left, acting on the right. */
-    /* One column: read at the top, act beside the title, write only when
-       asked, where the message will appear. */
-    .event-page {
-        max-width: 760px;
-    }
-
+    /* The title and everything that acts on the event, on one line. */
     .event-head {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
@@ -73,10 +68,50 @@
         gap: 12px 24px;
     }
 
-    .event-head .event-facts {
-        grid-column: 1 / -1;
+    /* Two cards, as on the dashboard: the story takes two shares, the
+       details one. On a phone the details come first. */
+    .event-layout {
+        display: grid;
+        gap: 24px;
+        margin-top: 24px;
+    }
+
+    @media (min-width: 1024px) {
+        .event-layout {
+            grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+            align-items: start;
+        }
+
+        .event-story {
+            grid-column: 1;
+            grid-row: 1;
+        }
+
+        .event-details {
+            grid-column: 2;
+            grid-row: 1;
+        }
+    }
+
+    .event-details .event-facts {
+        display: block;
         max-width: none;
-        margin-top: 8px;
+        margin: 0;
+        border: 0;
+    }
+
+    .event-details .fact {
+        padding: 0 0 14px;
+    }
+
+    .event-details .fact + .fact {
+        padding: 14px 0;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+    }
+
+    .event-details .fact:last-child {
+        padding-bottom: 0;
     }
 
     .event-actions {
@@ -134,7 +169,7 @@
         width: 100%;
         padding: 8px 10px;
         font: inherit;
-        font-size: 13px;
+        font-size: var(--text-sm);
         text-align: left;
         color: var(--ink);
         background: none;
@@ -153,7 +188,7 @@
 
     .event-title {
         max-width: 40ch;
-        font-size: 28px;
+        font-size: var(--text-3xl);
         font-weight: 600;
         line-height: 1.2;
         letter-spacing: -0.022em;
@@ -167,7 +202,7 @@
         align-items: center;
         gap: 6px 12px;
         margin-top: 14px;
-        font-size: 14px;
+        font-size: var(--text-md);
         line-height: 1.5;
         color: var(--ink);
     }
@@ -193,13 +228,13 @@
     }
 
     .fact dt {
-        font-size: 12px;
+        font-size: var(--text-xs);
         color: var(--muted);
     }
 
     .fact dd {
         margin: 4px 0 0;
-        font-size: 14px;
+        font-size: var(--text-md);
         line-height: 1.45;
         color: var(--ink);
         overflow-wrap: anywhere;
@@ -219,7 +254,7 @@
     .fact-note {
         flex-basis: 100%;
         padding-left: 16px;
-        font-size: 13px;
+        font-size: var(--text-sm);
         color: var(--muted);
     }
 
@@ -248,13 +283,13 @@
 
     @media (max-width: 639px) {
         .event-title {
-            font-size: 24px;
+            font-size: var(--text-2xl);
         }
     }
 
     /* Rendered Markdown of descriptions and updates. */
     .rich-text {
-        font-size: 14px;
+        font-size: var(--text-md);
         line-height: 1.65;
         color: var(--ink-soft);
         overflow-wrap: anywhere;
@@ -299,7 +334,7 @@
 
     .rich-text code {
         padding: 1px 5px;
-        font-size: 13px;
+        font-size: var(--text-sm);
         background: var(--surface-subtle);
         border-radius: 3px;
     }
@@ -307,7 +342,7 @@
     .rich-text pre {
         padding: 10px 12px;
         overflow-x: auto;
-        font-size: 13px;
+        font-size: var(--text-sm);
         background: var(--surface-subtle);
         border-radius: 4px;
     }
@@ -328,7 +363,7 @@
         max-width: 100%;
         overflow-x: auto;
         border-collapse: collapse;
-        font-size: 13px;
+        font-size: var(--text-sm);
     }
 
     .rich-text th,
@@ -341,7 +376,7 @@
     /* The story of an event, newest first, on a thin line. Each moment has
        a dot in the tone of what happened; a time still to come is hollow. */
     .timeline {
-        margin: 20px 0 0;
+        margin: 0;
         padding: 0;
         list-style: none;
     }
@@ -379,13 +414,13 @@
         flex-wrap: wrap;
         align-items: baseline;
         gap: 2px 10px;
-        font-size: 12px;
+        font-size: var(--text-xs);
         color: var(--muted);
         font-feature-settings: 'tnum' 1;
     }
 
     .moment-label {
-        font-size: 14px;
+        font-size: var(--text-md);
         font-weight: 600;
         color: var(--ink);
     }
@@ -410,15 +445,15 @@
     .composer {
         position: relative;
         max-width: 72ch;
-        margin: 20px 0 0 22px;
+        margin: 0 0 20px 22px;
         padding: 16px;
-        background: var(--card);
+        background: var(--ground);
         border: 1px solid var(--line);
         border-radius: 6px;
     }
 
     .composer .input {
-        background: var(--ground);
+        background: var(--card);
     }
 
     /* The message to come: a hollow mark on the timeline line. */
@@ -552,7 +587,7 @@
     }
 
     .drawer-title {
-        font-size: 24px;
+        font-size: var(--text-2xl);
         font-weight: 600;
         line-height: 1.25;
         letter-spacing: -0.02em;
@@ -602,7 +637,7 @@
 
     .drawer-error p {
         margin: 0;
-        font-size: 13px;
+        font-size: var(--text-sm);
         color: var(--muted);
     }
 
@@ -639,7 +674,7 @@
 
     .more-options > summary {
         width: fit-content;
-        font-size: 13px;
+        font-size: var(--text-sm);
         font-weight: 500;
         color: var(--muted);
         cursor: pointer;
@@ -716,7 +751,7 @@
     .svc-pick-name {
         min-width: 0;
         overflow: hidden;
-        font-size: 14px;
+        font-size: var(--text-md);
         color: var(--ink);
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -772,7 +807,7 @@
     .suggestion-title {
         display: block;
         overflow: hidden;
-        font-size: 14px;
+        font-size: var(--text-md);
         font-weight: 500;
         color: var(--ink);
         text-overflow: ellipsis;
@@ -817,7 +852,7 @@
 
     .consequence-text {
         margin: 0;
-        font-size: 14px;
+        font-size: var(--text-md);
         font-weight: 500;
         line-height: 1.6;
         color: var(--ink);

@@ -21,7 +21,7 @@
 
     .set-label {
         display: block;
-        font-size: 14px;
+        font-size: var(--text-md);
         font-weight: 600;
         line-height: 1.35;
         color: var(--ink);
@@ -35,7 +35,7 @@
     .set-help {
         max-width: 60ch;
         margin-top: 4px;
-        font-size: 13px;
+        font-size: var(--text-sm);
         line-height: 1.5;
         color: var(--ink-soft);
     }
@@ -160,11 +160,13 @@
     }
 
     /* Admin lists that reflow: identity first, then status, then actions. */
+    /* A managed list sits on a card, like every block of the dashboard. */
     .admin-list {
         margin: 0;
         padding: 0;
         list-style: none;
-        border-top: 1px solid var(--line);
+        background: var(--card);
+        border: 1px solid var(--line);
     }
 
     .admin-row {
@@ -172,8 +174,12 @@
         grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
         gap: 10px 20px;
-        padding: 14px 0;
+        padding: 16px 20px;
         border-bottom: 1px solid var(--line);
+    }
+
+    .admin-row:last-child {
+        border-bottom: 0;
     }
 
     .admin-row-ident {
@@ -184,7 +190,7 @@
     }
 
     .admin-row-name {
-        font-size: 14px;
+        font-size: var(--text-md);
         font-weight: 600;
         color: var(--ink);
         overflow-wrap: anywhere;
@@ -192,7 +198,7 @@
 
     .admin-row-sub {
         margin-top: 2px;
-        font-size: 13px;
+        font-size: var(--text-sm);
         line-height: 1.45;
         color: var(--ink-soft);
         overflow-wrap: anywhere;
@@ -214,7 +220,7 @@
 
     @media (min-width: 720px) {
         .svc-admin-row {
-            grid-template-columns: minmax(0, 1fr) 240px minmax(160px, auto);
+            grid-template-columns: minmax(0, 1fr) 260px auto;
         }
 
         .svc-admin-row .admin-row-cell,
@@ -260,14 +266,14 @@
 
     .status-cell .confirm,
     .status-cell .receipt {
-        font-size: 12px;
+        font-size: var(--text-xs);
     }
 
     /* An account state, not a service status: words without a dot, the
        exception in ink. */
     .member-status {
         justify-self: start;
-        font-size: 13px;
+        font-size: var(--text-sm);
         color: var(--muted);
     }
 
@@ -277,7 +283,7 @@
     }
 
     .member-role-self {
-        font-size: 14px;
+        font-size: var(--text-md);
         color: var(--ink);
     }
 
@@ -310,7 +316,7 @@
 
     .temp-password {
         padding: 2px 8px;
-        font-size: 16px;
+        font-size: var(--text-lg);
         letter-spacing: 0.06em;
         border: 1px solid var(--line-strong);
         border-radius: 4px;
@@ -345,13 +351,13 @@
     }
 
     .icon-upload-cta {
-        font-size: 13px;
+        font-size: var(--text-sm);
         font-weight: 600;
         color: var(--ink);
     }
 
     .icon-upload-hint {
-        font-size: 12px;
+        font-size: var(--text-xs);
         color: var(--muted);
     }
 
@@ -394,7 +400,7 @@
 
     .icon-card-name {
         margin: 10px 0 0;
-        font-size: 13px;
+        font-size: var(--text-sm);
         font-weight: 600;
         color: var(--ink);
         overflow-wrap: anywhere;
@@ -402,7 +408,7 @@
 
     .icon-card-use {
         margin: 2px 0 0;
-        font-size: 12px;
+        font-size: var(--text-xs);
         line-height: 1.5;
         color: var(--muted);
     }
@@ -415,13 +421,13 @@
     .icon-card-actions {
         margin-top: auto;
         padding-top: 10px;
-        font-size: 12px;
+        font-size: var(--text-xs);
         color: var(--muted);
     }
 
     .icon-card .confirm {
         gap: 2px 12px;
-        font-size: 12px;
+        font-size: var(--text-xs);
     }
 
     .icon-picker {
@@ -484,7 +490,7 @@
     }
 
     .icon-choices-label {
-        font-size: 13px;
+        font-size: var(--text-sm);
         font-weight: 500;
         color: var(--muted);
         transition: color 150ms ease;
@@ -525,7 +531,7 @@
     .icon-name-echo {
         min-width: 0;
         overflow: hidden;
-        font-size: 12px;
+        font-size: var(--text-xs);
         color: var(--muted);
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -632,7 +638,7 @@
     }
 
     .auth-title {
-        font-size: 20px;
+        font-size: var(--text-xl);
         font-weight: 600;
         line-height: 1.3;
         letter-spacing: -0.01em;
@@ -641,7 +647,7 @@
 
     .auth-intro {
         margin-top: 8px;
-        font-size: 14px;
+        font-size: var(--text-md);
         line-height: 1.6;
         color: var(--muted);
     }
@@ -658,7 +664,7 @@
 
     .auth-alt {
         margin-top: 24px;
-        font-size: 13px;
+        font-size: var(--text-sm);
         color: var(--muted);
     }
 
@@ -668,7 +674,7 @@
 
     .auth-foot {
         margin-top: 32px;
-        font-size: 12px;
+        font-size: var(--text-xs);
         color: var(--muted);
     }
 
@@ -687,7 +693,7 @@
         min-width: 40px;
         height: 40px;
         padding: 0 8px;
-        font-size: 13px;
+        font-size: var(--text-sm);
         font-weight: 500;
         color: var(--muted);
         border-radius: 6px;
@@ -737,7 +743,7 @@
     .steps {
         margin: 12px 0 0;
         padding-left: 20px;
-        font-size: 14px;
+        font-size: var(--text-md);
         line-height: 1.6;
         color: var(--ink-soft);
         list-style: decimal;
