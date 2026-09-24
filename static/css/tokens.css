@@ -10,7 +10,6 @@
 @theme {
     --color-ink: #1C1B18;
     --color-ink-deep: #141310;
-    --color-sand: #F4F1EB;
     --color-sand-warm: #E8E6E1;
     --color-sand-light: #FAF8F2;
     --color-cream: #FAFAF9;
@@ -22,7 +21,6 @@
     --color-brand: #8BAE66;
 
     --color-muted-light: #5F5C52;
-    --color-muted-dark: #9C9689;
 
     --color-surface-0: #FFFFFF;
     --color-surface-1: #FAFAF9;
@@ -107,34 +105,37 @@
 }
 
 .dark {
-    --ink: var(--color-sand-light);
-    --ink-soft: color-mix(in srgb, var(--color-sand) 85%, transparent);
-    --muted: var(--color-muted-dark);
-    --ground: var(--color-ink);
-    --mast-ground: var(--color-ink-deep);
-    --card: #201F1C;
-    --raised: #262420;
-    --menu: #36332D;
-    --edge: color-mix(in srgb, var(--color-sand) 14%, transparent);
-    --edge-input: color-mix(in srgb, var(--color-sand) 36%, transparent);
-    --hover: color-mix(in srgb, var(--color-sand) 10%, transparent);
-    --untracked: #36332D;
+    /* A neutral grey: the warm sand of the light theme read brown at night. */
+    --night-ink: #F2F2F2;
+    --ink: #F7F7F7;
+    --ink-soft: color-mix(in srgb, var(--night-ink) 85%, transparent);
+    --muted: #A3A3A3;
+    --ground: #181818;
+    --mast-ground: #111111;
+    --card: #1D1D1D;
+    --raised: #242424;
+    --menu: #303030;
+    --edge: color-mix(in srgb, var(--night-ink) 9%, transparent);
+    --edge-input: color-mix(in srgb, var(--night-ink) 36%, transparent);
+    --hover: color-mix(in srgb, var(--night-ink) 10%, transparent);
+    --untracked: #303030;
 
-    --hairline: color-mix(in srgb, var(--color-sand) 8%, transparent);
-    --line: color-mix(in srgb, var(--color-sand) 12%, transparent);
-    --line-strong: color-mix(in srgb, var(--color-sand) 18%, transparent);
-    --surface-hover: color-mix(in srgb, var(--color-sand) 4%, transparent);
-    --surface-subtle: color-mix(in srgb, var(--color-sand) 6%, transparent);
+    /* Lines stay, kept quiet: light on dark tires the eye faster. */
+    --hairline: color-mix(in srgb, var(--night-ink) 5%, transparent);
+    --line: color-mix(in srgb, var(--night-ink) 8%, transparent);
+    --line-strong: color-mix(in srgb, var(--night-ink) 12%, transparent);
+    --surface-hover: color-mix(in srgb, var(--night-ink) 4%, transparent);
+    --surface-subtle: color-mix(in srgb, var(--night-ink) 6%, transparent);
     --scrim: rgb(0 0 0 / 0.55);
 
-    --focus: var(--color-sand);
-    --focus-halo: color-mix(in srgb, var(--color-sand) 18%, transparent);
+    --focus: var(--night-ink);
+    --focus-halo: color-mix(in srgb, var(--night-ink) 18%, transparent);
 
-    --primary: var(--color-sand);
-    --primary-hover: var(--color-sand-light);
-    --primary-active: var(--color-cream);
-    --on-primary: var(--color-ink);
-    --primary-sheen: rgb(28 27 24 / 0.1);
+    --primary: var(--night-ink);
+    --primary-hover: #FAFAFA;
+    --primary-active: #FFFFFF;
+    --on-primary: #181818;
+    --primary-sheen: rgb(24 24 24 / 0.1);
 
     --shadow-menu: 0 12px 32px -14px rgb(0 0 0 / 0.7), 0 3px 8px -2px rgb(0 0 0 / 0.45);
     --shadow-drawer: -20px 0 48px rgb(0 0 0 / 0.5);

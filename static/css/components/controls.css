@@ -639,6 +639,13 @@
         border-radius: 4px;
     }
 
+    /* At night a light frame round every label reads as clutter; a fill
+       holds it together instead. */
+    .dark .kind {
+        background: var(--surface-subtle);
+        border-color: transparent;
+    }
+
     .kind::before {
         content: "";
         flex: none;

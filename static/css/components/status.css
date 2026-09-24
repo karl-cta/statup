@@ -261,6 +261,12 @@
         border-top: 1px solid var(--line);
     }
 
+    /* At night the cards' own frames already mark the break. */
+    .dark .dash-divider {
+        margin: 16px 0;
+        border-top-color: transparent;
+    }
+
     .dash-row {
         display: flex;
         flex-direction: column;
@@ -612,6 +618,10 @@
         flex: 1;
         height: 1px;
         background: var(--hairline);
+    }
+
+    .dark .log-day::after {
+        background: transparent;
     }
 
     .log-list {
