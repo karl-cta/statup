@@ -34,6 +34,43 @@
     // htmx leaves error responses unswapped; the server sends a short message
     // for them, shown in the toast instead of failing in silence. The
     // dashboard's own refresh reports under its banner instead.
+    // Something that just arrived or changed lights up once.
+    function flash(element) {
+        element.classList.remove("is-fresh");
+        void element.offsetWidth;
+        element.classList.add("is-fresh");
+        element.addEventListener("animationend", () => element.classList.remove("is-fresh"), { once: true });
+    }
+
+    // What the refreshed dashboard shows that it did not a moment ago: a
+    // banner that changed, a service newly disrupted, a new event.
+    const liveBefore = new WeakMap();
+
+    function rowKey(row) {
+        const link = row.matches("a") ? row : row.querySelector("a");
+        return `${link ? link.getAttribute("href") : ""}|${row.dataset.tone || ""}`;
+    }
+
+    function liveSnapshot(live) {
+        const headline = live.querySelector("#status-headline");
+        return {
+            headline: headline ? headline.textContent.replace(/\s+/g, " ").trim() : "",
+            rows: new Set(Array.from(live.querySelectorAll(".hero-item, .log-row"), rowKey)),
+        };
+    }
+
+    function lightChanges(live) {
+        const before = liveBefore.get(live);
+        if (!before) return;
+        liveBefore.delete(live);
+        const now = liveSnapshot(live);
+        const hero = live.querySelector(".hero");
+        if (hero && now.headline !== before.headline) flash(hero);
+        live.querySelectorAll(".hero-item, .log-row").forEach((row) => {
+            if (!before.rows.has(rowKey(row))) flash(row);
+        });
+    }
+
     function liveTarget(event) {
         const target = event.detail.target;
         return target instanceof Element && target.hasAttribute("data-live") ? target : null;
@@ -611,6 +648,7 @@
             event.detail.shouldSwap = false;
         } else if (version) {
             live.dataset.version = version;
+            liveBefore.set(live, liveSnapshot(live));
         }
     }
 
@@ -635,6 +673,18 @@
         const settled = event.target;
         if (!(settled instanceof Element)) return;
         fitFieldsToText(settled);
+        if (settled.hasAttribute("data-live")) lightChanges(settled);
+        // A state set by hand comes back with a receipt: its cell lights up.
+        document.querySelectorAll(".status-cell:has(.receipt):not([data-lit])").forEach((cell) => {
+            cell.dataset.lit = "";
+            flash(cell);
+        });
+        // An update posted from the side panel lights up at the head of it.
+        const verb = event.detail.requestConfig && event.detail.requestConfig.verb;
+        if (settled.id === "drawer-content" && verb === "post") {
+            const newest = settled.querySelector(".timeline .moment");
+            if (newest) flash(newest);
+        }
         const message = settled.matches("[data-announce]") ? settled : settled.querySelector("[data-announce]");
         if (message) announce(message.textContent.replace(/\s+/g, " ").trim());
         // The events list announces its new count after a filter change.
@@ -658,6 +708,21 @@
         });
         const saved = document.querySelector("[data-scroll-into-view]");
         if (saved) saved.scrollIntoView({ block: "center" });
+        lightPublished();
+    }
+
+    // Back on an event just published or updated, what was written lights
+    // up once; the address loses its marker so a reload does not repeat it.
+    function lightPublished() {
+        const url = new URL(window.location.href);
+        const published = url.searchParams.has("published");
+        const posted = url.searchParams.has("posted");
+        if (!published && !posted) return;
+        const written = (published && document.querySelector(".article-text")) || document.querySelector(".timeline .moment");
+        if (written) flash(written);
+        url.searchParams.delete("published");
+        url.searchParams.delete("posted");
+        window.history.replaceState(null, "", url);
     }
 
     if (document.readyState === "loading") {

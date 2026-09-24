@@ -827,7 +827,8 @@ async fn detail_page_says_an_incident_is_still_ongoing() {
     assert_eq!(status, StatusCode::SEE_OTHER);
     assert_eq!(
         location.as_deref(),
-        Some(format!("/events/{event_id}").as_str())
+        Some(format!("/events/{event_id}?posted=1").as_str()),
+        "back on the event, where the update lights up once"
     );
 
     let (_, body) = app.get(&path).await;

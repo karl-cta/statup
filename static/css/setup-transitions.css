@@ -1,10 +1,6 @@
-/* Loaded by the first-launch pages only: moving from one step to the next
-   is a navigation the browser animates. The step slides, the progress and
-   the preview stay in place and change in it. */
-@view-transition {
-    navigation: auto;
-}
-
+/* Loaded by the first-launch pages only, on top of the page transitions
+   of motion.css: the step slides, the progress and the preview stay in
+   place and change in it. */
 .setup-stage {
     view-transition-name: setup-step;
 }
@@ -41,13 +37,5 @@
     from {
         opacity: 0;
         transform: translateX(28px);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    ::view-transition-group(*),
-    ::view-transition-old(*),
-    ::view-transition-new(*) {
-        animation: none;
     }
 }

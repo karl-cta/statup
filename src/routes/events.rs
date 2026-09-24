@@ -571,7 +571,7 @@ pub async fn add_update(
     HtmlForm(input): HtmlForm<UpdateInput>,
 ) -> Result<Response, AppError> {
     match EventService::post_update(&state.pool, id, &input.message, input.lifecycle, &user).await {
-        Ok(()) => Ok(Redirect::to(&format!("/events/{id}")).into_response()),
+        Ok(()) => Ok(Redirect::to(&format!("/events/{id}?posted=1")).into_response()),
         Err(AppError::Validation(key)) => {
             let composer = Composer {
                 error: Some(i18n.t(&key).to_string()),

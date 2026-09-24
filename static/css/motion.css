@@ -1,0 +1,52 @@
+/* Moving from one page to the next is a navigation the browser animates:
+   the masthead stays, the page content fades and settles a few pixels. The
+   first launch names its own parts (setup-transitions.css). */
+@view-transition {
+    navigation: auto;
+}
+
+.mast {
+    view-transition-name: mast;
+}
+
+main#main:not(.setup-side) {
+    view-transition-name: page;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 160ms;
+}
+
+::view-transition-group(mast) {
+    animation: none;
+}
+
+::view-transition-old(page) {
+    animation: page-out 140ms ease-in both;
+}
+
+::view-transition-new(page) {
+    animation: page-in 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes page-out {
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes page-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none !important;
+    }
+}

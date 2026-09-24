@@ -959,4 +959,48 @@
             transform: none;
         }
     }
+
+    /* Something that just arrived or just changed: a wash that fades once,
+       started by the script, never on a plain load. A tinted banner fades
+       in instead, so its own ground stays. */
+    .is-fresh {
+        animation: fresh 2400ms ease-out backwards;
+    }
+
+    .hero.is-fresh {
+        animation: fresh-in 420ms var(--ease-out) backwards;
+    }
+
+    .status-cell.is-fresh {
+        animation: none;
+    }
+
+    .status-cell.is-fresh .cs-face {
+        animation: fresh-in 320ms var(--ease-out) backwards;
+    }
+
+    @keyframes fresh {
+        0%,
+        35% {
+            background-color: var(--hover);
+        }
+
+        100% {
+            background-color: transparent;
+        }
+    }
+
+    @keyframes fresh-in {
+        from {
+            opacity: 0.2;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .is-fresh,
+        .hero.is-fresh,
+        .status-cell.is-fresh .cs-face {
+            animation: none;
+        }
+    }
 }
