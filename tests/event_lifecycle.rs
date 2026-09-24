@@ -827,8 +827,10 @@ async fn a_finished_maintenance_offers_the_announcement_of_what_is_new() {
         "the title names the maintenance"
     );
     assert!(
-        body.contains(&format!(r#"<option value="{event_id}" selected>"#)),
-        "the maintenance is preselected: {body}"
+        body.contains(&format!(
+            "<option value=\"{event_id}\" selected>Payroll update\u{a0}· "
+        )),
+        "the maintenance is preselected, with the day it ended: {body}"
     );
     assert!(
         body.contains(r#"value="changelog" class="sr-only" checked"#)

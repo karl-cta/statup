@@ -80,10 +80,12 @@
 
     function proposeTitle(kind, severity, names) {
         if (titleTouched) return;
+        const services = names.length ? joinNames(names) : "";
         let lead = "";
-        if (kind === "maintenance") lead = copy.title_maintenance;
+        // French elides before a vowel: "Maintenance d'Internet".
+        if (kind === "maintenance") lead = /^[aeiouyàâäéèêëîïôöùûü]/i.test(services) ? copy.title_maintenance_vowel : copy.title_maintenance;
         else if (kind === "incident" && severity) lead = copy[`title_incident_${severity}`];
-        const proposal = lead && names.length ? fill(lead, joinNames(names)).slice(0, 200) : "";
+        const proposal = lead && services ? fill(lead, services).slice(0, 200) : "";
         if (proposal !== title.value) title.value = proposal;
     }
 

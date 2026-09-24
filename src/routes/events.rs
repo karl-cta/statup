@@ -18,7 +18,7 @@ use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, HtmlForm, OptionalUser, RequirePublisher};
 use crate::models::{
     Category, CreateEventInput, DayGroup, Event, EventFilters, EventWithServices, Kind, Lifecycle,
-    LifecycleGroup, Service, ServiceTag, Severity, UpdateEventInput, User, group_by_day,
+    LifecycleGroup, SEPARATOR, Service, ServiceTag, Severity, UpdateEventInput, User, group_by_day,
 };
 use crate::repositories::{
     CreateTemplateInput, EventRepository, EventTemplateRepository, ServiceRepository,
@@ -354,7 +354,9 @@ async fn load_view(
     let follows = match ews.event.follows_event_id {
         Some(id) => EventRepository::find_by_id(&state.pool, id)
             .await?
-            .map(|m| MaintenanceChoice { id, title: m.title }),
+            .map(|m| {
+                MaintenanceChoice::new(id, m.title, &m.ended_at.unwrap_or(m.updated_at), i18n)
+            }),
         None => None,
     };
     let timeline = timeline::build(
@@ -723,10 +725,27 @@ pub struct EventFormData {
     pub follows_event_id: Option<i64>,
 }
 
-/// A maintenance an announcement may follow.
+/// A maintenance an announcement may follow, dated so that two with the
+/// same title tell apart.
 pub struct MaintenanceChoice {
     pub id: i64,
     pub title: String,
+    pub finished_on: String,
+}
+
+impl MaintenanceChoice {
+    fn new(id: i64, title: String, finished: &chrono::DateTime<chrono::Utc>, i18n: &I18n) -> Self {
+        Self {
+            id,
+            title,
+            finished_on: i18n.format_date_short(&clock::local_date(finished)),
+        }
+    }
+
+    /// The title and the day, as a plain-text option reads them.
+    pub fn label(&self) -> String {
+        format!("{}{SEPARATOR}{}", self.title, self.finished_on)
+    }
 }
 
 impl EventFormData {
@@ -886,7 +905,7 @@ async fn render_form(
     render(&EventFormTemplate {
         frame: Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?,
         services: ServiceRepository::list_all(&state.pool).await?,
-        maintenances: maintenance_choices(state, form.follows_event_id).await?,
+        maintenances: maintenance_choices(state, form.follows_event_id, &i18n).await?,
         zone_hint: i18n.tf(
             "events.zone_hint",
             &[("zone", &clock::offset_label(&chrono::Utc::now()))],
@@ -909,27 +928,22 @@ async fn render_form(
 async fn maintenance_choices(
     state: &AppState,
     followed: Option<i64>,
+    i18n: &I18n,
 ) -> Result<Vec<MaintenanceChoice>, AppError> {
     let mut choices: Vec<MaintenanceChoice> =
         EventRepository::list_finished_maintenance(&state.pool, MAINTENANCE_CHOICES)
             .await?
             .into_iter()
-            .map(|m| MaintenanceChoice {
-                id: m.id,
-                title: m.title,
+            .map(|m| {
+                MaintenanceChoice::new(m.id, m.title, &m.ended_at.unwrap_or(m.updated_at), i18n)
             })
             .collect();
     if let Some(id) = followed
         && !choices.iter().any(|c| c.id == id)
         && let Some(event) = EventRepository::find_by_id(&state.pool, id).await?
     {
-        choices.insert(
-            0,
-            MaintenanceChoice {
-                id,
-                title: event.title,
-            },
-        );
+        let finished = event.ended_at.unwrap_or(event.updated_at);
+        choices.insert(0, MaintenanceChoice::new(id, event.title, &finished, i18n));
     }
     Ok(choices)
 }

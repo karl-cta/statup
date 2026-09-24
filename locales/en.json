@@ -228,6 +228,7 @@
   "title.incident_minor": "Degraded service on {services}",
   "title.incident_critical": "Outage on {services}",
   "title.maintenance": "Maintenance of {services}",
+  "title.maintenance_vowel": "Maintenance of {services}",
   "title.changelog_after": "What is new after {title}",
   "consequence.incident_minor": "On the public page, {services}: degraded.",
   "consequence.incident_critical": "On the public page, {services}: outage.",

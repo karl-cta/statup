@@ -28,7 +28,7 @@
     {% if let Some(followed) = view.follows %}
     <div class="fact">
         <dt>{{ i18n.t("events.fact_follows") }}</dt>
-        <dd><a class="link" href="/events/{{ followed.id }}">{{ followed.title }}</a></dd>
+        <dd><a class="link" href="/events/{{ followed.id }}">{{ followed.title }}</a>&nbsp;<span aria-hidden="true">·</span> {{ followed.finished_on }}</dd>
     </div>
     {% endif %}
 </dl>

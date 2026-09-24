@@ -204,7 +204,7 @@
                                 <select id="follows_event_id" name="follows_event_id" class="input" data-custom-select>
                                     <option value="">{{ i18n.t("events.follows_none") }}</option>
                                     {% for m in maintenances %}
-                                    <option value="{{ m.id }}"{% if form.follows(m.id) %} selected{% endif %}>{{ m.title }}</option>
+                                    <option value="{{ m.id }}"{% if form.follows(m.id) %} selected{% endif %}>{{ m.label() }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -279,6 +279,7 @@
     "title_incident_minor": {{ i18n.t("title.incident_minor")|json|safe }},
     "title_incident_critical": {{ i18n.t("title.incident_critical")|json|safe }},
     "title_maintenance": {{ i18n.t("title.maintenance")|json|safe }},
+    "title_maintenance_vowel": {{ i18n.t("title.maintenance_vowel")|json|safe }},
     "submit_incident": {{ i18n.t("events.submit_incident")|json|safe }},
     "submit_maintenance": {{ i18n.t("events.submit_maintenance")|json|safe }},
     "submit_publication": {{ i18n.t("events.submit_publication")|json|safe }},
