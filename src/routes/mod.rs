@@ -211,6 +211,10 @@ fn admin_routes() -> Router<AppState> {
         .route("/admin/users/:id/role", post(admin::update_role))
         .route("/admin/users/:id/disable", post(admin::toggle_active))
         .route(
+            "/admin/users/:id/reset-password",
+            post(admin::reset_member_password),
+        )
+        .route(
             "/admin/dashboard/:context/layout",
             get(dashboard_layout::layout_editor),
         )

@@ -341,7 +341,7 @@ async fn the_temporary_password_is_shown_once_after_the_redirect() {
     let body = resp.text().await.unwrap_or_default();
     assert!(body.contains("temp-password"), "shown after the redirect");
     let password = body
-        .split(r#"<code class="temp-password">"#)
+        .split(r#"<code id="temp-password" class="temp-password">"#)
         .nth(1)
         .and_then(|rest| rest.split("</code>").next())
         .expect("password rendered")
@@ -792,4 +792,64 @@ async fn a_logo_replaces_the_mark_until_removed() {
         StatusCode::NOT_FOUND,
         "the old file is gone"
     );
+}
+
+#[tokio::test]
+async fn admin_gives_a_member_a_new_temporary_password() {
+    let (app, _admin_id) = spawn_with_admin().await;
+    let user_id = app.reader("forgot@test.com", "Forgot").await;
+    let before = UserRepository::find_by_id(&app.pool, user_id)
+        .await
+        .expect("db error")
+        .expect("user not found");
+
+    let csrf = app.csrf().await;
+    let path = format!("/admin/users/{user_id}/reset-password");
+    let (status, _body, location) = app.post_form(&path, &csrf, &[]).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/admin/users"));
+
+    let after = UserRepository::find_by_id(&app.pool, user_id)
+        .await
+        .expect("db error")
+        .expect("user not found");
+    assert_ne!(after.password_hash, before.password_hash);
+    assert!(after.must_change_password, "the person chooses their own");
+
+    let (_, page) = app.get("/admin/users").await;
+    assert!(
+        page.contains("Nouveau mot de passe provisoire pour <strong>Forgot</strong>"),
+        "the password is shown once: {page}"
+    );
+    let password = page
+        .split(r#"<code id="temp-password" class="temp-password">"#)
+        .nth(1)
+        .and_then(|rest| rest.split("</code>").next())
+        .expect("password rendered");
+    assert!(
+        statup::services::AuthService::verify_password(password, &after.password_hash)
+            .await
+            .expect("hash error")
+    );
+    let (_, again) = app.get("/admin/users").await;
+    assert!(!again.contains("Nouveau mot de passe provisoire pour"));
+}
+
+#[tokio::test]
+async fn a_reset_is_refused_for_oneself_and_for_a_disabled_account() {
+    let (app, admin_id) = spawn_with_admin().await;
+    let off_id = app.reader("off@test.com", "Off").await;
+    assert!(
+        UserRepository::set_active(&app.pool, off_id, false)
+            .await
+            .expect("failed to disable")
+    );
+
+    for (id, words) in [(admin_id, "Mon profil"), (off_id, "Réactivez ce compte")] {
+        let csrf = app.csrf().await;
+        let path = format!("/admin/users/{id}/reset-password");
+        let (status, body, _) = app.post_form(&path, &csrf, &[]).await;
+        assert_eq!(status, StatusCode::OK, "refused in the page");
+        assert!(body.contains(words), "expected {words}: {body}");
+    }
 }

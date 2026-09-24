@@ -35,9 +35,9 @@
     {% if let Some(c) = created %}
     <div class="form-notice notice-stack mb-5" role="status">
         <div>
-            <p>{{ i18n.t("admin.created_for") }} <strong>{{ c.name }}</strong> ({{ c.email }}).</p>
-            <p>{{ i18n.t("admin.created_password") }} <code class="temp-password">{{ c.password }}</code></p>
-            <p class="text-muted">{{ i18n.t("admin.created_hint") }}</p>
+            <p>{% if c.reset %}{{ i18n.t("admin.reset_for") }}{% else %}{{ i18n.t("admin.created_for") }}{% endif %} <strong>{{ c.name }}</strong> ({{ c.email }}).</p>
+            <p class="temp-password-row">{{ i18n.t("admin.created_password") }} <code id="temp-password" class="temp-password">{{ c.password }}</code> <button type="button" class="btn btn-ghost" data-copy="#temp-password" data-copied="{{ i18n.t("admin.password_copied") }}">{{ i18n.t("admin.copy_password") }}</button></p>
+            <p class="text-muted">{% if c.reset %}{{ i18n.t("admin.reset_hint") }}{% else %}{{ i18n.t("admin.created_hint") }}{% endif %}</p>
         </div>
     </div>
     {% endif %}
@@ -118,6 +118,18 @@
             </div>
 
             <div class="admin-row-actions">
+                {% if u.id != current_user_id && u.is_active %}
+                <form method="post" action="/admin/users/{{ u.id }}/reset-password" data-confirm>
+                    <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                    <button type="button" class="btn btn-ghost" data-confirm-open aria-label="{{ i18n.t("admin.reset_password") }} {{ u.display_name }}">{{ i18n.t("admin.reset_password") }}</button>
+                    <div class="confirm" role="group" aria-label="{{ i18n.t("admin.confirm_reset_aria") }}" aria-describedby="reset-q-{{ u.id }} reset-d-{{ u.id }}" data-confirm-box hidden>
+                        <span id="reset-q-{{ u.id }}" class="confirm-text">{{ i18n.t("admin.reset_question") }} <q>{{ u.display_name }}</q>{{ i18n.t("common.question_mark") }}</span>
+                        <span id="reset-d-{{ u.id }}" class="confirm-desc">{{ i18n.t("admin.reset_consequence") }}</span>
+                        <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
+                        <button type="submit" class="confirm-go">{{ i18n.t("admin.reset_go") }}</button>
+                    </div>
+                </form>
+                {% endif %}
                 {% if u.id != current_user_id %}
                 <form method="post" action="/admin/users/{{ u.id }}/disable"{% if u.is_active %} data-confirm{% endif %}>
                     <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">

@@ -375,14 +375,17 @@
                 button.textContent = label;
             }, 2000);
         };
+        // A field holds its text as a value, a code element as its content.
+        const text = "value" in field ? field.value : field.textContent.trim();
         // A page served over plain http has no clipboard interface; the
         // older command still copies there.
         const fallback = () => {
-            field.select();
+            if ("select" in field) field.select();
+            else window.getSelection().selectAllChildren(field);
             if (document.execCommand("copy")) done();
         };
         if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(field.value).then(done, fallback);
+            navigator.clipboard.writeText(text).then(done, fallback);
         } else {
             fallback();
         }

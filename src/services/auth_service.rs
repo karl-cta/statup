@@ -94,10 +94,30 @@ impl AuthService {
         let user = UserRepository::find_by_email(pool, email.trim())
             .await?
             .ok_or(AppError::NotFound)?;
+        let password = Self::issue_temporary_password(pool, user.id).await?;
+        tracing::info!(user_id = user.id, "Password reset by the host");
+        Ok(password)
+    }
+
+    /// The same, asked by an admin from the team page for an active member.
+    pub async fn reset_member_password(
+        pool: &DbPool,
+        user_id: i64,
+    ) -> Result<(User, String), AppError> {
+        let user = UserRepository::find_by_id(pool, user_id)
+            .await?
+            .ok_or(AppError::NotFound)?;
+        if !user.is_active {
+            return Err(AppError::Validation("validation.reset_inactive".into()));
+        }
+        let password = Self::issue_temporary_password(pool, user.id).await?;
+        Ok((user, password))
+    }
+
+    async fn issue_temporary_password(pool: &DbPool, user_id: i64) -> Result<String, AppError> {
         let password = Self::temporary_password();
         let hash = Self::hash_password(&password).await?;
-        UserRepository::set_temporary_password(pool, user.id, &hash).await?;
-        tracing::info!(user_id = user.id, "Password reset by the host");
+        UserRepository::set_temporary_password(pool, user_id, &hash).await?;
         Ok(password)
     }
 

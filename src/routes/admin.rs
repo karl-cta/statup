@@ -167,12 +167,15 @@ enum NoticeKind {
     Enabled,
 }
 
-/// Kept in the session between the creation and the page that shows it.
+/// Kept in the session between the creation, or a reset, and the page that
+/// shows the temporary password.
 #[derive(Serialize, Deserialize)]
 struct CreatedAccount {
     name: String,
     email: String,
     password: String,
+    #[serde(default)]
+    reset: bool,
 }
 
 #[derive(Default)]
@@ -414,6 +417,52 @@ async fn create_member(
         name: user.display_name,
         email: user.email,
         password,
+        reset: false,
+    })
+}
+
+pub async fn reset_member_password(
+    RequireAdmin(admin): RequireAdmin,
+    State(state): State<AppState>,
+    Path(user_id): Path<i64>,
+    session: Session,
+    CsrfToken(csrf_token): CsrfToken,
+    Locale(i18n): Locale,
+) -> Result<Response, AppError> {
+    match issue_reset(&state, &admin, user_id).await {
+        Ok(reset) => {
+            write_value(&session, CREATED_ACCOUNT_KEY, &reset).await?;
+            Ok(Redirect::to("/admin/users").into_response())
+        }
+        Err(AppError::Validation(key)) => {
+            let users = load_rows(&state, &i18n).await?;
+            let page = ListPage::refused(i18n.t(&key).to_string());
+            render_users(&state, &admin, csrf_token, i18n, users, page).await
+        }
+        Err(e) => Err(e),
+    }
+}
+
+/// An admin changes their own password from their profile, not here.
+async fn issue_reset(
+    state: &AppState,
+    admin: &User,
+    user_id: i64,
+) -> Result<CreatedAccount, AppError> {
+    if user_id == admin.id {
+        return Err(validation("validation.cannot_reset_self"));
+    }
+    let (user, password) = AuthService::reset_member_password(&state.pool, user_id).await?;
+    tracing::info!(
+        admin_id = admin.id,
+        target_user_id = user.id,
+        "Temporary password issued"
+    );
+    Ok(CreatedAccount {
+        name: user.display_name,
+        email: user.email,
+        password,
+        reset: true,
     })
 }
 
