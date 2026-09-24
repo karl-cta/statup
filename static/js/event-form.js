@@ -103,7 +103,12 @@
         }
 
         proposeTitle(kind, severity, names);
-        form.querySelector("[data-submit-label]").textContent = copy[`submit_${kind}`] || copy.submit_incident;
+        // A field left for the button fires "change" between the press and
+        // the release; Safari drops the click if the label's text node is
+        // replaced in between.
+        const label = form.querySelector("[data-submit-label]");
+        const submitText = copy[`submit_${kind}`] || copy.submit_incident;
+        if (label.textContent !== submitText) label.textContent = submitText;
     }
 
     function check(name, value) {
