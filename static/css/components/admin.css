@@ -262,6 +262,17 @@
         .member-row .admin-row-actions {
             grid-column: auto;
         }
+
+        /* A question opened in a row takes the full width under it rather
+           than squeezing the name into one letter per line. */
+        .member-row .admin-row-actions:has(.confirm:not([hidden])) {
+            grid-column: 1 / -1;
+        }
+    }
+
+    /* While a question is open, the other action of the row steps aside. */
+    .admin-row-actions:has(.confirm:not([hidden])) > form:not(:has(.confirm:not([hidden]))) {
+        display: none;
     }
 
     /* The row the last save named: a wash that fades once. */
