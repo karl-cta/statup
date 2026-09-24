@@ -619,9 +619,19 @@
         if (note) note.hidden = failures < 2;
     }
 
+    // A read-only field as wide as its text: its size attribute counts
+    // characters wider than the ones the page's font draws.
+    function fitFieldsToText(scope) {
+        scope.querySelectorAll("input[data-fit-text]").forEach((field) => {
+            field.style.width = "0";
+            field.style.width = `${field.scrollWidth}px`;
+        });
+    }
+
     document.body.addEventListener("htmx:afterSettle", (event) => {
         const settled = event.target;
         if (!(settled instanceof Element)) return;
+        fitFieldsToText(settled);
         const message = settled.matches("[data-announce]") ? settled : settled.querySelector("[data-announce]");
         if (message) announce(message.textContent.replace(/\s+/g, " ").trim());
         // The events list announces its new count after a filter change.
@@ -639,6 +649,7 @@
         window.setInterval(tickClock, 15000);
         startLiveRefresh();
         hideBrokenImages(document);
+        document.fonts.ready.then(() => fitFieldsToText(document));
         document.querySelectorAll("form[data-autosubmit] [data-apply]").forEach((button) => {
             button.hidden = true;
         });
