@@ -34,13 +34,13 @@
     <div id="form-error" class="form-error mb-5" role="alert"><p>{{ message }}</p></div>
     {% endif %}
 
-    <div class="card-grid card-grid-2">
+    <div class="card-grid">
         <section class="card" aria-labelledby="general-title">
             <header class="card-head">
                 <h2 id="general-title" class="card-title">{{ i18n.t("admin.section_general") }}</h2>
             </header>
             <div class="set-row">
-                <div class="set-text">
+                <div>
                     <label for="instance-name" class="set-label">{{ i18n.t("admin.instance_name") }}</label>
                     <p class="set-help">{{ i18n.t("admin.instance_name_help") }}</p>
                 </div>
@@ -55,7 +55,7 @@
                 </form>
             </div>
             <div class="set-row">
-                <div class="set-text">
+                <div>
                     <p class="set-label">{{ i18n.t("admin.logo") }}</p>
                     <p class="set-help">{{ i18n.t("admin.logo_help") }}</p>
                 </div>
@@ -81,7 +81,7 @@
                 </div>
             </div>
             <div class="set-row">
-                <div class="set-text">
+                <div>
                     <label for="time-zone" class="set-label">{{ i18n.t("admin.time_zone") }}</label>
                     <p class="set-help">{{ i18n.t("admin.time_zone_help") }}</p>
                 </div>
@@ -98,12 +98,13 @@
                 </form>
             </div>
             <div class="set-row">
-                <div class="set-text">
+                <div>
                     <p id="access-label" class="set-label">{{ i18n.t("admin.public_mode") }}</p>
+                    <p id="access-help" class="set-help">{{ i18n.t("admin.public_mode_help") }}</p>
                 </div>
-                <form method="post" action="/admin/settings/public-mode" class="set-access-form" data-autosubmit>
+                <form method="post" action="/admin/settings/public-mode" data-autosubmit>
                     <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                    <div class="segmented" role="radiogroup" aria-labelledby="access-label">
+                    <div class="segmented" role="radiogroup" aria-labelledby="access-label" aria-describedby="access-help">
                         <label class="choice"><input type="radio" name="access" value="everyone" class="sr-only"{% if public_mode %} checked{% endif %}><span>{{ i18n.t("admin.access_everyone") }}</span></label>
                         <label class="choice"><input type="radio" name="access" value="members" class="sr-only"{% if !public_mode %} checked{% endif %}><span>{{ i18n.t("admin.access_members") }}</span></label>
                     </div>
@@ -117,19 +118,19 @@
                 <h2 id="manage-title" class="card-title">{{ i18n.t("admin.section_manage") }}</h2>
             </header>
             <div class="set-row">
-                <div class="set-text">
+                <div>
                     <p class="set-label">{{ i18n.t("admin.section_team") }}<span class="count">{{ self.team_count() }}</span></p>
                 </div>
                 <a href="/admin/users" class="btn btn-ghost">{{ i18n.t("admin.team_manage") }}</a>
             </div>
             <div class="set-row">
-                <div class="set-text">
+                <div>
                     <p class="set-label">{{ i18n.t("admin.section_icons") }}<span class="count">{{ self.icons_label() }}</span></p>
                 </div>
                 <a href="/icons" class="btn btn-ghost">{{ i18n.t("admin.icons_manage") }}</a>
             </div>
             <div class="set-row">
-                <div class="set-text">
+                <div>
                     <p class="set-label">{{ i18n.t("admin.section_dashboard") }}</p>
                 </div>
                 <a href="/?arrange=1" class="btn btn-ghost">{{ i18n.t("admin.dashboard_arrange") }}</a>

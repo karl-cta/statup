@@ -312,6 +312,7 @@
   "admin.time_zone_help": "Les heures de la page, des événements et des maintenances s'affichent et se saisissent dans ce fuseau.",
   "admin.zone_notice": "Les heures s'affichent maintenant dans le fuseau {zone}.",
   "admin.public_mode": "Qui peut voir la page",
+  "admin.public_mode_help": "Ouverte à tous sans compte, ou réservée aux membres connectés.",
   "admin.access_everyone": "Tout le monde",
   "admin.access_members": "Membres seulement",
   "admin.access_apply": "Appliquer",

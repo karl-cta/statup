@@ -312,6 +312,7 @@
   "admin.time_zone_help": "Times on the page, on events and on maintenances are shown and typed in this zone.",
   "admin.zone_notice": "Times now show in the {zone} zone.",
   "admin.public_mode": "Who can see the page",
+  "admin.public_mode_help": "Open to anyone without an account, or kept for signed-in members.",
   "admin.access_everyone": "Everyone",
   "admin.access_members": "Members only",
   "admin.access_apply": "Apply",
