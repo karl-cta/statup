@@ -4,8 +4,8 @@
 //! that do not, each with the open incident that explains it. Maintenance
 //! work, announcements and history have their own blocks; the banner only
 //! turns to maintenance when nothing is disrupted. It says until when work
-//! runs and names the next announced maintenance, since the reader's second
-//! question is when it comes back. A fresh install says nothing is watched
+//! runs, since the reader's second question is when it comes back, and,
+//! when nothing is disrupted, names the next announced maintenance. A fresh install says nothing is watched
 //! rather than claiming that everything is fine; its administrator gets the
 //! first steps instead.
 
@@ -75,7 +75,6 @@ struct StatusBannerTemplate {
     headline: String,
     rows: Vec<BannerRow>,
     next_maintenance: Option<NextMaintenance>,
-    refreshed_at: String,
     can_publish: bool,
     /// The page address, when the first steps are shown.
     first_steps: Option<String>,
@@ -139,8 +138,7 @@ impl Module for StatusBannerModule {
                 .iter()
                 .map(|service| row(service, &events, i18n))
                 .collect(),
-            next_maintenance: next_maintenance(&maintenance, i18n),
-            refreshed_at: refreshed_label(i18n),
+            next_maintenance: next_maintenance(&services, &maintenance, i18n),
             can_publish: ctx.can_publish(),
             first_steps: first_steps(ctx, services.is_empty()),
             i18n: i18n.clone(),
@@ -227,8 +225,16 @@ fn until_text(event: &EventSummary, i18n: &I18n) -> Option<String> {
 }
 
 /// The soonest maintenance still to come within the week. The list comes
-/// work under way first, then by start.
-fn next_maintenance(open: &[EventSummary], i18n: &I18n) -> Option<NextMaintenance> {
+/// work under way first, then by start. A disruption keeps the banner on
+/// itself; the Maintenance block still lists what is coming.
+fn next_maintenance(
+    services: &[Service],
+    open: &[EventSummary],
+    i18n: &I18n,
+) -> Option<NextMaintenance> {
+    if services.iter().any(|s| s.status.is_disruption()) {
+        return None;
+    }
     let horizon = Utc::now() + Duration::days(NEXT_MAINTENANCE_DAYS);
     open.iter()
         .filter(|m| m.lifecycle == Some(Lifecycle::Scheduled))
@@ -262,15 +268,6 @@ fn headline(affected: &[&Service], i18n: &I18n) -> String {
         (0, false) => i18n.t("banner.maintenance").to_string(),
         (n, _) => i18n.plural("banner.disrupted", n),
     }
-}
-
-/// The time the page was rendered, in the instance zone, for the reader who
-/// wonders whether it is current.
-fn refreshed_label(i18n: &I18n) -> String {
-    i18n.tf(
-        "banner.refreshed",
-        &[("time", &i18n.format_time(&Utc::now()))],
-    )
 }
 
 #[cfg(test)]
@@ -442,10 +439,16 @@ mod tests {
             m.planned_start = Some(Utc::now() + Duration::days(days));
             m
         };
+        let calm = [service("Paie", ServiceStatus::Operational)];
         let open = [at(2, "Soon"), at(3, "Later")];
-        let next = next_maintenance(&open, &i18n).map(|m| m.title);
+        let next = next_maintenance(&calm, &open, &i18n).map(|m| m.title);
         assert_eq!(next.as_deref(), Some("Soon"));
-        assert!(next_maintenance(&[at(9, "Far")], &i18n).is_none());
+        assert!(next_maintenance(&calm, &[at(9, "Far")], &i18n).is_none());
+        let disrupted = [service("Mail", ServiceStatus::Degraded)];
+        assert!(
+            next_maintenance(&disrupted, &open, &i18n).is_none(),
+            "a disruption keeps the banner on itself"
+        );
     }
 
     #[test]

@@ -587,9 +587,8 @@
         });
     }
 
-    // The page is replaced only when what it shows has changed; otherwise
-    // only its time stamp moves. A moved instance clock (daylight saving)
-    // reloads it.
+    // The page is replaced only when what it shows has changed. A moved
+    // instance clock (daylight saving) reloads it.
     function onLiveResponse(live, event) {
         const xhr = event.detail.xhr;
         if (xhr.status >= 400) {
@@ -607,18 +606,9 @@
         const version = xhr.getResponseHeader("X-Live-Version");
         if (version && version === live.dataset.version) {
             event.detail.shouldSwap = false;
-            copyStamp(live, xhr.responseText);
         } else if (version) {
             live.dataset.version = version;
         }
-    }
-
-    function copyStamp(live, html) {
-        const holder = document.createElement("template");
-        holder.innerHTML = html;
-        const fresh = holder.content.querySelector("[data-stamp]");
-        const current = live.querySelector("[data-stamp]");
-        if (fresh && current) current.textContent = fresh.textContent;
     }
 
     // Two refreshes in a row without an answer are said under the banner.

@@ -180,19 +180,14 @@
         background: var(--tone-text);
     }
 
-    .hero-foot {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px 20px;
-        margin-top: 18px;
+    /* Said only when the page has stopped refreshing. */
+    .hero-stale {
+        margin-top: 14px;
         font-size: var(--text-xs);
         color: var(--muted);
-        font-feature-settings: 'tnum' 1;
     }
 
-    .hero-alert .hero-foot,
+    .hero-alert .hero-stale,
     .hero-alert .hero-update-time {
         color: var(--ink-soft);
     }
@@ -221,12 +216,6 @@
     .hero-calm .hero-title {
         flex: 0 1 auto;
         font-size: var(--text-xl);
-    }
-
-    .hero-stamp {
-        font-size: var(--text-xs);
-        color: var(--muted);
-        font-feature-settings: 'tnum' 1;
     }
 
     @media (max-width: 720px) {

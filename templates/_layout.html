@@ -48,7 +48,7 @@
                 <span class="mnav-spacer"></span>
                 <div class="mnav-tools">
                     <p class="mast-clock" data-clock-offset="{{ frame.clock_offset }}">
-                        <span class="mast-clock-date">{{ frame.dateline }}&nbsp;<span aria-hidden="true">·</span> </span><strong data-clock-time>{{ frame.clock_time }}</strong> <span class="mast-clock-zone">{{ frame.zone }}</span>
+                        <span class="mast-clock-date"><strong>{{ frame.dateline }}</strong>&nbsp;<span aria-hidden="true">·</span> </span><strong data-clock-time>{{ frame.clock_time }}</strong> <span class="mast-clock-zone">{{ frame.zone }}</span>
                     </p>
                     {% include "components/mast_switches.html" %}
                     {% if frame.is_authenticated %}
@@ -119,7 +119,7 @@
                 <a class="btn btn-primary menu-login" href="/login">{{ i18n.t("nav.login") }}</a>
                 {% endif %}
             </div>
-            <p class="mast-menu-clock">{{ i18n.t("nav.instance_time") }} {{ frame.dateline }}&nbsp;<span aria-hidden="true">·</span> <strong data-clock-time>{{ frame.clock_time }}</strong> {{ frame.zone }}</p>
+            <p class="mast-menu-clock">{{ i18n.t("nav.instance_time") }} <strong>{{ frame.dateline }}</strong>&nbsp;<span aria-hidden="true">·</span> <strong data-clock-time>{{ frame.clock_time }}</strong> {{ frame.zone }}</p>
         </div>
     </header>
 

@@ -52,9 +52,6 @@
             <span class="ring-dot" data-tone="{% if tone == "neutral" %}ok{% else %}{{ tone }}{% endif %}" aria-hidden="true"></span>
             <span>{{ headline }}</span>
         </h2>
-        {% if self.is_calm() %}
-        <p class="hero-stamp"><span data-stamp>{{ refreshed_at }}</span> <span data-stale hidden>{{ i18n.t("banner.refresh_lost") }}</span></p>
-        {% endif %}
     </div>
 
     {% if !rows.is_empty() %}
@@ -89,10 +86,6 @@
     </p>
     {% endif %}
 
-    {% if !self.is_calm() %}
-    <div class="hero-foot">
-        <p><span data-stamp>{{ refreshed_at }}</span> <span data-stale hidden>{{ i18n.t("banner.refresh_lost") }}</span></p>
-    </div>
-    {% endif %}
+    <p class="hero-stale" data-stale hidden>{{ i18n.t("banner.refresh_lost") }}</p>
 </section>
 {% endif %}

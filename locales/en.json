@@ -92,7 +92,6 @@
   "banner.maintenance": "Maintenance in progress",
   "banner.latest_update": "Latest update, {time}",
   "banner.next_maintenance": "Maintenance planned for {when}",
-  "banner.refreshed": "Updated at {time}",
   "banner.refresh_lost": "Connection lost, trying again.",
   "availability.day_ok": "No incident",
   "availability.day_untracked": "Not tracked yet",

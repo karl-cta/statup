@@ -143,7 +143,7 @@ fn live_version(live: &LiveModules) -> String {
         .iter()
         .chain(live.row.iter().map(|m| &m.html));
     for html in modules {
-        without_stamp(html).hash(&mut hasher);
+        html.hash(&mut hasher);
     }
     for module in &live.row {
         module.width.hash(&mut hasher);
@@ -152,17 +152,6 @@ fn live_version(live: &LiveModules) -> String {
         choice.module_id.hash(&mut hasher);
     }
     format!("{:016x}", hasher.finish())
-}
-
-/// The markup around the banner's "updated at" text, which changes every
-/// minute.
-fn without_stamp(html: &str) -> (&str, &str) {
-    const MARK: &str = "data-stamp>";
-    let Some(start) = html.find(MARK).map(|i| i + MARK.len()) else {
-        return (html, "");
-    };
-    let end = html[start..].find('<').map_or(html.len(), |i| start + i);
-    (&html[..start], &html[end..])
 }
 
 pub async fn index(
