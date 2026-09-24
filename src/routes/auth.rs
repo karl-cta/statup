@@ -301,9 +301,15 @@ pub async fn register_form(
     render_register(csrf_token, i18n, RegisterErrors::default(), blank)
 }
 
-pub async fn logout(session: Session) -> Result<Response, AppError> {
+/// Signed out, a reader of an open page lands back on it.
+pub async fn logout(State(state): State<AppState>, session: Session) -> Result<Response, AppError> {
     AuthService::logout(&session).await;
-    Ok(Redirect::to("/login").into_response())
+    let next = if state.is_public_mode() {
+        "/"
+    } else {
+        "/login"
+    };
+    Ok(Redirect::to(next).into_response())
 }
 
 /// The field rules, checked together so every message shows at once.

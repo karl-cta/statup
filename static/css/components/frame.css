@@ -624,6 +624,19 @@
         transition: color 150ms ease, background-color 150ms ease;
     }
 
+    .card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px 12px;
+    }
+
+    .card-follow svg {
+        width: 13px;
+        height: 13px;
+    }
+
     .card-action:hover {
         color: var(--ink);
         background: var(--surface-hover);
@@ -654,6 +667,18 @@
 
     .empty-state .btn {
         margin-top: 16px;
+    }
+
+    /* On a short page the footer rests at the foot of the window. */
+    [data-section] {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        min-height: 100dvh;
+    }
+
+    [data-section] > main {
+        flex: 1 0 auto;
     }
 
     .foot {

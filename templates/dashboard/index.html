@@ -16,17 +16,21 @@
 
 {% block content %}
 <div class="page"{% if live.arrangeable %} data-arrange-context="{{ context }}"{% if arranging %} data-arrange-start{% endif %} data-saved="{{ i18n.t("dashboard.layout_saved") }}" data-moved="{{ i18n.t("dashboard.block_moved") }}"{% endif %}>
-    <h1 class="sr-only">{{ i18n.t("dashboard.heading") }}</h1>
-
-    {% if frame.can_publish %}
-    <div class="dash-tools">
-        {# An instance without services first needs one: the banner offers it. #}
-        {% if has_services %}
-        <div class="quick-actions">
+    {% if frame.can_publish && has_services %}
+    <header class="page-head">
+        <h1 class="page-title">{{ i18n.t("dashboard.heading") }}</h1>
+        <div class="page-actions">
             <a href="/events/new" class="btn btn-primary">{% call ui::plus() %}{{ i18n.t("events.new") }}</a>
         </div>
-        {% endif %}
-        {% if live.arrangeable %}
+    </header>
+    {% else %}
+    <h1 class="sr-only">{{ i18n.t("dashboard.heading") }}</h1>
+    {% endif %}
+
+    {% if frame.can_publish %}
+    {# Arranging is reached from the settings; its bar only shows meanwhile. #}
+    {% if live.arrangeable %}
+    <div class="dash-tools" data-arrange-only hidden>
         <div class="arrange-bar">
             <nav class="arrange-scope" aria-label="{{ i18n.t("dashboard.arrange_scope") }}" data-arrange-only hidden>
                 <a href="/?arrange=1"{% if !viewing_public %} aria-current="page"{% endif %}>{{ i18n.t("dashboard.arrange_members") }}</a>
@@ -35,9 +39,7 @@
             <button type="button" class="text-action" data-arrange-toggle aria-pressed="false"
                     data-label-open="{{ i18n.t("dashboard.arrange") }}" data-label-close="{{ i18n.t("dashboard.arrange_done") }}">{{ i18n.t("dashboard.arrange") }}</button>
         </div>
-        {% endif %}
     </div>
-    {% if live.arrangeable %}
     <p id="arrange-hint" class="sr-only">{{ i18n.t("dashboard.move_hint") }}</p>
     {% if viewing_public %}
     <p class="arrange-note" data-arrange-only hidden>{{ i18n.t("dashboard.arrange_public_note") }}</p>

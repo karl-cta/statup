@@ -197,32 +197,36 @@
         color: var(--ink-soft);
     }
 
-    .hero-follow {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        min-height: 28px;
-        font-size: var(--text-sm);
-        font-weight: 600;
-        color: var(--ink);
-        text-decoration: underline;
-        text-decoration-color: transparent;
-        text-underline-offset: 3px;
-        transition: color 150ms ease, text-decoration-color 150ms ease;
-    }
-
-    .hero-follow:hover {
-        color: var(--ink);
-        text-decoration-color: currentColor;
-    }
-
-    .hero-follow svg {
-        width: 13px;
-        height: 13px;
-    }
-
     .hero .btn {
         margin-top: 14px;
+    }
+
+    /* The headline, and for a publisher the day's first action, on a row. */
+    .hero-top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 20px;
+    }
+
+    .hero-top .hero-title {
+        flex: 1 1 auto;
+    }
+
+    /* Calm, the banner says so on one line and leaves the room below. */
+    .hero-calm {
+        padding: 14px 20px;
+    }
+
+    .hero-calm .hero-title {
+        flex: 0 1 auto;
+        font-size: var(--text-xl);
+    }
+
+    .hero-stamp {
+        font-size: var(--text-xs);
+        color: var(--muted);
+        font-feature-settings: 'tnum' 1;
     }
 
     @media (max-width: 720px) {
@@ -238,6 +242,7 @@
         .hero-body {
             padding-left: 0;
         }
+
 
         .hero-item-link {
             grid-template-columns: auto minmax(0, 1fr);
@@ -297,6 +302,10 @@
         justify-content: space-between;
         gap: 8px 12px;
         margin-bottom: 20px;
+    }
+
+    .dash-tools[hidden] {
+        display: none;
     }
 
     .arrange-bar {
@@ -409,13 +418,6 @@
         align-items: center;
         gap: 8px 12px;
         margin-top: 24px;
-    }
-
-    .quick-actions {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 8px 12px;
     }
 
     /* Services card. */

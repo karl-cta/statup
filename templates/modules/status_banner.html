@@ -13,11 +13,16 @@
     </div>
 </section>
 {% else %}
-<section class="hero{% if tone != "neutral" %} hero-alert{% endif %}" data-tone="{{ tone }}" aria-labelledby="status-headline">
-    <h2 id="status-headline" class="hero-title">
-        <span class="ring-dot" data-tone="{% if tone == "neutral" %}ok{% else %}{{ tone }}{% endif %}" aria-hidden="true"></span>
-        <span>{{ headline }}</span>
-    </h2>
+<section class="hero{% if tone != "neutral" %} hero-alert{% endif %}{% if self.is_calm() %} hero-calm{% endif %}" data-tone="{{ tone }}" aria-labelledby="status-headline">
+    <div class="hero-top">
+        <h2 id="status-headline" class="hero-title">
+            <span class="ring-dot" data-tone="{% if tone == "neutral" %}ok{% else %}{{ tone }}{% endif %}" aria-hidden="true"></span>
+            <span>{{ headline }}</span>
+        </h2>
+        {% if self.is_calm() %}
+        <p class="hero-stamp"><span data-stamp>{{ refreshed_at }}</span> <span data-stale hidden>{{ i18n.t("banner.refresh_lost") }}</span></p>
+        {% endif %}
+    </div>
 
     {% if !rows.is_empty() %}
     <ul class="hero-list">
@@ -51,9 +56,10 @@
     </p>
     {% endif %}
 
+    {% if !self.is_calm() %}
     <div class="hero-foot">
         <p><span data-stamp>{{ refreshed_at }}</span> <span data-stale hidden>{{ i18n.t("banner.refresh_lost") }}</span></p>
-        <a class="hero-follow" href="/subscribe">{% call ui::feed_icon() %}{{ i18n.t("banner.follow_updates") }}</a>
     </div>
+    {% endif %}
 </section>
 {% endif %}

@@ -2,9 +2,12 @@
 <section class="card" aria-labelledby="activity-title">
     <header class="card-head">
         <h2 id="activity-title" class="card-title">{{ i18n.t("dashboard.activity") }}</h2>
-        {% if !groups.is_empty() %}
-        <a href="/events" class="card-action">{{ i18n.t("dashboard.view_all") }}</a>
-        {% endif %}
+        <div class="card-actions">
+            <a href="/subscribe" class="card-action card-follow">{% call ui::feed_icon() %}{{ i18n.t("dashboard.follow") }}</a>
+            {% if !groups.is_empty() %}
+            <a href="/events" class="card-action">{{ i18n.t("dashboard.view_all") }}</a>
+            {% endif %}
+        </div>
     </header>
 
     {% if groups.is_empty() %}

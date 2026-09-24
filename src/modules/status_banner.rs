@@ -80,6 +80,11 @@ struct StatusBannerTemplate {
 }
 
 impl StatusBannerTemplate {
+    /// Everything runs and nothing is coming: the banner holds on one line.
+    fn is_calm(&self) -> bool {
+        self.tone == "neutral" && self.rows.is_empty() && self.next_maintenance.is_none()
+    }
+
     /// The latest word on the worst work under way, however many services
     /// it touches.
     fn lead_update(&self) -> Option<(&str, Option<&str>)> {

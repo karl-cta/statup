@@ -1224,3 +1224,17 @@ async fn language_switch_is_saved_on_the_account() {
         .expect("user not found");
     assert_eq!(user.preferred_locale.as_deref(), Some("en"));
 }
+
+/// On a page open to everyone, signing out leaves the reader on it rather
+/// than at a sign-in form they no longer need.
+#[tokio::test]
+async fn signing_out_of_an_open_page_lands_on_it() {
+    let app = TestApp::spawn_public().await;
+    seed_admin(&app).await;
+    app.login(OWNER_EMAIL, OWNER_PASSWORD).await;
+
+    let csrf = app.csrf_from("/profile").await;
+    let (status, _body, location) = app.post_form("/logout", &csrf, &[]).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/"));
+}
