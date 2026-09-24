@@ -57,7 +57,7 @@ pub fn build(
         .collect();
     entries.extend(milestones.into_iter().map(|m| milestone_entry(m, i18n)));
     entries.push(opening_entry(event, description_html, author, i18n));
-    entries.sort_by(|a, b| b.at.cmp(&a.at));
+    entries.sort_by_key(|entry| std::cmp::Reverse(entry.at));
     entries
 }
 
