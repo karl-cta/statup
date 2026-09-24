@@ -154,10 +154,10 @@ impl I18n {
         self.tf(key, &as_refs(&date_args(*date, month)))
     }
 
-    /// "mercredi 16 septembre 2026", the masthead dateline.
+    /// "mercredi 16 sept.", the masthead dateline.
     pub fn format_dateline(&self, date: &NaiveDate) -> String {
         let weekday = self.t(weekday_key(date.weekday().number_from_monday()));
-        let month = self.t(month_key("month", date.month()));
+        let month = self.t(month_key("month_short", date.month()));
         let mut args = date_args(*date, month);
         args.push(("weekday", weekday.to_string()));
         self.tf("date.dateline", &as_refs(&args))
@@ -427,14 +427,8 @@ mod tests {
     #[test]
     fn dateline_names_the_weekday() {
         let date = NaiveDate::from_ymd_opt(2026, 9, 16).unwrap();
-        assert_eq!(
-            I18n::new("fr").format_dateline(&date),
-            "mercredi 16 septembre 2026"
-        );
-        assert_eq!(
-            I18n::new("en").format_dateline(&date),
-            "Wednesday, September 16, 2026"
-        );
+        assert_eq!(I18n::new("fr").format_dateline(&date), "mercredi 16 sept.");
+        assert_eq!(I18n::new("en").format_dateline(&date), "Wednesday, Sep 16");
     }
 
     #[test]

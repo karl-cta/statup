@@ -11,17 +11,6 @@
     <a href="#main" class="skip-link">{{ i18n.t("nav.skip_to_content") }}</a>
 
     <header class="mast" data-tabs="{{ frame.tab_count() }}">
-        <div class="mast-strip">
-            <div class="mast-strip-inner">
-                <p class="mast-top-left">
-                    <span>{{ frame.dateline }}</span>
-                    <span class="mast-zone" data-clock-offset="{{ frame.clock_offset }}">{{ frame.zone }}</span>
-                </p>
-                <p class="mast-top-right">
-                    <a class="mast-lang" href="/i18n?locale={{ i18n.other_locale() }}" hreflang="{{ i18n.other_locale() }}" lang="{{ i18n.other_locale() }}">{{ i18n.t("lang.other") }}</a>
-                </p>
-            </div>
-        </div>
         <div class="mast-inner">
             <div class="mast-title-cell">
                 {# The host's own name takes the wordmark's place; the accented
@@ -53,21 +42,24 @@
                 {% endif %}
                 <span class="mnav-spacer"></span>
                 <div class="mnav-tools">
-                    <button type="button" class="mnav-tool" data-theme-toggle aria-pressed="false" aria-label="{{ i18n.t("nav.dark_theme") }}">
-                        {% include "components/theme_icons.html" %}
-                        <span class="mnav-tool-label">{{ i18n.t("nav.theme") }}</span>
-                    </button>
+                    <p class="mast-clock" data-clock-offset="{{ frame.clock_offset }}">
+                        <span class="mast-clock-date">{{ frame.dateline }}&nbsp;<span aria-hidden="true">·</span> </span><strong data-clock-time>{{ frame.clock_time }}</strong> <span class="mast-clock-zone">{{ frame.zone }}</span>
+                    </p>
+                    {% include "components/mast_switches.html" %}
                     {% if frame.is_authenticated %}
-                    <a class="mnav-tool mnav-tool-user" href="/profile"><span class="sr-only">{{ i18n.t("nav.profile") }}, </span><span>{{ frame.user_name }}</span></a>
-                    <form method="post" action="/logout">
-                        <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                        <button type="submit" class="mnav-tool" aria-label="{{ i18n.t("nav.logout") }}">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11"/></svg>
-                            <span class="mnav-tool-label">{{ i18n.t("nav.logout") }}</span>
-                        </button>
-                    </form>
+                    <details class="more-actions user-menu" data-more-actions>
+                        <summary class="mnav-tool mnav-user"><span class="avatar" aria-hidden="true">{{ frame.user_initial }}</span><span class="mnav-user-name">{{ frame.user_name }}</span>{% call ui::caret_icon() %}</summary>
+                        <div class="more-actions-menu user-menu-list">
+                            <p class="user-menu-who"><strong>{{ frame.user_name }}</strong><span>{{ frame.role_label }}</span></p>
+                            <a class="more-actions-item" href="/profile">{{ i18n.t("nav.profile") }}</a>
+                            <form method="post" action="/logout">
+                                <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                                <button type="submit" class="more-actions-item">{{ i18n.t("nav.logout") }}</button>
+                            </form>
+                        </div>
+                    </details>
                     {% else %}
-                    <a class="mnav-tool" href="/login">{{ i18n.t("nav.login") }}</a>
+                    <a class="mnav-tool mnav-login" href="/login">{{ i18n.t("nav.login") }}</a>
                     {% endif %}
                 </div>
                 <button type="button" class="mast-burger" data-menu-toggle aria-expanded="false" aria-controls="mast-menu">
@@ -94,8 +86,9 @@
                 <a class="mast-menu-item" data-nav="admin" href="/admin/settings">{{ i18n.t("nav.admin") }}</a>
                 {% endif %}
             </nav>
-            <div class="mast-menu-list">
-                <button type="button" class="mast-menu-item" data-theme-toggle aria-pressed="false">{{ i18n.t("nav.dark_theme") }}</button>
+            <div class="mast-menu-list mast-menu-prefs">
+                <p class="mast-menu-clock">{{ frame.dateline }}&nbsp;<span aria-hidden="true">·</span> <span data-clock-time>{{ frame.clock_time }}</span> {{ frame.zone }}</p>
+                {% include "components/mast_switches.html" %}
             </div>
             <div class="mast-menu-list">
                 {% if frame.is_authenticated %}

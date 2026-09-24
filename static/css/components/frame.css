@@ -80,55 +80,6 @@
         text-overflow: ellipsis;
     }
 
-    /* The strip: the day, the zone and the other language, full width. */
-    .mast-strip {
-        border-bottom: 1px solid var(--line);
-    }
-
-    .mast-strip-inner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        max-width: 1320px;
-        min-height: 26px;
-        margin: 0 auto;
-        padding: 0 16px;
-        font-size: var(--text-xs);
-        font-weight: 500;
-        color: var(--muted);
-        font-feature-settings: 'tnum' 1;
-    }
-
-    .mast-strip-inner p {
-        display: flex;
-        align-items: center;
-        min-width: 0;
-        margin: 0;
-    }
-
-    .mast-top-left {
-        white-space: nowrap;
-    }
-
-    .mast-zone {
-        margin-left: 8px;
-        font-weight: 400;
-    }
-
-    .mast-lang {
-        display: inline-flex;
-        align-items: center;
-        min-height: 24px;
-        padding: 0 2px;
-        color: var(--muted);
-        transition: color 150ms ease;
-    }
-
-    .mast-lang:hover {
-        color: var(--ink);
-    }
-
     .mast-nav {
         display: flex;
         flex: 1;
@@ -210,7 +161,7 @@
         display: flex;
         flex: none;
         align-items: center;
-        gap: 2px;
+        gap: 14px;
     }
 
     .mnav-tool {
@@ -238,19 +189,142 @@
         flex: none;
     }
 
-    .mnav-tool-user {
-        max-width: 140px;
+    .mnav-tools form {
+        display: contents;
+    }
+
+    /* The instance's day and time, read at a glance, in its zone. */
+    .mast-clock {
+        font-size: var(--text-xs);
+        color: var(--muted);
+        white-space: nowrap;
+        font-feature-settings: 'tnum' 1;
+    }
+
+    .mast-clock strong {
+        font-weight: 600;
         color: var(--ink);
     }
 
-    .mnav-tool-user span {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+    /* The language and the theme: one small button each, showing the
+       current choice. */
+    .switches {
+        display: flex;
+        align-items: center;
+        gap: 2px;
     }
 
-    .mnav-tools form {
-        display: contents;
+    .mast-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 28px;
+        padding: 0 7px;
+        font-size: var(--text-xs);
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: var(--muted);
+        border-radius: 4px;
+        transition: color 150ms ease, background-color 150ms ease;
+    }
+
+    .mast-switch:hover {
+        color: var(--ink);
+        background: var(--surface-hover);
+    }
+
+    .mast-switch svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .theme-now-dark,
+    .dark .theme-now-light {
+        display: none;
+    }
+
+    .dark .theme-now-dark {
+        display: block;
+    }
+
+    @media (pointer: coarse) {
+        .mast-switch {
+            min-width: 44px;
+            height: 44px;
+            justify-content: center;
+        }
+    }
+
+    /* The member's name opens their profile and the way out. */
+    .user-menu > summary {
+        list-style: none;
+        cursor: pointer;
+    }
+
+    .user-menu > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .mnav-user {
+        max-width: 200px;
+        padding: 0 8px 0 4px;
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .mnav-user .avatar {
+        display: inline-grid;
+        flex: none;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        font-size: var(--text-xs);
+        font-weight: 700;
+        color: var(--ink);
+        background: var(--surface-subtle);
+        border-radius: 50%;
+    }
+
+    .mnav-user-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .user-menu-list {
+        top: calc(100% + 8px);
+        min-width: 220px;
+    }
+
+    .user-menu-who {
+        display: grid;
+        gap: 2px;
+        margin-bottom: 4px;
+        padding: 6px 10px 10px;
+        font-size: var(--text-sm);
+        border-bottom: 1px solid var(--line);
+    }
+
+    .user-menu-who span {
+        font-size: var(--text-xs);
+        color: var(--muted);
+    }
+
+    .mnav-login {
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .mast-menu-prefs {
+        gap: 12px;
+        padding-top: 14px;
+        padding-bottom: 14px;
+    }
+
+    .mast-menu-clock {
+        font-size: var(--text-sm);
+        color: var(--muted);
+        font-feature-settings: 'tnum' 1;
     }
 
     .theme-icon-light {
@@ -352,26 +426,30 @@
         display: contents;
     }
 
-    /* Three modes: tabs and labelled tools; tabs and tools as icons, with a
-       menu for the rest; everything in the menu. The room each needs grows
-       with the number of tabs (two to four), measured in French, the longer
-       language, with an unread count and a long member name. The menu shows
-       for as long as the burger does. */
+    /* Three modes: tabs and tools on the line; tabs on the line and the
+       tools in the menu; everything in the menu. The room tabs need grows
+       with their number (two to four), measured in French, the longer
+       language. The menu shows for as long as the burger does. */
     @media (min-width: 640px) {
-        .mast-inner,
-        .mast-strip-inner {
+        .mast-inner {
             padding: 0 24px;
         }
     }
 
     @media (min-width: 1024px) {
-        .mast-inner,
-        .mast-strip-inner {
+        .mast-inner {
             padding: 0 40px;
         }
     }
 
-    @media (max-width: 960px) {
+    /* The day leaves first, then the tools go into the menu. */
+    @media (max-width: 1149px) {
+        .mast-clock-date {
+            display: none;
+        }
+    }
+
+    @media (max-width: 1099px) {
         .mast-title {
             font-size: var(--text-2xl);
         }
@@ -380,8 +458,7 @@
             padding: 0 12px;
         }
 
-        .mnav-tool-label,
-        .mnav-tool-user {
+        .mast-nav > .mnav-tools {
             display: none;
         }
 
@@ -390,39 +467,9 @@
         }
     }
 
-    @media (min-width: 961px) {
+    @media (min-width: 1100px) {
         .mast-menu {
             display: none;
-        }
-    }
-
-    @media (min-width: 961px) and (max-width: 1159px) {
-        .mast[data-tabs="4"] .mnav-tool-label,
-        .mast[data-tabs="4"] .mnav-tool-user {
-            display: none;
-        }
-
-        .mast[data-tabs="4"] .mast-burger {
-            display: inline-flex;
-        }
-
-        .mast[data-tabs="4"] .mast-menu {
-            display: block;
-        }
-    }
-
-    @media (min-width: 961px) and (max-width: 1019px) {
-        .mast[data-tabs="3"] .mnav-tool-label,
-        .mast[data-tabs="3"] .mnav-tool-user {
-            display: none;
-        }
-
-        .mast[data-tabs="3"] .mast-burger {
-            display: inline-flex;
-        }
-
-        .mast[data-tabs="3"] .mast-menu {
-            display: block;
         }
     }
 

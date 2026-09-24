@@ -36,12 +36,18 @@ pub fn members_only(
 pub struct Frame {
     pub csrf_token: String,
     pub user_name: String,
+    /// The first letter of the name, on the masthead's round mark.
+    pub user_initial: String,
+    /// "Administrator", under the name in its menu.
+    pub role_label: String,
     pub is_authenticated: bool,
     pub can_publish: bool,
     pub is_admin: bool,
     pub unread_count: i64,
     pub unread_label: String,
     pub dateline: String,
+    /// The instance clock when the page was drawn; a script keeps it going.
+    pub clock_time: String,
     /// "UTC+2", the instance zone.
     pub zone: String,
     pub clock_offset: i32,
@@ -68,12 +74,20 @@ impl Frame {
         Ok(Self {
             csrf_token,
             user_name: user.map(|u| u.display_name.clone()).unwrap_or_default(),
+            user_initial: user
+                .and_then(|u| u.display_name.chars().next())
+                .map(|c| c.to_uppercase().collect())
+                .unwrap_or_default(),
+            role_label: user
+                .map(|u| i18n.t(u.role.i18n_key()).to_string())
+                .unwrap_or_default(),
             is_authenticated: user.is_some(),
             can_publish: user.is_some_and(|u| u.role.can_publish()),
             is_admin: user.is_some_and(|u| u.role.can_admin()),
             unread_count,
             unread_label: i18n.plural("nav.unread", usize::try_from(unread_count).unwrap_or(0)),
             dateline: i18n.format_dateline(&clock::today()),
+            clock_time: i18n.format_time(&now),
             zone: clock::offset_label(&now),
             clock_offset: clock::offset_minutes(&now),
         })

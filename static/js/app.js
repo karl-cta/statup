@@ -166,6 +166,21 @@
         return zone ? Number(zone.dataset.clockOffset) || 0 : 0;
     }
 
+    // The masthead clock reads the instance's time, in the page's language.
+    function tickClock() {
+        const shown = document.querySelectorAll("[data-clock-time]");
+        if (!shown.length) return;
+        const at = new Date(Date.now() + clockOffset() * 60000);
+        const minutes = String(at.getUTCMinutes()).padStart(2, "0");
+        const hours = at.getUTCHours();
+        const text = root.lang.startsWith("fr")
+            ? `${String(hours).padStart(2, "0")}:${minutes}`
+            : `${hours % 12 || 12}:${minutes} ${hours < 12 ? "AM" : "PM"}`;
+        shown.forEach((element) => {
+            if (element.textContent !== text) element.textContent = text;
+        });
+    }
+
     function instanceDay() {
         return Math.floor((Date.now() + clockOffset() * 60000) / 86400000);
     }
@@ -622,6 +637,8 @@
     function onReady() {
         markCurrentSection();
         syncThemeButtons();
+        tickClock();
+        window.setInterval(tickClock, 15000);
         startLiveRefresh();
         hideBrokenImages(document);
         document.querySelectorAll("form[data-autosubmit] [data-apply]").forEach((button) => {
