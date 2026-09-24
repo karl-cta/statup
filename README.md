@@ -41,7 +41,7 @@ Statup is **pre-v1**. It is usable and self-hostable, and the interface is being
 ### Why Statup
 
 - **Small footprint.** Templates, translations and migrations are compiled into the binary. SQLite in WAL mode; no Redis, no Postgres.
-- **Secure defaults.** Argon2id password hashing, CSRF tokens on every form, a Content Security Policy that allows the instance's own files only, rate limits on pages and on sign-in, parameterized SQL, sanitized Markdown and SVG. See [SECURITY.md](SECURITY.md) for reporting a problem.
+- **Secure defaults.** Argon2id password hashing, CSRF tokens on every form, a Content Security Policy that allows the instance's own files only, rate limits on pages and on sign-in, parameterized SQL, sanitized Markdown and SVG. See [SECURITY.md](.github/SECURITY.md) for reporting a problem.
 - **Server-rendered.** Askama templates, htmx for the parts that update in place, a few small scripts, no JavaScript framework.
 - **Private.** Fonts and scripts are served by the instance: a visitor's browser never calls a third party.
 
