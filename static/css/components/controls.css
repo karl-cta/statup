@@ -178,6 +178,95 @@
         color: var(--sem-crit-text);
     }
 
+    /* The length rule, a ring that fills once the password is long enough. */
+    .password-rule {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .rule-mark {
+        position: relative;
+        flex: none;
+        width: 12px;
+        height: 12px;
+        border: 1px solid var(--edge-input);
+        border-radius: 50%;
+        transition: background-color 150ms ease, border-color 150ms ease;
+    }
+
+    .rule-mark::after {
+        content: "";
+        position: absolute;
+        top: 1px;
+        left: 3.5px;
+        width: 3px;
+        height: 6px;
+        border: solid var(--on-primary);
+        border-width: 0 1.5px 1.5px 0;
+        opacity: 0;
+        transform: rotate(45deg);
+        transition: opacity 150ms ease;
+    }
+
+    .password-rule[data-met="true"] {
+        color: var(--ink);
+    }
+
+    .password-rule[data-met="true"] .rule-mark {
+        background: var(--sem-ok-text);
+        border-color: var(--sem-ok-text);
+    }
+
+    .password-rule[data-met="true"] .rule-mark::after {
+        opacity: 1;
+    }
+
+    /* A button inside the field shows what is typed. */
+    .password-field {
+        position: relative;
+    }
+
+    .password-field .input {
+        padding-right: 38px;
+    }
+
+    .password-toggle {
+        position: absolute;
+        top: 50%;
+        right: 3px;
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        color: var(--muted);
+        background: none;
+        border: 0;
+        border-radius: 4px;
+        transform: translateY(-50%);
+        transition: color 150ms ease;
+    }
+
+    .password-toggle:hover {
+        color: var(--ink);
+    }
+
+    .password-toggle:focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 0;
+    }
+
+    .password-toggle svg {
+        width: 17px;
+        height: 17px;
+    }
+
+    .password-toggle[hidden],
+    .password-toggle[aria-pressed="true"] .password-hidden-icon,
+    .password-toggle[aria-pressed="false"] .password-shown-icon {
+        display: none;
+    }
+
     /* Fields are quiet: a hair shorter than a button, the text of a line,
        an edge that still reads 3:1 against the ground. */
     .input {

@@ -26,6 +26,7 @@
   "auth.display_name": "Name",
   "auth.password_confirm": "Confirm the password",
   "auth.password_hint": "At least 12 characters.",
+  "auth.show_password": "Show password",
   "auth.new_password_title": "New password",
   "auth.new_password_heading": "Choose your password",
   "auth.new_password_intro": "The password you were given was only temporary. Choose your own to continue.",

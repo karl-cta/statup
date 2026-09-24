@@ -26,6 +26,7 @@
   "auth.display_name": "Nom",
   "auth.password_confirm": "Confirmer le mot de passe",
   "auth.password_hint": "12 caractères au moins.",
+  "auth.show_password": "Afficher le mot de passe",
   "auth.new_password_title": "Nouveau mot de passe",
   "auth.new_password_heading": "Choisissez votre mot de passe",
   "auth.new_password_intro": "Le mot de passe qu'on vous a transmis n'était que provisoire. Choisissez le vôtre pour continuer.",

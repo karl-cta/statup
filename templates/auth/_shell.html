@@ -5,6 +5,10 @@
 <meta name="csrf-token" content="{{ csrf_token }}">
 {% endblock %}
 
+{% block scripts %}
+<script src="{{ crate::asset("js/password.js") }}" defer></script>
+{% endblock %}
+
 {% block body %}
 <div class="auth-page">
     <header class="auth-tools">

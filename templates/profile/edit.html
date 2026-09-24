@@ -3,6 +3,10 @@
 
 {% block title %}{{ i18n.t("profile.title") }} | {{ crate::brand_name() }}{% endblock %}
 
+{% block scripts %}
+<script src="{{ crate::asset("js/password.js") }}" defer></script>
+{% endblock %}
+
 {% block content %}
 <div class="page">
     <header class="page-head">
@@ -56,16 +60,25 @@
                     <input type="email" name="username" autocomplete="username" value="{{ email }}" hidden>
                     <div class="field">
                         <label for="current_password" class="field-label">{{ i18n.t("profile.current_password") }}</label>
-                        <input id="current_password" name="current_password" type="password" class="input" required autocomplete="current-password">
+                        <div class="password-field">
+                            <input id="current_password" name="current_password" type="password" class="input" required autocomplete="current-password">
+                            {% include "components/password_toggle.html" %}
+                        </div>
                     </div>
                     <div class="field">
                         <label for="new_password" class="field-label">{{ i18n.t("profile.new_password") }}</label>
-                        <input id="new_password" name="new_password" type="password" class="input" required minlength="12" autocomplete="new-password" aria-describedby="new-password-hint">
-                        <p id="new-password-hint" class="field-hint">{{ i18n.t("auth.password_hint") }}</p>
+                        <div class="password-field">
+                            <input id="new_password" name="new_password" type="password" class="input" required minlength="12" autocomplete="new-password" aria-describedby="new-password-hint">
+                            {% include "components/password_toggle.html" %}
+                        </div>
+                        <p id="new-password-hint" class="field-hint password-rule" data-password-rule><span class="rule-mark" aria-hidden="true"></span>{{ i18n.t("auth.password_hint") }}</p>
                     </div>
                     <div class="field">
                         <label for="new_password_confirm" class="field-label">{{ i18n.t("profile.confirm_password") }}</label>
-                        <input id="new_password_confirm" name="new_password_confirm" type="password" class="input" required minlength="12" autocomplete="new-password">
+                        <div class="password-field">
+                            <input id="new_password_confirm" name="new_password_confirm" type="password" class="input" required minlength="12" autocomplete="new-password">
+                            {% include "components/password_toggle.html" %}
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-ghost">{{ i18n.t("profile.submit_password") }}</button>
                 </form>

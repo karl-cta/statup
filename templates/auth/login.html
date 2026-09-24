@@ -18,7 +18,10 @@
     </div>
     <div class="field">
         <label for="password" class="field-label">{{ i18n.t("auth.password") }}</label>
-        <input id="password" name="password" type="password" class="input" required autocomplete="current-password"{% if error.is_some() %} aria-invalid="true" aria-describedby="form-error" autofocus{% endif %}>
+        <div class="password-field">
+            <input id="password" name="password" type="password" class="input" required autocomplete="current-password"{% if error.is_some() %} aria-invalid="true" aria-describedby="form-error" autofocus{% endif %}>
+            {% include "components/password_toggle.html" %}
+        </div>
     </div>
     <label class="check-row">
         <input id="remember_me" name="remember_me" type="checkbox" class="checkbox" value="on" checked>

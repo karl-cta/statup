@@ -76,7 +76,7 @@
     [role="button"],
     select,
     summary,
-    label[for] {
+    label:has(input[type="checkbox"], input[type="radio"]) {
         cursor: pointer;
     }
 
