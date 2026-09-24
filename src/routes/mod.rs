@@ -17,6 +17,7 @@ mod page;
 mod password;
 mod profile;
 mod services;
+mod setup;
 mod timeline;
 
 use std::any::Any;
@@ -185,16 +186,23 @@ fn publisher_routes() -> Router<AppState> {
         .route("/icons/:id/delete", post(icons::delete))
 }
 
-/// The only routes that accept a file.
+/// The only routes that accept a file. The first launch's page step sends
+/// its logo along with its other fields.
 fn upload_routes() -> Router<AppState> {
     Router::new()
         .route("/icons/upload", post(icons::upload))
         .route("/icons/upload-picker", post(icons::upload_picker))
         .route("/admin/settings/logo", post(admin::update_logo))
+        .route("/setup/page", get(setup::page_form).post(setup::save_page))
 }
 
 fn admin_routes() -> Router<AppState> {
     Router::new()
+        .route(
+            "/setup/services",
+            get(setup::services_form).post(setup::save_services),
+        )
+        .route("/setup/done", get(setup::done))
         .route("/admin/settings", get(admin::settings_page))
         .route(
             "/admin/settings/public-mode",

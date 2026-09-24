@@ -16,6 +16,7 @@ use tower_sessions::Session;
 
 use super::locale::locale_cookie;
 use super::render;
+use super::setup::{Preview, Progress};
 use crate::clock;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
@@ -35,7 +36,6 @@ struct RegisterErrors {
     name: Option<String>,
     email: Option<String>,
     password: Option<String>,
-    confirm: Option<String>,
     form: Option<String>,
 }
 
@@ -44,7 +44,6 @@ impl RegisterErrors {
         self.name.is_none()
             && self.email.is_none()
             && self.password.is_none()
-            && self.confirm.is_none()
             && self.form.is_none()
     }
 
@@ -56,8 +55,6 @@ impl RegisterErrors {
             "email"
         } else if self.password.is_some() {
             "password"
-        } else if self.confirm.is_some() {
-            "password_confirm"
         } else {
             "display_name"
         }
@@ -86,15 +83,16 @@ struct LoginTemplate {
     i18n: I18n,
 }
 
+/// The first step of the first launch.
 #[derive(Template)]
 #[template(path = "auth/register.html")]
 struct RegisterTemplate {
     csrf_token: String,
+    progress: Progress,
+    preview: Preview,
     errors: RegisterErrors,
     email: String,
     display_name: String,
-    instance: String,
-    powered_by: bool,
     i18n: I18n,
 }
 
@@ -115,8 +113,6 @@ pub struct RegisterInput {
     display_name: String,
     #[serde(default)]
     password: String,
-    #[serde(default)]
-    password_confirm: String,
     /// The zone the browser reports, filled in by script.
     #[serde(default)]
     time_zone: String,
@@ -261,20 +257,20 @@ fn closed_door_redirect(user: Option<&User>) -> Response {
     Redirect::to(target).into_response()
 }
 
-fn render_register(
+async fn render_register(
+    state: &AppState,
     csrf_token: String,
     i18n: I18n,
     errors: RegisterErrors,
     input: RegisterInput,
 ) -> Result<Response, AppError> {
-    let (instance, powered_by) = instance_title();
     render(&RegisterTemplate {
         csrf_token,
+        progress: Progress { step: 1 },
+        preview: Preview::load(state).await?,
         errors,
         email: input.email,
         display_name: input.display_name,
-        instance,
-        powered_by,
         i18n,
     })
 }
@@ -295,10 +291,9 @@ pub async fn register_form(
         email: String::new(),
         display_name: String::new(),
         password: String::new(),
-        password_confirm: String::new(),
         time_zone: String::new(),
     };
-    render_register(csrf_token, i18n, RegisterErrors::default(), blank)
+    render_register(&state, csrf_token, i18n, RegisterErrors::default(), blank).await
 }
 
 /// Signed out, a reader of an open page lands back on it.
@@ -326,8 +321,6 @@ fn check_register_input(input: &RegisterInput, i18n: &I18n) -> Result<String, Re
     }
     if AuthService::validate_password(&input.password).is_err() {
         errors.password = message("validation.password_min_length");
-    } else if input.password != input.password_confirm {
-        errors.confirm = message("validation.passwords_mismatch");
     }
     if errors.is_empty() {
         Ok(name)
@@ -364,7 +357,7 @@ pub async fn register(
     }
     let name = match check_register_input(&input, &i18n) {
         Ok(name) => name,
-        Err(errors) => return render_register(csrf_token, i18n, errors, input),
+        Err(errors) => return render_register(&state, csrf_token, i18n, errors, input).await,
     };
     let created =
         AuthService::create_first_admin(&state.pool, &input.email, &input.password, &name).await;
@@ -372,12 +365,12 @@ pub async fn register(
         Ok(Some(admin)) => {
             adopt_browser_zone(&state, &input.time_zone).await?;
             open_session(&session, &admin, false).await?;
-            Ok(Redirect::to("/").into_response())
+            Ok(Redirect::to("/setup/page").into_response())
         }
         Ok(None) => Ok(closed_door_redirect(user.as_ref())),
         Err(AppError::Validation(key)) => {
             let errors = RegisterErrors::from_service(&key, &i18n);
-            render_register(csrf_token, i18n, errors, input)
+            render_register(&state, csrf_token, i18n, errors, input).await
         }
         Err(e) => Err(e),
     }

@@ -1,52 +1,41 @@
-{% extends "auth/_shell.html" %}
+{% extends "setup/_shell.html" %}
+{% import "components/macros.html" as ui %}
 
-{% block title %}{{ i18n.t("auth.register_title") }} | {{ instance }}{% endblock %}
+{% block title %}{{ i18n.t("auth.register_title") }} | {{ crate::brand_name() }}{% endblock %}
 
-{% block auth_head %}
-<h1 class="auth-title">{{ i18n.t("auth.welcome_heading") }}</h1>
-<p class="auth-intro">{{ i18n.t("auth.welcome_intro") }}</p>
-<ol class="setup-steps">
-    <li class="setup-step" aria-current="step"><span class="setup-step-num" aria-hidden="true">1</span><span class="setup-step-name">{{ i18n.t("auth.step_account") }}</span><span class="setup-step-now">{{ i18n.t("auth.step_now") }}</span></li>
-    <li class="setup-step"><span class="setup-step-num" aria-hidden="true">2</span><span class="setup-step-name">{{ i18n.t("auth.step_services") }}</span></li>
-    <li class="setup-step"><span class="setup-step-num" aria-hidden="true">3</span><span class="setup-step-name">{{ i18n.t("auth.step_page") }}</span></li>
-</ol>
-{% endblock %}
-
-{% block auth_body %}
-<form method="post" action="/register" class="auth-form">
+{% block step %}
+<form method="post" action="/register" class="setup-form">
     <input type="hidden" name="time_zone" value="" data-browser-zone>
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    {% if let Some(message) = errors.form %}
-    <div id="form-error" class="form-error" role="alert"><p>{{ message }}</p></div>
-    {% endif %}
-    <div class="field">
-        <label for="display_name" class="field-label">{{ i18n.t("auth.display_name") }}</label>
-        <input id="display_name" name="display_name" type="text" class="input" required maxlength="100" autocomplete="name" value="{{ display_name }}"{% if errors.name.is_some() %} aria-invalid="true" aria-describedby="name-error"{% endif %}{% if errors.focus() == "display_name" %} autofocus{% endif %}>
-        {% if let Some(message) = errors.name %}<p id="name-error" class="field-error" role="alert">{{ message }}</p>{% endif %}
-    </div>
-    <div class="field">
-        <label for="email" class="field-label">{{ i18n.t("auth.email") }}</label>
-        <input id="email" name="email" type="email" class="input" required autocomplete="email" value="{{ email }}"{% if errors.email.is_some() %} aria-invalid="true" aria-describedby="email-error"{% endif %}{% if errors.focus() == "email" %} autofocus{% endif %}>
-        {% if let Some(message) = errors.email %}<p id="email-error" class="field-error" role="alert">{{ message }}</p>{% endif %}
-    </div>
-    <div class="field">
-        <label for="password" class="field-label">{{ i18n.t("auth.password") }}</label>
-        <div class="password-field">
-            <input id="password" name="password" type="password" class="input" required minlength="12" autocomplete="new-password" aria-describedby="password-hint{% if errors.password.is_some() %} password-error{% endif %}"{% if errors.password.is_some() %} aria-invalid="true"{% endif %}{% if errors.focus() == "password" %} autofocus{% endif %}>
-            {% include "components/password_toggle.html" %}
+    <h1 class="setup-title">{{ i18n.t("auth.welcome_heading") }}</h1>
+    <p class="setup-lede">{{ i18n.t("setup.account_lede") }}</p>
+    <div class="setup-body">
+        {% if let Some(message) = errors.form %}
+        <div id="form-error" class="form-error" role="alert"><p>{{ message }}</p></div>
+        {% endif %}
+        <div class="field">
+            <label for="display_name" class="field-label">{{ i18n.t("auth.display_name") }}</label>
+            <input id="display_name" name="display_name" type="text" class="input" required maxlength="100" autocomplete="username" placeholder="{{ i18n.t("setup.name_placeholder") }}" value="{{ display_name }}"{% if errors.name.is_some() %} aria-invalid="true" aria-describedby="name-error"{% endif %}{% if errors.focus() == "display_name" %} autofocus{% endif %}>
+            {% if let Some(message) = errors.name %}<p id="name-error" class="field-error" role="alert">{{ message }}</p>{% endif %}
         </div>
-        <p id="password-hint" class="field-hint password-rule" data-password-rule><span class="rule-mark" aria-hidden="true"></span>{{ i18n.t("auth.password_hint") }}</p>
-        {% if let Some(message) = errors.password %}<p id="password-error" class="field-error" role="alert">{{ message }}</p>{% endif %}
-    </div>
-    <div class="field">
-        <label for="password_confirm" class="field-label">{{ i18n.t("auth.password_confirm") }}</label>
-        <div class="password-field">
-            <input id="password_confirm" name="password_confirm" type="password" class="input" required minlength="12" autocomplete="new-password"{% if errors.confirm.is_some() %} aria-invalid="true" aria-describedby="confirm-error"{% endif %}{% if errors.focus() == "password_confirm" %} autofocus{% endif %}>
-            {% include "components/password_toggle.html" %}
+        <div class="field">
+            <label for="email" class="field-label">{{ i18n.t("auth.email") }}</label>
+            <input id="email" name="email" type="email" class="input" required autocomplete="email" placeholder="{{ i18n.t("setup.email_placeholder") }}" value="{{ email }}"{% if errors.email.is_some() %} aria-invalid="true" aria-describedby="email-error"{% endif %}{% if errors.focus() == "email" %} autofocus{% endif %}>
+            {% if let Some(message) = errors.email %}<p id="email-error" class="field-error" role="alert">{{ message }}</p>{% endif %}
         </div>
-        {% if let Some(message) = errors.confirm %}<p id="confirm-error" class="field-error" role="alert">{{ message }}</p>{% endif %}
+        <div class="field">
+            <label for="password" class="field-label">{{ i18n.t("auth.password") }}</label>
+            <div class="password-field">
+                <input id="password" name="password" type="password" class="input" required minlength="12" autocomplete="new-password" aria-describedby="password-hint{% if errors.password.is_some() %} password-error{% endif %}"{% if errors.password.is_some() %} aria-invalid="true"{% endif %}{% if errors.focus() == "password" %} autofocus{% endif %}>
+                {% include "components/password_toggle.html" %}
+            </div>
+            <p id="password-hint" class="field-hint password-rule" data-password-rule><span class="rule-mark" aria-hidden="true"></span>{{ i18n.t("auth.password_hint") }}</p>
+            {% if let Some(message) = errors.password %}<p id="password-error" class="field-error" role="alert">{{ message }}</p>{% endif %}
+        </div>
     </div>
-    <button type="submit" class="btn btn-primary">{{ i18n.t("auth.first_account_submit") }}</button>
+    <div class="setup-foot">
+        <span></span>
+        <button type="submit" class="btn btn-primary">{{ i18n.t("setup.continue") }}{% call ui::arrow_right() %}</button>
+    </div>
 </form>
-<p class="auth-alt">{{ i18n.t("auth.first_account_intro") }}</p>
 {% endblock %}

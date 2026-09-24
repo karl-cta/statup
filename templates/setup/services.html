@@ -1,0 +1,39 @@
+{% extends "setup/_shell.html" %}
+{% import "components/macros.html" as ui %}
+
+{% block title %}{{ i18n.t("setup.services_title") }} | {{ crate::brand_name() }}{% endblock %}
+
+{% block step %}
+<form method="post" action="/setup/services" class="setup-form" data-setup-services>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <h1 class="setup-title">{{ i18n.t("setup.services_title") }}</h1>
+    <p class="setup-lede">{{ i18n.t("setup.services_lede") }}</p>
+    <div class="setup-body">
+        {% if let Some(message) = error %}
+        <div id="form-error" class="form-error" role="alert"><p>{{ message }}</p></div>
+        {% endif %}
+        <div class="setup-add">
+            <label for="custom" class="sr-only">{{ i18n.t("setup.custom_label") }}</label>
+            <input id="custom" name="custom" type="text" class="input" maxlength="100" autocomplete="off" placeholder="{{ i18n.t("setup.custom_label") }}" data-setup-custom>
+            <button type="button" class="btn btn-ghost" data-setup-add hidden>{% call ui::plus() %}{{ i18n.t("setup.add") }}</button>
+        </div>
+        <fieldset class="setup-suggest">
+            <legend class="label">{{ i18n.t("setup.suggested") }}</legend>
+            <div class="setup-chips" data-setup-chips>
+                {% for suggestion in suggestions %}
+                <label class="setup-chip">
+                    <input type="checkbox" name="services" value="{{ suggestion.label }}" class="sr-only"{% if suggestion.taken %} checked disabled{% endif %}>
+                    <svg class="setup-chip-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="setup-chip-plus" d="M12 5v14M5 12h14"/><path class="setup-chip-check" d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+                    <span>{{ suggestion.label }}</span>
+                    <svg class="setup-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden>{% for path in suggestion.icon_paths() %}<path d="{{ path }}"/>{% endfor %}</svg>
+                </label>
+                {% endfor %}
+            </div>
+        </fieldset>
+    </div>
+    <div class="setup-foot">
+        <a href="/setup/page" class="text-action">{{ i18n.t("setup.back") }}</a>
+        <button type="submit" class="btn btn-primary">{{ i18n.t("setup.continue") }}{% call ui::arrow_right() %}</button>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "setup/_shell.html" %}
+{% import "components/macros.html" as ui %}
+
+{% block title %}{{ i18n.t("setup.done_title") }} | {{ crate::brand_name() }}{% endblock %}
+
+{% block step %}
+<div class="setup-form" data-setup-done>
+    <h1 class="setup-title">{{ i18n.t("setup.done_title") }}</h1>
+    <p class="setup-lede">{{ i18n.t("setup.done_lede") }}</p>
+    <div class="setup-body">
+        <div class="setup-address">
+            <label for="page-address" class="sr-only">{{ i18n.t("banner.step_share_address") }}</label>
+            <input id="page-address" class="setup-address-value" type="text" value="{{ address }}" readonly data-select-on-focus>
+            <button type="button" class="btn btn-ghost" data-copy="#page-address" data-copied="{{ i18n.t("banner.address_copied") }}">{{ i18n.t("setup.copy") }}</button>
+        </div>
+        <ul class="setup-next">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6Z"/></svg>{{ i18n.t("setup.next_incident") }}</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></svg>{{ i18n.t("setup.next_team") }}</li>
+        </ul>
+    </div>
+    <div class="setup-foot">
+        <a href="/setup/services" class="text-action">{{ i18n.t("setup.back") }}</a>
+        <a href="/" class="btn btn-primary">{{ i18n.t("setup.open_dashboard") }}{% call ui::arrow_right() %}</a>
+    </div>
+</div>
+{% endblock %}

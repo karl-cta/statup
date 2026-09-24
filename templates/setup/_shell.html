@@ -1,0 +1,46 @@
+{# The first launch: the step on the left under its progress, the page it
+   builds on the right. Every step is its own page; the browser glides from
+   one to the next where it can. #}
+{% extends "base.html" %}
+
+{% block head %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+<link rel="stylesheet" href="{{ crate::asset("css/setup-transitions.css") }}">
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ crate::asset("js/password.js") }}" defer></script>
+<script src="{{ crate::asset("js/setup.js") }}" defer></script>
+{% endblock %}
+
+{% block body %}
+<div class="setup">
+    <main id="main" class="setup-side">
+        <div class="setup-top">
+            {% let logo_size = "setup-mark" %}
+            {% include "components/logo.html" %}
+            {% include "components/mast_switches.html" %}
+        </div>
+        <nav class="setup-progress" aria-label="{{ i18n.t("setup.progress") }}">
+            <ol>
+                {% for (key, state) in progress.steps() %}
+                <li class="setup-progress-step {{ state }}"{% if state == "is-current" %} aria-current="step"{% endif %}>
+                    <span class="setup-progress-bar" aria-hidden="true"></span>
+                    <span class="setup-progress-name">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+                        {{ i18n.t(key) }}{% if state == "is-done" %}<span class="sr-only">, {{ i18n.t("setup.step_done") }}</span>{% endif %}
+                    </span>
+                </li>
+                {% endfor %}
+            </ol>
+        </nav>
+        <div class="setup-stage">
+            {% block step %}{% endblock %}
+        </div>
+    </main>
+    <aside class="setup-preview" aria-label="{{ i18n.t("setup.preview") }}">
+        <p class="setup-preview-caption" aria-hidden="true">{{ i18n.t("setup.preview") }}</p>
+        {% include "setup/_preview.html" %}
+    </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "setup/_shell.html" %}
+{% import "components/macros.html" as ui %}
+
+{% block title %}{{ i18n.t("setup.page_title") }} | {{ crate::brand_name() }}{% endblock %}
+
+{% block step %}
+<form method="post" action="/setup/page" enctype="multipart/form-data" class="setup-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <h1 class="setup-title">{{ i18n.t("setup.page_title") }}</h1>
+    <p class="setup-lede">{{ i18n.t("setup.page_lede") }}</p>
+    <div class="setup-body">
+        {% if let Some(message) = error %}
+        <div id="form-error" class="form-error" role="alert"><p>{{ message }}</p></div>
+        {% endif %}
+        <div class="field">
+            <label for="instance_name" class="field-label">{{ i18n.t("setup.name_label") }} <span class="field-note">{{ i18n.t("common.optional") }}</span></label>
+            <input id="instance_name" name="instance_name" type="text" class="input" maxlength="40" autocomplete="organization" placeholder="{{ i18n.t("admin.instance_name_placeholder") }}" value="{{ instance_name }}" data-setup-name>
+        </div>
+        <div class="field">
+            <span id="logo-label" class="field-label">{{ i18n.t("admin.logo") }} <span class="field-note">{{ i18n.t("common.optional") }}</span></span>
+            <label class="setup-logo">
+                <input type="file" name="file" class="sr-only" accept="image/png,image/jpeg,image/webp,image/svg+xml" aria-labelledby="logo-label" data-setup-logo>
+                <span class="setup-logo-thumb" data-setup-logo-thumb>
+                    {% if let Some(url) = preview.logo_url %}<img src="{{ url }}" alt="">{% else %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-5-5-8 8.5"/></svg>{% endif %}
+                </span>
+                <span class="setup-logo-copy">
+                    <span class="setup-logo-cta" data-setup-logo-cta>{% if preview.logo_url.is_some() %}{{ i18n.t("admin.logo_replace") }}{% else %}{{ i18n.t("setup.logo_choose") }}{% endif %}</span>
+                    <span class="setup-logo-hint">{{ i18n.t("icons.upload_hint_short") }} {{ crate::models::MAX_ICON_SIZE / 1024 }}&nbsp;{{ i18n.t("units.kb") }}</span>
+                </span>
+            </label>
+        </div>
+        <fieldset class="setup-access">
+            <legend class="field-label">{{ i18n.t("admin.public_mode") }}</legend>
+            <label class="setup-access-choice">
+                <input type="radio" name="access" value="members" class="sr-only"{% if !preview.public_mode %} checked{% endif %} data-setup-access>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>
+                <span class="setup-access-name">{{ i18n.t("admin.access_members") }}</span>
+                <span class="setup-access-text">{{ i18n.t("setup.access_members_text") }}</span>
+            </label>
+            <label class="setup-access-choice">
+                <input type="radio" name="access" value="everyone" class="sr-only"{% if preview.public_mode %} checked{% endif %} data-setup-access>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
+                <span class="setup-access-name">{{ i18n.t("admin.access_everyone") }}</span>
+                <span class="setup-access-text">{{ i18n.t("setup.access_everyone_text") }}</span>
+            </label>
+        </fieldset>
+    </div>
+    <div class="setup-foot">
+        <span></span>
+        <button type="submit" class="btn btn-primary">{{ i18n.t("setup.continue") }}{% call ui::arrow_right() %}</button>
+    </div>
+</form>
+{% endblock %}

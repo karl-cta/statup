@@ -27,14 +27,17 @@ async fn create_first_account(app: &TestApp, email: &str, password: &str, name: 
             &[
                 ("email", email),
                 ("password", password),
-                ("password_confirm", password),
                 ("display_name", name),
             ],
         )
         .await;
 
     assert_eq!(status, StatusCode::SEE_OTHER, "register should redirect");
-    assert_eq!(location.as_deref(), Some("/"));
+    assert_eq!(
+        location.as_deref(),
+        Some("/setup/page"),
+        "the first launch goes on to the page step"
+    );
     csrf
 }
 
@@ -71,32 +74,6 @@ async fn first_account_then_login_then_protected_then_logout() {
         status,
         StatusCode::SEE_OTHER,
         "should redirect to login after logout"
-    );
-}
-
-#[tokio::test]
-async fn register_password_mismatch() {
-    let app = TestApp::spawn().await;
-
-    let csrf = app.csrf_from("/register").await;
-    let (status, body, location) = app
-        .post_form(
-            "/register",
-            &csrf,
-            &[
-                ("email", "bob@example.com"),
-                ("password", "secure_password_123"),
-                ("password_confirm", "different_password_456"),
-                ("display_name", "Bob"),
-            ],
-        )
-        .await;
-
-    assert_eq!(status, StatusCode::OK, "should re-render form on error");
-    assert!(location.is_none());
-    assert!(
-        body.contains("pas identiques"),
-        "should show password mismatch error"
     );
 }
 
@@ -262,7 +239,6 @@ async fn register_password_too_short() {
             &[
                 ("email", "short@example.com"),
                 ("password", "short"),
-                ("password_confirm", "short"),
                 ("display_name", "Short"),
             ],
         )
@@ -488,7 +464,6 @@ async fn registration_is_closed_once_an_account_exists() {
                 &[
                     ("email", "intruder@example.com"),
                     ("password", "intruder_password"),
-                    ("password_confirm", "intruder_password"),
                     ("display_name", "Intruder"),
                 ],
             )

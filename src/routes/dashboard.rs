@@ -233,7 +233,7 @@ pub async fn subscribe(
 }
 
 /// Address visitors use: `PUBLIC_URL`, or the host they asked for.
-fn origin(state: &AppState, headers: &HeaderMap) -> String {
+pub(super) fn origin(state: &AppState, headers: &HeaderMap) -> String {
     if let Some(url) = &state.public_url {
         return url.clone();
     }

@@ -22,7 +22,6 @@ async fn register_from(app: &TestApp, zone: &str) {
             &[
                 ("email", EMAIL),
                 ("password", PASSWORD),
-                ("password_confirm", PASSWORD),
                 ("display_name", "Owner"),
                 ("time_zone", zone),
             ],

@@ -1,0 +1,53 @@
+/* Loaded by the first-launch pages only: moving from one step to the next
+   is a navigation the browser animates. The step slides, the progress and
+   the preview stay in place and change in it. */
+@view-transition {
+    navigation: auto;
+}
+
+.setup-stage {
+    view-transition-name: setup-step;
+}
+
+.setup-progress {
+    view-transition-name: setup-progress;
+}
+
+.sheet {
+    view-transition-name: setup-sheet;
+}
+
+::view-transition-old(setup-step) {
+    animation: setup-step-out 180ms ease-in both;
+}
+
+::view-transition-new(setup-step) {
+    animation: setup-step-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+::view-transition-group(setup-sheet) {
+    animation-duration: 420ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes setup-step-out {
+    to {
+        opacity: 0;
+        transform: translateX(-16px);
+    }
+}
+
+@keyframes setup-step-in {
+    from {
+        opacity: 0;
+        transform: translateX(28px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none;
+    }
+}

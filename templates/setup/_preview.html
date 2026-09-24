@@ -1,0 +1,41 @@
+{% import "components/macros.html" as ui %}
+{# The page as it will look, filled from what is saved and, on the page and
+   services steps, from what is being typed. #}
+<div class="sheet" data-sheet>
+    <div class="sheet-mast">
+        {% if let Some(url) = preview.logo_url %}
+        <img class="sheet-logo" src="{{ url }}" alt="" data-sheet-logo>
+        {% else %}
+        {% let logo_size = "sheet-mark" %}
+        <span data-sheet-mark>{% include "components/logo.html" %}</span>
+        {% endif %}
+        <span class="sheet-name" data-sheet-name>{% match preview.custom_name %}{% when Some with (name) %}{{ name }}{% when None %}Statu<span class="sheet-name-last">p</span>{% endmatch %}</span>
+        <span class="sheet-tab is-on">{{ i18n.t("nav.dashboard") }}</span>
+        <span class="sheet-tab">{{ i18n.t("nav.events") }}</span>
+        <span class="sheet-access" data-sheet-access data-open="{{ i18n.t("setup.preview_open") }}" data-closed="{{ i18n.t("setup.preview_closed") }}">
+            {% if preview.public_mode %}{{ i18n.t("setup.preview_open") }}{% else %}{{ i18n.t("setup.preview_closed") }}{% endif %}
+        </span>
+    </div>
+    <div class="sheet-body">
+        <div class="sheet-banner">
+            <span class="sheet-ring{% if preview.services.is_empty() %} is-quiet{% endif %}" data-sheet-ring></span>
+            <span data-sheet-banner data-none="{{ i18n.t("setup.preview_none") }}" data-one="{{ i18n.t("setup.preview_one") }}" data-all="{{ i18n.t("setup.preview_all") }}">{% if preview.services.is_empty() %}{{ i18n.t("setup.preview_none") }}{% else if preview.services.len() == 1 %}{{ i18n.t("setup.preview_one") }}{% else %}{{ i18n.t("setup.preview_all") }}{% endif %}</span>
+        </div>
+        <div class="sheet-card">
+            <div class="sheet-card-head">{{ i18n.t("modules.services.name") }}</div>
+            <ul class="sheet-list" data-sheet-list data-state="{{ i18n.t("status.service.operational") }}" data-more="{{ i18n.t("setup.preview_more") }}">
+                <li class="sheet-empty" data-sheet-empty{% if !preview.services.is_empty() %} hidden{% endif %}><strong>{{ i18n.t("setup.preview_empty_title") }}</strong>{{ i18n.t("setup.preview_empty_text") }}</li>
+                {% for service in preview.services %}
+                <li class="sheet-svc" data-name="{{ service.name }}">
+                    <span class="sheet-svc-name"><span class="sheet-svc-icon">{% call ui::service_icon(service) %}</span>{{ service.name }}</span>
+                    <span class="sheet-svc-state">{{ i18n.t("status.service.operational") }}</span>
+                    <span class="sheet-bars" aria-hidden="true">{% for _ in 0..29 %}<i></i>{% endfor %}<i class="is-on"></i></span>
+                </li>
+                {% endfor %}
+                {% if preview.more > 0 %}
+                <li class="sheet-more" data-sheet-more data-count="{{ preview.more }}">{{ preview.more_label(i18n) }}</li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>

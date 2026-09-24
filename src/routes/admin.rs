@@ -560,7 +560,7 @@ pub struct InstanceNameInput {
 }
 
 /// The message key refusing a name, if any.
-fn instance_name_refusal(name: &str) -> Option<&'static str> {
+pub(super) fn instance_name_refusal(name: &str) -> Option<&'static str> {
     if name.chars().count() > INSTANCE_NAME_MAX_CHARS {
         Some("validation.instance_name_too_long")
     } else if name.chars().any(char::is_control) {
@@ -587,8 +587,7 @@ pub async fn update_instance_name(
         return render_settings(&state, &admin, csrf_token, i18n, page).await;
     }
 
-    SettingsRepository::set(&state.pool, "instance_name", name).await?;
-    crate::set_instance_name(name);
+    save_instance_name(&state, name).await?;
     tracing::info!(
         admin_id = admin.id,
         instance_name = name,
@@ -659,6 +658,22 @@ pub async fn update_time_zone(
     Ok(Redirect::to("/admin/settings?zone=1").into_response())
 }
 
+/// The name shown in place of Statup, checked by `instance_name_refusal`.
+pub(super) async fn save_instance_name(state: &AppState, name: &str) -> Result<(), AppError> {
+    SettingsRepository::set(&state.pool, "instance_name", name).await?;
+    crate::set_instance_name(name);
+    Ok(())
+}
+
+/// The database is written first: memory never holds a choice a restart
+/// would lose.
+pub(super) async fn save_public_mode(state: &AppState, public: bool) -> Result<(), AppError> {
+    let stored = if public { "true" } else { "false" };
+    SettingsRepository::set(&state.pool, "public_mode", stored).await?;
+    state.set_public_mode(public);
+    Ok(())
+}
+
 #[derive(Deserialize)]
 pub struct AccessInput {
     #[serde(default)]
@@ -666,8 +681,7 @@ pub struct AccessInput {
 }
 
 /// Who can read the page: the two choices are the state and the action at
-/// once, so the handler sets rather than toggles. The database is written
-/// first: memory never holds a choice a restart would lose.
+/// once, so the handler sets rather than toggles.
 pub async fn set_public_access(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
@@ -678,9 +692,7 @@ pub async fn set_public_access(
         "members" => false,
         _ => return Err(validation("validation.unknown_access")),
     };
-    let stored = if public { "true" } else { "false" };
-    SettingsRepository::set(&state.pool, "public_mode", stored).await?;
-    state.set_public_mode(public);
+    save_public_mode(&state, public).await?;
 
     tracing::info!(
         admin_id = admin.id,
