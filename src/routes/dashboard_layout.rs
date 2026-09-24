@@ -69,7 +69,7 @@ pub struct WidthForm {
     width: String,
 }
 
-/// Gives a module one share, two shares, or a row of its own.
+/// Gives a module a quarter of the row, half of it, or a row of its own.
 pub async fn set_width(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,

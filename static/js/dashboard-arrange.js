@@ -136,12 +136,14 @@
         cell.parentElement.insertBefore(drag.cell, anchor);
     }
 
+    // While arranging, the whole card picks the block up, except its size
+    // and hide buttons.
     live.addEventListener("pointerdown", (event) => {
-        const handle = event.target.closest("[data-drag-handle]");
-        if (!handle || drag || (event.pointerType === "mouse" && event.button !== 0)) return;
+        const cell = arranging() ? event.target.closest(".dash-cell[data-module-id]") : null;
+        if (!cell || event.target.closest("[data-size], [data-hide]")) return;
+        if (drag || (event.pointerType === "mouse" && event.button !== 0)) return;
         event.preventDefault();
-        const cell = handle.closest(".dash-cell[data-module-id]");
-        handle.setPointerCapture(event.pointerId);
+        cell.setPointerCapture(event.pointerId);
         drag = { cell, pointerId: event.pointerId, startOrder: orderKey() };
         cell.classList.add("is-dragging");
     });
@@ -182,14 +184,14 @@
     });
 
     live.addEventListener("click", (event) => {
-        const size = event.target.closest("[data-size]");
-        if (size) {
-            setWidth(size.closest(".dash-cell[data-module-id]"), size.dataset.size);
-            return;
-        }
         const hide = event.target.closest("[data-hide]");
         if (hide) {
             setShown(hide.closest(".dash-cell[data-module-id]").dataset.moduleId, false);
+            return;
+        }
+        const size = event.target.closest("[data-size]");
+        if (size) {
+            setWidth(size.closest(".dash-cell[data-module-id]"), size.dataset.size);
             return;
         }
         const show = event.target.closest("[data-show]");

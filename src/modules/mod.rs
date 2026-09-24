@@ -41,9 +41,9 @@ impl ModuleRenderContext<'_> {
 pub enum ColumnWidth {
     /// Full width: the pinned banner, or a module given its own row.
     Full,
-    /// Two shares of the row.
+    /// Half the row.
     Wide,
-    /// One share of the row.
+    /// A quarter of the row.
     Narrow,
 }
 

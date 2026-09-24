@@ -269,24 +269,22 @@
         container-type: inline-size;
     }
 
-    /* A module takes one share of the row, two, or a row of its own. */
+    /* Four columns: a module takes a quarter, a half, or a row of its own,
+       and keeps that width whatever its neighbours take. The default layout,
+       a quarter, a half and a quarter, fills one row. */
     @media (min-width: 1024px) {
         .dash-row {
-            flex-direction: row;
-            flex-wrap: wrap;
-            align-items: flex-start;
-        }
-
-        .dash-cell {
-            flex: 1 1 0;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            align-items: start;
         }
 
         .dash-cell[data-width="wide"] {
-            flex: 2 1 0;
+            grid-column: span 2;
         }
 
         .dash-cell[data-width="full"] {
-            flex: 0 0 100%;
+            grid-column: 1 / -1;
         }
     }
 
@@ -311,43 +309,94 @@
         margin-left: auto;
     }
 
-    /* The tools above a block, in arrange mode only. */
+    /* Arranging: the whole card is picked up, its content set aside, its
+       tools laid over the right of its header. */
+    .is-arranging .dash-cell[data-module-id] {
+        position: relative;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+    }
+
+    .is-arranging .dash-cell[data-module-id] > .card {
+        pointer-events: none;
+    }
+
+    /* The card's own links step aside for its tools. */
+    .is-arranging .dash-cell[data-module-id] .card-head > :not(:first-child) {
+        display: none;
+    }
+
+    /* The title keeps the room the tools leave, cut short on a narrow card. */
+    .is-arranging .dash-cell[data-module-id] .card-head {
+        padding-right: 150px;
+    }
+
+    .is-arranging .dash-cell[data-module-id] .card-title {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .is-arranging .dash-cell[data-module-id] > .card {
+        outline: 1px dashed var(--line-strong);
+        outline-offset: 3px;
+    }
+
     .cell-tools {
+        position: absolute;
+        top: 9px;
+        right: 10px;
+        z-index: 1;
         display: flex;
-        flex-wrap: wrap;
         align-items: center;
-        gap: 6px 10px;
-        margin-bottom: 8px;
-        padding: 6px 8px;
-        border: 1px dashed var(--line-strong);
-        border-radius: 6px;
+        gap: 6px;
+        padding-left: 12px;
+        background: var(--card);
     }
 
+    /* The card itself is picked up by the pointer; the handle stays for the
+       keyboard and shows only when it has the focus. */
     .cell-tools .row-handle {
-        height: 32px;
+        position: absolute;
+        right: 100%;
+        width: 1px;
+        height: 1px;
         margin: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
     }
 
-    .cell-tools-name {
-        font-size: var(--text-sm);
-        font-weight: 600;
-        color: var(--ink);
+    .cell-tools .row-handle:focus-visible {
+        position: static;
+        width: auto;
+        height: 26px;
+        overflow: visible;
+        clip-path: none;
     }
 
     .cell-sizes {
         display: flex;
-        margin-left: auto;
+        flex: none;
     }
 
     .cell-size {
-        min-height: 28px;
-        padding: 0 10px;
-        font-size: var(--text-xs);
-        font-weight: 500;
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 26px;
         color: var(--muted);
         background: var(--raised);
         border: 1px solid var(--edge-input);
+        cursor: pointer;
         transition: color 150ms ease, background-color 150ms ease;
+    }
+
+    .cell-size svg {
+        width: 17px;
+        height: 12px;
     }
 
     .cell-size + .cell-size {
@@ -374,8 +423,30 @@
         border-color: var(--primary);
     }
 
+    .cell-hide {
+        display: grid;
+        flex: none;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        color: var(--muted);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: color 150ms ease;
+    }
+
+    .cell-hide svg {
+        width: 17px;
+        height: 17px;
+    }
+
+    .cell-hide:hover {
+        color: var(--sem-crit-text);
+    }
+
     .dash-cell.is-dragging {
         opacity: 0.6;
+        cursor: grabbing;
     }
 
     .arrange-add {
