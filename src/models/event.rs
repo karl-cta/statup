@@ -56,16 +56,14 @@ pub fn derive_status(kind: Kind, severity: Option<Severity>) -> Option<ServiceSt
 }
 
 /// Whether an event in `lifecycle` sets the state of its services: an
-/// incident until it is under watch, a maintenance while it runs. The same
-/// rule as `EventRepository::status_drivers`.
-pub fn drives_services(kind: Kind, lifecycle: Option<Lifecycle>) -> bool {
-    matches!(
-        (kind, lifecycle),
-        (
-            Kind::Incident,
-            Some(Lifecycle::Investigating | Lifecycle::InProgress)
-        ) | (Kind::Maintenance, Some(Lifecycle::InProgress))
-    )
+/// incident until it is under watch, a maintenance while it runs unless it
+/// keeps them up. The same rule as `EventRepository::status_drivers`.
+pub fn drives_services(kind: Kind, lifecycle: Option<Lifecycle>, keeps_services_up: bool) -> bool {
+    match (kind, lifecycle) {
+        (Kind::Incident, Some(Lifecycle::Investigating | Lifecycle::InProgress)) => true,
+        (Kind::Maintenance, Some(Lifecycle::InProgress)) => !keeps_services_up,
+        _ => false,
+    }
 }
 
 impl ServiceTag {
@@ -435,6 +433,8 @@ pub struct Event {
     pub previous_lifecycle: Option<Lifecycle>,
     /// The maintenance this announcement follows.
     pub follows_event_id: Option<i64>,
+    /// Maintenance its services stay up through.
+    pub keeps_services_up: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -536,6 +536,7 @@ pub struct EventSummary {
     pub planned_end: Option<DateTime<Utc>>,
     pub started_at: Option<DateTime<Utc>>,
     pub ended_at: Option<DateTime<Utc>>,
+    pub keeps_services_up: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub author_id: i64,
@@ -577,7 +578,7 @@ impl EventSummary {
     /// reads as a service at a glance; while the event sets their state,
     /// each says what it does to them.
     pub fn service_tags(&self, i18n: &I18n) -> Vec<ServiceTag> {
-        let effect = drives_services(self.kind, self.lifecycle)
+        let effect = drives_services(self.kind, self.lifecycle, self.keeps_services_up)
             .then(|| derive_status(self.kind, self.severity))
             .flatten()
             .map(|status| i18n.t(status.i18n_key()).to_lowercase());
@@ -720,6 +721,8 @@ pub struct CreateEventInput {
     pub started_at: Option<DateTime<Utc>>,
     /// The step an incident its author already works on opens at.
     pub opening_step: Option<Lifecycle>,
+    /// Maintenance its services stay up through.
+    pub keeps_services_up: bool,
     pub service_ids: Vec<i64>,
     pub follows_event_id: Option<i64>,
     pub author_id: i64,
@@ -841,20 +844,21 @@ mod tests {
 
     #[test]
     fn only_work_under_way_says_what_it_does_to_its_services() {
-        assert!(drives_services(Kind::Incident, Some(Lifecycle::InProgress)));
+        let under_way = Some(Lifecycle::InProgress);
+        assert!(drives_services(Kind::Incident, under_way, false));
         assert!(!drives_services(
             Kind::Incident,
-            Some(Lifecycle::Monitoring)
+            Some(Lifecycle::Monitoring),
+            false
         ));
-        assert!(drives_services(
-            Kind::Maintenance,
-            Some(Lifecycle::InProgress)
-        ));
+        assert!(drives_services(Kind::Maintenance, under_way, false));
+        assert!(!drives_services(Kind::Maintenance, under_way, true));
         assert!(!drives_services(
             Kind::Maintenance,
-            Some(Lifecycle::Scheduled)
+            Some(Lifecycle::Scheduled),
+            false
         ));
-        assert!(!drives_services(Kind::Publication, None));
+        assert!(!drives_services(Kind::Publication, None, false));
     }
 
     fn summary(
@@ -877,6 +881,7 @@ mod tests {
             ended_at: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+            keeps_services_up: false,
             author_id: 1,
             service_names: String::new(),
             service_icons: String::new(),
@@ -898,6 +903,7 @@ mod tests {
             planned_end: None,
             started_at: None,
             opening_step: None,
+            keeps_services_up: false,
             service_ids: vec![],
             follows_event_id: None,
             author_id: 1,
@@ -1100,6 +1106,7 @@ mod tests {
             follows_event_id: None,
             author_id: 1,
             previous_lifecycle: None,
+            keeps_services_up: false,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };

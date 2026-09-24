@@ -211,6 +211,12 @@
                         </div>
                         {% endif %}
                         {% if edit_id.is_none() %}
+                        <div class="reveal-row{% if form.kind_is("maintenance") %} is-open{% endif %}" data-for-kind="maintenance">
+                            <label class="check-row">
+                                <input type="checkbox" name="keeps_services_up" value="on" class="checkbox"{% if form.keeps_services_up %} checked{% endif %}>
+                                <span>{{ i18n.t("events.keeps_services_up") }} <span class="field-note">{{ i18n.t("events.keeps_services_up_note") }}</span></span>
+                            </label>
+                        </div>
                         <label class="check-row">
                             <input type="checkbox" name="save_as_template" value="on" class="checkbox">
                             <span>{{ i18n.t("events.save_as_template") }}</span>
@@ -272,6 +278,7 @@
     "incident_critical": {{ i18n.t("consequence.incident_critical")|json|safe }},
     "incident_monitoring": {{ i18n.t("consequence.incident_monitoring")|json|safe }},
     "maintenance_planned": {{ i18n.t("consequence.maintenance_planned")|json|safe }},
+    "maintenance_up": {{ i18n.t("consequence.maintenance_up")|json|safe }},
     "maintenance_now": {{ i18n.t("consequence.maintenance_now")|json|safe }},
     "no_services": {{ i18n.t("consequence.no_services")|json|safe }},
     "services_many": {{ i18n.t("consequence.services_many")|json|safe }},

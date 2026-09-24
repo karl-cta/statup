@@ -543,6 +543,34 @@ async fn an_incident_opens_at_the_chosen_step() {
     }
 }
 
+/// Maintenance without downtime leaves its services up while it runs;
+/// ordinary maintenance puts them under maintenance.
+#[tokio::test]
+async fn maintenance_without_downtime_keeps_its_services_up() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+
+    for (keeps_up, expected) in [
+        (true, ServiceStatus::Operational),
+        (false, ServiceStatus::Maintenance),
+    ] {
+        let service_id = app.create_service(&format!("Service {keeps_up}")).await;
+        let mut fields = vec![
+            ("title", format!("Work, keeps up: {keeps_up}")),
+            ("kind", "maintenance".to_string()),
+        ];
+        if keeps_up {
+            fields.push(("keeps_services_up", "on".to_string()));
+        }
+        app.submit_create_event(fields, &[service_id]).await;
+        assert_eq!(
+            app.service(service_id).await.status,
+            expected,
+            "keeps up: {keeps_up}"
+        );
+    }
+}
+
 /// A refused creation re-renders the form with everything the author typed.
 #[tokio::test]
 async fn rejected_event_creation_gives_the_input_back() {

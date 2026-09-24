@@ -658,6 +658,8 @@ pub struct EventInput {
     started_at: String,
     #[serde(default, deserialize_with = "deserialize_blank_as_none")]
     opening_step: Option<Lifecycle>,
+    #[serde(default)]
+    keeps_services_up: Option<String>,
     #[serde(default, deserialize_with = "deserialize_blank_as_none_id")]
     follows_event_id: Option<i64>,
 }
@@ -696,6 +698,11 @@ impl EventInput {
             .flatten()
     }
 
+    /// Only a maintenance may leave its services up.
+    fn keeps_services_up(&self, kind: Kind) -> bool {
+        kind == Kind::Maintenance && self.keeps_services_up.is_some()
+    }
+
     /// The step an incident is declared at; only an incident has one.
     fn opening_step(&self, kind: Kind) -> Option<Lifecycle> {
         (kind == Kind::Incident)
@@ -722,6 +729,8 @@ pub struct EventFormData {
     pub started_at: String,
     /// The step an incident being declared opens at.
     pub opening_step: Option<Lifecycle>,
+    /// A maintenance being announced that leaves its services up.
+    pub keeps_services_up: bool,
     pub follows_event_id: Option<i64>,
 }
 
@@ -763,6 +772,7 @@ impl EventFormData {
             start_locked: false,
             started_at: String::new(),
             opening_step: None,
+            keeps_services_up: false,
             follows_event_id: None,
         }
     }
@@ -783,6 +793,7 @@ impl EventFormData {
             start_locked: false,
             started_at: String::new(),
             opening_step: None,
+            keeps_services_up: false,
             follows_event_id: Some(ews.event.id),
         }
     }
@@ -811,6 +822,7 @@ impl EventFormData {
             start_locked: maintenance && event.started_at.is_some(),
             started_at: String::new(),
             opening_step: None,
+            keeps_services_up: false,
             follows_event_id: event.follows_event_id,
         }
     }
@@ -820,6 +832,7 @@ impl EventFormData {
             severity: input.severity(kind),
             category: input.category(kind),
             opening_step: input.opening_step(kind),
+            keeps_services_up: input.keeps_services_up(kind),
             planned,
             kind,
             title: input.title,
@@ -997,6 +1010,7 @@ pub async fn create(
         planned_end: input.end().filter(|_| kind == Kind::Maintenance),
         started_at: input.began(kind),
         opening_step: input.opening_step(kind),
+        keeps_services_up: input.keeps_services_up(kind),
         service_ids: input.service_ids.clone(),
         follows_event_id: input.follows_event_id,
         author_id: user.id,

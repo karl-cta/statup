@@ -17,7 +17,7 @@ use crate::models::{
 
 const SUMMARY_COLUMNS: &str = "e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
      e.title, e.description, e.planned_start, e.planned_end, e.started_at, e.ended_at, \
-     e.created_at, e.updated_at, e.author_id, \
+     e.keeps_services_up, e.created_at, e.updated_at, e.author_id, \
      COALESCE((SELECT GROUP_CONCAT(s.name, char(31) ORDER BY s.name) \
                FROM event_services es JOIN services s ON s.id = es.service_id \
                WHERE es.event_id = e.id), '') AS service_names, \
@@ -47,8 +47,9 @@ impl EventRepository {
         let mut tx = pool.begin().await?;
         let event = sqlx::query_as::<_, Event>(
             "INSERT INTO events (kind, severity, planned, lifecycle, category, title, \
-             description, planned_start, planned_end, started_at, follows_event_id, author_id) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
+             description, planned_start, planned_end, started_at, follows_event_id, author_id, \
+             keeps_services_up) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
         )
         .bind(input.kind)
         .bind(input.severity)
@@ -62,6 +63,7 @@ impl EventRepository {
         .bind(input.initial_started_at().map(clock::db))
         .bind(input.follows_event_id)
         .bind(input.author_id)
+        .bind(input.kind == Kind::Maintenance && input.keeps_services_up)
         .fetch_one(&mut *tx)
         .await?;
         link_services(&mut tx, event.id, &input.service_ids).await?;
@@ -203,7 +205,8 @@ impl EventRepository {
         sqlx::query_as::<_, EventSummary>(&format!(
             "SELECT {SUMMARY_COLUMNS}, {LATEST_UPDATE_COLUMNS} FROM events e \
              WHERE (e.kind = 'incident' AND e.lifecycle IN ('investigating', 'in_progress')) \
-                OR (e.kind = 'maintenance' AND e.lifecycle = 'in_progress') \
+                OR (e.kind = 'maintenance' AND e.lifecycle = 'in_progress' \
+                    AND NOT e.keeps_services_up) \
              ORDER BY CASE e.severity WHEN 'critical' THEN 2 WHEN 'minor' THEN 1 ELSE 0 END DESC, \
                       e.created_at DESC"
         ))
@@ -252,7 +255,8 @@ impl EventRepository {
              INNER JOIN event_services es ON es.event_id = e.id \
              WHERE es.service_id = ? \
                AND ((e.kind = 'incident' AND e.lifecycle IN ('investigating', 'in_progress')) \
-                 OR (e.kind = 'maintenance' AND e.lifecycle = 'in_progress'))",
+                 OR (e.kind = 'maintenance' AND e.lifecycle = 'in_progress' \
+                     AND NOT e.keeps_services_up))",
         )
         .bind(service_id)
         .fetch_all(pool)
@@ -587,6 +591,7 @@ mod tests {
             planned_end: None,
             started_at: None,
             opening_step: None,
+            keeps_services_up: false,
             service_ids,
             follows_event_id: None,
             author_id,
@@ -609,6 +614,7 @@ mod tests {
             planned_end: Some(start + chrono::Duration::hours(1)),
             started_at: None,
             opening_step: None,
+            keeps_services_up: false,
             service_ids,
             follows_event_id: None,
             author_id,

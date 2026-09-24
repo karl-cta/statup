@@ -296,6 +296,7 @@ mod tests {
             ended_at: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+            keeps_services_up: false,
             author_id: 1,
             service_names: services.to_string(),
             service_icons: String::new(),

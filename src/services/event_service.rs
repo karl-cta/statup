@@ -354,6 +354,7 @@ mod tests {
             restored_at: None,
             author_id: 1,
             previous_lifecycle: None,
+            keeps_services_up: false,
             follows_event_id: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),

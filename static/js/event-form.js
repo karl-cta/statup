@@ -69,6 +69,7 @@
         if (names.length === 0) return { text: copy.no_services, tone: "" };
         const services = joinNames(names);
         if (kind === "maintenance") {
+            if (form.querySelector('input[name="keeps_services_up"]:checked')) return { text: fill(copy.maintenance_up, services), tone: "ok" };
             const key = start && start.value ? "maintenance_planned" : "maintenance_now";
             return { text: fill(copy[key], services), tone: "info" };
         }
