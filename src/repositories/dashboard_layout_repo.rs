@@ -89,6 +89,25 @@ impl DashboardLayoutRepository {
         Ok(())
     }
 
+    /// Stores what an administrator unticked in a module's settings.
+    pub async fn set_hidden(
+        pool: &DbPool,
+        module_id: &str,
+        hidden: &[String],
+    ) -> Result<(), sqlx::Error> {
+        let values = serde_json::to_string(hidden).unwrap_or_else(|_| "[]".to_string());
+        sqlx::query(
+            "UPDATE dashboard_layouts \
+             SET config = json_set(config, '$.hide', json(?)), updated_at = datetime('now') \
+             WHERE user_id IS NULL AND module_id = ?",
+        )
+        .bind(values)
+        .bind(module_id)
+        .execute(pool)
+        .await?;
+        Ok(())
+    }
+
     /// Removes the rows of modules this binary does not ship.
     pub async fn prune_unknown(pool: &DbPool, known_ids: &[&str]) -> Result<(), sqlx::Error> {
         let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(

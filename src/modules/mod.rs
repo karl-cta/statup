@@ -28,6 +28,17 @@ pub struct ModuleRenderContext<'a> {
     pub i18n: &'a I18n,
     /// Where readers find the page.
     pub page_address: &'a str,
+    /// What an administrator unticked in the module's settings; `None`
+    /// until they choose. Kept as what is left out, so that something new,
+    /// a service added later, shows.
+    pub hidden: Option<&'a [String]>,
+}
+
+/// One thing an administrator may show in a module or leave out.
+pub struct ModuleOption {
+    pub value: String,
+    pub label: String,
+    pub shown: bool,
 }
 
 impl ModuleRenderContext<'_> {
@@ -76,6 +87,17 @@ pub trait Module: Send + Sync + 'static {
     fn description_key(&self) -> &'static str;
 
     async fn render(&self, ctx: &ModuleRenderContext<'_>) -> Result<String, AppError>;
+
+    /// What an administrator may show or leave out, with what is shown now.
+    /// Empty for a module without such a choice.
+    async fn options(
+        &self,
+        _pool: &DbPool,
+        _i18n: &I18n,
+        _hidden: Option<&[String]>,
+    ) -> Result<Vec<ModuleOption>, AppError> {
+        Ok(Vec::new())
+    }
 
     /// Position given to the module in a new layout, lower first.
     fn default_position(&self) -> i64;

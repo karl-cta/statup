@@ -8,6 +8,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 
 use crate::error::AppError;
+use crate::i18n::Locale;
 use crate::middleware::{HtmlForm, RequireAdmin};
 use crate::modules::{ColumnWidth, ModuleRegistry};
 use crate::repositories::DashboardLayoutRepository;
@@ -90,5 +91,49 @@ pub async fn set_width(
     .await?;
     DashboardLayoutRepository::set_width(&state.pool, &module_id, width.as_str()).await?;
     tracing::info!(admin_id = admin.id, %module_id, width = width.as_str(), "Dashboard module width saved");
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+#[derive(Deserialize)]
+pub struct ShownForm {
+    #[serde(default)]
+    show: Vec<String>,
+}
+
+/// Saves what a module shows, among the options it offers, as what it
+/// leaves out. At least one stays ticked: a card that shows nothing is a
+/// blank card.
+pub async fn set_shown(
+    RequireAdmin(admin): RequireAdmin,
+    State(state): State<AppState>,
+    Locale(i18n): Locale,
+    Path(module_id): Path<String>,
+    HtmlForm(form): HtmlForm<ShownForm>,
+) -> Result<Response, AppError> {
+    let module = ModuleRegistry::global()
+        .get(&module_id)
+        .ok_or(AppError::NotFound)?;
+    let offered = module.options(&state.pool, &i18n, None).await?;
+    let valid = !form.show.is_empty()
+        && form
+            .show
+            .iter()
+            .all(|value| offered.iter().any(|option| &option.value == value));
+    if !valid {
+        return Err(AppError::Validation("error.invalid_data".to_string()));
+    }
+    let hidden: Vec<String> = offered
+        .into_iter()
+        .map(|option| option.value)
+        .filter(|value| !form.show.contains(value))
+        .collect();
+    DashboardLayoutRepository::insert_if_missing(
+        &state.pool,
+        &module_id,
+        module.default_position(),
+    )
+    .await?;
+    DashboardLayoutRepository::set_hidden(&state.pool, &module_id, &hidden).await?;
+    tracing::info!(admin_id = admin.id, %module_id, "Dashboard module settings saved");
     Ok(StatusCode::NO_CONTENT.into_response())
 }

@@ -332,6 +332,10 @@
         padding-right: 150px;
     }
 
+    .is-arranging .dash-cell[data-module-id]:has(.cell-options) .card-head {
+        padding-right: 184px;
+    }
+
     .is-arranging .dash-cell[data-module-id] .card-title {
         display: block;
         min-width: 0;
@@ -423,7 +427,7 @@
         border-color: var(--primary);
     }
 
-    .cell-hide {
+    .cell-icon {
         display: grid;
         flex: none;
         place-items: center;
@@ -435,13 +439,42 @@
         transition: color 150ms ease;
     }
 
-    .cell-hide svg {
+    .cell-icon svg {
         width: 17px;
         height: 17px;
     }
 
+    .cell-icon:hover,
+    .cell-icon[aria-expanded="true"] {
+        color: var(--ink);
+    }
+
     .cell-hide:hover {
         color: var(--sem-crit-text);
+    }
+
+    /* What a card shows, ticked under its header while arranging. */
+    .cell-options {
+        position: absolute;
+        top: 44px;
+        right: 10px;
+        z-index: 3;
+        display: grid;
+        gap: 8px;
+        min-width: 200px;
+        margin: 0;
+        padding: 12px 14px;
+        background: var(--raised);
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        box-shadow: var(--shadow-menu);
+    }
+
+    .cell-options legend {
+        float: left;
+        width: 100%;
+        margin-bottom: 2px;
+        padding: 0;
     }
 
     .dash-cell.is-dragging {

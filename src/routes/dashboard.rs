@@ -16,9 +16,10 @@ use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, OptionalUser};
 use crate::models::User;
-use crate::modules::{ColumnWidth, ModuleRenderContext};
+use crate::modules::{ColumnWidth, ModuleOption, ModuleRenderContext};
 use crate::repositories::{ServiceRepository, UserRepository};
 use crate::services::DashboardLayoutService;
+use crate::services::ResolvedModule;
 use crate::state::AppState;
 
 /// Banner and module row, the part the page refreshes on its own.
@@ -38,6 +39,8 @@ pub struct RenderedModule {
     pub module_id: &'static str,
     pub name: String,
     pub width: &'static str,
+    /// What an administrator may show or leave out, for them only.
+    pub options: Vec<ModuleOption>,
 }
 
 pub struct ModuleChoice {
@@ -76,12 +79,6 @@ async fn render_modules(
     page_address: &str,
     i18n: &I18n,
 ) -> Result<LiveModules, AppError> {
-    let ctx = ModuleRenderContext {
-        pool: &state.pool,
-        user,
-        i18n,
-        page_address,
-    };
     let mut live = LiveModules {
         banner_html: None,
         row: Vec::new(),
@@ -100,20 +97,41 @@ async fn render_modules(
             }
             continue;
         }
+        let ctx = ModuleRenderContext {
+            pool: &state.pool,
+            user,
+            i18n,
+            page_address,
+            hidden: item.hidden.as_deref(),
+        };
         let html = item.module.render(&ctx).await?;
         if item.module.column_width() == ColumnWidth::Full {
             live.banner_html = Some(html);
         } else {
+            let options = module_options(&ctx, &item, live.arrangeable).await?;
             live.row.push(RenderedModule {
                 html,
                 module_id: item.module.id(),
                 name,
                 width: item.width.as_str(),
+                options,
             });
         }
     }
     live.version = live_version(&live);
     Ok(live)
+}
+
+/// The settings of a module, offered to an administrator only.
+async fn module_options(
+    ctx: &ModuleRenderContext<'_>,
+    item: &ResolvedModule,
+    arrangeable: bool,
+) -> Result<Vec<ModuleOption>, AppError> {
+    if !arrangeable {
+        return Ok(Vec::new());
+    }
+    item.module.options(ctx.pool, ctx.i18n, ctx.hidden).await
 }
 
 /// A refresh that brings nothing new leaves the page as the reader left it:

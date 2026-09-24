@@ -107,6 +107,51 @@ pub enum Category {
     Info,
 }
 
+/// What the activity card may show, each ticked or not by an administrator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActivityKind {
+    MinorIncidents,
+    MajorIncidents,
+    Maintenance,
+    Announcements,
+}
+
+impl ActivityKind {
+    pub const ALL: [Self; 4] = [
+        Self::MinorIncidents,
+        Self::MajorIncidents,
+        Self::Maintenance,
+        Self::Announcements,
+    ];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::MinorIncidents => "incident_minor",
+            Self::MajorIncidents => "incident_critical",
+            Self::Maintenance => "maintenance",
+            Self::Announcements => "publication",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|k| k.as_str() == s)
+    }
+
+    pub fn label_key(self) -> &'static str {
+        match self {
+            Self::MinorIncidents => "modules.recent_activity.show_incident_minor",
+            Self::MajorIncidents => "modules.recent_activity.show_incident_critical",
+            Self::Maintenance => "modules.recent_activity.show_maintenance",
+            Self::Announcements => "modules.recent_activity.show_publication",
+        }
+    }
+
+    /// Shown until an administrator chooses: maintenance has its own card.
+    pub fn shown_by_default(self) -> bool {
+        self != Self::Maintenance
+    }
+}
+
 /// Workflow state. Valid values per kind:
 /// - incident: `investigating`, `in_progress`, `monitoring`, `resolved`, `cancelled`
 /// - maintenance: `scheduled`, `in_progress`, `completed`, `cancelled`

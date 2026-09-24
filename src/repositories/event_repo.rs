@@ -11,8 +11,8 @@ use sqlx::{QueryBuilder, Sqlite};
 use crate::clock;
 use crate::db::DbPool;
 use crate::models::{
-    CreateEventInput, Event, EventFilters, EventSummary, EventUpdateWithAuthor, EventWithServices,
-    Kind, Lifecycle, Service, Severity, UpdateEventInput,
+    ActivityKind, CreateEventInput, Event, EventFilters, EventSummary, EventUpdateWithAuthor,
+    EventWithServices, Kind, Lifecycle, Service, Severity, UpdateEventInput,
 };
 
 const SUMMARY_COLUMNS: &str = "e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
@@ -165,13 +165,23 @@ impl EventRepository {
     }
 
     /// Latest incidents and announcements; maintenances have their own card.
+    /// The latest events of the kinds the activity card shows.
     pub async fn list_recent_activity(
         pool: &DbPool,
         limit: i64,
+        kinds: &[ActivityKind],
     ) -> Result<Vec<EventSummary>, sqlx::Error> {
+        if kinds.is_empty() {
+            return Ok(Vec::new());
+        }
+        let wanted = kinds
+            .iter()
+            .map(|kind| activity_condition(*kind))
+            .collect::<Vec<_>>()
+            .join(" OR ");
         sqlx::query_as::<_, EventSummary>(&format!(
             "SELECT {SUMMARY_COLUMNS} FROM events e WHERE e.id IN ( \
-               SELECT id FROM events WHERE kind != 'maintenance' \
+               SELECT id FROM events WHERE {wanted} \
                ORDER BY created_at DESC, id DESC LIMIT ?) \
              ORDER BY e.created_at DESC, e.id DESC"
         ))
@@ -498,6 +508,19 @@ impl EventRepository {
             });
         }
         Ok(spans)
+    }
+}
+
+/// The rows of one kind of activity; fixed text, never user input. An
+/// incident without a severity counts as a minor one.
+fn activity_condition(kind: ActivityKind) -> &'static str {
+    match kind {
+        ActivityKind::MinorIncidents => {
+            "(kind = 'incident' AND (severity = 'minor' OR severity IS NULL))"
+        }
+        ActivityKind::MajorIncidents => "(kind = 'incident' AND severity = 'critical')",
+        ActivityKind::Maintenance => "kind = 'maintenance'",
+        ActivityKind::Announcements => "kind = 'publication'",
     }
 }
 

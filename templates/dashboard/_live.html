@@ -25,10 +25,26 @@
                 <button type="button" class="cell-size" data-size="wide" aria-pressed="{% if module.width == "wide" %}true{% else %}false{% endif %}" aria-label="{{ i18n.t("dashboard.width_wide") }}" title="{{ i18n.t("dashboard.width_wide") }}"><svg viewBox="0 0 20 14" aria-hidden="true"><rect x="0.75" y="0.75" width="18.5" height="12.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="3" width="7" height="8" rx="0.5" fill="currentColor"/></svg></button>
                 <button type="button" class="cell-size" data-size="full" aria-pressed="{% if module.width == "full" %}true{% else %}false{% endif %}" aria-label="{{ i18n.t("dashboard.width_full") }}" title="{{ i18n.t("dashboard.width_full") }}"><svg viewBox="0 0 20 14" aria-hidden="true"><rect x="0.75" y="0.75" width="18.5" height="12.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="3" width="14" height="8" rx="0.5" fill="currentColor"/></svg></button>
             </div>
-            <button type="button" class="cell-hide" data-hide aria-label="{{ i18n.t("dashboard.hide_block") }} {{ module.name }}" title="{{ i18n.t("dashboard.hide_block") }}">
+            {% if !module.options.is_empty() %}
+            <button type="button" class="cell-icon" aria-expanded="false" aria-controls="options-{{ module.module_id }}" aria-label="{{ i18n.t("dashboard.block_options") }}, {{ module.name }}" title="{{ i18n.t("dashboard.block_options") }}" data-options-toggle>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+            </button>
+            {% endif %}
+            <button type="button" class="cell-icon cell-hide" data-hide aria-label="{{ i18n.t("dashboard.hide_block") }} {{ module.name }}" title="{{ i18n.t("dashboard.hide_block") }}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 4.24A9 9 0 0 1 12 4c6.5 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19M6.61 6.61A18.4 18.4 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.39-1.61"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="m2 2 20 20"/></svg>
             </button>
         </div>
+        {% if !module.options.is_empty() %}
+        <fieldset id="options-{{ module.module_id }}" class="cell-options" data-options hidden>
+            <legend class="label">{{ i18n.t("dashboard.block_show") }}</legend>
+            {% for option in module.options %}
+            <label class="check-row">
+                <input type="checkbox" class="checkbox" value="{{ option.value }}"{% if option.shown %} checked{% endif %}>
+                <span>{{ option.label }}</span>
+            </label>
+            {% endfor %}
+        </fieldset>
+        {% endif %}
         {% endif %}
         {{ module.html|safe }}
     </div>

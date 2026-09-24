@@ -850,3 +850,43 @@ async fn a_reset_is_refused_for_oneself_and_for_a_disabled_account() {
         assert!(body.contains(words), "expected {words}: {body}");
     }
 }
+
+#[tokio::test]
+async fn the_activity_card_shows_what_the_admin_ticked() {
+    let (app, _admin_id) = spawn_with_admin().await;
+    for (title, kind, severity) in [
+        ("Printer jam", "incident", "minor"),
+        ("Mail is down", "incident", "critical"),
+        ("New intranet", "publication", ""),
+    ] {
+        let csrf = app.csrf_from("/events/new").await;
+        let (status, _, _) = app
+            .post_form(
+                "/events/new",
+                &csrf,
+                &[("title", title), ("kind", kind), ("severity", severity)],
+            )
+            .await;
+        assert_eq!(status, StatusCode::SEE_OTHER, "{title}");
+    }
+    let (_, page) = app.get("/").await;
+    for title in ["Printer jam", "Mail is down", "New intranet"] {
+        assert!(page.contains(title), "shown by default: {title}");
+    }
+
+    let csrf = app.csrf().await;
+    let path = "/admin/dashboard/layout/recent_activity/show";
+    let (status, _, _) = app
+        .post_form(path, &csrf, &[("show", "incident_critical")])
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (_, page) = app.get("/").await;
+    assert!(page.contains("Mail is down"));
+    assert!(!page.contains("Printer jam"), "minor incidents left out");
+    assert!(!page.contains("New intranet"), "announcements left out");
+
+    for fields in [vec![], vec![("show", "everything")]] {
+        let (status, _, _) = app.post_form(path, &csrf, &fields).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{fields:?}");
+    }
+}

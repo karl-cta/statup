@@ -226,6 +226,10 @@ fn admin_routes() -> Router<AppState> {
             "/admin/dashboard/layout/:module_id/width",
             post(dashboard_layout::set_width),
         )
+        .route(
+            "/admin/dashboard/layout/:module_id/show",
+            post(dashboard_layout::set_shown),
+        )
 }
 
 /// A signed-in person's own account.

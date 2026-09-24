@@ -11,6 +11,8 @@ pub struct ResolvedModule {
     pub enabled: bool,
     /// The width chosen for the page, or the module's own.
     pub width: ColumnWidth,
+    /// What an administrator unticked in the module's settings, if they did.
+    pub hidden: Option<Vec<String>>,
 }
 
 pub struct DashboardLayoutService;
@@ -51,12 +53,14 @@ impl DashboardLayoutService {
                     row.and_then(|r| stored_width(&r.config))
                         .unwrap_or_else(|| module.column_width())
                 };
+                let hidden = row.and_then(|r| stored_hidden(&r.config));
                 (
                     position,
                     ResolvedModule {
                         module,
                         enabled,
                         width,
+                        hidden,
                     },
                 )
             })
@@ -64,6 +68,19 @@ impl DashboardLayoutService {
         entries.sort_by_key(|(position, resolved)| (*position, resolved.module.id()));
         Ok(entries.into_iter().map(|(_, resolved)| resolved).collect())
     }
+}
+
+fn stored_hidden(config: &str) -> Option<Vec<String>> {
+    serde_json::from_str::<serde_json::Value>(config)
+        .ok()?
+        .get("hide")?
+        .as_array()
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
 }
 
 fn stored_width(config: &str) -> Option<ColumnWidth> {

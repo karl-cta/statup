@@ -54,6 +54,7 @@
     }
 
     function setMode(on) {
+        if (!on) closeOptions();
         document.body.classList.toggle("is-arranging", on);
         reveal(on);
         toggle.setAttribute("aria-pressed", String(on));
@@ -101,8 +102,61 @@
         window.htmx.ajax("GET", live.dataset.live, { target: live, swap: "innerHTML" }).catch(reload);
     }
 
+    // A card's settings: a tick saves at once and redraws the card, its
+    // panel open again and the focus back on the same box.
+    let openOptions = null;
+
+    function setOptionsOpen(cell, open) {
+        const panel = cell.querySelector("[data-options]");
+        const button = cell.querySelector("[data-options-toggle]");
+        if (!panel || !button) return;
+        panel.hidden = !open;
+        button.setAttribute("aria-expanded", String(open));
+        openOptions = open ? { moduleId: cell.dataset.moduleId, value: openOptions?.value } : null;
+    }
+
+    function closeOptions() {
+        if (!openOptions) return;
+        const cell = live.querySelector(`.dash-cell[data-module-id="${openOptions.moduleId}"]`);
+        if (cell) setOptionsOpen(cell, false);
+        openOptions = null;
+    }
+
+    function saveShown(cell, box) {
+        const values = Array.from(cell.querySelectorAll("[data-options] input:checked"), (input) => ["show", input.value]);
+        openOptions = { moduleId: cell.dataset.moduleId, value: box.value };
+        post(`/admin/dashboard/layout/${cell.dataset.moduleId}/show`, values)
+            .then(refetch)
+            .catch(reload);
+    }
+
+    live.addEventListener("change", (event) => {
+        const box = event.target.closest("[data-options] input");
+        if (!box) return;
+        const cell = box.closest(".dash-cell[data-module-id]");
+        // One stays ticked: a card that shows nothing is a blank card.
+        if (!cell.querySelector("[data-options] input:checked")) {
+            box.checked = true;
+            return;
+        }
+        saveShown(cell, box);
+    });
+
     live.addEventListener("htmx:afterSettle", () => {
         if (arranging()) reveal(true);
+        if (!openOptions) return;
+        const { moduleId, value } = openOptions;
+        const cell = live.querySelector(`.dash-cell[data-module-id="${moduleId}"]`);
+        if (!cell) return;
+        setOptionsOpen(cell, true);
+        const box = cell.querySelector(`[data-options] input[value="${value}"]`);
+        if (box) box.focus();
+    });
+
+    document.addEventListener("click", (event) => {
+        if (openOptions && event.target instanceof Element && !event.target.closest("[data-options], [data-options-toggle]")) {
+            closeOptions();
+        }
     });
 
     function setWidth(cell, width) {
@@ -140,7 +194,7 @@
     // and hide buttons.
     live.addEventListener("pointerdown", (event) => {
         const cell = arranging() ? event.target.closest(".dash-cell[data-module-id]") : null;
-        if (!cell || event.target.closest("[data-size], [data-hide]")) return;
+        if (!cell || event.target.closest("[data-size], [data-hide], [data-options], [data-options-toggle]")) return;
         if (drag || (event.pointerType === "mouse" && event.button !== 0)) return;
         event.preventDefault();
         cell.setPointerCapture(event.pointerId);
@@ -167,6 +221,13 @@
     live.addEventListener("pointercancel", endDrag);
 
     live.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && openOptions) {
+            const cell = live.querySelector(`.dash-cell[data-module-id="${openOptions.moduleId}"]`);
+            closeOptions();
+            const button = cell && cell.querySelector("[data-options-toggle]");
+            if (button) button.focus();
+            return;
+        }
         const handle = event.target.closest("[data-drag-handle]");
         if (!handle || drag) return;
         const earlier = event.key === "ArrowLeft" || event.key === "ArrowUp";
@@ -187,6 +248,14 @@
         const hide = event.target.closest("[data-hide]");
         if (hide) {
             setShown(hide.closest(".dash-cell[data-module-id]").dataset.moduleId, false);
+            return;
+        }
+        const optionsToggle = event.target.closest("[data-options-toggle]");
+        if (optionsToggle) {
+            const cell = optionsToggle.closest(".dash-cell[data-module-id]");
+            const open = optionsToggle.getAttribute("aria-expanded") !== "true";
+            closeOptions();
+            setOptionsOpen(cell, open);
             return;
         }
         const size = event.target.closest("[data-size]");
