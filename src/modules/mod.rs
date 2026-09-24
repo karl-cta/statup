@@ -99,6 +99,11 @@ pub trait Module: Send + Sync + 'static {
         Ok(Vec::new())
     }
 
+    /// A line under the options, when leaving one out has a catch.
+    fn options_note_key(&self) -> Option<&'static str> {
+        None
+    }
+
     /// Position given to the module in a new layout, lower first.
     fn default_position(&self) -> i64;
 

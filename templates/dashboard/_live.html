@@ -43,6 +43,9 @@
                 <span>{{ option.label }}</span>
             </label>
             {% endfor %}
+            {% if let Some(note) = module.options_note %}
+            <p class="field-hint">{{ note }}</p>
+            {% endif %}
         </fieldset>
         {% endif %}
         {% endif %}

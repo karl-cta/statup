@@ -462,8 +462,10 @@
         display: grid;
         gap: 8px;
         min-width: 200px;
+        max-height: 320px;
         margin: 0;
         padding: 12px 14px;
+        overflow-y: auto;
         background: var(--raised);
         border: 1px solid var(--line-strong);
         border-radius: 6px;

@@ -8,7 +8,7 @@ use reqwest::StatusCode;
 
 use common::{TestApp, extract_csrf_token};
 use statup::models::Role;
-use statup::repositories::UserRepository;
+use statup::repositories::{ServiceRepository, UserRepository};
 
 /// The instance name lives in process memory: the tests that set it or read
 /// the default brand run one at a time.
@@ -889,4 +889,59 @@ async fn the_activity_card_shows_what_the_admin_ticked() {
         let (status, _, _) = app.post_form(path, &csrf, &fields).await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{fields:?}");
     }
+}
+
+/// The services card as a visitor reads it, the admin's settings aside.
+fn services_card(page: &str) -> &str {
+    let start = page.find(r#"id="services-title""#).unwrap_or(0);
+    let end = start + page[start..].find("</section>").unwrap_or(0);
+    &page[start..end]
+}
+
+#[tokio::test]
+async fn a_service_left_out_of_the_card_comes_back_when_it_is_down() {
+    let (app, _admin_id) = spawn_with_admin().await;
+    let mut ids = Vec::new();
+    for name in ["Payroll", "Printers"] {
+        let service =
+            ServiceRepository::create(&app.pool, name, &name.to_lowercase(), None, None, None)
+                .await
+                .expect("service");
+        ids.push(service.id);
+    }
+
+    let csrf = app.csrf().await;
+    let shown = ids[0].to_string();
+    let (status, _, _) = app
+        .post_form(
+            "/admin/dashboard/layout/services/show",
+            &csrf,
+            &[("show", shown.as_str())],
+        )
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (_, page) = app.get("/").await;
+    assert!(services_card(&page).contains("Payroll"));
+    assert!(!services_card(&page).contains("Printers"), "left out");
+
+    ServiceRepository::create(&app.pool, "Wiki", "wiki", None, None, None)
+        .await
+        .expect("service");
+    let (_, page) = app.get("/").await;
+    assert!(services_card(&page).contains("Wiki"), "a new service shows");
+
+    let csrf = app.csrf_from("/services").await;
+    let (status, _, _) = app
+        .post_form(
+            &format!("/services/{}/status", ids[1]),
+            &csrf,
+            &[("status", "major_outage")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let (_, page) = app.get("/").await;
+    assert!(
+        services_card(&page).contains("Printers"),
+        "a service left out comes back when it is down"
+    );
 }

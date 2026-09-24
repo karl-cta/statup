@@ -107,6 +107,7 @@
   "modules.status_banner.description": "The answer to “is it working?”, always shown at the top of the page.",
   "modules.services.name": "Services",
   "modules.services.description": "Each service with its state and its last 30 days.",
+  "modules.services.options_note": "A service left out comes back as soon as something is wrong with it.",
   "modules.recent_activity.name": "Recent activity",
   "modules.recent_activity.description": "The latest incidents, maintenance and announcements, day by day.",
   "modules.recent_activity.show_incident_minor": "Minor incidents",

@@ -1,5 +1,6 @@
-//! Services card: every service with its current status and thirty days of
-//! incident history.
+//! Services card: the services an administrator did not leave out, with
+//! their current status and thirty days of incident history. A service left
+//! out comes back as soon as something is wrong with it.
 
 use std::collections::HashMap;
 
@@ -8,12 +9,13 @@ use async_trait::async_trait;
 use chrono::{Duration, NaiveDate};
 
 use crate::clock;
+use crate::db::DbPool;
 use crate::error::AppError;
 use crate::i18n::I18n;
 use crate::models::{Service, ServiceStatus, Severity};
 use crate::repositories::{EventRepository, IncidentSpan, ServiceRepository};
 
-use super::{ColumnWidth, Module, ModuleRenderContext, render_template};
+use super::{ColumnWidth, Module, ModuleOption, ModuleRenderContext, render_template};
 
 const DAYS: i64 = 30;
 
@@ -82,6 +84,9 @@ impl Module for ServicesModule {
         let spans = EventRepository::incident_spans(ctx.pool, since).await?;
         let rows = services
             .into_iter()
+            .filter(|service| {
+                service.status != ServiceStatus::Operational || !is_left_out(service, ctx.hidden)
+            })
             .map(|service| service_row(service, &spans, today, ctx.i18n))
             .collect();
         let template = ServicesTemplate {
@@ -91,11 +96,37 @@ impl Module for ServicesModule {
         };
         render_template(self.id(), &template)
     }
+
+    async fn options(
+        &self,
+        pool: &DbPool,
+        _i18n: &I18n,
+        hidden: Option<&[String]>,
+    ) -> Result<Vec<ModuleOption>, AppError> {
+        Ok(ServiceRepository::list_all(pool)
+            .await?
+            .into_iter()
+            .map(|service| ModuleOption {
+                shown: !is_left_out(&service, hidden),
+                value: service.id.to_string(),
+                label: service.name,
+            })
+            .collect())
+    }
+
+    fn options_note_key(&self) -> Option<&'static str> {
+        Some("modules.services.options_note")
+    }
+}
+
+fn is_left_out(service: &Service, hidden: Option<&[String]>) -> bool {
+    let id = service.id.to_string();
+    hidden.is_some_and(|values| values.contains(&id))
 }
 
 /// One service's last thirty days, for its side panel.
 pub async fn service_history(
-    pool: &crate::db::DbPool,
+    pool: &DbPool,
     service: Service,
     i18n: &I18n,
 ) -> Result<ServiceRow, AppError> {

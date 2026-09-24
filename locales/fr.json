@@ -107,6 +107,7 @@
   "modules.status_banner.description": "La réponse à « est-ce que ça marche ? », toujours affichée en tête de page.",
   "modules.services.name": "Services",
   "modules.services.description": "Chaque service avec son état et ses 30 derniers jours.",
+  "modules.services.options_note": "Un service décoché revient dès qu'il a un problème.",
   "modules.recent_activity.name": "Activité récente",
   "modules.recent_activity.description": "Les derniers incidents, maintenances et annonces, jour par jour.",
   "modules.recent_activity.show_incident_minor": "Incidents mineurs",

@@ -41,6 +41,7 @@ pub struct RenderedModule {
     pub width: &'static str,
     /// What an administrator may show or leave out, for them only.
     pub options: Vec<ModuleOption>,
+    pub options_note: Option<String>,
 }
 
 pub struct ModuleChoice {
@@ -114,6 +115,10 @@ async fn render_modules(
                 module_id: item.module.id(),
                 name,
                 width: item.width.as_str(),
+                options_note: item
+                    .module
+                    .options_note_key()
+                    .map(|key| i18n.t(key).to_string()),
                 options,
             });
         }
