@@ -16,10 +16,11 @@
 {% endmatch %}
 {% endmacro %}
 
-{# The services an event names, each with its icon on a quiet ground; the
-   hidden label says what the tags are to a screen reader. #}
+{# The services an event names, each with its icon on a quiet ground and,
+   while the event sets their state, what it does to them; the hidden label
+   says what the tags are to a screen reader. #}
 {% macro service_tags(services, label) %}
-<span class="svc-tags"><span class="sr-only">{{ label }}</span>{% for service in services.iter() %}<span class="svc-tag"><span class="svc-tag-icon">{% call service_icon(service) %}</span>{{ service.name }}</span>{% endfor %}</span>
+<span class="svc-tags"><span class="sr-only">{{ label }}</span>{% for service in services.iter() %}<span class="svc-tag"><span class="svc-tag-icon">{% call service_icon(service) %}</span>{{ service.name }}{% if let Some(effect) = service.effect %}<span class="svc-tag-effect">&nbsp;<span aria-hidden="true">·</span> <strong>{{ effect }}</strong></span>{% endif %}</span>{% endfor %}</span>
 {% endmacro %}
 
 {% macro arrow_right() %}

@@ -12,7 +12,7 @@
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
-use super::Service;
+use super::{Service, ServiceStatus};
 use crate::clock;
 use crate::i18n::I18n;
 
@@ -27,6 +27,45 @@ pub struct ServiceTag {
     pub name: String,
     icon_name: Option<String>,
     icon_filename: Option<String>,
+    /// What an event under way does to the service, "en panne".
+    pub effect: Option<String>,
+}
+
+impl From<&Service> for ServiceTag {
+    fn from(service: &Service) -> Self {
+        Self {
+            name: service.name.clone(),
+            icon_name: service.icon_name.clone(),
+            icon_filename: service.icon_filename.clone(),
+            effect: None,
+        }
+    }
+}
+
+/// Status an open event gives its services. Maintenance under way sets
+/// Maintenance; an incident follows its severity, minor when none was given.
+pub fn derive_status(kind: Kind, severity: Option<Severity>) -> Option<ServiceStatus> {
+    match kind {
+        Kind::Incident => Some(match severity {
+            Some(Severity::Critical) => ServiceStatus::MajorOutage,
+            Some(Severity::Minor) | None => ServiceStatus::Degraded,
+        }),
+        Kind::Maintenance => Some(ServiceStatus::Maintenance),
+        Kind::Publication => None,
+    }
+}
+
+/// Whether an event in `lifecycle` sets the state of its services: an
+/// incident until it is under watch, a maintenance while it runs. The same
+/// rule as `EventRepository::status_drivers`.
+pub fn drives_services(kind: Kind, lifecycle: Option<Lifecycle>) -> bool {
+    matches!(
+        (kind, lifecycle),
+        (
+            Kind::Incident,
+            Some(Lifecycle::Investigating | Lifecycle::InProgress)
+        ) | (Kind::Maintenance, Some(Lifecycle::InProgress))
+    )
 }
 
 impl ServiceTag {
@@ -527,8 +566,13 @@ impl EventSummary {
     }
 
     /// The services named, each with its icon, so a name under a title
-    /// reads as a service at a glance.
-    pub fn service_tags(&self) -> Vec<ServiceTag> {
+    /// reads as a service at a glance; while the event sets their state,
+    /// each says what it does to them.
+    pub fn service_tags(&self, i18n: &I18n) -> Vec<ServiceTag> {
+        let effect = drives_services(self.kind, self.lifecycle)
+            .then(|| derive_status(self.kind, self.severity))
+            .flatten()
+            .map(|status| i18n.t(status.i18n_key()).to_lowercase());
         let mut icons = self.service_icons.split(NAME_SEPARATOR);
         self.services()
             .into_iter()
@@ -541,6 +585,7 @@ impl EventSummary {
                     name: name.to_string(),
                     icon_name: (!icon_name.is_empty()).then(|| icon_name.to_string()),
                     icon_filename: (!icon_filename.is_empty()).then(|| icon_filename.to_string()),
+                    effect: effect.clone(),
                 }
             })
             .collect()
@@ -750,6 +795,53 @@ pub fn group_by_day(events: Vec<EventSummary>, i18n: &I18n) -> Vec<DayGroup> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn incidents_follow_their_severity() {
+        assert_eq!(
+            derive_status(Kind::Incident, Some(Severity::Critical)),
+            Some(ServiceStatus::MajorOutage)
+        );
+        assert_eq!(
+            derive_status(Kind::Incident, Some(Severity::Minor)),
+            Some(ServiceStatus::Degraded)
+        );
+    }
+
+    #[test]
+    fn an_incident_without_severity_still_counts() {
+        assert_eq!(
+            derive_status(Kind::Incident, None),
+            Some(ServiceStatus::Degraded)
+        );
+    }
+
+    #[test]
+    fn maintenance_and_announcements() {
+        assert_eq!(
+            derive_status(Kind::Maintenance, Some(Severity::Critical)),
+            Some(ServiceStatus::Maintenance)
+        );
+        assert_eq!(derive_status(Kind::Publication, None), None);
+    }
+
+    #[test]
+    fn only_work_under_way_says_what_it_does_to_its_services() {
+        assert!(drives_services(Kind::Incident, Some(Lifecycle::InProgress)));
+        assert!(!drives_services(
+            Kind::Incident,
+            Some(Lifecycle::Monitoring)
+        ));
+        assert!(drives_services(
+            Kind::Maintenance,
+            Some(Lifecycle::InProgress)
+        ));
+        assert!(!drives_services(
+            Kind::Maintenance,
+            Some(Lifecycle::Scheduled)
+        ));
+        assert!(!drives_services(Kind::Publication, None));
+    }
+
     fn summary(
         kind: Kind,
         severity: Option<Severity>,
@@ -917,7 +1009,7 @@ mod tests {
         event.service_names = format!("Mail{NAME_SEPARATOR}Payroll");
         event.service_icons =
             format!("mail{ICON_SEPARATOR}{NAME_SEPARATOR}{ICON_SEPARATOR}logo.png");
-        let tags = event.service_tags();
+        let tags = event.service_tags(&I18n::new("en"));
         assert_eq!(tags.len(), 2);
         assert!(tags[0].icon_url().is_none());
         assert_eq!(
@@ -925,6 +1017,27 @@ mod tests {
             Some("/uploads/icons/logo.png")
         );
         assert!(tags[1].builtin_icon_paths().is_none());
+    }
+
+    #[test]
+    fn a_tag_says_what_the_open_incident_does_to_its_service() {
+        let i18n = I18n::new("en");
+        let mut event = summary(
+            Kind::Incident,
+            Some(Severity::Critical),
+            Some(Lifecycle::Investigating),
+        );
+        event.service_names = "Mail".to_string();
+        assert_eq!(
+            event.service_tags(&i18n)[0].effect.as_deref(),
+            Some(
+                i18n.t(ServiceStatus::MajorOutage.i18n_key())
+                    .to_lowercase()
+                    .as_str()
+            )
+        );
+        event.lifecycle = Some(Lifecycle::Resolved);
+        assert!(event.service_tags(&i18n)[0].effect.is_none());
     }
 
     #[test]

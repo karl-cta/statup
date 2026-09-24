@@ -22,7 +22,7 @@
     {% if !view.services.is_empty() %}
     <div class="fact">
         <dt>{{ i18n.t("events.services_concerned") }}</dt>
-        <dd>{% call ui::service_tags(view.services, "") %}</dd>
+        <dd>{% call ui::service_tags(view.service_tags(), "") %}</dd>
     </div>
     {% endif %}
     {% if let Some(followed) = view.follows %}

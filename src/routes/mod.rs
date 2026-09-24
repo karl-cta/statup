@@ -135,6 +135,7 @@ fn public_routes() -> Router<AppState> {
         .route("/events", get(events::list))
         .route("/events/:id", get(events::detail))
         .route("/events/:id/drawer", get(events::drawer_content))
+        .route("/services/:id/drawer", get(services::drawer_content))
         .route("/history", get(|| async { Redirect::permanent("/events") }))
         .route("/search", get(events::search))
         .route("/feed", get(feed::atom))

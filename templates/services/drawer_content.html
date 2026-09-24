@@ -1,0 +1,53 @@
+{% import "components/macros.html" as ui %}
+<div class="drawer-body">
+    <h2 id="drawer-title" class="drawer-title drawer-title-svc">
+        <span class="svc-icon">{% call ui::service_icon(row.service) %}</span>
+        <span>{{ row.service.name }}</span>
+    </h2>
+    {% if let Some(description) = row.service.description %}
+    <p class="drawer-lede">{{ description }}</p>
+    {% endif %}
+
+    <dl class="event-facts">
+        <div class="fact">
+            <dt>{{ i18n.t("events.fact_state") }}</dt>
+            <dd class="fact-state" data-tone="{{ row.service.status.tone().as_str() }}">
+                <span class="dot" aria-hidden="true"></span><strong>{{ i18n.t(row.service.status.i18n_key()) }}</strong>
+            </dd>
+        </div>
+    </dl>
+
+    <section class="drawer-section" aria-labelledby="svc-days-title">
+        <h3 id="svc-days-title" class="label">{{ i18n.t("availability.legend") }}</h3>
+        <div class="svc-bars drawer-bars" role="img" aria-label="{{ row.availability_label }}">
+            {% for day in row.days %}<span class="{{ day.class() }}" data-day-date="{{ day.date }}" data-day-status="{{ day.status }}"></span>{% endfor %}
+        </div>
+    </section>
+
+    <section class="drawer-section" aria-labelledby="svc-events-title">
+        <h3 id="svc-events-title" class="label">{{ i18n.t("services.panel_events") }}</h3>
+        {% if events.is_empty() %}
+        <p class="drawer-note">{{ i18n.t("services.panel_no_events") }}</p>
+        {% else %}
+        <ul class="log-list">
+            {% for event in events %}
+            <li>
+                <a class="log-row{% if event.is_current() %} log-row-open{% else %} log-row-closed{% endif %}" href="/events/{{ event.id }}" data-drawer="/events/{{ event.id }}/drawer">
+                    <span class="log-time">{{ self.event_day(event) }}</span>
+                    <span class="log-body">
+                        <span class="log-head">
+                            {% call ui::kind_chip(i18n.t(event.kind.i18n_key()), event.tone().as_str()) %}
+                            <span class="log-title">{{ event.title }}</span>
+                        </span>
+                    </span>
+                    {% if let Some(word) = event.row_state(i18n) %}
+                    <span class="state state-word" data-tone="{{ event.tone().as_str() }}">{{ word }}</span>
+                    {% endif %}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        <a class="hero-link" href="/events?service_id={{ row.service.id }}">{{ i18n.t("services.panel_all_events") }}{% call ui::arrow_right() %}</a>
+    </section>
+</div>

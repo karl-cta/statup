@@ -1056,3 +1056,18 @@ async fn an_update_posted_from_the_side_panel_redraws_it() {
         "a refused update keeps the composer open with its reason"
     );
 }
+
+#[tokio::test]
+async fn a_service_panel_tells_its_story() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Payroll").await;
+    app.create_incident("Payroll slow", "", "minor", &[service_id])
+        .await;
+
+    let (status, body) = app.get(&format!("/services/{service_id}/drawer")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("drawer-title") && body.contains("Payroll"));
+    assert!(body.contains("Payroll slow"), "its last events are listed");
+    assert!(body.contains(&format!("/events?service_id={service_id}")));
+}

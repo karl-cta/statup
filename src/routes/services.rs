@@ -6,14 +6,16 @@ use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 
-use super::{Frame, render};
+use super::{Frame, members_only, render};
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
-use crate::middleware::{CsrfToken, HtmlForm, RequirePublisher};
+use crate::middleware::{CsrfToken, HtmlForm, OptionalUser, RequirePublisher};
 use crate::models::{
-    BUILTIN_ICONS, BuiltinIcon, Icon, Service, ServiceStatus, User, find_builtin_icon,
+    BUILTIN_ICONS, BuiltinIcon, EventFilters, EventSummary, Icon, Service, ServiceStatus, User,
+    find_builtin_icon,
 };
-use crate::repositories::ServiceRepository;
+use crate::modules::services::{ServiceRow, service_history};
+use crate::repositories::{EventRepository, ServiceRepository};
 use crate::services::{IconService, ServiceService};
 use crate::state::AppState;
 
@@ -422,4 +424,47 @@ pub async fn update_status(
         service,
         i18n,
     })
+}
+
+/// How many of its events a service's side panel lists.
+const PANEL_EVENTS: i64 = 3;
+
+#[derive(Template)]
+#[template(path = "services/drawer_content.html")]
+struct ServiceDrawerTemplate {
+    row: ServiceRow,
+    events: Vec<EventSummary>,
+    i18n: I18n,
+}
+
+impl ServiceDrawerTemplate {
+    fn event_day(&self, event: &EventSummary) -> String {
+        self.i18n
+            .format_date_short(&crate::clock::local_date(&event.created_at))
+    }
+}
+
+/// A service as the side panel shows it to anyone who may read the page:
+/// what it is, how it fared this month, its last events.
+pub async fn drawer_content(
+    OptionalUser(user): OptionalUser,
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    headers: HeaderMap,
+    Locale(i18n): Locale,
+) -> Result<Response, AppError> {
+    if let Some(redirect) = members_only(&state, user.as_ref(), &headers) {
+        return Ok(redirect);
+    }
+    let service = ServiceRepository::find_by_id(&state.pool, id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    let filters = EventFilters {
+        service_id: Some(id),
+        limit: PANEL_EVENTS,
+        ..EventFilters::default()
+    };
+    let events = EventRepository::list_page(&state.pool, &filters).await?;
+    let row = service_history(&state.pool, service, &i18n).await?;
+    render(&ServiceDrawerTemplate { row, events, i18n })
 }

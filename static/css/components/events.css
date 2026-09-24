@@ -607,6 +607,39 @@
         margin-top: 28px;
     }
 
+    .drawer-title-svc {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .drawer-title-svc .svc-icon,
+    .drawer-title-svc .svc-icon svg,
+    .drawer-title-svc .svc-icon img {
+        width: 22px;
+        height: 22px;
+    }
+
+    .drawer-lede {
+        margin-top: 6px;
+        font-size: var(--text-md);
+        color: var(--ink-soft);
+    }
+
+    .drawer-bars {
+        height: 26px;
+    }
+
+    .drawer-note {
+        margin-top: 8px;
+        font-size: var(--text-sm);
+        color: var(--muted);
+    }
+
+    .drawer-section .log-list {
+        margin-bottom: 12px;
+    }
+
     .drawer-actions {
         display: flex;
         flex-wrap: wrap;

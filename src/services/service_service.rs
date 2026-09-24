@@ -3,7 +3,7 @@
 
 use crate::db::DbPool;
 use crate::error::AppError;
-use crate::models::{Kind, Service, ServiceStatus, Severity};
+use crate::models::{Service, ServiceStatus, derive_status};
 use crate::repositories::{EventRepository, ServiceRepository};
 
 const MAX_NAME_CHARS: usize = 100;
@@ -139,52 +139,10 @@ async fn unique_slug(pool: &DbPool, name: &str) -> Result<String, AppError> {
     )))
 }
 
-/// Status an open event gives its services. Maintenance under way sets
-/// Maintenance; an incident follows its severity, minor when none was given.
-fn derive_status(kind: Kind, severity: Option<Severity>) -> Option<ServiceStatus> {
-    match kind {
-        Kind::Incident => Some(match severity {
-            Some(Severity::Critical) => ServiceStatus::MajorOutage,
-            Some(Severity::Minor) | None => ServiceStatus::Degraded,
-        }),
-        Kind::Maintenance => Some(ServiceStatus::Maintenance),
-        Kind::Publication => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_helpers::test_pool;
-
-    #[test]
-    fn incidents_follow_their_severity() {
-        assert_eq!(
-            derive_status(Kind::Incident, Some(Severity::Critical)),
-            Some(ServiceStatus::MajorOutage)
-        );
-        assert_eq!(
-            derive_status(Kind::Incident, Some(Severity::Minor)),
-            Some(ServiceStatus::Degraded)
-        );
-    }
-
-    #[test]
-    fn an_incident_without_severity_still_counts() {
-        assert_eq!(
-            derive_status(Kind::Incident, None),
-            Some(ServiceStatus::Degraded)
-        );
-    }
-
-    #[test]
-    fn maintenance_and_announcements() {
-        assert_eq!(
-            derive_status(Kind::Maintenance, Some(Severity::Critical)),
-            Some(ServiceStatus::Maintenance)
-        );
-        assert_eq!(derive_status(Kind::Publication, None), None);
-    }
 
     #[test]
     fn field_rules_count_characters() {

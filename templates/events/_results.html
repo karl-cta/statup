@@ -29,7 +29,7 @@
                     {% if severity.is_some() || event.has_services() %}
                     <span class="log-sub">
                         {% if let Some(word) = severity %}<span class="meta">{{ word }}</span>{% endif %}
-                        {% if event.has_services() %}{% call ui::service_tags(event.service_tags(), i18n.t("events.concerns")) %}{% endif %}
+                        {% if event.has_services() %}{% call ui::service_tags(event.service_tags(i18n), i18n.t("events.concerns")) %}{% endif %}
                     </span>
                     {% endif %}
                 </span>

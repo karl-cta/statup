@@ -97,6 +97,18 @@ impl Module for ServicesModule {
     }
 }
 
+/// One service's last thirty days, for its side panel.
+pub async fn service_history(
+    pool: &crate::db::DbPool,
+    service: Service,
+    i18n: &I18n,
+) -> Result<ServiceRow, AppError> {
+    let today = clock::today();
+    let since = clock::day_start(today - Duration::days(DAYS - 1)).unwrap_or_default();
+    let spans = EventRepository::incident_spans(pool, since).await?;
+    Ok(service_row(service, &spans, today, i18n))
+}
+
 fn service_row(
     service: Service,
     spans: &HashMap<i64, Vec<IncidentSpan>>,

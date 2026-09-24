@@ -435,6 +435,24 @@
         background: var(--surface-subtle);
     }
 
+    /* The whole row opens the service's side panel. */
+    .svc-link {
+        display: block;
+        margin: -12px -16px;
+        padding: 12px 16px;
+        color: inherit;
+        transition: background-color 150ms ease;
+    }
+
+    .svc-link:hover {
+        background: var(--surface-hover);
+    }
+
+    .svc-link:focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: -2px;
+    }
+
     .svc-top {
         display: flex;
         align-items: center;

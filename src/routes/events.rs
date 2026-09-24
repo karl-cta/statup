@@ -18,7 +18,7 @@ use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, HtmlForm, OptionalUser, RequirePublisher};
 use crate::models::{
     Category, CreateEventInput, DayGroup, Event, EventFilters, EventWithServices, Kind, Lifecycle,
-    LifecycleGroup, Service, Severity, UpdateEventInput, User, group_by_day,
+    LifecycleGroup, Service, ServiceTag, Severity, UpdateEventInput, User, group_by_day,
 };
 use crate::repositories::{
     CreateTemplateInput, EventRepository, EventTemplateRepository, ServiceRepository,
@@ -322,6 +322,10 @@ pub struct EventView {
 }
 
 impl EventView {
+    pub fn service_tags(&self) -> Vec<ServiceTag> {
+        self.services.iter().map(ServiceTag::from).collect()
+    }
+
     /// A row of facts is worth drawing when there is one.
     pub fn has_facts(&self) -> bool {
         self.state.is_some() || !self.services.is_empty() || self.follows.is_some()
