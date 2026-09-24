@@ -7,6 +7,7 @@
     "use strict";
 
     const KEY_SAVE_DELAY = 600;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const page = document.querySelector("[data-arrange]");
     const live = document.getElementById("live");
     const toggle = document.querySelector("[data-arrange-toggle]");
@@ -175,10 +176,43 @@
             .catch(reload);
     }
 
+    // Dragging: the block lifts and follows the pointer, a dashed slot shows
+    // where it will land, the other blocks glide out of its way, and on
+    // release it settles into the slot. A press that does not move is a
+    // click. Escape puts everything back.
+    const DRAG_THRESHOLD = 4;
+    const EDGE = 64;
+    const REORDER_PAUSE = 140;
+    let pending = null;
+    let lastReorder = 0;
+    let scrollSpeed = 0;
+    let frame = 0;
+
+    // Blocks already on the page glide from where they were to where the
+    // change put them.
+    function flip(change) {
+        const before = new Map(cells().map((cell) => [cell, cell.getBoundingClientRect()]));
+        change();
+        if (reduced) return;
+        cells().forEach((cell) => {
+            const was = before.get(cell);
+            const now = cell.getBoundingClientRect();
+            const dx = was.left - now.left;
+            const dy = was.top - now.top;
+            if (dx || dy) {
+                cell.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], {
+                    duration: 240,
+                    easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+                });
+            }
+        });
+    }
+
     // Where the pointer is: before a block when it sits in the block's
     // first half, after it otherwise. A block on a row of its own is split
     // top and bottom, the others left and right.
     function placeAt(x, y) {
+        if (performance.now() - lastReorder < REORDER_PAUSE) return;
         const target = document.elementFromPoint(x, y);
         const cell = target instanceof Element ? target.closest(".dash-cell[data-module-id]") : null;
         if (!cell || cell === drag.cell) return;
@@ -187,38 +221,118 @@
         const before = vertical ? y < box.top + box.height / 2 : x < box.left + box.width / 2;
         const anchor = before ? cell : cell.nextElementSibling;
         if (anchor === drag.cell || anchor === drag.cell.nextElementSibling) return;
-        cell.parentElement.insertBefore(drag.cell, anchor);
+        lastReorder = performance.now();
+        flip(() => cell.parentElement.insertBefore(drag.cell, anchor));
     }
 
-    // While arranging, the whole card picks the block up, except its size
-    // and hide buttons.
+    function moveGhost(x, y) {
+        drag.ghost.style.transform = `translate(${x - drag.offsetX}px, ${y - drag.offsetY}px) scale(1.015)`;
+    }
+
+    // Near the top or the bottom of the window, the page scrolls itself.
+    function autoScroll() {
+        if (!drag || !scrollSpeed) {
+            frame = 0;
+            return;
+        }
+        window.scrollBy(0, scrollSpeed);
+        placeAt(drag.x, drag.y);
+        frame = window.requestAnimationFrame(autoScroll);
+    }
+
+    function startDrag(cell, event) {
+        const box = cell.getBoundingClientRect();
+        const ghost = cell.cloneNode(true);
+        ghost.classList.add("dash-ghost");
+        ghost.removeAttribute("data-module-id");
+        ghost.setAttribute("aria-hidden", "true");
+        ghost.style.width = `${box.width}px`;
+        ghost.style.height = `${box.height}px`;
+        document.body.append(ghost);
+        drag = {
+            cell,
+            ghost,
+            pointerId: event.pointerId,
+            startOrder: orderKey(),
+            home: cell.nextElementSibling,
+            offsetX: pending.x - box.left,
+            offsetY: pending.y - box.top,
+            x: event.clientX,
+            y: event.clientY,
+        };
+        cell.classList.add("is-placeholder");
+        document.body.classList.add("is-dragging-block");
+        moveGhost(event.clientX, event.clientY);
+    }
+
     live.addEventListener("pointerdown", (event) => {
         const cell = arranging() ? event.target.closest(".dash-cell[data-module-id]") : null;
         if (!cell || event.target.closest("[data-size], [data-hide], [data-options], [data-options-toggle]")) return;
-        if (drag || (event.pointerType === "mouse" && event.button !== 0)) return;
+        if (drag || pending || (event.pointerType === "mouse" && event.button !== 0)) return;
         event.preventDefault();
         cell.setPointerCapture(event.pointerId);
-        drag = { cell, pointerId: event.pointerId, startOrder: orderKey() };
-        cell.classList.add("is-dragging");
+        pending = { cell, pointerId: event.pointerId, x: event.clientX, y: event.clientY };
     });
 
     live.addEventListener("pointermove", (event) => {
+        if (pending && !drag && event.pointerId === pending.pointerId) {
+            const moved = Math.hypot(event.clientX - pending.x, event.clientY - pending.y);
+            if (moved >= DRAG_THRESHOLD) startDrag(pending.cell, event);
+        }
         if (!drag || event.pointerId !== drag.pointerId) return;
+        drag.x = event.clientX;
+        drag.y = event.clientY;
+        moveGhost(event.clientX, event.clientY);
         placeAt(event.clientX, event.clientY);
+        const top = event.clientY < EDGE;
+        const bottom = event.clientY > window.innerHeight - EDGE;
+        scrollSpeed = top ? -12 : bottom ? 12 : 0;
+        if (scrollSpeed && !frame) frame = window.requestAnimationFrame(autoScroll);
     });
 
-    function endDrag(event) {
-        if (!drag || event.pointerId !== drag.pointerId) return;
-        const { cell, startOrder } = drag;
+    // The lifted block settles into its slot, then the slot is the block.
+    function land(cell, ghost) {
+        const done = () => {
+            ghost.remove();
+            cell.classList.remove("is-placeholder");
+        };
+        if (reduced) {
+            done();
+            return;
+        }
+        const slot = cell.getBoundingClientRect();
+        ghost
+            .animate([{ transform: ghost.style.transform }, { transform: `translate(${slot.left}px, ${slot.top}px)` }], {
+                duration: 220,
+                easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+                fill: "forwards",
+            })
+            .finished.then(done, done);
+    }
+
+    function endDrag(event, cancel) {
+        if (pending && !drag) {
+            pending = null;
+            return;
+        }
+        if (!drag || (event && event.pointerId !== drag.pointerId)) return;
+        const { cell, ghost, startOrder, home } = drag;
         drag = null;
-        cell.classList.remove("is-dragging");
+        pending = null;
+        scrollSpeed = 0;
+        document.body.classList.remove("is-dragging-block");
+        if (cancel) flip(() => cell.parentElement.insertBefore(cell, home));
+        land(cell, ghost);
         if (orderKey() === startOrder) return;
         announceMove(cell);
         saveOrder();
     }
 
-    live.addEventListener("pointerup", endDrag);
-    live.addEventListener("pointercancel", endDrag);
+    live.addEventListener("pointerup", (event) => endDrag(event, false));
+    live.addEventListener("pointercancel", (event) => endDrag(event, true));
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && drag) endDrag(null, true);
+    });
 
     live.addEventListener("keydown", (event) => {
         if (event.key === "Escape" && openOptions) {

@@ -479,9 +479,34 @@
         padding: 0;
     }
 
-    .dash-cell.is-dragging {
-        opacity: 0.6;
-        cursor: grabbing;
+    /* A block being moved: its slot stays, dashed, where it will land; a
+       lifted copy follows the pointer. */
+    .dash-cell.is-placeholder {
+        border-radius: 6px;
+        outline: 1.5px dashed var(--edge-input);
+        outline-offset: 3px;
+        background: var(--surface-subtle);
+    }
+
+    .dash-cell.is-placeholder > * {
+        visibility: hidden;
+    }
+
+    .dash-ghost {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 60;
+        margin: 0;
+        pointer-events: none;
+        box-shadow: var(--shadow-drawer);
+        transform-origin: top left;
+        will-change: transform;
+    }
+
+    .is-dragging-block,
+    .is-dragging-block * {
+        cursor: grabbing !important;
     }
 
     .arrange-add {
