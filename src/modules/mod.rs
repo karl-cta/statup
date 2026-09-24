@@ -56,6 +56,9 @@ pub struct ModuleRenderContext<'a> {
     pub pool: &'a DbPool,
     pub user: Option<&'a User>,
     pub i18n: &'a I18n,
+    pub context: ModuleContext,
+    /// Where readers find the page.
+    pub page_address: &'a str,
 }
 
 impl ModuleRenderContext<'_> {

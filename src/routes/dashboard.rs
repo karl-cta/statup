@@ -90,12 +90,15 @@ async fn render_modules(
     state: &AppState,
     user: Option<&User>,
     context: ModuleContext,
+    page_address: &str,
     i18n: &I18n,
 ) -> Result<LiveModules, AppError> {
     let ctx = ModuleRenderContext {
         pool: &state.pool,
         user,
         i18n,
+        context,
+        page_address,
     };
     let mut live = LiveModules {
         banner_html: None,
@@ -174,7 +177,8 @@ pub async fn index(
         return Ok(redirect);
     }
     let context = context_for(user.as_ref(), &query);
-    let live = render_modules(&state, user.as_ref(), context, &i18n).await?;
+    let page_address = origin(&state, &headers);
+    let live = render_modules(&state, user.as_ref(), context, &page_address, &i18n).await?;
     if headers.contains_key("hx-request") {
         return live_response(live, i18n);
     }

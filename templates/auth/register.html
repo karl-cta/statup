@@ -3,8 +3,13 @@
 {% block title %}{{ i18n.t("auth.register_title") }} | {{ instance }}{% endblock %}
 
 {% block auth_head %}
-<h1 class="auth-title">{{ i18n.t("auth.first_account_heading") }} {{ instance }}</h1>
-<p class="auth-intro">{{ i18n.t("auth.first_account_intro") }}</p>
+<h1 class="auth-title">{{ i18n.t("auth.welcome_heading") }}</h1>
+<p class="auth-intro">{{ i18n.t("auth.welcome_intro") }}</p>
+<ol class="setup-steps">
+    <li class="setup-step" aria-current="step"><span class="setup-step-num" aria-hidden="true">1</span><span class="setup-step-name">{{ i18n.t("auth.step_account") }}</span><span class="setup-step-now">{{ i18n.t("auth.step_now") }}</span></li>
+    <li class="setup-step"><span class="setup-step-num" aria-hidden="true">2</span><span class="setup-step-name">{{ i18n.t("auth.step_services") }}</span></li>
+    <li class="setup-step"><span class="setup-step-num" aria-hidden="true">3</span><span class="setup-step-name">{{ i18n.t("auth.step_page") }}</span></li>
+</ol>
 {% endblock %}
 
 {% block auth_body %}
@@ -43,4 +48,5 @@
     </div>
     <button type="submit" class="btn btn-primary">{{ i18n.t("auth.first_account_submit") }}</button>
 </form>
+<p class="auth-alt">{{ i18n.t("auth.first_account_intro") }}</p>
 {% endblock %}

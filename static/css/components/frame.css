@@ -336,18 +336,6 @@
         font-feature-settings: 'tnum' 1;
     }
 
-    .theme-icon-light {
-        display: none;
-    }
-
-    .dark .theme-icon-light {
-        display: block;
-    }
-
-    .dark .theme-icon-dark {
-        display: none;
-    }
-
     .mast-burger {
         position: relative;
         display: none;

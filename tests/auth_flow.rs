@@ -531,6 +531,13 @@ async fn first_account_is_admin_and_signed_in() {
 
     let (status, _body) = app.get("/admin/users").await;
     assert_eq!(status, StatusCode::OK, "signed in straight after creation");
+
+    let (_, body) = app.get("/").await;
+    assert!(
+        body.contains(r#"class="card first-steps""#),
+        "the empty dashboard walks the administrator through the first steps"
+    );
+    assert!(body.contains(&app.url("/").trim_end_matches('/').to_string()));
 }
 
 #[tokio::test]

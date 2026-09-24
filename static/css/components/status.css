@@ -739,4 +739,99 @@
             transition: none;
         }
     }
+
+    /* An empty instance: the administrator's first steps in place of the
+       banner. */
+    .first-steps-count {
+        font-size: var(--text-sm);
+        color: var(--muted);
+    }
+
+    .first-steps-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .first-step {
+        display: grid;
+        grid-template-columns: 24px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px 14px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .first-step:last-child {
+        border-bottom: 0;
+    }
+
+    .first-step-num {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: var(--muted);
+        border: 1px solid var(--edge-input);
+        border-radius: 50%;
+        font-feature-settings: 'tnum' 1;
+    }
+
+    .first-step-num svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .first-step[data-done] .first-step-num {
+        color: var(--ground);
+        background: var(--sem-ok-text);
+        border-color: var(--sem-ok-text);
+    }
+
+    .first-step[data-done] .first-step-what {
+        color: var(--muted);
+    }
+
+    .first-step-what {
+        font-size: var(--text-md);
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .first-step-why {
+        margin-top: 2px;
+        font-size: var(--text-sm);
+        line-height: 1.5;
+        color: var(--muted);
+    }
+
+    /* The address reads as text and still selects in one click. */
+    .first-step-address {
+        max-width: 100%;
+        padding: 0;
+        font: inherit;
+        font-weight: 500;
+        color: var(--ink);
+        background: none;
+        border: 0;
+        font-feature-settings: 'tnum' 1;
+    }
+
+    .first-step-address:focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+    }
+
+    @media (max-width: 640px) {
+        .first-step {
+            grid-template-columns: 24px minmax(0, 1fr);
+        }
+
+        .first-step > .btn {
+            grid-column: 2;
+            justify-self: start;
+        }
+    }
 }

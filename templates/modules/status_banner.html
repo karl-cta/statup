@@ -1,5 +1,38 @@
 {% import "components/macros.html" as ui %}
-{% if !has_services %}
+{% if let Some(address) = first_steps %}
+<section class="card first-steps" aria-labelledby="first-steps-title">
+    <header class="card-head">
+        <h2 id="first-steps-title" class="card-title">{{ i18n.t("banner.steps_title") }}</h2>
+        <p class="first-steps-count">{{ i18n.t("banner.steps_progress") }}</p>
+    </header>
+    <ol class="first-steps-list">
+        <li class="first-step" data-done>
+            <span class="first-step-num" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+            <p class="first-step-what">{{ i18n.t("banner.step_account") }}<span class="sr-only">{{ i18n.t("banner.step_done") }}</span></p>
+        </li>
+        <li class="first-step" aria-current="step">
+            <span class="first-step-num" aria-hidden="true">2</span>
+            <div>
+                <p class="first-step-what">{{ i18n.t("banner.step_services") }}</p>
+                <p class="first-step-why">{{ i18n.t("banner.step_services_hint") }}</p>
+            </div>
+            <a href="/services/new" class="btn btn-primary">{{ i18n.t("banner.step_services_action") }}</a>
+        </li>
+        <li class="first-step">
+            <span class="first-step-num" aria-hidden="true">3</span>
+            <div>
+                <p class="first-step-what">{{ i18n.t("banner.step_share") }}</p>
+                <p class="first-step-why">
+                    <label for="page-address">{{ i18n.t("banner.step_share_address") }}</label>
+                    <input id="page-address" class="first-step-address" type="text" value="{{ address }}" size="{{ address.chars().count() }}" readonly data-select-on-focus>.
+                    {{ i18n.t("banner.step_share_hint") }}
+                </p>
+            </div>
+            <button type="button" class="btn btn-ghost" data-copy="#page-address" data-copied="{{ i18n.t("banner.address_copied") }}">{{ i18n.t("banner.copy_address") }}</button>
+        </li>
+    </ol>
+</section>
+{% else if !has_services %}
 <section class="hero" aria-labelledby="status-headline">
     <h2 id="status-headline" class="hero-title">
         <span class="ring-dot" data-tone="neutral" aria-hidden="true"></span>

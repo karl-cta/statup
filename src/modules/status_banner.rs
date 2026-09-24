@@ -6,7 +6,8 @@
 //! turns to maintenance when nothing is disrupted. It says until when work
 //! runs and names the next announced maintenance, since the reader's second
 //! question is when it comes back. A fresh install says nothing is watched
-//! rather than claiming that everything is fine.
+//! rather than claiming that everything is fine; its administrator gets the
+//! first steps instead.
 
 use askama::Template;
 use async_trait::async_trait;
@@ -76,6 +77,8 @@ struct StatusBannerTemplate {
     next_maintenance: Option<NextMaintenance>,
     refreshed_at: String,
     can_publish: bool,
+    /// The page address, when the first steps are shown.
+    first_steps: Option<String>,
     i18n: I18n,
 }
 
@@ -139,10 +142,18 @@ impl Module for StatusBannerModule {
             next_maintenance: next_maintenance(&maintenance, i18n),
             refreshed_at: refreshed_label(i18n),
             can_publish: ctx.can_publish(),
+            first_steps: first_steps(ctx, services.is_empty()),
             i18n: i18n.clone(),
         };
         render_template(self.id(), &template)
     }
+}
+
+/// An administrator on an empty instance is walked through adding services
+/// and sharing the page; the visitors' view stays as they will see it.
+fn first_steps(ctx: &ModuleRenderContext<'_>, empty: bool) -> Option<String> {
+    let admin = ctx.user.is_some_and(|u| u.role.can_admin());
+    (empty && admin && ctx.context == ModuleContext::Admin).then(|| ctx.page_address.to_string())
 }
 
 /// The services worth a line, worst first: the disrupted ones, or, when

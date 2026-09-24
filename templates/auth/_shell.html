@@ -12,10 +12,7 @@
 {% block body %}
 <div class="auth-page">
     <header class="auth-tools">
-        <a class="icon-button" href="/i18n?locale={{ i18n.other_locale() }}" hreflang="{{ i18n.other_locale() }}" lang="{{ i18n.other_locale() }}">{{ i18n.t("lang.other") }}</a>
-        <button type="button" class="icon-button" data-theme-toggle aria-pressed="false" aria-label="{{ i18n.t("nav.dark_theme") }}">
-            {% include "components/theme_icons.html" %}
-        </button>
+        {% include "components/mast_switches.html" %}
     </header>
     <main id="main" class="auth-panel">
         <header class="auth-head">

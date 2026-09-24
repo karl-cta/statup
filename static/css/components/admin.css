@@ -678,6 +678,57 @@
         color: var(--muted);
     }
 
+    /* The three steps of a new instance, the first one under way. */
+    .setup-steps {
+        margin: 24px 0 0;
+        padding: 0;
+        list-style: none;
+        border-top: 1px solid var(--line);
+    }
+
+    .setup-step {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 0;
+        font-size: var(--text-sm);
+        color: var(--muted);
+        border-bottom: 1px solid var(--line);
+    }
+
+    .setup-step-num {
+        display: grid;
+        flex: none;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        font-size: var(--text-xs);
+        font-weight: 600;
+        border: 1px solid var(--edge-input);
+        border-radius: 50%;
+        font-feature-settings: 'tnum' 1;
+    }
+
+    .setup-step-name {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .setup-step[aria-current] {
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .setup-step[aria-current] .setup-step-num {
+        color: var(--on-primary);
+        background: var(--primary);
+        border-color: var(--primary);
+    }
+
+    .setup-step-now {
+        font-size: var(--text-xs);
+    }
+
     .auth-form {
         display: flex;
         flex-direction: column;
@@ -711,29 +762,6 @@
         display: flex;
         align-items: center;
         gap: 4px;
-    }
-
-    .icon-button {
-        display: inline-grid;
-        place-items: center;
-        min-width: 40px;
-        height: 40px;
-        padding: 0 8px;
-        font-size: var(--text-sm);
-        font-weight: 500;
-        color: var(--muted);
-        border-radius: 6px;
-        transition: color 150ms ease, background-color 150ms ease;
-    }
-
-    .icon-button:hover {
-        color: var(--ink);
-        background: var(--surface-hover);
-    }
-
-    .icon-button svg {
-        width: 16px;
-        height: 16px;
     }
 
     /* Profile. */
