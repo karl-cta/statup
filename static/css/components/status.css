@@ -311,35 +311,6 @@
         margin-left: auto;
     }
 
-    .arrange-scope {
-        display: flex;
-        gap: 12px;
-        font-size: var(--text-sm);
-        font-weight: 500;
-    }
-
-    .arrange-scope a {
-        color: var(--muted);
-    }
-
-    .arrange-scope a:hover {
-        color: var(--ink);
-    }
-
-    .arrange-scope a[aria-current="page"] {
-        font-weight: 600;
-        color: var(--ink);
-        text-decoration: underline;
-        text-decoration-color: var(--line-strong);
-        text-underline-offset: 3px;
-    }
-
-    .arrange-note {
-        margin: -8px 0 16px;
-        font-size: var(--text-sm);
-        color: var(--ink-soft);
-    }
-
     /* The tools above a block, in arrange mode only. */
     .cell-tools {
         display: flex;

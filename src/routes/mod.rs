@@ -215,19 +215,15 @@ fn admin_routes() -> Router<AppState> {
             post(admin::reset_member_password),
         )
         .route(
-            "/admin/dashboard/:context/layout",
-            get(dashboard_layout::layout_editor),
-        )
-        .route(
-            "/admin/dashboard/:context/layout/order",
+            "/admin/dashboard/layout/order",
             post(dashboard_layout::save_order),
         )
         .route(
-            "/admin/dashboard/:context/layout/:module_id/toggle",
+            "/admin/dashboard/layout/:module_id/toggle",
             post(dashboard_layout::toggle_module),
         )
         .route(
-            "/admin/dashboard/:context/layout/:module_id/width",
+            "/admin/dashboard/layout/:module_id/width",
             post(dashboard_layout::set_width),
         )
 }

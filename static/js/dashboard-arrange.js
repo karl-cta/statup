@@ -7,12 +7,11 @@
     "use strict";
 
     const KEY_SAVE_DELAY = 600;
-    const page = document.querySelector("[data-arrange-context]");
+    const page = document.querySelector("[data-arrange]");
     const live = document.getElementById("live");
     const toggle = document.querySelector("[data-arrange-toggle]");
     if (!page || !live || !toggle) return;
 
-    const context = page.dataset.arrangeContext;
     let drag = null;
     let saveTimer = null;
 
@@ -77,7 +76,7 @@
         window.clearTimeout(saveTimer);
         saveTimer = null;
         const fields = cells().map((cell) => ["order", cell.dataset.moduleId]);
-        post(`/admin/dashboard/${context}/layout/order`, fields)
+        post("/admin/dashboard/layout/order", fields)
             .then(() => announce(page.dataset.saved))
             .catch(reload);
     }
@@ -111,13 +110,13 @@
         cell.querySelectorAll("[data-size]").forEach((button) => {
             button.setAttribute("aria-pressed", String(button.dataset.size === width));
         });
-        post(`/admin/dashboard/${context}/layout/${cell.dataset.moduleId}/width`, [["width", width]])
+        post(`/admin/dashboard/layout/${cell.dataset.moduleId}/width`, [["width", width]])
             .then(() => announce(page.dataset.saved))
             .catch(reload);
     }
 
     function setShown(moduleId, shown) {
-        post(`/admin/dashboard/${context}/layout/${moduleId}/toggle`, [["enabled", String(shown)]])
+        post(`/admin/dashboard/layout/${moduleId}/toggle`, [["enabled", String(shown)]])
             .then(refetch)
             .catch(reload);
     }

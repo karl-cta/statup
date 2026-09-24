@@ -1,11 +1,11 @@
-//! Dashboard modules: self-contained blocks shown on the status page or on
-//! the signed-in dashboard, in the order an admin saved.
+//! Dashboard modules: self-contained blocks of the status page, in the order
+//! an admin saved. Visitors and members see the same page; a module may add
+//! what only a member needs.
 //!
 //! The `Module` trait is the only contract between the core and future
 //! extensions, which would register their own modules.
 
 use std::collections::BTreeMap;
-use std::fmt;
 use std::sync::LazyLock;
 
 use async_trait::async_trait;
@@ -22,41 +22,10 @@ pub mod status_banner;
 
 static REGISTRY: LazyLock<ModuleRegistry> = LazyLock::new(ModuleRegistry::builtin);
 
-/// Where a module may appear.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ModuleContext {
-    /// The status page anyone may read.
-    Public,
-    /// The dashboard every signed-in account sees.
-    Admin,
-}
-
-impl ModuleContext {
-    pub const ALL: [Self; 2] = [Self::Public, Self::Admin];
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Public => "public",
-            Self::Admin => "admin",
-        }
-    }
-
-    pub fn parse(s: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|c| c.as_str() == s)
-    }
-}
-
-impl fmt::Display for ModuleContext {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
 pub struct ModuleRenderContext<'a> {
     pub pool: &'a DbPool,
     pub user: Option<&'a User>,
     pub i18n: &'a I18n,
-    pub context: ModuleContext,
     /// Where readers find the page.
     pub page_address: &'a str,
 }
@@ -106,8 +75,6 @@ pub trait Module: Send + Sync + 'static {
 
     fn description_key(&self) -> &'static str;
 
-    fn contexts(&self) -> &'static [ModuleContext];
-
     async fn render(&self, ctx: &ModuleRenderContext<'_>) -> Result<String, AppError>;
 
     /// Position given to the module in a new layout, lower first.
@@ -145,12 +112,8 @@ impl ModuleRegistry {
         self.modules.get(id).map(Box::as_ref)
     }
 
-    pub fn for_context(&self, context: ModuleContext) -> Vec<&dyn Module> {
-        self.modules
-            .values()
-            .filter(|m| m.contexts().contains(&context))
-            .map(Box::as_ref)
-            .collect()
+    pub fn all(&self) -> Vec<&dyn Module> {
+        self.modules.values().map(Box::as_ref).collect()
     }
 }
 
@@ -179,14 +142,6 @@ mod tests {
         ] {
             assert!(registry.get(id).is_some(), "{id}");
         }
-        assert_eq!(registry.for_context(ModuleContext::Public).len(), 4);
-    }
-
-    #[test]
-    fn contexts_round_trip() {
-        for context in ModuleContext::ALL {
-            assert_eq!(ModuleContext::parse(context.as_str()), Some(context));
-        }
-        assert!(ModuleContext::parse("other").is_none());
+        assert_eq!(registry.all().len(), 4);
     }
 }

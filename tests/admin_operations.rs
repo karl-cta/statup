@@ -417,14 +417,7 @@ async fn a_disabled_accounts_email_is_still_taken() {
 async fn modules_are_reordered_by_their_handle_alone() {
     let (app, _admin_id) = spawn_with_admin().await;
 
-    let (status, _body) = app.get("/admin/dashboard/public/layout").await;
-    assert_eq!(
-        status,
-        StatusCode::SEE_OTHER,
-        "the old page leads to the dashboard"
-    );
-
-    let (status, body) = app.get("/?view=public&arrange=1").await;
+    let (status, body) = app.get("/?arrange=1").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("data-drag-handle"), "each block has a handle");
     assert!(
@@ -439,17 +432,21 @@ async fn modules_are_reordered_by_their_handle_alone() {
         !body.contains("data-move="),
         "the arrow buttons that duplicated the handle are gone"
     );
+    assert!(
+        !body.contains("view=public"),
+        "one page for everyone, nothing to choose between"
+    );
 
     let csrf = app.csrf().await;
     let (status, _body, _location) = app
         .post_form(
-            "/admin/dashboard/public/layout/services/width",
+            "/admin/dashboard/layout/services/width",
             &csrf,
             &[("width", "wide")],
         )
         .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
-    let (_status, body) = app.get("/?view=public").await;
+    let (_status, body) = app.get("/").await;
     assert!(
         body.contains(r#"data-width="wide" data-module-id="services""#),
         "the chosen width is what the page draws: {body}"

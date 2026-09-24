@@ -15,7 +15,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="page"{% if live.arrangeable %} data-arrange-context="{{ context }}"{% if arranging %} data-arrange-start{% endif %} data-saved="{{ i18n.t("dashboard.layout_saved") }}" data-moved="{{ i18n.t("dashboard.block_moved") }}"{% endif %}>
+<div class="page"{% if live.arrangeable %} data-arrange{% if arranging %} data-arrange-start{% endif %} data-saved="{{ i18n.t("dashboard.layout_saved") }}" data-moved="{{ i18n.t("dashboard.block_moved") }}"{% endif %}>
     {% if frame.can_publish && has_services %}
     <header class="page-head">
         <h1 class="page-title">{{ i18n.t("dashboard.heading") }}</h1>
@@ -32,23 +32,16 @@
     {% if live.arrangeable %}
     <div class="dash-tools" data-arrange-only hidden>
         <div class="arrange-bar">
-            <nav class="arrange-scope" aria-label="{{ i18n.t("dashboard.arrange_scope") }}" data-arrange-only hidden>
-                <a href="/?arrange=1"{% if !viewing_public %} aria-current="page"{% endif %}>{{ i18n.t("dashboard.arrange_members") }}</a>
-                <a href="/?view=public&amp;arrange=1"{% if viewing_public %} aria-current="page"{% endif %}>{{ i18n.t("dashboard.arrange_public") }}</a>
-            </nav>
             <button type="button" class="text-action" data-arrange-toggle aria-pressed="false"
                     data-label-open="{{ i18n.t("dashboard.arrange") }}" data-label-close="{{ i18n.t("dashboard.arrange_done") }}">{{ i18n.t("dashboard.arrange") }}</button>
         </div>
     </div>
     <p id="arrange-hint" class="sr-only">{{ i18n.t("dashboard.move_hint") }}</p>
-    {% if viewing_public %}
-    <p class="arrange-note" data-arrange-only hidden>{{ i18n.t("dashboard.arrange_public_note") }}</p>
-    {% endif %}
     {% endif %}
     {% endif %}
 
     {# Refreshed every minute while the tab is visible. #}
-    <div id="live" data-live="{% if viewing_public %}/?view=public{% else %}/{% endif %}" data-version="{{ live.version }}">
+    <div id="live" data-live="/" data-version="{{ live.version }}">
         {% include "dashboard/_live.html" %}
     </div>
 </div>

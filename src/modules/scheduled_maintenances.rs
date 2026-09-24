@@ -9,7 +9,7 @@ use crate::i18n::I18n;
 use crate::models::{EventSummary, Lifecycle, ServiceTag};
 use crate::repositories::EventRepository;
 
-use super::{ColumnWidth, Module, ModuleContext, ModuleRenderContext, render_template};
+use super::{ColumnWidth, Module, ModuleRenderContext, render_template};
 
 const FINISHED_LIMIT: i64 = 5;
 
@@ -48,10 +48,6 @@ impl Module for ScheduledMaintenancesModule {
 
     fn description_key(&self) -> &'static str {
         "modules.scheduled_maintenances.description"
-    }
-
-    fn contexts(&self) -> &'static [ModuleContext] {
-        &[ModuleContext::Public, ModuleContext::Admin]
     }
 
     fn default_position(&self) -> i64 {

@@ -13,7 +13,7 @@ use crate::i18n::I18n;
 use crate::models::{Service, ServiceStatus, Severity};
 use crate::repositories::{EventRepository, IncidentSpan, ServiceRepository};
 
-use super::{ColumnWidth, Module, ModuleContext, ModuleRenderContext, render_template};
+use super::{ColumnWidth, Module, ModuleRenderContext, render_template};
 
 const DAYS: i64 = 30;
 
@@ -64,10 +64,6 @@ impl Module for ServicesModule {
 
     fn description_key(&self) -> &'static str {
         "modules.services.description"
-    }
-
-    fn contexts(&self) -> &'static [ModuleContext] {
-        &[ModuleContext::Public, ModuleContext::Admin]
     }
 
     fn default_position(&self) -> i64 {

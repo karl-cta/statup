@@ -8,7 +8,7 @@ use crate::i18n::I18n;
 use crate::models::{DayGroup, group_by_day};
 use crate::repositories::EventRepository;
 
-use super::{ColumnWidth, Module, ModuleContext, ModuleRenderContext, render_template};
+use super::{ColumnWidth, Module, ModuleRenderContext, render_template};
 
 const LIMIT: i64 = 10;
 
@@ -33,10 +33,6 @@ impl Module for RecentActivityModule {
 
     fn description_key(&self) -> &'static str {
         "modules.recent_activity.description"
-    }
-
-    fn contexts(&self) -> &'static [ModuleContext] {
-        &[ModuleContext::Public, ModuleContext::Admin]
     }
 
     fn default_position(&self) -> i64 {

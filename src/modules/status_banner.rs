@@ -18,7 +18,7 @@ use crate::i18n::I18n;
 use crate::models::{EventSummary, Kind, Lifecycle, Service, ServiceStatus, Tone};
 use crate::repositories::{EventRepository, ServiceRepository};
 
-use super::{ColumnWidth, Module, ModuleContext, ModuleRenderContext, render_template};
+use super::{ColumnWidth, Module, ModuleRenderContext, render_template};
 
 const UPDATE_EXCERPT_CHARS: usize = 180;
 /// How far ahead an announced maintenance is worth a line.
@@ -112,10 +112,6 @@ impl Module for StatusBannerModule {
         "modules.status_banner.description"
     }
 
-    fn contexts(&self) -> &'static [ModuleContext] {
-        &[ModuleContext::Public, ModuleContext::Admin]
-    }
-
     fn default_position(&self) -> i64 {
         10
     }
@@ -148,10 +144,10 @@ impl Module for StatusBannerModule {
 }
 
 /// An administrator on an empty instance is walked through adding services
-/// and sharing the page; the visitors' view stays as they will see it.
+/// and sharing the page.
 fn first_steps(ctx: &ModuleRenderContext<'_>, empty: bool) -> Option<String> {
     let admin = ctx.user.is_some_and(|u| u.role.can_admin());
-    (empty && admin && ctx.context == ModuleContext::Admin).then(|| ctx.page_address.to_string())
+    (empty && admin).then(|| ctx.page_address.to_string())
 }
 
 /// The services worth a line, worst first: the disrupted ones, or, when

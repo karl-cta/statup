@@ -16,7 +16,7 @@ use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, OptionalUser};
 use crate::models::User;
-use crate::modules::{ColumnWidth, ModuleContext, ModuleRenderContext};
+use crate::modules::{ColumnWidth, ModuleRenderContext};
 use crate::repositories::{ServiceRepository, UserRepository};
 use crate::services::DashboardLayoutService;
 use crate::state::AppState;
@@ -51,10 +51,6 @@ struct DashboardTemplate {
     frame: Frame,
     live: LiveModules,
     has_services: bool,
-    /// The dashboard being shown, `public` or `admin`.
-    context: &'static str,
-    /// An administrator looking at the visitors' page.
-    viewing_public: bool,
     /// Opened in arrange mode.
     arranging: bool,
     i18n: I18n,
@@ -69,27 +65,14 @@ struct LiveTemplate {
 
 #[derive(Deserialize)]
 pub struct DashboardQuery {
-    /// `public`: an administrator previews and arranges the visitors' page.
-    view: Option<String>,
     /// `1` opens the arrange mode.
     #[serde(default)]
     arrange: String,
 }
 
-fn context_for(user: Option<&User>, query: &DashboardQuery) -> ModuleContext {
-    match user {
-        Some(u) if u.role.can_admin() && query.view.as_deref() == Some("public") => {
-            ModuleContext::Public
-        }
-        Some(_) => ModuleContext::Admin,
-        None => ModuleContext::Public,
-    }
-}
-
 async fn render_modules(
     state: &AppState,
     user: Option<&User>,
-    context: ModuleContext,
     page_address: &str,
     i18n: &I18n,
 ) -> Result<LiveModules, AppError> {
@@ -97,7 +80,6 @@ async fn render_modules(
         pool: &state.pool,
         user,
         i18n,
-        context,
         page_address,
     };
     let mut live = LiveModules {
@@ -107,7 +89,7 @@ async fn render_modules(
         arrangeable: user.is_some_and(|u| u.role.can_admin()),
         version: String::new(),
     };
-    for item in DashboardLayoutService::resolve(&state.pool, context).await? {
+    for item in DashboardLayoutService::resolve(&state.pool).await? {
         let name = i18n.t(item.module.name_key()).to_string();
         if !item.enabled {
             if live.arrangeable {
@@ -165,9 +147,8 @@ pub async fn index(
     if let Some(redirect) = members_only(&state, user.as_ref(), &headers) {
         return Ok(redirect);
     }
-    let context = context_for(user.as_ref(), &query);
     let page_address = origin(&state, &headers);
-    let live = render_modules(&state, user.as_ref(), context, &page_address, &i18n).await?;
+    let live = render_modules(&state, user.as_ref(), &page_address, &i18n).await?;
     if headers.contains_key("hx-request") {
         return live_response(live, i18n);
     }
@@ -180,8 +161,6 @@ pub async fn index(
         frame,
         live,
         has_services,
-        context: context.as_str(),
-        viewing_public: user.is_some() && context == ModuleContext::Public,
         arranging: matches!(query.arrange.as_str(), "1" | "true"),
         i18n,
     })

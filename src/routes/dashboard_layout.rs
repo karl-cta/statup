@@ -1,33 +1,17 @@
-//! Arranging a dashboard: order, width and visibility of its modules,
-//! saved by the script of the dashboard itself as the administrator
-//! changes them.
+//! Arranging the status page: order, width and visibility of its modules,
+//! saved by the script of the page itself as the administrator changes
+//! them.
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Redirect, Response};
+use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 
 use crate::error::AppError;
 use crate::middleware::{HtmlForm, RequireAdmin};
-use crate::modules::{ColumnWidth, ModuleContext, ModuleRegistry};
+use crate::modules::{ColumnWidth, ModuleRegistry};
 use crate::repositories::DashboardLayoutRepository;
 use crate::state::AppState;
-
-fn parse_context(raw: &str) -> Result<ModuleContext, AppError> {
-    ModuleContext::parse(raw).ok_or(AppError::NotFound)
-}
-
-/// The former editor page: the dashboard now arranges itself.
-pub async fn layout_editor(
-    RequireAdmin(_admin): RequireAdmin,
-    Path(context_raw): Path<String>,
-) -> Result<Response, AppError> {
-    let target = match parse_context(&context_raw)? {
-        ModuleContext::Public => "/?view=public&arrange=1",
-        ModuleContext::Admin => "/?arrange=1",
-    };
-    Ok(Redirect::to(target).into_response())
-}
 
 #[derive(Deserialize)]
 pub struct OrderForm {
@@ -38,12 +22,10 @@ pub struct OrderForm {
 pub async fn save_order(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
-    Path(context_raw): Path<String>,
     HtmlForm(form): HtmlForm<OrderForm>,
 ) -> Result<Response, AppError> {
-    let context = parse_context(&context_raw)?;
-    DashboardLayoutRepository::save_order(&state.pool, context, &form.order).await?;
-    tracing::info!(admin_id = admin.id, %context, "Dashboard order saved");
+    DashboardLayoutRepository::save_order(&state.pool, &form.order).await?;
+    tracing::info!(admin_id = admin.id, "Dashboard order saved");
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -58,10 +40,9 @@ pub struct ToggleForm {
 pub async fn toggle_module(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
-    Path((context_raw, module_id)): Path<(String, String)>,
+    Path(module_id): Path<String>,
     HtmlForm(form): HtmlForm<ToggleForm>,
 ) -> Result<Response, AppError> {
-    let context = parse_context(&context_raw)?;
     let module = ModuleRegistry::global()
         .get(&module_id)
         .ok_or(AppError::NotFound)?;
@@ -73,13 +54,12 @@ pub async fn toggle_module(
     let enabled = matches!(form.enabled.as_deref(), Some("true" | "on" | "1"));
     DashboardLayoutRepository::insert_if_missing(
         &state.pool,
-        context,
         &module_id,
         module.default_position(),
     )
     .await?;
-    DashboardLayoutRepository::set_enabled(&state.pool, context, &module_id, enabled).await?;
-    tracing::info!(admin_id = admin.id, %context, %module_id, enabled, "Dashboard module toggled");
+    DashboardLayoutRepository::set_enabled(&state.pool, &module_id, enabled).await?;
+    tracing::info!(admin_id = admin.id, %module_id, enabled, "Dashboard module toggled");
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -93,10 +73,9 @@ pub struct WidthForm {
 pub async fn set_width(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
-    Path((context_raw, module_id)): Path<(String, String)>,
+    Path(module_id): Path<String>,
     HtmlForm(form): HtmlForm<WidthForm>,
 ) -> Result<Response, AppError> {
-    let context = parse_context(&context_raw)?;
     let module = ModuleRegistry::global()
         .get(&module_id)
         .ok_or(AppError::NotFound)?;
@@ -105,12 +84,11 @@ pub async fn set_width(
         .ok_or_else(|| AppError::Validation("error.invalid_data".to_string()))?;
     DashboardLayoutRepository::insert_if_missing(
         &state.pool,
-        context,
         &module_id,
         module.default_position(),
     )
     .await?;
-    DashboardLayoutRepository::set_width(&state.pool, context, &module_id, width.as_str()).await?;
-    tracing::info!(admin_id = admin.id, %context, %module_id, width = width.as_str(), "Dashboard module width saved");
+    DashboardLayoutRepository::set_width(&state.pool, &module_id, width.as_str()).await?;
+    tracing::info!(admin_id = admin.id, %module_id, width = width.as_str(), "Dashboard module width saved");
     Ok(StatusCode::NO_CONTENT.into_response())
 }
