@@ -123,10 +123,13 @@
         document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
             button.setAttribute("aria-pressed", String(dark));
         });
+        document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+            button.setAttribute("aria-pressed", String((button.dataset.themeChoice === "dark") === dark));
+        });
     }
 
-    function toggleTheme() {
-        const dark = root.classList.toggle("dark");
+    function setTheme(dark) {
+        root.classList.toggle("dark", dark);
         try {
             window.localStorage.setItem("theme", dark ? "dark" : "light");
         } catch {
@@ -462,7 +465,12 @@
         const target = event.target;
         if (!(target instanceof Element)) return;
         if (target.closest("[data-theme-toggle]")) {
-            toggleTheme();
+            setTheme(!root.classList.contains("dark"));
+            return;
+        }
+        const choice = target.closest("[data-theme-choice]");
+        if (choice) {
+            setTheme(choice.dataset.themeChoice === "dark");
             return;
         }
         closeMoreActions(target.closest("details[data-more-actions]"));

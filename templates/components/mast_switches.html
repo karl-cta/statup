@@ -1,6 +1,7 @@
+{% import "components/macros.html" as ui %}
 {# The language and the theme, each one small button that shows the
-   current choice and switches to the other: in the masthead and again in
-   the compact menu. #}
+   current choice and switches to the other: in the masthead and on the
+   sign-in pages. #}
 <div class="switches">
     <a class="mast-switch" href="/i18n?locale={{ i18n.other_locale() }}" hreflang="{{ i18n.other_locale() }}" title="{{ i18n.t("nav.switch_language") }}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z"/></svg>
@@ -8,7 +9,7 @@
         <span class="sr-only" lang="{{ i18n.other_locale() }}">{{ i18n.t("nav.switch_language") }}</span>
     </a>
     <button type="button" class="mast-switch" aria-pressed="false" aria-label="{{ i18n.t("nav.dark_theme") }}" title="{{ i18n.t("nav.dark_theme") }}" data-theme-toggle>
-        <svg class="theme-now-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-        <svg class="theme-now-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <span class="theme-now-light">{% call ui::sun_icon() %}</span>
+        <span class="theme-now-dark">{% call ui::moon_icon() %}</span>
     </button>
 </div>

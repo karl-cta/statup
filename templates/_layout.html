@@ -92,20 +92,34 @@
                 {% endif %}
             </nav>
             <div class="mast-menu-list mast-menu-prefs">
-                <p class="mast-menu-clock">{{ frame.dateline }}&nbsp;<span aria-hidden="true">·</span> <span data-clock-time>{{ frame.clock_time }}</span> {{ frame.zone }}</p>
-                {% include "components/mast_switches.html" %}
+                <div class="menu-pref" role="group" aria-labelledby="menu-language">
+                    <span id="menu-language" class="menu-pref-name">{{ i18n.t("nav.language") }}</span>
+                    <span class="menu-seg">
+                        <a href="/i18n?locale=fr" hreflang="fr" lang="fr"{% if i18n.locale() == "fr" %} aria-current="true"{% endif %}>Français</a>
+                        <a href="/i18n?locale=en" hreflang="en" lang="en"{% if i18n.locale() == "en" %} aria-current="true"{% endif %}>English</a>
+                    </span>
+                </div>
+                <div class="menu-pref" role="group" aria-labelledby="menu-theme">
+                    <span id="menu-theme" class="menu-pref-name">{{ i18n.t("nav.theme") }}</span>
+                    <span class="menu-seg">
+                        <button type="button" aria-pressed="false" data-theme-choice="light">{% call ui::sun_icon() %}{{ i18n.t("nav.theme_light") }}</button>
+                        <button type="button" aria-pressed="false" data-theme-choice="dark">{% call ui::moon_icon() %}{{ i18n.t("nav.theme_dark") }}</button>
+                    </span>
+                </div>
             </div>
             <div class="mast-menu-list">
                 {% if frame.is_authenticated %}
-                <a class="mast-menu-item" href="/profile">{{ i18n.t("nav.profile") }} <span class="text-muted wrap-anywhere">{{ frame.user_name }}</span></a>
+                <p class="menu-who"><span class="avatar" aria-hidden="true">{{ frame.user_initial }}</span><span><strong class="wrap-anywhere">{{ frame.user_name }}</strong><span>{{ frame.role_label }}</span></span></p>
+                <a class="mast-menu-item" href="/profile">{{ i18n.t("nav.profile") }}</a>
                 <form method="post" action="/logout">
                     <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                    <button type="submit" class="mast-menu-item">{{ i18n.t("nav.logout") }}</button>
+                    <button type="submit" class="mast-menu-item mast-menu-quiet">{{ i18n.t("nav.logout") }}</button>
                 </form>
                 {% else %}
-                <a class="mast-menu-item" href="/login">{{ i18n.t("nav.login") }}</a>
+                <a class="btn btn-primary menu-login" href="/login">{{ i18n.t("nav.login") }}</a>
                 {% endif %}
             </div>
+            <p class="mast-menu-clock">{{ i18n.t("nav.instance_time") }} {{ frame.dateline }}&nbsp;<span aria-hidden="true">·</span> <strong data-clock-time>{{ frame.clock_time }}</strong> {{ frame.zone }}</p>
         </div>
     </header>
 

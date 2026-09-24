@@ -324,16 +324,121 @@
         color: var(--ink);
     }
 
+    /* The compact menu: the pages, the reader's settings as named rows,
+       their account, then the instance clock. */
     .mast-menu-prefs {
+        gap: 4px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+
+    .menu-pref {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         gap: 12px;
-        padding-top: 14px;
-        padding-bottom: 14px;
+        min-height: 48px;
+        font-size: var(--text-md);
+        color: var(--ink);
+    }
+
+    .menu-seg {
+        display: inline-flex;
+        gap: 2px;
+        padding: 3px;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+    }
+
+    .menu-seg > a,
+    .menu-seg > button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 36px;
+        padding: 0 12px;
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: var(--muted);
+        border-radius: 5px;
+        transition: color 150ms ease, background-color 150ms ease;
+    }
+
+    .menu-seg > a:hover,
+    .menu-seg > button:hover {
+        color: var(--ink);
+    }
+
+    .menu-seg > [aria-current="true"],
+    .menu-seg > [aria-pressed="true"] {
+        color: var(--on-primary);
+        background: var(--primary);
+    }
+
+    .menu-seg svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    .menu-who {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 0 4px;
+    }
+
+    .menu-who .avatar {
+        display: inline-grid;
+        flex: none;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        font-weight: 700;
+        color: var(--ink);
+        background: var(--surface-subtle);
+        border-radius: 50%;
+    }
+
+    .menu-who strong {
+        display: block;
+        font-size: var(--text-md);
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .menu-who strong + span {
+        font-size: var(--text-sm);
+        color: var(--muted);
+    }
+
+    .mast-menu-quiet {
+        color: var(--muted);
+    }
+
+    .menu-login {
+        width: 100%;
+        margin: 8px 0;
+    }
+
+    @media (min-width: 600px) {
+        .menu-login {
+            align-self: flex-start;
+            width: auto;
+            min-width: 200px;
+        }
     }
 
     .mast-menu-clock {
+        padding: 12px 16px 16px;
         font-size: var(--text-sm);
         color: var(--muted);
+        border-top: 1px solid var(--line);
         font-feature-settings: 'tnum' 1;
+    }
+
+    .mast-menu-clock strong {
+        font-weight: 600;
+        color: var(--ink);
     }
 
     .mast-burger {
@@ -379,21 +484,17 @@
         transform: none;
     }
 
-    .mast-menu {
-        border-top: 1px solid var(--line);
-    }
-
+    /* Every block opens on a rule, so the first one shown draws the top
+       edge whichever blocks the width leaves in the menu. */
     .mast-menu-list {
         display: flex;
         flex-direction: column;
         padding: 8px 16px;
-    }
-
-    .mast-menu-list + .mast-menu-list {
         border-top: 1px solid var(--line);
     }
 
     .mast-menu-item {
+        position: relative;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -417,6 +518,23 @@
     [data-section="admin"] .mast-menu-item[data-nav="admin"] {
         font-weight: 600;
         color: var(--ink);
+    }
+
+    /* The page the reader is on carries a short rule at its left. */
+    .mast-menu-item[aria-current="page"]::before,
+    [data-section="home"] .mast-menu-item[data-nav="home"]::before,
+    [data-section="events"] .mast-menu-item[data-nav="events"]::before,
+    [data-section="services"] .mast-menu-item[data-nav="services"]::before,
+    [data-section="admin"] .mast-menu-item[data-nav="admin"]::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: -12px;
+        width: 3px;
+        height: 18px;
+        background: var(--ink);
+        border-radius: 2px;
+        transform: translateY(-50%);
     }
 
     .mast-menu-list form {
