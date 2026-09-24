@@ -214,6 +214,7 @@
   "events.template_error": "This template could not be loaded.",
   "events.description": "Description",
   "events.description_placeholder": "What is affected, what is known, when the next update will come",
+  "events.formatting_hint": "Formatting: **bold**, *italic*, - list, [link](address)",
   "events.save_as_template": "Save as a template",
   "events.more_options": "More options",
   "events.from_template": "Start from a template",

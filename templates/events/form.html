@@ -160,7 +160,8 @@
 
                     <div class="form-block field">
                         <label for="description" class="field-label">{{ i18n.t("events.description") }} <span class="field-note">{{ i18n.t("common.optional") }}</span></label>
-                        <textarea id="description" name="description" class="input" rows="6" placeholder="{{ i18n.t("events.description_placeholder") }}">{{ form.description }}</textarea>
+                        <textarea id="description" name="description" class="input" rows="6" placeholder="{{ i18n.t("events.description_placeholder") }}" aria-describedby="description-hint">{{ form.description }}</textarea>
+                        <p id="description-hint" class="field-hint mt-1">{{ i18n.t("events.formatting_hint") }}</p>
                     </div>
 
                     {% if edit_id.is_none() || (form.kind_is("publication") && !maintenances.is_empty()) %}

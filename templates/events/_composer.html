@@ -8,7 +8,8 @@
     {% endif %}
     <label for="{{ prefix }}message" class="sr-only">{{ i18n.t("events.composer_label") }}</label>
     <textarea id="{{ prefix }}message" name="message" class="input" rows="3"
-              placeholder="{{ i18n.t("events.composer_placeholder") }}"{% if composer.error.is_some() %} aria-invalid="true" aria-describedby="{{ prefix }}composer-error"{% endif %}>{{ composer.message }}</textarea>
+              placeholder="{{ i18n.t("events.composer_placeholder") }}"{% if composer.error.is_some() %} aria-invalid="true" aria-describedby="{{ prefix }}composer-error {{ prefix }}message-hint"{% else %} aria-describedby="{{ prefix }}message-hint"{% endif %}>{{ composer.message }}</textarea>
+    <p id="{{ prefix }}message-hint" class="field-hint mt-1">{{ i18n.t("events.formatting_hint") }}</p>
     <div class="composer-row">
         {% if !transitions.is_empty() %}
         <div class="composer-state">
