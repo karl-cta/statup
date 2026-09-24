@@ -26,27 +26,6 @@
             {% if can_edit %}
             <a href="#composer" class="btn {% if changelog_offer %}btn-ghost{% else %}btn-primary{% endif %}" data-composer-open>{{ i18n.t("events.publish_update") }}</a>
             <a href="/events/{{ view.event.id }}/edit" class="btn btn-ghost">{{ i18n.t("events.edit") }}</a>
-            <details class="more-actions" data-more-actions>
-                <summary class="btn btn-ghost" aria-label="{{ i18n.t("events.more_actions") }}">{% call ui::more_icon() %}</summary>
-                <div class="more-actions-menu">
-                    {% if let Some(label) = revert_label %}
-                    <form method="post" action="/events/{{ view.event.id }}/revert-lifecycle">
-                        <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                        <button type="submit" class="more-actions-item">{{ label }}</button>
-                    </form>
-                    {% endif %}
-                    <form method="post" action="/events/{{ view.event.id }}/delete" data-confirm>
-                        <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                        <button type="button" class="more-actions-item text-action-danger" data-confirm-open>{{ i18n.t("events.delete") }}</button>
-                        <div class="confirm" role="group" aria-label="{{ i18n.t("events.confirm_delete") }}" aria-describedby="delete-event-q delete-event-d" data-confirm-box hidden>
-                            <span id="delete-event-q" class="confirm-text">{{ i18n.t("common.delete") }} <q>{{ view.event.title }}</q>{{ i18n.t("common.question_mark") }}</span>
-                            <span id="delete-event-d" class="confirm-desc">{{ i18n.t("events.delete_consequence") }}</span>
-                            <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
-                            <button type="submit" class="confirm-go" data-danger>{{ i18n.t("common.delete") }}</button>
-                        </div>
-                    </form>
-                </div>
-            </details>
             {% endif %}
         </div>
         {% endif %}
@@ -59,6 +38,7 @@
                 <h2 id="details-title" class="card-title">{{ i18n.t("events.details") }}</h2>
             </header>
             <div class="card-body">
+                {% let facts_csrf = frame.csrf_token.as_str() %}
                 {% include "events/_facts.html" %}
             </div>
         </aside>
@@ -72,32 +52,10 @@
                 {% if can_edit %}
                 {# Folded until asked for, at the head of the timeline where the
                    message will appear; a failed publish opens it again. #}
-                <form id="composer" class="composer{% if composer.error.is_some() %} is-open{% endif %}" method="post" action="/events/{{ view.event.id }}/updates">
-                    <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                    {% if let Some(error) = composer.error %}
-                    <div id="composer-error" class="form-error" role="alert"><p>{{ error }}</p></div>
-                    {% endif %}
-                    <label for="message" class="sr-only">{{ i18n.t("events.composer_label") }}</label>
-                    <textarea id="message" name="message" class="input" rows="3"
-                              placeholder="{{ i18n.t("events.composer_placeholder") }}"{% if composer.error.is_some() %} aria-invalid="true" aria-describedby="composer-error"{% endif %}>{{ composer.message }}</textarea>
-                    <div class="composer-row">
-                        {% if !transitions.is_empty() %}
-                        <div class="composer-state">
-                            <label for="lifecycle" class="sr-only">{{ i18n.t("events.composer_state") }}</label>
-                            <select id="lifecycle" name="lifecycle" class="input" data-custom-select>
-                                <option value="">{{ i18n.t("events.composer_keep_state") }}</option>
-                                {% for option in transitions %}
-                                <option value="{{ option.value }}"{% if option.selected %} selected{% endif %} data-tone="{{ option.tone }}">{{ option.label }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        {% endif %}
-                        <div class="composer-buttons">
-                            <a href="#updates-title" class="text-action">{{ i18n.t("common.cancel") }}</a>
-                            <button type="submit" class="btn btn-primary">{{ i18n.t("events.composer_submit") }}</button>
-                        </div>
-                    </div>
-                </form>
+                {% let prefix = "" %}
+                {% let in_panel = false %}
+                {% let composer_csrf = frame.csrf_token.as_str() %}
+                {% include "events/_composer.html" %}
                 {% endif %}
 
                 {% let timeline_csrf = frame.csrf_token.as_str() %}

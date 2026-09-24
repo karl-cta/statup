@@ -251,6 +251,10 @@
         font-weight: 600;
     }
 
+    .fact dd.fact-revert {
+        margin-top: 6px;
+    }
+
     .fact-note {
         flex-basis: 100%;
         padding-left: 16px;
@@ -600,28 +604,24 @@
     }
 
     .drawer-section {
-        margin-top: 24px;
-        padding-top: 20px;
-        border-top: 1px solid var(--hairline);
+        margin-top: 28px;
     }
 
-    .drawer-section > .label {
-        margin-bottom: 12px;
-    }
-
-    .drawer-foot {
+    .drawer-actions {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
-        margin-top: 28px;
-        padding-top: 16px;
-        border-top: 1px solid var(--line);
+        gap: 12px 20px;
+        margin-top: 20px;
     }
 
-    .drawer-foot .hero-link {
+    .drawer-actions .hero-link {
         margin-top: 0;
+    }
+
+    .drawer-section > .label {
+        margin-bottom: 12px;
     }
 
     .drawer-loader,
@@ -1202,6 +1202,26 @@
         align-items: center;
         gap: 16px;
         margin-left: auto;
+    }
+
+    /* A rare, lasting action, apart at the foot of an edit page. */
+    .danger-zone {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px 24px;
+        margin-top: 32px;
+        padding: 20px 24px;
+    }
+
+    .danger-zone-text {
+        flex: 1 1 280px;
+        min-width: 0;
+    }
+
+    .danger-zone .field-hint {
+        margin-top: 4px;
     }
 
     /* What the public page will show, set under the services it names. */

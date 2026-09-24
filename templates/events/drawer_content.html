@@ -1,18 +1,25 @@
 {% import "components/macros.html" as ui %}
 <div class="drawer-body">
     <h2 id="drawer-title" class="drawer-title">{{ view.event.title }}</h2>
+    {% let facts_csrf = csrf_token.as_str() %}
     {% include "events/_facts.html" %}
+
+    <div class="drawer-actions">
+        {% if can_edit %}
+        <button type="button" class="btn btn-primary" aria-controls="panel-composer" aria-expanded="{{ composer.error.is_some() }}" data-composer-toggle>{{ i18n.t("events.publish_update") }}</button>
+        {% endif %}
+        <a class="hero-link" href="/events/{{ view.event.id }}">{{ i18n.t("events.open_full_page") }}{% call ui::arrow_right() %}</a>
+    </div>
 
     <section class="drawer-section" aria-labelledby="drawer-timeline-title">
         <h3 id="drawer-timeline-title" class="label">{{ i18n.t("timeline.title") }}</h3>
-        {% let timeline_csrf = "" %}
+        {% if can_edit %}
+        {% let prefix = "panel-" %}
+        {% let in_panel = true %}
+        {% let composer_csrf = csrf_token.as_str() %}
+        {% include "events/_composer.html" %}
+        {% endif %}
+        {% let timeline_csrf = csrf_token.as_str() %}
         {% include "events/_timeline.html" %}
     </section>
-
-    <div class="drawer-foot">
-        <a class="hero-link" href="/events/{{ view.event.id }}">{{ i18n.t("events.open_full_page") }}{% call ui::arrow_right() %}</a>
-        {% if can_edit %}
-        <a class="btn btn-ghost" href="/events/{{ view.event.id }}/edit">{{ i18n.t("events.edit") }}</a>
-        {% endif %}
-    </div>
 </div>

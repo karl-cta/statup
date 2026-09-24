@@ -220,6 +220,24 @@
             </div>
         </div>
     </form>
+
+    {% if let Some(id) = edit_id %}
+    <section class="card danger-zone" aria-labelledby="delete-title">
+        <div class="danger-zone-text">
+            <h2 id="delete-title" class="card-title">{{ i18n.t("events.delete") }}</h2>
+            <p class="field-hint">{{ i18n.t("events.delete_consequence") }}</p>
+        </div>
+        <form method="post" action="/events/{{ id }}/delete" data-confirm>
+            <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+            <button type="button" class="btn btn-danger" data-confirm-open>{{ i18n.t("common.delete") }}</button>
+            <div class="confirm" role="group" aria-label="{{ i18n.t("events.confirm_delete") }}" aria-describedby="delete-q" data-confirm-box hidden>
+                <span id="delete-q" class="confirm-text">{{ i18n.t("common.delete") }} <q>{{ form.title }}</q>{{ i18n.t("common.question_mark") }}</span>
+                <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
+                <button type="submit" class="confirm-go" data-danger>{{ i18n.t("common.delete") }}</button>
+            </div>
+        </form>
+    </section>
+    {% endif %}
 </div>
 
 <script type="application/json" id="schedule-copy">

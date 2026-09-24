@@ -53,6 +53,11 @@
         showToast(event.detail.xhr.responseText);
     });
 
+    // An update posted from the side panel: the page behind it is stale.
+    document.body.addEventListener("event-updated", () => {
+        drawer.changed = true;
+    });
+
     document.body.addEventListener("htmx:sendError", (event) => {
         const live = liveTarget(event);
         if (live) {
@@ -166,7 +171,9 @@
     }
 
     // Side panel with an event's detail.
-    const drawer = { request: 0, url: "", opener: null, controller: null };
+    // `changed` records an update posted from the panel, so the page behind
+    // it is drawn again once the panel closes.
+    const drawer = { request: 0, url: "", opener: null, controller: null, changed: false };
 
     function drawerParts() {
         return {
@@ -214,6 +221,12 @@
 
     function fillDrawer(panel, content, html) {
         content.innerHTML = html;
+        // The panel's own forms post in place, and its menus are dressed
+        // like any content htmx brings in.
+        if (window.htmx) {
+            window.htmx.process(content);
+            window.htmx.trigger(content, "htmx:load", { elt: content });
+        }
         const title = content.querySelector("#drawer-title");
         if (!title) return;
         title.setAttribute("tabindex", "-1");
@@ -270,6 +283,17 @@
             drawer.opener.focus({ preventScroll: true });
         }
         drawer.opener = null;
+        if (drawer.changed) redrawAfterPanel();
+    }
+
+    function redrawAfterPanel() {
+        drawer.changed = false;
+        const live = document.querySelector("[data-live]");
+        if (live && window.htmx) {
+            window.htmx.ajax("GET", live.dataset.live, { target: live, swap: "innerHTML" }).catch(() => {});
+        } else {
+            window.location.reload();
+        }
     }
 
     function trapDrawerFocus(event) {
@@ -363,6 +387,21 @@
         });
     }
 
+    // A composer folded behind a button, as in the side panel.
+    function onComposerToggle(target) {
+        const button = target.closest("[data-composer-toggle]");
+        if (!button) return false;
+        const composer = document.getElementById(button.getAttribute("aria-controls"));
+        if (!composer) return true;
+        const open = !composer.classList.contains("is-open");
+        composer.classList.toggle("is-open", open);
+        document.querySelectorAll(`[data-composer-toggle][aria-controls="${composer.id}"]`).forEach((toggle) => {
+            toggle.setAttribute("aria-expanded", String(open));
+        });
+        if (open) composer.querySelector("textarea")?.focus();
+        return true;
+    }
+
     // The composer opens by its anchor; the cursor goes straight to it.
     function onComposerOpen(target) {
         if (!target.closest("[data-composer-open]")) return false;
@@ -412,7 +451,7 @@
             return;
         }
         closeMoreActions(target.closest("details[data-more-actions]"));
-        if (onMenuClick(target) || onComposerOpen(target)) return;
+        if (onMenuClick(target) || onComposerOpen(target) || onComposerToggle(target)) return;
         if (target.closest("[data-toast-close]")) {
             clearToast();
             return;

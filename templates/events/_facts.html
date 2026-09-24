@@ -9,6 +9,14 @@
             <span class="dot" aria-hidden="true"></span><strong>{{ state.label }}</strong>
             {% if let Some(detail) = state.detail %}<span class="fact-note">{{ detail }}</span>{% endif %}
         </dd>
+        {% if let Some(label) = revert_label %}
+        <dd class="fact-revert">
+            <form method="post" action="/events/{{ view.event.id }}/revert-lifecycle">
+                <input type="hidden" name="csrf_token" value="{{ facts_csrf }}">
+                <button type="submit" class="text-action">{{ label }}</button>
+            </form>
+        </dd>
+        {% endif %}
     </div>
     {% endif %}
     {% if !view.services.is_empty() %}

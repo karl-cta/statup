@@ -5,7 +5,7 @@ use std::fmt::Write as _;
 
 use askama::Template;
 use axum::extract::{Path, Query, RawQuery, State};
-use axum::http::HeaderMap;
+use axum::http::{HeaderMap, HeaderValue};
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::{Deserialize, Deserializer};
 
@@ -303,6 +303,11 @@ struct EventDetailTemplate {
 struct DrawerTemplate {
     view: EventView,
     can_edit: bool,
+    csrf_token: String,
+    transitions: Vec<TransitionOption>,
+    /// Undoing a step is offered on the event's page only.
+    revert_label: Option<String>,
+    composer: Composer,
     i18n: I18n,
 }
 
@@ -467,12 +472,37 @@ async fn detail_page(
         changelog_offer,
         frame: Frame::load(&state.pool, user, csrf_token, &i18n).await?,
         transitions: transition_options(&view.event, composer.lifecycle, &i18n),
-        revert_label: view
-            .event
-            .previous_lifecycle_key()
-            .map(|key| i18n.tf("events.revert_to", &[("state", i18n.t(key))])),
+        revert_label: revert_label(&view.event, &i18n),
         published_notice: false,
         can_edit,
+        view,
+        composer,
+        i18n,
+    })
+}
+
+/// "Back to Investigating", when the last step can be undone.
+fn revert_label(event: &Event, i18n: &I18n) -> Option<String> {
+    event
+        .previous_lifecycle_key()
+        .map(|key| i18n.tf("events.revert_to", &[("state", i18n.t(key))]))
+}
+
+async fn drawer_page(
+    state: &AppState,
+    id: i64,
+    user: Option<&User>,
+    csrf_token: String,
+    i18n: I18n,
+    composer: Composer,
+) -> Result<DrawerTemplate, AppError> {
+    let view = load_view(state, id, user, &i18n).await?;
+    let can_edit = user.is_some_and(|u| can_modify(&view.event, u.role));
+    Ok(DrawerTemplate {
+        transitions: transition_options(&view.event, composer.lifecycle, &i18n),
+        revert_label: None,
+        can_edit,
+        csrf_token,
         view,
         composer,
         i18n,
@@ -484,20 +514,22 @@ pub async fn drawer_content(
     State(state): State<AppState>,
     Path(id): Path<i64>,
     headers: HeaderMap,
+    csrf_token: CsrfToken,
     Locale(i18n): Locale,
 ) -> Result<Response, AppError> {
     if let Some(redirect) = members_only(&state, user.as_ref(), &headers) {
         return Ok(redirect);
     }
-    let view = load_view(&state, id, user.as_ref(), &i18n).await?;
-    let can_edit = user
-        .as_ref()
-        .is_some_and(|u| can_modify(&view.event, u.role));
-    render(&DrawerTemplate {
-        view,
-        can_edit,
+    let page = drawer_page(
+        &state,
+        id,
+        user.as_ref(),
+        csrf_token.0,
         i18n,
-    })
+        Composer::default(),
+    )
+    .await?;
+    render(&page)
 }
 
 // ---- Updates and state changes ----
@@ -531,6 +563,38 @@ pub async fn add_update(
         }
         Err(e) => Err(e),
     }
+}
+
+/// An update posted from the side panel: the panel is drawn again in
+/// place, and the page behind it learns that the event changed.
+pub async fn add_update_in_panel(
+    RequirePublisher(user): RequirePublisher,
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    csrf_token: CsrfToken,
+    Locale(i18n): Locale,
+    HtmlForm(input): HtmlForm<UpdateInput>,
+) -> Result<Response, AppError> {
+    let result =
+        EventService::post_update(&state.pool, id, &input.message, input.lifecycle, &user).await;
+    let composer = match result {
+        Ok(()) => Composer::default(),
+        Err(AppError::Validation(key)) => Composer {
+            error: Some(i18n.t(&key).to_string()),
+            message: input.message,
+            lifecycle: input.lifecycle,
+        },
+        Err(e) => return Err(e),
+    };
+    let posted = composer.error.is_none();
+    let page = drawer_page(&state, id, Some(&user), csrf_token.0, i18n, composer).await?;
+    let mut response = render(&page)?;
+    if posted {
+        response
+            .headers_mut()
+            .insert("HX-Trigger", HeaderValue::from_static("event-updated"));
+    }
+    Ok(response)
 }
 
 pub async fn delete_update(

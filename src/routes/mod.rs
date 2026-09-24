@@ -156,6 +156,10 @@ fn publisher_routes() -> Router<AppState> {
         .route("/events/:id/delete", post(events::delete))
         .route("/events/:id/updates", post(events::add_update))
         .route(
+            "/events/:id/panel-updates",
+            post(events::add_update_in_panel),
+        )
+        .route(
             "/events/:id/updates/:update_id/delete",
             post(events::delete_update),
         )

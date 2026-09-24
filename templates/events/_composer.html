@@ -1,0 +1,29 @@
+{# The composer: a message and an optional next step, folded until asked
+   for. Shared by the event's page and the side panel, which posts it in
+   place. Expects `prefix`, `in_panel` and `composer_csrf`. #}
+<form id="{{ prefix }}composer" class="composer{% if composer.error.is_some() %} is-open{% endif %}" method="post" action="/events/{{ view.event.id }}/updates"{% if in_panel %} hx-post="/events/{{ view.event.id }}/panel-updates" hx-target="#drawer-content" hx-swap="innerHTML"{% endif %}>
+    <input type="hidden" name="csrf_token" value="{{ composer_csrf }}">
+    {% if let Some(error) = composer.error %}
+    <div id="{{ prefix }}composer-error" class="form-error" role="alert"><p>{{ error }}</p></div>
+    {% endif %}
+    <label for="{{ prefix }}message" class="sr-only">{{ i18n.t("events.composer_label") }}</label>
+    <textarea id="{{ prefix }}message" name="message" class="input" rows="3"
+              placeholder="{{ i18n.t("events.composer_placeholder") }}"{% if composer.error.is_some() %} aria-invalid="true" aria-describedby="{{ prefix }}composer-error"{% endif %}>{{ composer.message }}</textarea>
+    <div class="composer-row">
+        {% if !transitions.is_empty() %}
+        <div class="composer-state">
+            <label for="{{ prefix }}lifecycle" class="sr-only">{{ i18n.t("events.composer_state") }}</label>
+            <select id="{{ prefix }}lifecycle" name="lifecycle" class="input" data-custom-select>
+                <option value="">{{ i18n.t("events.composer_keep_state") }}</option>
+                {% for option in transitions %}
+                <option value="{{ option.value }}"{% if option.selected %} selected{% endif %} data-tone="{{ option.tone }}">{{ option.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="composer-buttons">
+            {% if in_panel %}<button type="button" class="text-action" aria-controls="{{ prefix }}composer" data-composer-toggle>{{ i18n.t("common.cancel") }}</button>{% else %}<a href="#updates-title" class="text-action">{{ i18n.t("common.cancel") }}</a>{% endif %}
+            <button type="submit" class="btn btn-primary">{{ i18n.t("events.composer_submit") }}</button>
+        </div>
+    </div>
+</form>

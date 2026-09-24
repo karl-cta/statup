@@ -1025,3 +1025,34 @@ async fn an_incident_declared_late_keeps_when_it_began() {
     assert_eq!(status, StatusCode::OK, "refused in the form");
     assert!(body.contains("form-error"));
 }
+
+#[tokio::test]
+async fn an_update_posted_from_the_side_panel_redraws_it() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("VPN").await;
+    let location = app
+        .create_incident("VPN down", "", "critical", &[service_id])
+        .await;
+    let id = event_id_from_path(&location);
+    let path = format!("/events/{id}/panel-updates");
+
+    let csrf = app.csrf_from(&format!("/events/{id}")).await;
+    let (status, body, _) = app
+        .post_form(
+            &path,
+            &csrf,
+            &[("message", "Provider called"), ("lifecycle", "in_progress")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "the panel is drawn in place");
+    assert!(body.contains("drawer-title"));
+    assert!(body.contains("Provider called"));
+
+    let (status, body, _) = app.post_form(&path, &csrf, &[("message", "")]).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains("form-error") && body.contains("composer is-open"),
+        "a refused update keeps the composer open with its reason"
+    );
+}

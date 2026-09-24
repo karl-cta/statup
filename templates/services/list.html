@@ -44,7 +44,7 @@
             <div class="admin-row-ident">
                 <span class="svc-icon">{% call ui::service_icon(service) %}</span>
                 <div class="min-w-0">
-                    <p class="admin-row-name">{{ service.name }}</p>
+                    <p class="admin-row-name"><a href="/services/{{ service.id }}/edit" class="row-link">{{ service.name }}</a></p>
                     {% if let Some(description) = service.description %}
                     <p class="admin-row-sub">{{ description }}</p>
                     {% endif %}
@@ -52,20 +52,6 @@
             </div>
             <div class="admin-row-cell">
                 {% include "components/status_selector.html" %}
-            </div>
-            <div class="admin-row-actions">
-                <a class="text-action" href="/services/{{ service.id }}/edit" aria-label="{{ i18n.t("common.edit") }} {{ service.name }}">{{ i18n.t("common.edit") }}</a>
-                {% if !service.has_history %}
-                <form method="post" action="/services/{{ service.id }}/delete" data-confirm>
-                    <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                    <button type="button" class="text-action text-action-danger" data-confirm-open aria-label="{{ i18n.t("common.delete") }} {{ service.name }}">{{ i18n.t("common.delete") }}</button>
-                    <div class="confirm" role="group" aria-label="{{ i18n.t("services.confirm_delete") }}" aria-describedby="delete-q-{{ service.id }}" data-confirm-box hidden>
-                        <span id="delete-q-{{ service.id }}" class="confirm-text">{{ i18n.t("common.delete") }} <q>{{ service.name }}</q>{{ i18n.t("common.question_mark") }}</span>
-                        <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
-                        <button type="submit" class="confirm-go" data-danger>{{ i18n.t("common.delete") }}</button>
-                    </div>
-                </form>
-                {% endif %}
             </div>
         </li>
         {% endfor %}

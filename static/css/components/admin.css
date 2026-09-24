@@ -196,6 +196,19 @@
         overflow-wrap: anywhere;
     }
 
+    /* A name that opens its own page. */
+    .row-link {
+        color: inherit;
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        text-underline-offset: 3px;
+        transition: text-decoration-color 150ms ease;
+    }
+
+    .row-link:hover {
+        text-decoration-color: currentColor;
+    }
+
     .admin-row-sub {
         margin-top: 2px;
         font-size: var(--text-sm);
@@ -220,11 +233,10 @@
 
     @media (min-width: 720px) {
         .svc-admin-row {
-            grid-template-columns: minmax(0, 1fr) 260px auto;
+            grid-template-columns: minmax(0, 1fr) 220px;
         }
 
-        .svc-admin-row .admin-row-cell,
-        .svc-admin-row .admin-row-actions {
+        .svc-admin-row .admin-row-cell {
             grid-column: auto;
         }
 

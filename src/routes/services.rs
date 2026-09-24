@@ -94,6 +94,8 @@ struct ServiceFormTemplate {
     builtin_icons: &'static [BuiltinIcon],
     custom_icons: Vec<Icon>,
     upload_error: Option<String>,
+    /// A service no event ever named can be deleted from its page.
+    deletable: bool,
     i18n: I18n,
 }
 
@@ -195,6 +197,12 @@ async fn render_form(
         .icon_id
         .and_then(|id| custom_icons.iter().find(|icon| icon.id == id))
         .map(Icon::url);
+    let deletable = match page.edit_id {
+        Some(id) => ServiceRepository::find_by_id(&state.pool, id)
+            .await?
+            .is_some_and(|service| !service.has_history),
+        None => false,
+    };
     let message = page.error_key.as_deref().map(|key| i18n.t(key).to_string());
     let on_name = page
         .error_key
@@ -214,6 +222,7 @@ async fn render_form(
         selected_icon_id: page.icon_id.filter(|_| selected_icon_url.is_some()),
         selected_icon_url,
         selected_icon_name: page.icon_name,
+        deletable,
         builtin_icons: BUILTIN_ICONS,
         custom_icons,
         upload_error: None,
