@@ -301,6 +301,28 @@
         min-width: 0;
     }
 
+    /* What an open event shows, in place of the control it outranks. */
+    .status-shown {
+        font-size: var(--text-sm);
+        overflow-wrap: anywhere;
+    }
+
+    .status-shown-state {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .status-shown-state strong {
+        font-weight: 600;
+    }
+
+    .status-shown-by {
+        display: inline-block;
+        margin-top: 2px;
+        margin-left: 15px;
+    }
+
     .status-cell .confirm,
     .status-cell .receipt {
         font-size: var(--text-xs);

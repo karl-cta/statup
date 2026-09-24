@@ -571,6 +571,35 @@ async fn maintenance_without_downtime_keeps_its_services_up() {
     }
 }
 
+/// The services page names the event that holds a service in its state,
+/// in place of the control for the state set by hand.
+#[tokio::test]
+async fn services_page_names_the_event_holding_a_service() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Network").await;
+    let path = app
+        .submit_create_event(
+            vec![
+                ("title", "Router swap".to_string()),
+                ("kind", "maintenance".to_string()),
+            ],
+            &[service_id],
+        )
+        .await;
+    let event_path = path.split('?').next().unwrap_or_default().to_string();
+
+    let (_, page) = app.get("/services").await;
+    assert!(
+        page.contains(&format!(r#"href="{event_path}">Router swap</a>"#)),
+        "the event is named and linked: {page}"
+    );
+    assert!(
+        !page.contains(&format!(r#"id="status-{service_id}""#)),
+        "the control waits for the end of the event"
+    );
+}
+
 /// A refused creation re-renders the form with everything the author typed.
 #[tokio::test]
 async fn rejected_event_creation_gives_the_input_back() {
@@ -969,8 +998,9 @@ async fn a_state_set_by_hand_outlasts_the_events_on_its_service() {
     assert_eq!(service.status, ServiceStatus::MajorOutage);
     let (_, list) = app.get("/services").await;
     assert!(
-        list.contains("un événement est en cours") || list.contains("an event is open"),
-        "the list says why the page shows more than the state set by hand"
+        list.contains(">HR portal down</a>")
+            && !list.contains(&format!(r#"id="status-{service_id}""#)),
+        "the list names the event that sets the state, instead of the control"
     );
 }
 

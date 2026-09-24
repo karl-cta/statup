@@ -3,7 +3,6 @@
 use std::str::FromStr;
 
 use super::Tone;
-use crate::i18n::I18n;
 
 /// Current operational status of a service.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
@@ -127,15 +126,10 @@ impl Service {
         format!("service-{}", self.slug)
     }
 
-    /// "Shown as Partial outage, an event is open": said next to the state
-    /// set by hand when an open event outranks it.
-    pub fn outranked_note(&self, i18n: &I18n) -> Option<String> {
-        (self.status != self.manual_status).then(|| {
-            i18n.tf(
-                "services.outranked",
-                &[("status", i18n.t(self.status.i18n_key()))],
-            )
-        })
+    /// Whether an open event shows the service in another state than the
+    /// one set by hand.
+    pub fn is_outranked(&self) -> bool {
+        self.status != self.manual_status
     }
 }
 

@@ -243,6 +243,33 @@ impl EventRepository {
         .await
     }
 
+    /// For each service held in its state by open work, the event that sets
+    /// it, the worst first when several do: what the services page names.
+    pub async fn state_drivers(
+        pool: &DbPool,
+        service_id: Option<i64>,
+    ) -> Result<HashMap<i64, (i64, String)>, sqlx::Error> {
+        let rows: Vec<(i64, i64, String)> = sqlx::query_as(
+            "SELECT es.service_id, e.id, e.title FROM events e \
+             INNER JOIN event_services es ON es.event_id = e.id \
+             WHERE (? IS NULL OR es.service_id = ?) \
+               AND ((e.kind = 'incident' AND e.lifecycle IN ('investigating', 'in_progress')) \
+                 OR (e.kind = 'maintenance' AND e.lifecycle = 'in_progress' \
+                     AND NOT e.keeps_services_up)) \
+             ORDER BY CASE e.severity WHEN 'critical' THEN 0 WHEN 'minor' THEN 1 ELSE 2 END, \
+                      e.created_at DESC",
+        )
+        .bind(service_id)
+        .bind(service_id)
+        .fetch_all(pool)
+        .await?;
+        let mut drivers = HashMap::new();
+        for (service, event_id, title) in rows {
+            drivers.entry(service).or_insert((event_id, title));
+        }
+        Ok(drivers)
+    }
+
     /// Kind and severity of the open work that sets a service's status:
     /// incidents being worked on and maintenance under way. An incident
     /// under watch leaves the service up.

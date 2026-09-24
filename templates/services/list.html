@@ -51,6 +51,7 @@
                 </div>
             </div>
             <div class="admin-row-cell">
+                {% let driver = self.driver_of(service.id) %}
                 {% include "components/status_selector.html" %}
             </div>
         </li>

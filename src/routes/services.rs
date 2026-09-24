@@ -1,5 +1,7 @@
 //! Service pages: the list with its status control, the form, deletion.
 
+use std::collections::HashMap;
+
 use askama::Template;
 use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
@@ -24,6 +26,8 @@ use crate::state::AppState;
 struct ServiceListTemplate {
     frame: Frame,
     services: Vec<Service>,
+    /// The event holding each service in its state, by service.
+    drivers: HashMap<i64, (i64, String)>,
     /// The list renders the status control at rest, never a receipt.
     previous: Option<ServiceStatus>,
     saved_id: Option<i64>,
@@ -38,6 +42,11 @@ impl ServiceListTemplate {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     fn is_saved(&self, id: &i64) -> bool {
         self.saved_id == Some(*id)
+    }
+
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    fn driver_of(&self, id: &i64) -> Option<(i64, String)> {
+        self.drivers.get(id).cloned()
     }
 }
 
@@ -63,6 +72,7 @@ async fn render_list(
     render(&ServiceListTemplate {
         frame: Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?,
         services,
+        drivers: EventRepository::state_drivers(&state.pool, None).await?,
         previous: None,
         saved_id: query.saved,
         saved_name,
@@ -379,6 +389,8 @@ pub struct StatusInput {
 struct StatusSelectorFragment {
     frame: StatusFrame,
     service: Service,
+    /// The event holding the service in its state, if one does.
+    driver: Option<(i64, String)>,
     /// The status held a moment ago: turns the fragment into a receipt with
     /// an undo.
     previous: Option<ServiceStatus>,
@@ -421,6 +433,9 @@ pub async fn update_status(
             csrf_token: csrf_token.0,
         },
         previous: (input.undo.is_none() && before != status).then_some(before),
+        driver: EventRepository::state_drivers(&state.pool, Some(id))
+            .await?
+            .remove(&id),
         service,
         i18n,
     })

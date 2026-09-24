@@ -1,7 +1,14 @@
 {# Publishes to every visitor: the two outage levels ask first, and every
-   change comes back with a receipt and a way back. htmx targets the closest
-   cell, which this fragment replaces. #}
+   change comes back with a receipt and a way back. While an open event sets
+   the state, the cell names it instead; the control comes back once the
+   event ends. htmx targets the closest cell, which this fragment replaces. #}
 <div class="status-cell">
+    {% if service.is_outranked() %}
+    <div class="status-shown">
+        <p class="status-shown-state" data-tone="{{ service.status.tone().as_str() }}"><span class="dot" aria-hidden="true"></span><strong>{{ i18n.t(service.status.i18n_key()) }}</strong></p>
+        {% if let Some(d) = driver %}<a class="link status-shown-by" href="/events/{{ d.0 }}">{{ d.1 }}</a>{% endif %}
+    </div>
+    {% else %}
     <form method="post" action="/services/{{ service.id }}/status"
           hx-post="/services/{{ service.id }}/status" hx-target="closest .status-cell" hx-swap="outerHTML"
           data-status-form>
@@ -12,9 +19,6 @@
             <option value="{{ status.as_str() }}" data-tone="{{ status.tone().as_str() }}"{% if service.manual_status == status %} selected{% endif %}{% if status.is_outage() %} data-guarded{% endif %}>{{ i18n.t(status.i18n_key()) }}</option>
             {% endfor %}
         </select>
-        {% if let Some(note) = service.outranked_note(i18n) %}
-        <p class="field-hint mt-1">{{ note }}</p>
-        {% endif %}
         <noscript><button type="submit" class="btn btn-ghost mt-2">{{ i18n.t("services.publish_status") }}</button></noscript>
     </form>
 
@@ -23,6 +27,7 @@
         <button type="button" class="confirm-cancel" data-status-cancel>{{ i18n.t("common.cancel") }}</button>
         <button type="button" class="confirm-go" data-danger data-status-publish>{{ i18n.t("services.publish_status") }}</button>
     </div>
+    {% endif %}
 
     {% if let Some(before) = previous %}
     <div class="receipt">

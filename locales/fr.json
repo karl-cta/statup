@@ -288,7 +288,6 @@
   "services.confirm_status_aria": "Confirmer la publication de l'état",
   "services.status_published": "État publié :",
   "services.undo_status": "Revenir à l'état précédent",
-  "services.outranked": "Affiché : {status}, un événement est en cours",
   "admin.title": "Paramètres",
   "admin.settings": "Paramètres",
   "admin.back_to_settings": "Paramètres",
