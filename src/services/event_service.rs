@@ -27,12 +27,12 @@ impl EventService {
         if let Some(key) = event_field_error(&input.title)
             .or_else(|| severity_error(input.kind, input.severity))
             .or_else(|| {
-                schedule_error(
-                    input.kind,
-                    input.planned,
-                    input.planned_start,
-                    input.planned_end,
-                )
+                let start = if input.planned {
+                    input.planned_start
+                } else {
+                    Some(Utc::now())
+                };
+                schedule_error(input.kind, input.planned, start, input.planned_end)
             })
         {
             return Err(AppError::Validation(key.to_string()));
@@ -61,12 +61,12 @@ impl EventService {
         if let Some(key) = event_field_error(&input.title)
             .or_else(|| severity_error(event.kind, input.severity))
             .or_else(|| {
-                schedule_error(
-                    event.kind,
-                    event.planned,
-                    input.planned_start,
-                    input.planned_end,
-                )
+                let start = if event.planned {
+                    input.planned_start
+                } else {
+                    event.started_at
+                };
+                schedule_error(event.kind, event.planned, start, input.planned_end)
             })
         {
             return Err(AppError::Validation(key.to_string()));
@@ -223,18 +223,19 @@ fn severity_error(kind: Kind, severity: Option<Severity>) -> Option<&'static str
     (kind == Kind::Incident && severity.is_none()).then_some("validation.severity_required")
 }
 
-/// An announced maintenance needs a start, and an end after it.
+/// An announced maintenance needs a start; any maintenance ends after it
+/// starts. `start` is when a maintenance begun right away started.
 pub fn schedule_error(
     kind: Kind,
     planned: bool,
     start: Option<DateTime<Utc>>,
     end: Option<DateTime<Utc>>,
 ) -> Option<&'static str> {
-    if kind != Kind::Maintenance || !planned {
+    if kind != Kind::Maintenance {
         return None;
     }
     match (start, end) {
-        (None, _) => Some("validation.planned_start_required"),
+        (None, _) if planned => Some("validation.planned_start_required"),
         (Some(start), Some(end)) if end <= start => Some("validation.planned_end_before_start"),
         _ => None,
     }
@@ -409,6 +410,15 @@ mod tests {
             .is_none()
         );
         assert!(schedule_error(Kind::Maintenance, false, None, None).is_none());
+        assert_eq!(
+            schedule_error(
+                Kind::Maintenance,
+                false,
+                Some(start),
+                Some(start - TimeDelta::minutes(5))
+            ),
+            Some("validation.planned_end_before_start")
+        );
         assert!(schedule_error(Kind::Incident, true, None, None).is_none());
     }
 

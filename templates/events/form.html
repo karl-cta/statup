@@ -9,6 +9,7 @@
 {% block scripts %}
 <script src="{{ crate::asset("js/custom-select.js") }}" defer></script>
 <script src="{{ crate::asset("js/event-form.js") }}" defer></script>
+<script src="{{ crate::asset("js/schedule.js") }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -65,17 +66,40 @@
                     </div>
 
                     <div class="reveal-row form-block{% if form.kind_is("maintenance") %} is-open{% endif %}" data-for-kind="maintenance">
-                        <div class="form-grid form-grid-2">
+                        <div class="schedule" data-schedule data-now="{{ now_input }}">
+                            <input id="planned_start" name="planned_start" type="hidden" value="{{ form.planned_start }}" data-start-value>
+                            <input name="planned_end" type="hidden" value="{{ form.planned_end }}" data-end-value>
                             <div class="field">
-                                <label for="planned_start" class="field-label">{{ i18n.t("events.planned_start") }} <span class="field-note">{{ i18n.t("events.start_blank") }}</span></label>
-                                <input id="planned_start" name="planned_start" type="datetime-local" class="input" value="{{ form.planned_start }}" aria-describedby="zone-hint">
+                                <span id="start-label" class="field-label">{{ i18n.t("events.planned_start") }}</span>
+                                <div class="schedule-start{% if !form.planned_start.is_empty() %} is-timed{% endif %}">
+                                    <button type="button" class="input date-trigger" aria-haspopup="dialog" aria-expanded="false" aria-labelledby="start-label date-text" data-date-trigger{% if form.start_locked %} disabled{% endif %}>
+                                        <span id="date-text" data-date-text>{{ i18n.t("events.start_now") }}</span>
+                                        {% call ui::calendar_icon() %}
+                                    </button>
+                                    <span class="schedule-time"{% if form.planned_start.is_empty() %} hidden{% endif %}>
+                                        {% call ui::clock_icon() %}
+                                        <input type="text" class="input" role="combobox" inputmode="text" autocomplete="off" maxlength="8" placeholder="{{ i18n.t("events.time_placeholder") }}" aria-label="{{ i18n.t("events.start_time") }}" aria-describedby="zone-hint" aria-autocomplete="none" aria-expanded="false" aria-controls="time-list" data-time{% if form.start_locked %} readonly{% endif %}>
+                                        <ul id="time-list" class="time-list" role="listbox" aria-label="{{ i18n.t("events.start_time") }}" data-time-list hidden></ul>
+                                    </span>
+                                    <div class="calendar" role="dialog" aria-label="{{ i18n.t("events.pick_date") }}" data-calendar hidden></div>
+                                </div>
+                                {% if form.start_locked %}<p class="field-hint">{{ i18n.t("events.start_locked") }}</p>{% endif %}
                             </div>
-                            <div class="field">
-                                <label for="planned_end" class="field-label">{{ i18n.t("events.planned_end") }} <span class="field-note">{{ i18n.t("common.optional") }}</span></label>
-                                <input id="planned_end" name="planned_end" type="datetime-local" class="input" value="{{ form.planned_end }}" aria-describedby="zone-hint">
+                            <div class="schedule-row">
+                                <div class="field">
+                                    <span id="duration-label" class="field-label">{{ i18n.t("events.duration") }}</span>
+                                    <div class="duration" role="group" aria-labelledby="duration-label">
+                                        <label class="duration-part"><input type="text" inputmode="numeric" autocomplete="off" maxlength="3" placeholder="0" aria-label="{{ i18n.t("events.hours") }}" data-hours><span aria-hidden="true">h</span></label>
+                                        <label class="duration-part"><input type="text" inputmode="numeric" autocomplete="off" maxlength="3" placeholder="0" aria-label="{{ i18n.t("events.minutes") }}" data-minutes><span aria-hidden="true">min</span></label>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <span id="end-label" class="field-label">{{ i18n.t("events.estimated_end") }}</span>
+                                    <output class="schedule-end" aria-labelledby="end-label" data-end-text>{{ i18n.t("events.no_end") }}</output>
+                                </div>
                             </div>
+                            <p id="zone-hint" class="field-hint">{{ zone_hint }}</p>
                         </div>
-                        <p id="zone-hint" class="field-hint mt-2">{{ zone_hint }}</p>
                     </div>
 
                     <div class="reveal-row form-block{% if form.kind_is("publication") %} is-open{% endif %}" data-for-kind="publication">
@@ -162,6 +186,22 @@
         </div>
     </form>
 </div>
+
+<script type="application/json" id="schedule-copy">
+{
+    "now": {{ i18n.t("events.start_now")|json|safe }},
+    "today": {{ i18n.t("events.start_today")|json|safe }},
+    "no_end": {{ i18n.t("events.no_end")|json|safe }},
+    "end_today": {{ i18n.t("events.end_today")|json|safe }},
+    "end_tomorrow": {{ i18n.t("events.end_tomorrow")|json|safe }},
+    "end_on": {{ i18n.t("events.end_on")|json|safe }},
+    "time_invalid": {{ i18n.t("events.time_invalid")|json|safe }},
+    "time_required": {{ i18n.t("events.time_required")|json|safe }},
+    "start_right_away": {{ i18n.t("events.start_right_away")|json|safe }},
+    "prev_month": {{ i18n.t("events.prev_month")|json|safe }},
+    "next_month": {{ i18n.t("events.next_month")|json|safe }}
+}
+</script>
 
 {% if edit_id.is_none() %}
 <script type="application/json" id="event-form-copy">

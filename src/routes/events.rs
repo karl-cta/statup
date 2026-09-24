@@ -624,6 +624,8 @@ pub struct EventFormData {
     pub service_ids: Vec<i64>,
     pub planned_start: String,
     pub planned_end: String,
+    /// A maintenance under way keeps the start it had.
+    pub start_locked: bool,
     pub follows_event_id: Option<i64>,
 }
 
@@ -645,6 +647,7 @@ impl EventFormData {
             service_ids: Vec::new(),
             planned_start: String::new(),
             planned_end: String::new(),
+            start_locked: false,
             follows_event_id: None,
         }
     }
@@ -662,11 +665,18 @@ impl EventFormData {
             service_ids: ews.services.iter().map(|s| s.id).collect(),
             planned_start: String::new(),
             planned_end: String::new(),
+            start_locked: false,
             follows_event_id: Some(ews.event.id),
         }
     }
 
     fn from_event(event: &Event, service_ids: Vec<i64>) -> Self {
+        let maintenance = event.kind == Kind::Maintenance;
+        // A maintenance begun right away has no planned start: its window
+        // is read from when it started.
+        let start = event
+            .planned_start
+            .or(event.started_at.filter(|_| maintenance));
         Self {
             title: event.title.clone(),
             description: event.description.clone(),
@@ -675,16 +685,13 @@ impl EventFormData {
             planned: event.planned,
             category: event.category,
             service_ids,
-            planned_start: event
-                .planned_start
-                .as_ref()
-                .map(clock::format_input)
-                .unwrap_or_default(),
+            planned_start: start.as_ref().map(clock::format_input).unwrap_or_default(),
             planned_end: event
                 .planned_end
                 .as_ref()
                 .map(clock::format_input)
                 .unwrap_or_default(),
+            start_locked: maintenance && event.started_at.is_some(),
             follows_event_id: event.follows_event_id,
         }
     }
@@ -700,6 +707,7 @@ impl EventFormData {
             service_ids: input.service_ids,
             planned_start: input.planned_start,
             planned_end: input.planned_end,
+            start_locked: false,
             follows_event_id: input.follows_event_id,
         }
     }
@@ -745,6 +753,8 @@ struct EventFormTemplate {
     form: EventFormData,
     /// "Times are in the instance zone (UTC+2)."
     zone_hint: String,
+    /// The instance clock when the page was drawn, for the schedule script.
+    now_input: String,
     i18n: I18n,
 }
 
@@ -765,6 +775,7 @@ async fn render_form(
             "events.zone_hint",
             &[("zone", &clock::offset_label(&chrono::Utc::now()))],
         ),
+        now_input: clock::format_input(&chrono::Utc::now()),
         error,
         edit_id,
         form,
@@ -848,7 +859,7 @@ pub async fn create(
         title: input.title.trim().to_string(),
         description: input.description.trim().to_string(),
         planned_start: input.start().filter(|_| planned),
-        planned_end: input.end().filter(|_| planned),
+        planned_end: input.end().filter(|_| kind == Kind::Maintenance),
         service_ids: input.service_ids.clone(),
         follows_event_id: input.follows_event_id,
         author_id: user.id,
@@ -928,14 +939,15 @@ pub async fn update(
         title: input.title.trim().to_string(),
         description: input.description.trim().to_string(),
         planned_start: input.start().filter(|_| planned),
-        planned_end: input.end().filter(|_| planned),
+        planned_end: input.end().filter(|_| kind == Kind::Maintenance),
         service_ids: input.service_ids.clone(),
         follows_event_id: input.follows_event_id,
     };
     match EventService::update(&state.pool, id, changes, user.role).await {
         Ok(()) => Ok(Redirect::to(&format!("/events/{id}")).into_response()),
         Err(AppError::Validation(key)) => {
-            let form = EventFormData::from_input(input, kind, planned);
+            let mut form = EventFormData::from_input(input, kind, planned);
+            form.start_locked = kind == Kind::Maintenance && event.started_at.is_some();
             let error = Some(i18n.t(&key).to_string());
             render_form(&state, &user, csrf_token.0, i18n, Some(id), form, error).await
         }

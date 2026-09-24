@@ -943,3 +943,39 @@ async fn a_maintenance_without_a_start_begins_right_away() {
         ServiceStatus::Maintenance
     );
 }
+
+#[tokio::test]
+async fn a_maintenance_begun_right_away_keeps_its_end() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("File server").await;
+    let end = chrono::Utc::now() + chrono::TimeDelta::hours(1);
+    let location = app
+        .submit_create_event(
+            vec![
+                ("title", "Disk replacement".to_string()),
+                ("kind", "maintenance".to_string()),
+                ("planned_start", String::new()),
+                ("planned_end", statup::clock::format_input(&end)),
+            ],
+            &[service_id],
+        )
+        .await;
+    let id: i64 = location
+        .trim_start_matches("/events/")
+        .split('?')
+        .next()
+        .and_then(|id| id.parse().ok())
+        .expect("event id in the redirect");
+    let event = statup::repositories::EventRepository::find_by_id(&app.pool, id)
+        .await
+        .expect("db error")
+        .expect("event not found");
+    assert!(!event.planned);
+    assert_eq!(
+        event
+            .planned_end
+            .map(|end| statup::clock::format_input(&end)),
+        Some(statup::clock::format_input(&end))
+    );
+}
