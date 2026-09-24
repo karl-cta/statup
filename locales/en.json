@@ -405,6 +405,8 @@
   "subscribe.page_title": "Or this page",
   "subscribe.page_text": "Keep the tab open: the state updates on its own every minute.",
   "kind.incident": "Incident",
+  "kind.incident_minor": "Minor incident",
+  "kind.incident_critical": "Major incident",
   "kind.maintenance": "Maintenance",
   "kind.publication": "Announcement",
   "severity.minor": "Minor",

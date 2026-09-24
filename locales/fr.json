@@ -405,6 +405,8 @@
   "subscribe.page_title": "Ou cette page",
   "subscribe.page_text": "Gardez l'onglet ouvert : l'état se met à jour tout seul chaque minute.",
   "kind.incident": "Incident",
+  "kind.incident_minor": "Incident mineur",
+  "kind.incident_critical": "Incident majeur",
   "kind.maintenance": "Maintenance",
   "kind.publication": "Annonce",
   "severity.minor": "Mineur",

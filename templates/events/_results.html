@@ -22,14 +22,12 @@
                 <span class="log-time">{{ i18n.format_time(event.created_at) }}</span>
                 <span class="log-body">
                     <span class="log-head">
-                        {% call ui::kind_chip(i18n.t(event.kind.i18n_key()), event.tone().as_str()) %}
+                        {% call ui::kind_chip(event.chip_label(i18n), event.tone().as_str()) %}
                         <span class="log-title">{% for part in results.title_parts(event.title) %}{% if part.hit %}<mark class="search-hit">{{ part.text }}</mark>{% else %}{{ part.text }}{% endif %}{% endfor %}</span>
                     </span>
-                    {% let severity = event.severity_word(i18n) %}
-                    {% if severity.is_some() || event.has_services() %}
+                    {% if event.has_services() %}
                     <span class="log-sub">
-                        {% if let Some(word) = severity %}<span class="meta">{{ word }}</span>{% endif %}
-                        {% if event.has_services() %}{% call ui::service_tags(event.service_tags(i18n), i18n.t("events.concerns")) %}{% endif %}
+                        {% call ui::service_tags(event.service_tags(i18n), i18n.t("events.concerns")) %}
                     </span>
                     {% endif %}
                 </span>

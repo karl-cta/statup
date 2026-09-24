@@ -637,11 +637,15 @@ impl EventSummary {
         describe_kind(self.kind, self.severity, self.category, i18n)
     }
 
-    /// The severity of an incident, said under its title.
-    pub fn severity_word(&self, i18n: &I18n) -> Option<String> {
-        self.severity
-            .filter(|_| self.kind == Kind::Incident)
-            .map(|s| i18n.t(s.i18n_key()).to_string())
+    /// The word on the kind chip: an incident says its severity there, where
+    /// its hue already shows it.
+    pub fn chip_label(&self, i18n: &I18n) -> String {
+        let key = match (self.kind, self.severity) {
+            (Kind::Incident, Some(Severity::Minor)) => "kind.incident_minor",
+            (Kind::Incident, Some(Severity::Critical)) => "kind.incident_critical",
+            (kind, _) => kind.i18n_key(),
+        };
+        i18n.t(key).to_string()
     }
 
     pub fn countdown(&self) -> Option<Countdown> {
@@ -1015,7 +1019,9 @@ mod tests {
             Some(Severity::Minor),
             Some(Lifecycle::Completed),
         );
-        assert!(work.severity_word(&i18n).is_none());
+        assert_eq!(work.chip_label(&i18n), "Maintenance");
+        let outage = summary(Kind::Incident, Some(Severity::Critical), None);
+        assert_eq!(outage.chip_label(&i18n), "Major incident");
         let mut note = summary(Kind::Publication, None, None);
         note.category = Some(Category::Changelog);
         assert_eq!(
