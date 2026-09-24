@@ -72,6 +72,8 @@
             const key = start && start.value ? "maintenance_planned" : "maintenance_now";
             return { text: fill(copy[key], services), tone: "info" };
         }
+        // Declared once under watch, the incident leaves its services as they are.
+        if (checked("opening_step") === "monitoring") return { text: fill(copy.incident_monitoring, services), tone: "ok" };
         const tone = severity === "critical" ? "crit" : severity;
         return { text: fill(copy[`incident_${severity}`], services), tone };
     }

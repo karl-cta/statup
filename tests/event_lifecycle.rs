@@ -8,8 +8,8 @@ mod common;
 use reqwest::StatusCode;
 
 use common::{TestApp, extract_csrf_token};
-use statup::models::{Role, ServiceStatus};
-use statup::repositories::ServiceRepository;
+use statup::models::{Lifecycle, Role, ServiceStatus};
+use statup::repositories::{EventRepository, ServiceRepository};
 
 impl TestApp {
     /// POST via the `X-CSRF-Token` header, the way htmx sends it.
@@ -495,6 +495,52 @@ async fn publication_does_not_affect_service_status() {
         ServiceStatus::Operational,
         "publication should not affect service status"
     );
+}
+
+/// An incident its author already works on opens at the step they chose;
+/// one already under watch leaves its service as it is.
+#[tokio::test]
+async fn an_incident_opens_at_the_chosen_step() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+
+    for (step, expected, service_status) in [
+        (
+            "in_progress",
+            Lifecycle::InProgress,
+            ServiceStatus::MajorOutage,
+        ),
+        (
+            "monitoring",
+            Lifecycle::Monitoring,
+            ServiceStatus::Operational,
+        ),
+    ] {
+        let service_id = app.create_service(&format!("Service {step}")).await;
+        let location = app
+            .submit_create_event(
+                vec![
+                    ("title", format!("Declared at {step}")),
+                    ("kind", "incident".to_string()),
+                    ("severity", "critical".to_string()),
+                    ("opening_step", step.to_string()),
+                ],
+                &[service_id],
+            )
+            .await;
+        let id: i64 = location
+            .trim_start_matches("/events/")
+            .split('?')
+            .next()
+            .and_then(|id| id.parse().ok())
+            .expect("event id in the location");
+        let event = EventRepository::find_by_id(&app.pool, id)
+            .await
+            .expect("db error")
+            .expect("event not found");
+        assert_eq!(event.lifecycle, Some(expected), "opening step {step}");
+        assert_eq!(app.service(service_id).await.status, service_status);
+    }
 }
 
 /// A refused creation re-renders the form with everything the author typed.

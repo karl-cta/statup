@@ -654,6 +654,8 @@ pub struct EventInput {
     planned_end: String,
     #[serde(default)]
     started_at: String,
+    #[serde(default, deserialize_with = "deserialize_blank_as_none")]
+    opening_step: Option<Lifecycle>,
     #[serde(default, deserialize_with = "deserialize_blank_as_none_id")]
     follows_event_id: Option<i64>,
 }
@@ -691,6 +693,14 @@ impl EventInput {
             .then(|| clock::parse_input(&self.started_at))
             .flatten()
     }
+
+    /// The step an incident is declared at; only an incident has one.
+    fn opening_step(&self, kind: Kind) -> Option<Lifecycle> {
+        (kind == Kind::Incident)
+            .then_some(self.opening_step)
+            .flatten()
+            .filter(|step| step.opens_incident())
+    }
 }
 
 /// Values the form shows: an existing event, or what the author typed.
@@ -708,6 +718,8 @@ pub struct EventFormData {
     pub start_locked: bool,
     /// When an incident being declared really began.
     pub started_at: String,
+    /// The step an incident being declared opens at.
+    pub opening_step: Option<Lifecycle>,
     pub follows_event_id: Option<i64>,
 }
 
@@ -731,6 +743,7 @@ impl EventFormData {
             planned_end: String::new(),
             start_locked: false,
             started_at: String::new(),
+            opening_step: None,
             follows_event_id: None,
         }
     }
@@ -750,6 +763,7 @@ impl EventFormData {
             planned_end: String::new(),
             start_locked: false,
             started_at: String::new(),
+            opening_step: None,
             follows_event_id: Some(ews.event.id),
         }
     }
@@ -777,6 +791,7 @@ impl EventFormData {
                 .unwrap_or_default(),
             start_locked: maintenance && event.started_at.is_some(),
             started_at: String::new(),
+            opening_step: None,
             follows_event_id: event.follows_event_id,
         }
     }
@@ -785,6 +800,7 @@ impl EventFormData {
         Self {
             severity: input.severity(kind),
             category: input.category(kind),
+            opening_step: input.opening_step(kind),
             planned,
             kind,
             title: input.title,
@@ -806,7 +822,19 @@ impl EventFormData {
 
     /// Opens the extra options when they already hold a choice.
     fn options_in_use(&self) -> bool {
-        self.follows_event_id.is_some() || !self.started_at.is_empty()
+        self.follows_event_id.is_some()
+            || !self.started_at.is_empty()
+            || self
+                .opening_step
+                .is_some_and(|step| step != Lifecycle::Investigating)
+    }
+
+    /// An incident is declared under investigation unless chosen otherwise.
+    fn opening_step_is(&self, step: &str) -> bool {
+        self.opening_step
+            .unwrap_or(Lifecycle::Investigating)
+            .as_str()
+            == step
     }
 
     fn kind_is(&self, kind: &str) -> bool {
@@ -954,6 +982,7 @@ pub async fn create(
         planned_start: input.start().filter(|_| planned),
         planned_end: input.end().filter(|_| kind == Kind::Maintenance),
         started_at: input.began(kind),
+        opening_step: input.opening_step(kind),
         service_ids: input.service_ids.clone(),
         follows_event_id: input.follows_event_id,
         author_id: user.id,

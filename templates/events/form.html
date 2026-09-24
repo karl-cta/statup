@@ -167,7 +167,15 @@
                     <details class="more-options"{% if form.options_in_use() %} open{% endif %}>
                         <summary>{{ i18n.t("events.more_options") }}</summary>
                         {% if edit_id.is_none() %}
-                        <div class="reveal-row{% if form.kind_is("incident") %} is-open{% endif %}" data-for-kind="incident">
+                        <div class="reveal-row form-grid{% if form.kind_is("incident") %} is-open{% endif %}" data-for-kind="incident">
+                            <fieldset class="choice-group">
+                                <legend class="field-label">{{ i18n.t("events.opening_step") }}</legend>
+                                <div class="choice-row">
+                                    <label class="choice"><input type="radio" name="opening_step" value="investigating" class="sr-only"{% if form.opening_step_is("investigating") %} checked{% endif %}><span>{{ i18n.t("lifecycle.investigating") }}</span></label>
+                                    <label class="choice"><input type="radio" name="opening_step" value="in_progress" class="sr-only"{% if form.opening_step_is("in_progress") %} checked{% endif %}><span>{{ i18n.t("lifecycle.in_progress") }}</span></label>
+                                    <label class="choice"><input type="radio" name="opening_step" value="monitoring" class="sr-only"{% if form.opening_step_is("monitoring") %} checked{% endif %}><span>{{ i18n.t("lifecycle.monitoring") }}</span></label>
+                                </div>
+                            </fieldset>
                             <div class="schedule" data-schedule data-past data-now="{{ now_input }}">
                                 <input name="started_at" type="hidden" value="{{ form.started_at }}" data-start-value>
                                 <div class="field">
@@ -261,6 +269,7 @@
 {
     "incident_minor": {{ i18n.t("consequence.incident_minor")|json|safe }},
     "incident_critical": {{ i18n.t("consequence.incident_critical")|json|safe }},
+    "incident_monitoring": {{ i18n.t("consequence.incident_monitoring")|json|safe }},
     "maintenance_planned": {{ i18n.t("consequence.maintenance_planned")|json|safe }},
     "maintenance_now": {{ i18n.t("consequence.maintenance_now")|json|safe }},
     "no_services": {{ i18n.t("consequence.no_services")|json|safe }},

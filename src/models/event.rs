@@ -256,6 +256,14 @@ impl Lifecycle {
         }
     }
 
+    /// Steps an incident may be declared at: any step before it is closed.
+    pub fn opens_incident(self) -> bool {
+        matches!(
+            self,
+            Self::Investigating | Self::InProgress | Self::Monitoring
+        )
+    }
+
     pub fn is_terminal(self) -> bool {
         matches!(self, Self::Resolved | Self::Cancelled | Self::Completed)
     }
@@ -710,17 +718,24 @@ pub struct CreateEventInput {
     pub planned_end: Option<DateTime<Utc>>,
     /// When an incident declared late really began.
     pub started_at: Option<DateTime<Utc>>,
+    /// The step an incident its author already works on opens at.
+    pub opening_step: Option<Lifecycle>,
     pub service_ids: Vec<i64>,
     pub follows_event_id: Option<i64>,
     pub author_id: i64,
 }
 
 impl CreateEventInput {
-    /// Initial state: an incident is being investigated, an announced
-    /// maintenance waits for its start, an urgent one is under way.
+    /// Initial state: an incident is being investigated unless its author
+    /// says it is further along, an announced maintenance waits for its
+    /// start, an urgent one is under way.
     pub fn initial_lifecycle(&self) -> Option<Lifecycle> {
         match (self.kind, self.planned) {
-            (Kind::Incident, _) => Some(Lifecycle::Investigating),
+            (Kind::Incident, _) => Some(
+                self.opening_step
+                    .filter(|step| step.opens_incident())
+                    .unwrap_or(Lifecycle::Investigating),
+            ),
             (Kind::Maintenance, true) => Some(Lifecycle::Scheduled),
             (Kind::Maintenance, false) => Some(Lifecycle::InProgress),
             (Kind::Publication, _) => None,
@@ -882,6 +897,7 @@ mod tests {
             planned_start: None,
             planned_end: None,
             started_at: None,
+            opening_step: None,
             service_ids: vec![],
             follows_event_id: None,
             author_id: 1,
@@ -1115,6 +1131,31 @@ mod tests {
                 .initial_lifecycle()
                 .is_none()
         );
+    }
+
+    #[test]
+    fn an_incident_opens_at_the_step_its_author_chose_before_closing() {
+        let at = |step| CreateEventInput {
+            opening_step: Some(step),
+            ..input(Kind::Incident, false)
+        };
+        assert_eq!(
+            at(Lifecycle::InProgress).initial_lifecycle(),
+            Some(Lifecycle::InProgress)
+        );
+        assert_eq!(
+            at(Lifecycle::Monitoring).initial_lifecycle(),
+            Some(Lifecycle::Monitoring)
+        );
+        assert_eq!(
+            at(Lifecycle::Resolved).initial_lifecycle(),
+            Some(Lifecycle::Investigating)
+        );
+        let maintenance = CreateEventInput {
+            opening_step: Some(Lifecycle::Monitoring),
+            ..input(Kind::Maintenance, false)
+        };
+        assert_eq!(maintenance.initial_lifecycle(), Some(Lifecycle::InProgress));
     }
 
     #[test]
