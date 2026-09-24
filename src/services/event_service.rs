@@ -26,6 +26,7 @@ impl EventService {
     pub async fn create(pool: &DbPool, input: CreateEventInput) -> Result<Event, AppError> {
         if let Some(key) = event_field_error(&input.title)
             .or_else(|| severity_error(input.kind, input.severity))
+            .or_else(|| began_error(input.started_at))
             .or_else(|| {
                 let start = if input.planned {
                     input.planned_start
@@ -219,6 +220,13 @@ pub fn event_field_error(title: &str) -> Option<&'static str> {
 }
 
 /// An incident says how bad it is.
+/// An incident declared late began in the past, not later on.
+fn began_error(started_at: Option<DateTime<Utc>>) -> Option<&'static str> {
+    started_at
+        .filter(|at| *at > Utc::now())
+        .map(|_| "validation.began_in_future")
+}
+
 fn severity_error(kind: Kind, severity: Option<Severity>) -> Option<&'static str> {
     (kind == Kind::Incident && severity.is_none()).then_some("validation.severity_required")
 }

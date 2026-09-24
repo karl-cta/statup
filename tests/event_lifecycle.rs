@@ -979,3 +979,49 @@ async fn a_maintenance_begun_right_away_keeps_its_end() {
         Some(statup::clock::format_input(&end))
     );
 }
+
+#[tokio::test]
+async fn an_incident_declared_late_keeps_when_it_began() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Mail").await;
+    let began = chrono::Utc::now() - chrono::TimeDelta::minutes(40);
+    let location = app
+        .submit_create_event(
+            vec![
+                ("title", "Mail down".to_string()),
+                ("kind", "incident".to_string()),
+                ("severity", "critical".to_string()),
+                ("started_at", statup::clock::format_input(&began)),
+            ],
+            &[service_id],
+        )
+        .await;
+    let event =
+        statup::repositories::EventRepository::find_by_id(&app.pool, event_id_from_path(&location))
+            .await
+            .expect("db error")
+            .expect("event not found");
+    assert_eq!(
+        event.started_at.map(|at| statup::clock::format_input(&at)),
+        Some(statup::clock::format_input(&began))
+    );
+
+    let later = chrono::Utc::now() + chrono::TimeDelta::hours(2);
+    let csrf = app.csrf_from("/events/new").await;
+    let started_at = statup::clock::format_input(&later);
+    let (status, body, _) = app
+        .post_form(
+            "/events/new",
+            &csrf,
+            &[
+                ("title", "Mail slow"),
+                ("kind", "incident"),
+                ("severity", "minor"),
+                ("started_at", started_at.as_str()),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "refused in the form");
+    assert!(body.contains("form-error"));
+}

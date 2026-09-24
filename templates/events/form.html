@@ -25,6 +25,19 @@
             <h1 class="page-title">{{ i18n.t("events.new_heading") }}</h1>
             {% endmatch %}
         </div>
+        {% if !templates.is_empty() %}
+        <details class="more-actions" data-more-actions data-template-menu>
+            <summary class="btn btn-ghost">{{ i18n.t("events.from_template") }} {% call ui::caret_icon() %}</summary>
+            <div class="more-actions-menu template-menu">
+                {% for template in templates %}
+                <button type="button" class="more-actions-item" data-template-choice="{{ template.id }}">
+                    <span class="template-menu-title">{{ template.title }}</span>
+                    <span class="template-menu-meta">{{ template.summary(i18n) }}</span>
+                </button>
+                {% endfor %}
+            </div>
+        </details>
+        {% endif %}
     </header>
 
     {% if let Some(message) = error %}
@@ -127,6 +140,10 @@
                             {% endfor %}
                         </div>
                         {% endif %}
+                        <p class="consequence" role="status" data-consequence-row hidden>
+                            <span class="dot" data-consequence-dot hidden aria-hidden="true"></span>
+                            <span data-consequence></span>
+                        </p>
                     </section>
                 </div>
                 <div class="form-col">
@@ -147,8 +164,30 @@
                     </div>
 
                     {% if edit_id.is_none() || (form.kind_is("publication") && !maintenances.is_empty()) %}
-                    <details class="more-options"{% if form.follows_any() %} open{% endif %}>
+                    <details class="more-options"{% if form.options_in_use() %} open{% endif %}>
                         <summary>{{ i18n.t("events.more_options") }}</summary>
+                        {% if edit_id.is_none() %}
+                        <div class="reveal-row{% if form.kind_is("incident") %} is-open{% endif %}" data-for-kind="incident">
+                            <div class="schedule" data-schedule data-past data-now="{{ now_input }}">
+                                <input name="started_at" type="hidden" value="{{ form.started_at }}" data-start-value>
+                                <div class="field">
+                                    <span id="began-label" class="field-label">{{ i18n.t("events.began") }} <span class="field-note">{{ i18n.t("events.began_note") }}</span></span>
+                                    <div class="schedule-start{% if !form.started_at.is_empty() %} is-timed{% endif %}">
+                                        <button type="button" class="input date-trigger" aria-haspopup="dialog" aria-expanded="false" aria-labelledby="began-label began-date-text" data-date-trigger>
+                                            <span id="began-date-text" data-date-text>{{ i18n.t("events.start_now") }}</span>
+                                            {% call ui::calendar_icon() %}
+                                        </button>
+                                        <span class="schedule-time"{% if form.started_at.is_empty() %} hidden{% endif %}>
+                                            {% call ui::clock_icon() %}
+                                            <input type="text" class="input" role="combobox" inputmode="text" autocomplete="off" maxlength="8" placeholder="{{ i18n.t("events.time_placeholder") }}" aria-label="{{ i18n.t("events.began_time") }}" aria-autocomplete="none" aria-expanded="false" aria-controls="began-time-list" data-time>
+                                            <ul id="began-time-list" class="time-list" role="listbox" aria-label="{{ i18n.t("events.began_time") }}" data-time-list hidden></ul>
+                                        </span>
+                                        <div class="calendar" role="dialog" aria-label="{{ i18n.t("events.pick_date") }}" data-calendar hidden></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                         {% if !maintenances.is_empty() %}
                         <div class="reveal-row{% if form.kind_is("publication") %} is-open{% endif %}" data-for-kind="publication">
                             <div class="field">
@@ -175,10 +214,6 @@
         </div>
 
         <div class="action-bar">
-            <div class="consequence" role="status">
-                <span class="dot" data-consequence-dot hidden aria-hidden="true"></span>
-                <p class="consequence-text" data-consequence></p>
-            </div>
             <div class="action-bar-buttons">
                 <a href="{% match edit_id %}{% when Some with (id) %}/events/{{ id }}{% when None %}/events{% endmatch %}" class="text-action">{{ i18n.t("common.cancel") }}</a>
                 <button type="submit" class="btn btn-primary" data-submit-label>{% if edit_id.is_some() %}{{ i18n.t("common.save") }}{% else %}{{ i18n.t("events.submit_incident") }}{% endif %}</button>
@@ -208,10 +243,8 @@
 {
     "incident_minor": {{ i18n.t("consequence.incident_minor")|json|safe }},
     "incident_critical": {{ i18n.t("consequence.incident_critical")|json|safe }},
-    "pick_severity": {{ i18n.t("consequence.pick_severity")|json|safe }},
     "maintenance_planned": {{ i18n.t("consequence.maintenance_planned")|json|safe }},
     "maintenance_now": {{ i18n.t("consequence.maintenance_now")|json|safe }},
-    "publication": {{ i18n.t("consequence.publication")|json|safe }},
     "no_services": {{ i18n.t("consequence.no_services")|json|safe }},
     "services_many": {{ i18n.t("consequence.services_many")|json|safe }},
     "and": {{ i18n.t("common.and")|json|safe }},

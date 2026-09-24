@@ -91,8 +91,20 @@ fn opened_at(event: &Event) -> DateTime<Utc> {
     }
 }
 
+/// An incident its author says began before they declared it. A report
+/// written after the incident closed is not one: its record is written late.
+fn declared_late(event: &Event) -> bool {
+    let Some(began) = event.started_at else {
+        return false;
+    };
+    event.kind == Kind::Incident
+        && (event.created_at - began).num_seconds() > SAME_MOMENT_SECS
+        && event.ended_at.is_none_or(|end| event.created_at <= end)
+}
+
 fn opening_key(event: &Event) -> &'static str {
     match (event.kind, event.planned) {
+        (Kind::Incident, _) if declared_late(event) => "timeline.began",
         (Kind::Incident, _) => "timeline.declared",
         (Kind::Maintenance, true) => "timeline.announced",
         (Kind::Maintenance, false) => "timeline.started",
@@ -123,6 +135,9 @@ fn milestones(event: &Event, i18n: &I18n) -> Vec<Milestone> {
                 }
             }
         }
+    }
+    if declared_late(event) {
+        add(event.created_at, "timeline.declared", Tone::Neutral, false);
     }
     if let Some(end) = event.planned_end.filter(|end| active && *end > now) {
         add(end, "timeline.planned_end", Tone::Info, false);
@@ -269,6 +284,23 @@ mod tests {
         assert!(
             entries.iter().all(|e| e.author.is_none()),
             "names are for members"
+        );
+    }
+
+    #[test]
+    fn an_incident_declared_late_shows_when_it_began() {
+        let i18n = I18n::new("en");
+        let mut incident = event(Kind::Incident, false, Lifecycle::Investigating);
+        incident.started_at = Some(incident.created_at - Duration::minutes(20));
+        let entries = build(&incident, String::new(), None, Vec::new(), None, &i18n);
+
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].label.as_deref(), Some("Incident declared"));
+        assert!(
+            entries[1]
+                .label
+                .as_deref()
+                .is_some_and(|l| l.starts_with("Incident began"))
         );
     }
 

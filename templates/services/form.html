@@ -58,12 +58,6 @@
                         {% include "components/icon_picker.html" %}
                     </div>
 
-                    {% if edit_id.is_none() %}
-                    <div class="form-block consequence" data-tone="ok">
-                        <span class="dot" aria-hidden="true"></span>
-                        <p class="consequence-text">{{ i18n.t("services.consequence_new") }} <span class="field-note">{{ i18n.t("services.consequence_new_status") }}</span></p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>

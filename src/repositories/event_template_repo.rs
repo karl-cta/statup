@@ -43,6 +43,19 @@ impl EventTemplateRepository {
             .await
     }
 
+    /// The templates offered at the top of a new event, most used first.
+    pub async fn list_most_used(
+        pool: &DbPool,
+        limit: i64,
+    ) -> Result<Vec<EventTemplate>, sqlx::Error> {
+        sqlx::query_as::<_, EventTemplate>(
+            "SELECT * FROM event_templates ORDER BY usage_count DESC, title LIMIT ?",
+        )
+        .bind(limit)
+        .fetch_all(pool)
+        .await
+    }
+
     /// Templates whose title contains `query`, most used first. The text is
     /// matched literally, wildcards included.
     pub async fn search_by_title(

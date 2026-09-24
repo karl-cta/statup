@@ -1,4 +1,4 @@
-// Event form: rows follow the chosen kind, the sentence under the form says
+// Event form: rows follow the chosen kind, the line under the services says
 // what the public page will show, the title writes itself until typed in,
 // and a saved template fills the form.
 (function () {
@@ -63,9 +63,9 @@
         });
     }
 
+    // What the public page will show, or null when nothing on it changes.
     function outcome(kind, severity, names) {
-        if (kind === "publication") return { text: copy.publication, tone: "" };
-        if (kind === "incident" && !severity) return { text: copy.pick_severity, tone: "" };
+        if (kind === "publication" || (kind === "incident" && !severity)) return null;
         if (names.length === 0) return { text: copy.no_services, tone: "" };
         const services = joinNames(names);
         if (kind === "maintenance") {
@@ -94,10 +94,13 @@
         });
 
         const result = outcome(kind, severity, names);
-        form.querySelector("[data-consequence]").textContent = result.text;
-        const dot = form.querySelector("[data-consequence-dot]");
-        dot.hidden = !result.tone;
-        if (result.tone) dot.dataset.tone = result.tone;
+        form.querySelector("[data-consequence-row]").hidden = !result;
+        if (result) {
+            form.querySelector("[data-consequence]").textContent = result.text;
+            const dot = form.querySelector("[data-consequence-dot]");
+            dot.hidden = !result.tone;
+            if (result.tone) dot.dataset.tone = result.tone;
+        }
 
         proposeTitle(kind, severity, names);
         form.querySelector("[data-submit-label]").textContent = copy[`submit_${kind}`] || copy.submit_incident;
@@ -142,6 +145,16 @@
                 title.focus();
             })
             .catch(showTemplateError);
+    }
+
+    const templateMenu = document.querySelector("[data-template-menu]");
+    if (templateMenu) {
+        templateMenu.addEventListener("click", (event) => {
+            const choice = event.target.closest("[data-template-choice]");
+            if (!choice) return;
+            templateMenu.open = false;
+            applyTemplate(choice.dataset.templateChoice);
+        });
     }
 
     form.addEventListener("change", update);

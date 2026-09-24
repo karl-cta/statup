@@ -33,6 +33,9 @@ const MAX_PAGE: i64 = 10_000;
 /// How many recent maintenances the announcement form offers.
 const MAINTENANCE_CHOICES: i64 = 20;
 
+/// How many saved templates a new event offers to start from.
+const TEMPLATE_CHOICES: i64 = 30;
+
 fn deserialize_blank_as_none<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where
     D: Deserializer<'de>,
@@ -581,6 +584,8 @@ pub struct EventInput {
     planned_start: String,
     #[serde(default)]
     planned_end: String,
+    #[serde(default)]
+    started_at: String,
     #[serde(default, deserialize_with = "deserialize_blank_as_none_id")]
     follows_event_id: Option<i64>,
 }
@@ -611,6 +616,13 @@ impl EventInput {
     fn end(&self) -> Option<chrono::DateTime<chrono::Utc>> {
         clock::parse_input(&self.planned_end)
     }
+
+    /// When an incident declared late really began; only an incident has one.
+    fn began(&self, kind: Kind) -> Option<chrono::DateTime<chrono::Utc>> {
+        (kind == Kind::Incident)
+            .then(|| clock::parse_input(&self.started_at))
+            .flatten()
+    }
 }
 
 /// Values the form shows: an existing event, or what the author typed.
@@ -626,6 +638,8 @@ pub struct EventFormData {
     pub planned_end: String,
     /// A maintenance under way keeps the start it had.
     pub start_locked: bool,
+    /// When an incident being declared really began.
+    pub started_at: String,
     pub follows_event_id: Option<i64>,
 }
 
@@ -648,6 +662,7 @@ impl EventFormData {
             planned_start: String::new(),
             planned_end: String::new(),
             start_locked: false,
+            started_at: String::new(),
             follows_event_id: None,
         }
     }
@@ -666,6 +681,7 @@ impl EventFormData {
             planned_start: String::new(),
             planned_end: String::new(),
             start_locked: false,
+            started_at: String::new(),
             follows_event_id: Some(ews.event.id),
         }
     }
@@ -692,6 +708,7 @@ impl EventFormData {
                 .map(clock::format_input)
                 .unwrap_or_default(),
             start_locked: maintenance && event.started_at.is_some(),
+            started_at: String::new(),
             follows_event_id: event.follows_event_id,
         }
     }
@@ -708,6 +725,7 @@ impl EventFormData {
             planned_start: input.planned_start,
             planned_end: input.planned_end,
             start_locked: false,
+            started_at: input.started_at,
             follows_event_id: input.follows_event_id,
         }
     }
@@ -719,8 +737,8 @@ impl EventFormData {
     }
 
     /// Opens the extra options when they already hold a choice.
-    fn follows_any(&self) -> bool {
-        self.follows_event_id.is_some()
+    fn options_in_use(&self) -> bool {
+        self.follows_event_id.is_some() || !self.started_at.is_empty()
     }
 
     fn kind_is(&self, kind: &str) -> bool {
@@ -755,6 +773,8 @@ struct EventFormTemplate {
     zone_hint: String,
     /// The instance clock when the page was drawn, for the schedule script.
     now_input: String,
+    /// Saved templates a new event may start from.
+    templates: Vec<crate::models::EventTemplate>,
     i18n: I18n,
 }
 
@@ -776,6 +796,11 @@ async fn render_form(
             &[("zone", &clock::offset_label(&chrono::Utc::now()))],
         ),
         now_input: clock::format_input(&chrono::Utc::now()),
+        templates: if edit_id.is_none() {
+            EventTemplateRepository::list_most_used(&state.pool, TEMPLATE_CHOICES).await?
+        } else {
+            Vec::new()
+        },
         error,
         edit_id,
         form,
@@ -860,6 +885,7 @@ pub async fn create(
         description: input.description.trim().to_string(),
         planned_start: input.start().filter(|_| planned),
         planned_end: input.end().filter(|_| kind == Kind::Maintenance),
+        started_at: input.began(kind),
         service_ids: input.service_ids.clone(),
         follows_event_id: input.follows_event_id,
         author_id: user.id,

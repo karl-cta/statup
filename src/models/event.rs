@@ -663,6 +663,8 @@ pub struct CreateEventInput {
     pub description: String,
     pub planned_start: Option<DateTime<Utc>>,
     pub planned_end: Option<DateTime<Utc>>,
+    /// When an incident declared late really began.
+    pub started_at: Option<DateTime<Utc>>,
     pub service_ids: Vec<i64>,
     pub follows_event_id: Option<i64>,
     pub author_id: i64,
@@ -680,10 +682,12 @@ impl CreateEventInput {
         }
     }
 
-    /// Everything starts now except an announced maintenance.
+    /// Everything starts now except an announced maintenance, and an
+    /// incident its author says began earlier.
     pub fn initial_started_at(&self) -> Option<DateTime<Utc>> {
         match (self.kind, self.planned) {
             (Kind::Maintenance, true) => None,
+            (Kind::Incident, _) => Some(self.started_at.unwrap_or_else(Utc::now)),
             _ => Some(Utc::now()),
         }
     }
@@ -785,6 +789,7 @@ mod tests {
             description: String::new(),
             planned_start: None,
             planned_end: None,
+            started_at: None,
             service_ids: vec![],
             follows_event_id: None,
             author_id: 1,
