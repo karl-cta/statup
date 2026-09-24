@@ -471,6 +471,20 @@
         margin-left: auto;
     }
 
+    /* Deleting a message is rare: under a pointer the action shows only
+       over its message; a touch screen, without hover, keeps it in sight. */
+    @media (hover: hover) {
+        .moment-delete {
+            opacity: 0;
+            transition: opacity 150ms var(--ease-out);
+        }
+
+        .moment:hover .moment-delete,
+        .moment:focus-within .moment-delete {
+            opacity: 1;
+        }
+    }
+
     .composer:not(.is-open, :target) {
         display: none;
     }
