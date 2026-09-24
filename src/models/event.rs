@@ -309,7 +309,7 @@ fn qualifier_key(
     }
 }
 
-/// Words for a kind and what qualifies it: "Incident · En panne",
+/// Words for a kind and what qualifies it: "Incident · Majeur",
 /// "Annonce · Information".
 pub(crate) fn describe_kind(
     kind: Kind,

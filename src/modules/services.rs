@@ -10,7 +10,7 @@ use chrono::{Duration, NaiveDate};
 use crate::clock;
 use crate::error::AppError;
 use crate::i18n::I18n;
-use crate::models::{Service, Severity};
+use crate::models::{Service, ServiceStatus, Severity};
 use crate::repositories::{EventRepository, IncidentSpan, ServiceRepository};
 
 use super::{ColumnWidth, Module, ModuleContext, ModuleRenderContext, render_template};
@@ -163,8 +163,8 @@ fn day_status(level: Option<u8>, i18n: &I18n) -> String {
     let key = match level {
         None => "availability.day_untracked",
         Some(0) => "availability.day_ok",
-        Some(1) => Severity::Minor.i18n_key(),
-        Some(_) => Severity::Critical.i18n_key(),
+        Some(1) => ServiceStatus::Degraded.i18n_key(),
+        Some(_) => ServiceStatus::MajorOutage.i18n_key(),
     };
     i18n.t(key).to_string()
 }
