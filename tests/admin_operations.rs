@@ -753,3 +753,43 @@ async fn csrf_token_of_an_authenticated_page_is_never_empty() {
     let (_, body) = app.get("/").await;
     assert!(!extract_csrf_token(&body).is_empty());
 }
+
+/// The host's logo takes the mark's place in the masthead, and leaves when
+/// removed.
+#[tokio::test]
+async fn a_logo_replaces_the_mark_until_removed() {
+    let _brand = BRAND.lock().await;
+    let (app, _) = spawn_with_admin().await;
+    let csrf = app.csrf_from("/admin/settings").await;
+    let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 10"><rect width="40" height="10"/></svg>"#;
+
+    let resp = app
+        .client
+        .post(app.url("/admin/settings/logo"))
+        .header("content-type", "multipart/form-data; boundary=statup")
+        .body(icon_upload_body(&csrf, "acme.svg", "image/svg+xml", svg))
+        .send()
+        .await
+        .expect("upload failed");
+    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
+
+    let (_, body) = app.get("/admin/settings?logo=set").await;
+    let logo = body
+        .split("class=\"mast-logo\" src=\"")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+        .expect("the masthead shows the logo")
+        .to_string();
+    assert_eq!(app.get_response(&logo).await.status(), StatusCode::OK);
+
+    let csrf = app.csrf_from("/admin/settings").await;
+    app.post_form("/admin/settings/logo/remove", &csrf, &[])
+        .await;
+    let (_, body) = app.get("/").await;
+    assert!(!body.contains("mast-logo"), "the mark is back");
+    assert_eq!(
+        app.get_response(&logo).await.status(),
+        StatusCode::NOT_FOUND,
+        "the old file is gone"
+    );
+}

@@ -190,6 +190,7 @@ fn upload_routes() -> Router<AppState> {
     Router::new()
         .route("/icons/upload", post(icons::upload))
         .route("/icons/upload-picker", post(icons::upload_picker))
+        .route("/admin/settings/logo", post(admin::update_logo))
 }
 
 fn admin_routes() -> Router<AppState> {
@@ -204,6 +205,7 @@ fn admin_routes() -> Router<AppState> {
             post(admin::update_instance_name),
         )
         .route("/admin/settings/time-zone", post(admin::update_time_zone))
+        .route("/admin/settings/logo/remove", post(admin::remove_logo))
         .route("/admin/users", get(admin::users_list))
         .route("/admin/users/new", post(admin::add_member))
         .route("/admin/users/:id/role", post(admin::update_role))
@@ -244,12 +246,16 @@ fn static_files() -> Router<AppState> {
         .layer(middleware::from_fn(static_cache_control))
 }
 
-/// Uploaded icons only, never the rest of the upload directory, which may
-/// sit next to the database.
+/// Uploaded icons and the logo only, never the rest of the upload
+/// directory, which may sit next to the database.
 fn uploaded_files(upload_dir: &str) -> Router<AppState> {
     let icons_dir = std::path::Path::new(upload_dir).join("icons");
     Router::new()
         .nest_service("/uploads/icons", ServeDir::new(icons_dir))
+        .nest_service(
+            "/uploads/brand",
+            ServeDir::new(crate::services::logo_dir(upload_dir)),
+        )
         .layer(middleware::from_fn(uploaded_file_headers))
 }
 

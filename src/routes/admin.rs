@@ -1,7 +1,7 @@
 //! Admin routes: instance settings and team management.
 
 use askama::Template;
-use axum::extract::{Path, Query, State};
+use axum::extract::{Multipart, Path, Query, State};
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
@@ -14,7 +14,7 @@ use crate::middleware::headers::no_store;
 use crate::middleware::{CsrfToken, HtmlForm, RequireAdmin};
 use crate::models::{Role, User, check_display_name};
 use crate::repositories::{IconRepository, SettingsRepository, UserRepository};
-use crate::services::AuthService;
+use crate::services::{AuthService, LogoService};
 use crate::session::{read_value, write_value};
 use crate::state::AppState;
 
@@ -49,6 +49,8 @@ enum SettingsNotice {
     Renamed(String),
     NameReset,
     ZoneSet(&'static str),
+    LogoSet,
+    LogoRemoved,
     PublicOpened,
     PublicClosed,
 }
@@ -96,6 +98,7 @@ pub struct SettingsQuery {
     renamed: Option<String>,
     public: Option<String>,
     zone: Option<String>,
+    logo: Option<String>,
 }
 
 impl SettingsQuery {
@@ -112,6 +115,11 @@ impl SettingsQuery {
         }
         if self.zone.is_some() {
             return Some(SettingsNotice::ZoneSet(clock::zone().name()));
+        }
+        match self.logo.as_deref() {
+            Some("set") => return Some(SettingsNotice::LogoSet),
+            Some("removed") => return Some(SettingsNotice::LogoRemoved),
+            _ => {}
         }
         match self.public.as_deref() {
             Some("on") => Some(SettingsNotice::PublicOpened),
@@ -539,6 +547,44 @@ pub async fn update_instance_name(
     );
 
     Ok(Redirect::to("/admin/settings?renamed=1").into_response())
+}
+
+/// A logo refused for its file is said on the settings page.
+pub async fn update_logo(
+    RequireAdmin(admin): RequireAdmin,
+    State(state): State<AppState>,
+    CsrfToken(csrf_token): CsrfToken,
+    Locale(i18n): Locale,
+    mut multipart: Multipart,
+) -> Result<Response, AppError> {
+    let stored = match super::icons::extract_upload(&mut multipart).await {
+        Ok((_, data)) => LogoService::replace(&state.pool, &state.upload_dir, data).await,
+        Err(e) => Err(e),
+    };
+    match stored {
+        Ok(()) => {
+            tracing::info!(admin_id = admin.id, "Logo updated");
+            Ok(Redirect::to("/admin/settings?logo=set").into_response())
+        }
+        Err(AppError::Validation(key)) => {
+            let page = SettingsPage {
+                instance_name: crate::instance_name(),
+                notice: None,
+                error: Some(i18n.t(&key).to_string()),
+            };
+            render_settings(&state, &admin, csrf_token, i18n, page).await
+        }
+        Err(e) => Err(e),
+    }
+}
+
+pub async fn remove_logo(
+    RequireAdmin(admin): RequireAdmin,
+    State(state): State<AppState>,
+) -> Result<Response, AppError> {
+    LogoService::remove(&state.pool, &state.upload_dir).await?;
+    tracing::info!(admin_id = admin.id, "Logo removed");
+    Ok(Redirect::to("/admin/settings?logo=removed").into_response())
 }
 
 #[derive(Deserialize)]

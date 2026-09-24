@@ -66,6 +66,15 @@
         height: 28px;
     }
 
+    /* The host's logo keeps the mark's height; a wide one stays readable. */
+    .mast-logo {
+        flex: none;
+        width: auto;
+        max-width: 160px;
+        height: 28px;
+        object-fit: contain;
+    }
+
     .logo-dot {
         fill: var(--color-brand);
     }

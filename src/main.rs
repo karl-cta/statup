@@ -136,6 +136,13 @@ async fn build_state(config: &Config, pool: DbPool) -> anyhow::Result<AppState> 
         statup::set_instance_name(&name);
     }
 
+    if let Some(logo) = SettingsRepository::get(&pool, statup::services::LOGO_SETTING)
+        .await
+        .context("cannot read the logo")?
+    {
+        statup::set_instance_logo(&logo);
+    }
+
     let chosen_zone = SettingsRepository::get(&pool, statup::clock::ZONE_SETTING)
         .await
         .context("cannot read the time zone")?

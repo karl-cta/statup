@@ -155,8 +155,7 @@ impl IconService {
             ));
         }
 
-        let mime = detect_mime(&data)?;
-        let processed = process_off_runtime(data, mime).await?;
+        let (mime, processed) = prepare_image(data, MAX_ICON_DIMENSION).await?;
         let filename = format!("{}.{}", uuid::Uuid::new_v4(), mime_to_extension(mime));
         let file_path = icon_path(upload_dir, &filename);
         tokio::fs::write(&file_path, &processed)
@@ -237,7 +236,18 @@ fn is_svg(data: &[u8]) -> bool {
 }
 
 /// Map MIME type to file extension.
-fn mime_to_extension(mime: &str) -> &'static str {
+/// Checks an uploaded image and makes it safe to serve: a raster image is
+/// scaled to fit `max_dimension`, an SVG is sanitized. Returns its type.
+pub async fn prepare_image(
+    data: Vec<u8>,
+    max_dimension: u32,
+) -> Result<(&'static str, Vec<u8>), AppError> {
+    let mime = detect_mime(&data)?;
+    let processed = process_off_runtime(data, mime, max_dimension).await?;
+    Ok((mime, processed))
+}
+
+pub fn mime_to_extension(mime: &str) -> &'static str {
     match mime {
         "image/png" => "png",
         "image/jpeg" => "jpg",
@@ -248,23 +258,27 @@ fn mime_to_extension(mime: &str) -> &'static str {
 }
 
 /// Resizing and sanitizing are CPU work: they run on the blocking pool.
-async fn process_off_runtime(data: Vec<u8>, mime: &'static str) -> Result<Vec<u8>, AppError> {
+async fn process_off_runtime(
+    data: Vec<u8>,
+    mime: &'static str,
+    max_dimension: u32,
+) -> Result<Vec<u8>, AppError> {
     let _permit = IMAGE_PERMITS
         .acquire()
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("image queue closed: {e}")))?;
-    tokio::task::spawn_blocking(move || process_image(&data, mime))
+    tokio::task::spawn_blocking(move || process_image(&data, mime, max_dimension))
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("image task failed: {e}")))?
 }
 
 /// Process image data: resize raster images, sanitize SVGs.
-fn process_image(data: &[u8], mime: &str) -> Result<Vec<u8>, AppError> {
+fn process_image(data: &[u8], mime: &str, max_dimension: u32) -> Result<Vec<u8>, AppError> {
     match mime {
         "image/svg+xml" => sanitize_svg(data),
-        "image/jpeg" => resize_raster(data, ImageFormat::Jpeg),
-        "image/webp" => resize_raster(data, ImageFormat::WebP),
-        _ => resize_raster(data, ImageFormat::Png),
+        "image/jpeg" => resize_raster(data, ImageFormat::Jpeg, max_dimension),
+        "image/webp" => resize_raster(data, ImageFormat::WebP, max_dimension),
+        _ => resize_raster(data, ImageFormat::Png, max_dimension),
     }
 }
 
@@ -328,16 +342,20 @@ fn to_xml_text(html: &str) -> String {
         .collect()
 }
 
-/// Resize a raster image to fit within `MAX_ICON_DIMENSION` x `MAX_ICON_DIMENSION`.
-fn resize_raster(data: &[u8], format: ImageFormat) -> Result<Vec<u8>, AppError> {
+/// Resize a raster image to fit within `max_dimension` on each side.
+fn resize_raster(
+    data: &[u8],
+    format: ImageFormat,
+    max_dimension: u32,
+) -> Result<Vec<u8>, AppError> {
     let mut reader = ImageReader::with_format(Cursor::new(data), format);
     reader.limits(decode_limits());
     let img = reader
         .decode()
         .map_err(|_| AppError::Validation("validation.image_read_error".to_string()))?;
 
-    let img = if img.width() > MAX_ICON_DIMENSION || img.height() > MAX_ICON_DIMENSION {
-        img.thumbnail(MAX_ICON_DIMENSION, MAX_ICON_DIMENSION)
+    let img = if img.width() > max_dimension || img.height() > max_dimension {
+        img.thumbnail(max_dimension, max_dimension)
     } else {
         img
     };
@@ -525,7 +543,7 @@ mod tests {
         );
 
         assert!(matches!(
-            resize_raster(&png, ImageFormat::Png),
+            resize_raster(&png, ImageFormat::Png, MAX_ICON_DIMENSION),
             Err(AppError::Validation(key)) if key == "validation.image_read_error"
         ));
     }
@@ -537,7 +555,7 @@ mod tests {
             .write_to(&mut Cursor::new(&mut png), ImageFormat::Png)
             .unwrap();
 
-        let resized = resize_raster(&png, ImageFormat::Png).unwrap();
+        let resized = resize_raster(&png, ImageFormat::Png, MAX_ICON_DIMENSION).unwrap();
         let img = image::load_from_memory(&resized).unwrap();
         assert_eq!(
             (img.width(), img.height()),

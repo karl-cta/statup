@@ -20,8 +20,10 @@
         <p>
             {% match n %}
             {% when SettingsNotice::Renamed with (name) %}<q>{{ name }}</q> {{ i18n.t("admin.renamed_notice") }}
-            {% when SettingsNotice::NameReset %}{{ i18n.t("admin.name_reset_notice") }}
+            {% when SettingsNotice::NameReset %}{% if crate::instance_logo_url().is_some() %}{{ i18n.t("admin.name_reset_logo_notice") }}{% else %}{{ i18n.t("admin.name_reset_notice") }}{% endif %}
             {% when SettingsNotice::ZoneSet with (zone) %}{{ self.zone_notice(zone) }}
+            {% when SettingsNotice::LogoSet %}{{ i18n.t("admin.logo_notice") }}
+            {% when SettingsNotice::LogoRemoved %}{{ i18n.t("admin.logo_removed_notice") }}
             {% when SettingsNotice::PublicOpened %}{{ i18n.t("admin.public_opened_notice") }} <a href="/" class="link">{{ i18n.t("admin.public_view") }}</a>
             {% when SettingsNotice::PublicClosed %}{{ i18n.t("admin.public_closed_notice") }}
             {% endmatch %}
@@ -51,6 +53,32 @@
                     </div>
                     <button type="submit" class="btn btn-primary">{{ i18n.t("common.save") }}</button>
                 </form>
+            </div>
+            <div class="set-row">
+                <div class="set-text">
+                    <p class="set-label">{{ i18n.t("admin.logo") }}</p>
+                    <p class="set-help">{{ i18n.t("admin.logo_help") }}</p>
+                </div>
+                <div class="set-logo">
+                    {% if let Some(url) = crate::instance_logo_url() %}
+                    <img class="set-logo-preview" src="{{ url }}" alt="">
+                    {% endif %}
+                    <form method="post" action="/admin/settings/logo" enctype="multipart/form-data" data-submit-on-change>
+                        <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                        <label class="icon-upload-field">
+                            <span class="icon-upload-cta">{% if crate::instance_logo_url().is_some() %}{{ i18n.t("admin.logo_replace") }}{% else %}{{ i18n.t("admin.logo_upload") }}{% endif %}</span>
+                            <span class="icon-upload-hint">{{ i18n.t("icons.upload_hint_short") }} {{ crate::models::MAX_ICON_SIZE / 1024 }}&nbsp;{{ i18n.t("units.kb") }}</span>
+                            <input type="file" name="file" class="sr-only" accept="image/png,image/jpeg,image/webp,image/svg+xml" required>
+                        </label>
+                        <noscript><button type="submit" class="btn btn-primary">{{ i18n.t("common.save") }}</button></noscript>
+                    </form>
+                    {% if crate::instance_logo_url().is_some() %}
+                    <form method="post" action="/admin/settings/logo/remove">
+                        <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                        <button type="submit" class="text-action">{{ i18n.t("admin.logo_remove") }}</button>
+                    </form>
+                    {% endif %}
+                </div>
             </div>
             <div class="set-row">
                 <div class="set-text">

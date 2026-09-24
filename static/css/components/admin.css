@@ -159,6 +159,20 @@
         }
     }
 
+    .set-logo {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 16px;
+    }
+
+    .set-logo-preview {
+        width: auto;
+        max-width: 120px;
+        height: 32px;
+        object-fit: contain;
+    }
+
     /* Admin lists that reflow: identity first, then status, then actions. */
     /* A managed list sits on a card, like every block of the dashboard. */
     .admin-list {

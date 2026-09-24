@@ -16,12 +16,17 @@
                 {# The host's own name takes the wordmark's place; the accented
                    last letter belongs to the product name only. #}
                 <a href="/" class="mast-title">
+                    {% if let Some(url) = crate::instance_logo_url() %}
+                    <img class="mast-logo" src="{{ url }}" alt="{% if instance.is_empty() %}{{ i18n.t("nav.dashboard") }}{% endif %}">
+                    {% if !instance.is_empty() %}<span class="mast-word-custom">{{ instance }}</span>{% endif %}
+                    {% else %}
                     {% let logo_size = "mast-mark" %}
                     {% include "components/logo.html" %}
                     {% if instance.is_empty() %}
                     <span>Statu<span class="mast-word-accent">p</span></span>
                     {% else %}
                     <span class="mast-word-custom">{{ instance }}</span>
+                    {% endif %}
                     {% endif %}
                 </a>
             </div>

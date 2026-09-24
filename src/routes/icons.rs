@@ -144,7 +144,9 @@ async fn render_list(
 
 /// The uploaded file of a multipart request, with its original name.
 /// CSRF is validated upstream by middleware.
-async fn extract_upload(multipart: &mut Multipart) -> Result<(String, Vec<u8>), AppError> {
+pub(super) async fn extract_upload(
+    multipart: &mut Multipart,
+) -> Result<(String, Vec<u8>), AppError> {
     let unreadable = |e: axum::extract::multipart::MultipartError| {
         tracing::debug!(error = %e, "Unreadable upload");
         AppError::Validation("validation.invalid_form_data".to_string())

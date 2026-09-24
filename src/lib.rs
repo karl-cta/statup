@@ -19,6 +19,25 @@ static ASSET_VERSIONS: OnceLock<HashMap<String, String>> = OnceLock::new();
 /// The name the host gave this instance, empty until an admin sets one.
 static INSTANCE_NAME: RwLock<String> = RwLock::new(String::new());
 
+/// File name of the host's logo, empty until an admin uploads one.
+static INSTANCE_LOGO: RwLock<String> = RwLock::new(String::new());
+
+/// Address of the host's logo, when there is one.
+pub fn instance_logo_url() -> Option<String> {
+    let name = INSTANCE_LOGO
+        .read()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone();
+    (!name.is_empty()).then(|| format!("/uploads/brand/{name}"))
+}
+
+/// Stores the logo's file name for every later render.
+pub fn set_instance_logo(filename: &str) {
+    *INSTANCE_LOGO
+        .write()
+        .unwrap_or_else(PoisonError::into_inner) = filename.to_string();
+}
+
 /// The instance's own name, or an empty string when none was set.
 pub fn instance_name() -> String {
     INSTANCE_NAME
