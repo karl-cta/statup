@@ -318,12 +318,21 @@ pub struct EventView {
     /// The maintenance this announcement follows.
     pub follows: Option<MaintenanceChoice>,
     pub state: Option<StateLine>,
+    /// An announcement reads as a text, its updates after it.
+    pub article: Option<TimelineEntry>,
     pub timeline: Vec<TimelineEntry>,
 }
 
 impl EventView {
     pub fn service_tags(&self) -> Vec<ServiceTag> {
         self.services.iter().map(ServiceTag::from).collect()
+    }
+
+    /// The heading of an announcement's text: its category.
+    pub fn article_title(&self, i18n: &I18n) -> String {
+        self.event
+            .qualifier(i18n)
+            .unwrap_or_else(|| i18n.t(self.event.kind.i18n_key()).to_string())
     }
 
     /// A row of facts is worth drawing when there is one.
@@ -359,7 +368,7 @@ async fn load_view(
             }),
         None => None,
     };
-    let timeline = timeline::build(
+    let mut timeline = timeline::build(
         &ews.event,
         sanitize_markdown(&ews.event.description),
         author,
@@ -367,8 +376,13 @@ async fn load_view(
         user,
         i18n,
     );
+    let article = (ews.event.kind == Kind::Publication)
+        .then(|| timeline.iter().position(|entry| entry.update_id.is_none()))
+        .flatten()
+        .map(|opening| timeline.remove(opening));
     Ok(EventView {
         follows,
+        article,
         state: state_line(&ews.event, i18n),
         event: ews.event,
         services: ews.services,

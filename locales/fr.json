@@ -154,6 +154,7 @@
   "events.fact_follows": "Fait suite à",
   "events.lasted": "a duré {duration}",
   "timeline.title": "Chronologie",
+  "timeline.updates": "Mises à jour",
   "timeline.declared": "Incident déclaré",
   "timeline.began": "Début de l'incident",
   "timeline.announced": "Maintenance annoncée",

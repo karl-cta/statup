@@ -625,12 +625,9 @@ impl EventSummary {
         self.lifecycle.map(|l| l.label_key(self.kind))
     }
 
-    /// The word at the end of a row: the progress, or the category of an
-    /// announcement, which has none.
+    /// The word at the end of a row: the progress. An announcement has none.
     pub fn row_state(&self, i18n: &I18n) -> Option<String> {
-        self.lifecycle_key()
-            .or_else(|| self.category.map(Category::i18n_key))
-            .map(|key| i18n.t(key).to_string())
+        self.lifecycle_key().map(|key| i18n.t(key).to_string())
     }
 
     pub fn kind_label(&self, i18n: &I18n) -> String {
@@ -638,12 +635,13 @@ impl EventSummary {
     }
 
     /// The word on the kind chip: an incident says its severity there, where
-    /// its hue already shows it.
+    /// its hue already shows it, and an announcement its category.
     pub fn chip_label(&self, i18n: &I18n) -> String {
-        let key = match (self.kind, self.severity) {
-            (Kind::Incident, Some(Severity::Minor)) => "kind.incident_minor",
-            (Kind::Incident, Some(Severity::Critical)) => "kind.incident_critical",
-            (kind, _) => kind.i18n_key(),
+        let key = match (self.kind, self.severity, self.category) {
+            (Kind::Incident, Some(Severity::Minor), _) => "kind.incident_minor",
+            (Kind::Incident, Some(Severity::Critical), _) => "kind.incident_critical",
+            (Kind::Publication, _, Some(category)) => category.i18n_key(),
+            (kind, _, _) => kind.i18n_key(),
         };
         i18n.t(key).to_string()
     }
@@ -1024,9 +1022,10 @@ mod tests {
         assert_eq!(outage.chip_label(&i18n), "Major incident");
         let mut note = summary(Kind::Publication, None, None);
         note.category = Some(Category::Changelog);
+        assert!(note.row_state(&i18n).is_none());
         assert_eq!(
-            note.row_state(&i18n).as_deref(),
-            Some(i18n.t(Category::Changelog.i18n_key()))
+            note.chip_label(&i18n),
+            i18n.t(Category::Changelog.i18n_key())
         );
         assert_eq!(note.tone(), Tone::Ink);
     }

@@ -45,10 +45,21 @@
         {% endif %}
 
         <section class="card event-story" aria-labelledby="updates-title">
+            {% if let Some(article) = view.article %}
+            <header class="card-head">
+                <h2 id="updates-title" class="card-title">{{ view.article_title(i18n) }}</h2>
+            </header>
+            <div class="card-body article-body">
+                {% include "events/_article.html" %}
+                {% if can_edit || !view.timeline.is_empty() %}
+                <h3 class="label article-updates">{{ i18n.t("timeline.updates") }}</h3>
+                {% endif %}
+            {% else %}
             <header class="card-head">
                 <h2 id="updates-title" class="card-title">{{ i18n.t("timeline.title") }}</h2>
             </header>
             <div class="card-body">
+            {% endif %}
                 {% if can_edit %}
                 {# Folded until asked for, at the head of the timeline where the
                    message will appear; a failed publish opens it again. #}

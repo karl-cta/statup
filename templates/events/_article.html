@@ -1,0 +1,6 @@
+{# An announcement's text, dated and signed, shared by the page and the
+   side panel. Expects `article`. #}
+<p class="article-dateline"><time datetime="{{ article.iso }}">{{ article.time }}</time>{% if let Some(author) = article.author %}&nbsp;<span aria-hidden="true">·</span> {{ author }}{% endif %}</p>
+{% if !article.html.is_empty() %}
+<div class="rich-text article-text">{{ article.html|safe }}</div>
+{% endif %}

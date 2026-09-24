@@ -11,8 +11,15 @@
         <a class="hero-link" href="/events/{{ view.event.id }}">{{ i18n.t("events.open_full_page") }}{% call ui::arrow_right() %}</a>
     </div>
 
+    {% if let Some(article) = view.article %}
+    <section class="drawer-section" aria-label="{{ view.article_title(i18n) }}">
+        {% include "events/_article.html" %}
+    </section>
+    {% endif %}
+
+    {% if view.article.is_none() || can_edit || !view.timeline.is_empty() %}
     <section class="drawer-section" aria-labelledby="drawer-timeline-title">
-        <h3 id="drawer-timeline-title" class="label">{{ i18n.t("timeline.title") }}</h3>
+        <h3 id="drawer-timeline-title" class="label">{% if view.article.is_some() %}{{ i18n.t("timeline.updates") }}{% else %}{{ i18n.t("timeline.title") }}{% endif %}</h3>
         {% if can_edit %}
         {% let prefix = "panel-" %}
         {% let in_panel = true %}
@@ -22,4 +29,5 @@
         {% let timeline_csrf = csrf_token.as_str() %}
         {% include "events/_timeline.html" %}
     </section>
+    {% endif %}
 </div>

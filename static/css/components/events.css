@@ -299,6 +299,35 @@
         overflow-wrap: anywhere;
     }
 
+    /* An announcement reads as an article: a dateline, then the text a size
+       up in full ink, on a reading measure. Its updates follow. */
+    .article-body {
+        padding: 22px 20px 28px;
+    }
+
+    .article-dateline {
+        font-size: var(--text-sm);
+        color: var(--muted);
+        font-feature-settings: 'tnum' 1;
+    }
+
+    .article-text {
+        max-width: 68ch;
+        margin-top: 14px;
+        font-size: var(--text-lg);
+        line-height: 1.7;
+        color: var(--ink);
+    }
+
+    .rich-text.article-text > * + * {
+        margin-top: 14px;
+    }
+
+    .article-updates {
+        margin-top: 32px;
+        margin-bottom: 12px;
+    }
+
     .rich-text > * + * {
         margin-top: 10px;
     }
