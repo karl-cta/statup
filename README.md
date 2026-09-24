@@ -56,7 +56,7 @@ docker compose up -d
 
 The first start compiles Statup, which takes a few minutes. Then open http://localhost:3000: an empty instance asks for its administrator account. The first account created is the administrator, so create it before others can reach the instance, or preset it with `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
 
-Set your time zone before going further, for example `TZ=Europe/Paris` in `.env` (see Configuration). The host port is the left side of `ports:` in `docker-compose.yml`.
+The time zone of the instance is taken from your browser when you create the first account, and can be changed later in Settings. The host port is the left side of `ports:` in `docker-compose.yml`.
 
 ### Access and roles
 
@@ -81,7 +81,7 @@ Every setting is optional. Copy `.env.example` to `.env` to change one. With Doc
 
 | Variable | Default | Description |
 |---|---|---|
-| `TZ` | system zone | Time zone of the instance, e.g. `Europe/Paris`. Dates are shown in it, with the UTC offset where it matters, and maintenance times are typed in it |
+| `TZ` | `UTC` | Time zone used until one is chosen, e.g. `Europe/Paris`. The zone set in Settings, or taken from the first account's browser, takes precedence. Dates are shown in it, with the UTC offset where it matters, and maintenance times are typed in it |
 | `PUBLIC_URL` | request host | Address visitors use, e.g. `https://status.example.com`. Feed links use it; an `https://` address marks the session cookie `Secure` and sends HSTS |
 | `TRUST_PROXY_HEADERS` | `false` | Read the client address from `X-Real-IP`, or the last entry of `X-Forwarded-For` or `Forwarded`, and the scheme from `X-Forwarded-Proto`. Only behind a reverse proxy that sets them |
 | `PUBLIC_MODE` | `false` | Starting public access, until an administrator chooses in Settings |

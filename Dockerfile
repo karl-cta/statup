@@ -52,9 +52,6 @@ RUN tailwindcss --input static/css/input.css --output static/css/style.css --min
 # Runtime
 FROM alpine:3.21
 
-# tzdata lets TZ name the time zone of the instance.
-RUN apk add --no-cache tzdata
-
 # A fixed id, so a bind-mounted data directory can be given to it.
 RUN addgroup -S -g 10001 statup && \
     adduser -S -D -H -u 10001 -G statup -s /sbin/nologin statup && \

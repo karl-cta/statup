@@ -16,13 +16,14 @@ use tower_sessions::Session;
 
 use super::locale::locale_cookie;
 use super::render;
+use crate::clock;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::client_ip::client_ip;
 use crate::middleware::csrf::{form_token, renew_token};
 use crate::middleware::{FormCsrfToken, HtmlForm, OptionalUser};
 use crate::models::{User, check_display_name};
-use crate::repositories::UserRepository;
+use crate::repositories::{SettingsRepository, UserRepository};
 use crate::services::AuthService;
 use crate::session::{USER_ID_KEY, rotate_id, stamp_credential, start_signed_in, write_value};
 use crate::state::AppState;
@@ -116,6 +117,9 @@ pub struct RegisterInput {
     password: String,
     #[serde(default)]
     password_confirm: String,
+    /// The zone the browser reports, filled in by script.
+    #[serde(default)]
+    time_zone: String,
 }
 
 /// The name the door is titled with, and whether it is the host's own name
@@ -292,6 +296,7 @@ pub async fn register_form(
         display_name: String::new(),
         password: String::new(),
         password_confirm: String::new(),
+        time_zone: String::new(),
     };
     render_register(csrf_token, i18n, RegisterErrors::default(), blank)
 }
@@ -325,6 +330,21 @@ fn check_register_input(input: &RegisterInput, i18n: &I18n) -> Result<String, Re
     }
 }
 
+/// The first administrator's browser knows where the team is: its zone
+/// becomes the instance's, until changed in the settings.
+async fn adopt_browser_zone(state: &AppState, name: &str) -> Result<(), AppError> {
+    let Some(zone) = clock::parse_zone(name) else {
+        return Ok(());
+    };
+    SettingsRepository::set(&state.pool, clock::ZONE_SETTING, zone.name()).await?;
+    clock::set_zone(zone);
+    tracing::info!(
+        time_zone = zone.name(),
+        "Instance time zone taken from the browser"
+    );
+    Ok(())
+}
+
 pub async fn register(
     State(state): State<AppState>,
     OptionalUser(user): OptionalUser,
@@ -344,6 +364,7 @@ pub async fn register(
         AuthService::create_first_admin(&state.pool, &input.email, &input.password, &name).await;
     match created {
         Ok(Some(admin)) => {
+            adopt_browser_zone(&state, &input.time_zone).await?;
             open_session(&session, &admin, false).await?;
             Ok(Redirect::to("/").into_response())
         }

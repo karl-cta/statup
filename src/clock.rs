@@ -1,10 +1,68 @@
 //! Instance time zone and stored timestamp format.
 //!
-//! Times are stored in UTC and shown in the zone of the server process, which
-//! the standard `TZ` variable sets (`TZ=Europe/Paris`). Without it the system
-//! zone applies, which is UTC in the container image.
+//! Times are stored in UTC and shown in the instance zone: the one an admin
+//! chose in the settings, else the standard `TZ` variable
+//! (`TZ=Europe/Paris`), else UTC.
 
-use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Utc};
+use std::sync::{OnceLock, PoisonError, RwLock};
+
+use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Utc};
+use chrono_tz::Tz;
+
+/// Settings key of the zone an admin chose.
+pub const ZONE_SETTING: &str = "time_zone";
+
+/// The zone chosen in the settings, once there is one.
+static CHOSEN_ZONE: RwLock<Option<Tz>> = RwLock::new(None);
+
+/// The zone `TZ` names, read once.
+static ENV_ZONE: OnceLock<Tz> = OnceLock::new();
+
+/// Regions of the zone database whose names people pick from.
+const REGIONS: [&str; 9] = [
+    "Africa/",
+    "America/",
+    "Antarctica/",
+    "Asia/",
+    "Atlantic/",
+    "Australia/",
+    "Europe/",
+    "Indian/",
+    "Pacific/",
+];
+
+pub fn zone() -> Tz {
+    if let Some(chosen) = *CHOSEN_ZONE.read().unwrap_or_else(PoisonError::into_inner) {
+        return chosen;
+    }
+    *ENV_ZONE.get_or_init(|| {
+        std::env::var("TZ")
+            .ok()
+            .and_then(|name| parse_zone(name.trim_start_matches(':')))
+            .unwrap_or(Tz::UTC)
+    })
+}
+
+pub fn set_zone(zone: Tz) {
+    *CHOSEN_ZONE.write().unwrap_or_else(PoisonError::into_inner) = Some(zone);
+}
+
+/// A zone of the database by its name, "Europe/Paris" or "UTC".
+pub fn parse_zone(name: &str) -> Option<Tz> {
+    name.trim().parse().ok()
+}
+
+/// The zones offered in the settings, by region and city, then UTC.
+pub fn zone_names() -> Vec<&'static str> {
+    let mut names: Vec<&'static str> = chrono_tz::TZ_VARIANTS
+        .iter()
+        .map(|zone| zone.name())
+        .filter(|name| REGIONS.iter().any(|region| name.starts_with(region)))
+        .collect();
+    names.sort_unstable();
+    names.push("UTC");
+    names
+}
 
 /// Text form of a timestamp in the database. It matches what `SQLite`'s
 /// `datetime()` writes, so stored values compare correctly as text.
@@ -12,8 +70,8 @@ pub fn db(dt: DateTime<Utc>) -> String {
     dt.format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
-pub fn local(dt: &DateTime<Utc>) -> DateTime<Local> {
-    dt.with_timezone(&Local)
+pub fn local(dt: &DateTime<Utc>) -> DateTime<Tz> {
+    dt.with_timezone(&zone())
 }
 
 pub fn local_date(dt: &DateTime<Utc>) -> NaiveDate {
@@ -21,13 +79,13 @@ pub fn local_date(dt: &DateTime<Utc>) -> NaiveDate {
 }
 
 pub fn today() -> NaiveDate {
-    Local::now().date_naive()
+    local(&Utc::now()).date_naive()
 }
 
 /// Reads the value of an `<input type="datetime-local">`, written in the
 /// instance zone. `None` for an empty or malformed value.
 pub fn parse_input(value: &str) -> Option<DateTime<Utc>> {
-    parse_input_in(value, &Local)
+    parse_input_in(value, &zone())
 }
 
 /// The value an `<input type="datetime-local">` expects for `dt`.
@@ -44,12 +102,12 @@ pub fn parse_day_bound(value: &str, end_of_day: bool) -> Option<DateTime<Utc>> {
     } else {
         NaiveTime::MIN
     };
-    to_utc(&Local, date.and_time(time))
+    to_utc(&zone(), date.and_time(time))
 }
 
 /// First instant of a day in the instance zone.
 pub fn day_start(date: NaiveDate) -> Option<DateTime<Utc>> {
-    to_utc(&Local, date.and_time(NaiveTime::MIN))
+    to_utc(&zone(), date.and_time(NaiveTime::MIN))
 }
 
 /// Offset of the instance zone at `dt`, as people write it: "UTC",
@@ -121,6 +179,25 @@ mod tests {
         assert_eq!(format_offset(7200), "UTC+2");
         assert_eq!(format_offset(-12_600), "UTC-3:30");
         assert_eq!(format_offset(19_800), "UTC+5:30");
+    }
+
+    #[test]
+    fn zones_are_read_by_name() {
+        assert_eq!(parse_zone("Europe/Paris"), Some(chrono_tz::Europe::Paris));
+        assert_eq!(parse_zone(" UTC "), Some(Tz::UTC));
+        assert!(parse_zone("Mars/Olympus").is_none());
+    }
+
+    #[test]
+    fn offered_zones_are_cities_then_utc() {
+        let names = zone_names();
+        assert!(names.contains(&"Europe/Paris"));
+        assert!(
+            !names
+                .iter()
+                .any(|name| name.starts_with("US/") || name.starts_with("Etc/"))
+        );
+        assert_eq!(names.last(), Some(&"UTC"));
     }
 
     #[test]

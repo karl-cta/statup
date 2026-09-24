@@ -136,6 +136,15 @@ async fn build_state(config: &Config, pool: DbPool) -> anyhow::Result<AppState> 
         statup::set_instance_name(&name);
     }
 
+    let chosen_zone = SettingsRepository::get(&pool, statup::clock::ZONE_SETTING)
+        .await
+        .context("cannot read the time zone")?
+        .and_then(|name| statup::clock::parse_zone(&name));
+    if let Some(zone) = chosen_zone {
+        statup::clock::set_zone(zone);
+    }
+    tracing::info!(time_zone = statup::clock::zone().name(), "Time zone");
+
     Ok(AppState {
         pool,
         login_limiter: Arc::new(LoginRateLimiter::default()),

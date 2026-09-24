@@ -3,6 +3,10 @@
 {% block title %}{{ i18n.t("admin.title") }} | {{ crate::brand_name() }}{% endblock %}
 {% block section %}admin{% endblock %}
 
+{% block scripts %}
+<script src="{{ crate::asset("js/custom-select.js") }}" defer></script>
+{% endblock %}
+
 {% block content %}
 <div class="page">
     <header class="page-head">
@@ -17,6 +21,7 @@
             {% match n %}
             {% when SettingsNotice::Renamed with (name) %}<q>{{ name }}</q> {{ i18n.t("admin.renamed_notice") }}
             {% when SettingsNotice::NameReset %}{{ i18n.t("admin.name_reset_notice") }}
+            {% when SettingsNotice::ZoneSet with (zone) %}{{ self.zone_notice(zone) }}
             {% when SettingsNotice::PublicOpened %}{{ i18n.t("admin.public_opened_notice") }} <a href="/" class="link">{{ i18n.t("admin.public_view") }}</a>
             {% when SettingsNotice::PublicClosed %}{{ i18n.t("admin.public_closed_notice") }}
             {% endmatch %}
@@ -28,9 +33,9 @@
     {% endif %}
 
     <div class="card-grid card-grid-2">
-        <section class="card" aria-labelledby="public-title">
+        <section class="card" aria-labelledby="general-title">
             <header class="card-head">
-                <h2 id="public-title" class="card-title">{{ i18n.t("admin.section_public") }}</h2>
+                <h2 id="general-title" class="card-title">{{ i18n.t("admin.section_general") }}</h2>
             </header>
             <div class="set-row">
                 <div class="set-text">
@@ -43,6 +48,23 @@
                         <input id="instance-name" type="text" name="instance_name" class="input" maxlength="40"
                                value="{{ instance_name }}" placeholder="{{ i18n.t("admin.instance_name_placeholder") }}"
                                {% if error.is_some() %}aria-describedby="form-error" {% endif %}{% if error.is_some() %} aria-invalid="true"{% endif %}>
+                    </div>
+                    <button type="submit" class="btn btn-primary">{{ i18n.t("common.save") }}</button>
+                </form>
+            </div>
+            <div class="set-row">
+                <div class="set-text">
+                    <label for="time-zone" class="set-label">{{ i18n.t("admin.time_zone") }}</label>
+                    <p class="set-help">{{ i18n.t("admin.time_zone_help") }}</p>
+                </div>
+                <form method="post" action="/admin/settings/time-zone" class="set-inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                    <div class="set-field">
+                        <select id="time-zone" name="time_zone" class="input" data-custom-select>
+                            {% for zone in zones %}
+                            <option value="{{ zone }}"{% if self.is_current_zone(zone) %} selected{% endif %}>{{ Self::zone_label(zone) }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <button type="submit" class="btn btn-primary">{{ i18n.t("common.save") }}</button>
                 </form>

@@ -198,6 +198,7 @@ fn admin_routes() -> Router<AppState> {
             "/admin/settings/instance-name",
             post(admin::update_instance_name),
         )
+        .route("/admin/settings/time-zone", post(admin::update_time_zone))
         .route("/admin/users", get(admin::users_list))
         .route("/admin/users/new", post(admin::add_member))
         .route("/admin/users/:id/role", post(admin::update_role))

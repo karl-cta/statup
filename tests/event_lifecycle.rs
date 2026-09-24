@@ -161,7 +161,7 @@ impl TestApp {
 /// A start the maintenance schedule will not reach during the test, in the
 /// form a `datetime-local` field sends.
 fn in_two_days() -> String {
-    (chrono::Local::now() + chrono::Duration::days(2))
+    (statup::clock::local(&chrono::Utc::now()) + chrono::Duration::days(2))
         .format("%Y-%m-%dT%H:%M")
         .to_string()
 }

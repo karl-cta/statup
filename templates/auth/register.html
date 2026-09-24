@@ -9,6 +9,7 @@
 
 {% block auth_body %}
 <form method="post" action="/register" class="auth-form">
+    <input type="hidden" name="time_zone" value="" data-browser-zone>
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     {% if let Some(message) = errors.form %}
     <div id="form-error" class="form-error" role="alert"><p>{{ message }}</p></div>

@@ -11,6 +11,11 @@
         'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), ' +
         'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+    // The first account tells the instance which zone its team lives in.
+    document.querySelectorAll("[data-browser-zone]").forEach((field) => {
+        field.value = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    });
+
     // htmx sends the session token with every request it makes.
     document.body.addEventListener("htmx:configRequest", (event) => {
         const meta = document.querySelector('meta[name="csrf-token"]');

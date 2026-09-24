@@ -77,6 +77,7 @@ slug = "0.1"
 rand = "0.8"
 async-trait = "0.1"
 percent-encoding = "2"
+chrono-tz = "0.10"
 
 [dev-dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "cookies"] }

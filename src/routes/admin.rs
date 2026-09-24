@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
 
 use super::{Frame, render};
+use crate::clock;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::headers::no_store;
@@ -35,6 +36,9 @@ struct SettingsPageTemplate {
     notice: Option<SettingsNotice>,
     /// A refused name, said in the page rather than on the bare error page.
     error: Option<String>,
+    /// The instance zone, and the ones it may switch to.
+    time_zone: &'static str,
+    zones: Vec<&'static str>,
     users_count: i64,
     admins_count: i64,
     icons_count: i64,
@@ -44,6 +48,7 @@ struct SettingsPageTemplate {
 enum SettingsNotice {
     Renamed(String),
     NameReset,
+    ZoneSet(&'static str),
     PublicOpened,
     PublicClosed,
 }
@@ -57,6 +62,20 @@ impl SettingsPageTemplate {
             self.i18n.plural("admin.members", count(self.users_count)),
             self.i18n.plural("admin.admins", count(self.admins_count))
         )
+    }
+
+    fn is_current_zone(&self, zone: &str) -> bool {
+        zone == self.time_zone
+    }
+
+    /// `America/New_York` as people read it.
+    fn zone_label(zone: &str) -> String {
+        zone.replace('_', " ")
+    }
+
+    fn zone_notice(&self, zone: &str) -> String {
+        self.i18n
+            .tf("admin.zone_notice", &[("zone", &Self::zone_label(zone))])
     }
 
     fn icons_label(&self) -> String {
@@ -76,6 +95,7 @@ struct SettingsPage {
 pub struct SettingsQuery {
     renamed: Option<String>,
     public: Option<String>,
+    zone: Option<String>,
 }
 
 impl SettingsQuery {
@@ -89,6 +109,9 @@ impl SettingsQuery {
             } else {
                 SettingsNotice::Renamed(name)
             });
+        }
+        if self.zone.is_some() {
+            return Some(SettingsNotice::ZoneSet(clock::zone().name()));
         }
         match self.public.as_deref() {
             Some("on") => Some(SettingsNotice::PublicOpened),
@@ -237,6 +260,8 @@ async fn render_settings(
         instance_name: page.instance_name,
         notice: page.notice,
         error: page.error,
+        time_zone: clock::zone().name(),
+        zones: clock::zone_names(),
         users_count: UserRepository::count_all(&state.pool).await?,
         admins_count: UserRepository::count_admins(&state.pool).await?,
         icons_count: IconRepository::count(&state.pool).await?,
@@ -514,6 +539,29 @@ pub async fn update_instance_name(
     );
 
     Ok(Redirect::to("/admin/settings?renamed=1").into_response())
+}
+
+#[derive(Deserialize)]
+pub struct TimeZoneInput {
+    #[serde(default)]
+    time_zone: String,
+}
+
+pub async fn update_time_zone(
+    RequireAdmin(admin): RequireAdmin,
+    State(state): State<AppState>,
+    HtmlForm(input): HtmlForm<TimeZoneInput>,
+) -> Result<Response, AppError> {
+    let zone =
+        clock::parse_zone(&input.time_zone).ok_or_else(|| validation("validation.unknown_zone"))?;
+    SettingsRepository::set(&state.pool, clock::ZONE_SETTING, zone.name()).await?;
+    clock::set_zone(zone);
+    tracing::info!(
+        admin_id = admin.id,
+        time_zone = zone.name(),
+        "Time zone updated"
+    );
+    Ok(Redirect::to("/admin/settings?zone=1").into_response())
 }
 
 #[derive(Deserialize)]
