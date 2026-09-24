@@ -815,8 +815,10 @@
         color: var(--ink);
     }
 
+    /* A short sentence holds on one line; a longer one breaks evenly. */
     .empty-state-text {
-        max-width: 56ch;
+        max-width: 72ch;
+        text-wrap: balance;
         margin-top: 6px;
         font-size: var(--text-sm);
         line-height: 1.55;
