@@ -28,14 +28,15 @@ Statup is **pre-v1**. It is usable and self-hostable, and the interface is being
 
 ### Features
 
-- **Status page**: every service with its state (operational, degraded, partial outage, outage, maintenance) and its last 30 days. A banner answers "is something wrong?" first, names what is affected and since when, and the page refreshes itself every minute.
-- **Incidents** from investigation to resolution: a severity that sets the state of the services concerned, dated updates in Markdown, reusable templates.
-- **Maintenances**, announced ahead with a start and an end (the page switches on its own at those times) or started right away.
-- **Announcements** for releases and news that affect nobody's service.
+- **Status page**: every service with its state (operational, degraded, outage, maintenance) and its last 30 days. A banner answers "is something wrong?" first, names what is affected and since when, and the page refreshes itself every minute.
+- **Incidents** from investigation to resolution: a minor or major impact that sets the state of the services concerned, the step the incident starts at, dated updates with simple formatting, reusable templates.
+- **Maintenances**, announced ahead with a start and an end (the page switches on its own at those times) or started right away, and marked as without downtime when the services stay usable.
+- **Announcements** for releases and news that affect nobody's service, read as a short article.
 - **Events list** with full-text search over titles and descriptions, filters by type, state, service and dates, and a side panel to read an event without leaving the list.
 - **Following updates**: an Atom feed at `/feed` for feed readers and chat tools, with a page that explains how to use it.
-- **Roles**: Reader, Editor, Administrator. The page is open to everyone or to members only, and members are added from the Team page.
-- **Your instance**: its own name in the header and the browser tab, 24 built-in service icons or your own (PNG, JPEG, WebP or SVG up to 256 KB), the dashboard blocks you choose, in your order.
+- **Roles**: Reader, Editor, Administrator. The page is open to everyone or to members only; members are added from the Team page, where an administrator can also give one a new temporary password.
+- **Your instance**: its own name and logo in the header, 24 built-in service icons or your own (PNG, JPEG, WebP or SVG up to 256 KB), and dashboard blocks arranged on the page itself: their order, their width, and what each one shows.
+- **First launch** in four steps: the administrator account, the page's name, logo and audience, the services to follow, then the address to share, beside a live preview of the page.
 - **French and English**, light and dark themes, usable with a keyboard and a screen reader, calm with reduced motion.
 
 ### Why Statup
@@ -54,7 +55,7 @@ git clone https://github.com/karl-cta/statup.git && cd statup
 docker compose up -d
 ```
 
-The first start compiles Statup, which takes a few minutes. Then open http://localhost:3000: an empty instance asks for its administrator account. The first account created is the administrator, so create it before others can reach the instance, or preset it with `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
+The first start compiles Statup, which takes a few minutes. Then open http://localhost:3000: an empty instance walks you through its first launch, starting with its administrator account. The first account created is the administrator, so create it before others can reach the instance, or preset it with `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
 
 The time zone of the instance is taken from your browser when you create the first account, and can be changed later in Settings. The host port is the left side of `ports:` in `docker-compose.yml`.
 
@@ -66,7 +67,7 @@ The time zone of the instance is taken from your browser when you create the fir
 | Editor | Everything a reader can, plus publish incidents, maintenances and announcements, set service states, manage services, templates and icons |
 | Administrator | Everything, plus the settings, the team, the dashboard blocks, and changing or deleting closed events |
 
-Who can see the page is chosen in **Settings, Public page**:
+Who can see the page is chosen at the first launch, then in **Settings, Who can see the page**:
 
 - **Everyone**: visitors read the page and the feed without an account.
 - **Members only**: visitors are asked to sign in, and feed readers can no longer read the feed.
