@@ -1178,3 +1178,128 @@ async fn a_service_panel_tells_its_story() {
     assert!(body.contains("Payroll slow"), "its last events are listed");
     assert!(body.contains(&format!("/events?service_id={service_id}")));
 }
+
+async fn lifecycle_of(app: &TestApp, event_id: i64) -> Option<Lifecycle> {
+    EventRepository::find_by_id(&app.pool, event_id)
+        .await
+        .expect("db error")
+        .expect("event not found")
+        .lifecycle
+}
+
+#[tokio::test]
+async fn deleting_an_ongoing_incident_gives_its_services_back() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Mail").await;
+    let path = app
+        .create_incident("Mail down", "No mail goes out", "critical", &[service_id])
+        .await;
+    let event_id = event_id_from_path(&path);
+    assert_eq!(
+        app.service(service_id).await.status,
+        ServiceStatus::MajorOutage
+    );
+
+    let (status, _, location) = app
+        .post_form_with_header_csrf(&format!("/events/{event_id}/delete"), &[])
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/events"));
+    assert_eq!(
+        app.service(service_id).await.status,
+        ServiceStatus::Operational
+    );
+    let (status, _) = app.get(&path).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn undoing_a_step_puts_its_services_back_once() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("VPN").await;
+    let path = app
+        .create_incident("VPN drops", "Sessions drop", "critical", &[service_id])
+        .await;
+    let event_id = event_id_from_path(&path);
+    let (status, _, _) = app
+        .post_form_with_header_csrf(
+            &format!("/events/{event_id}/updates"),
+            &[("lifecycle", "monitoring")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(
+        app.service(service_id).await.status,
+        ServiceStatus::Operational,
+        "an incident under watch leaves its services up"
+    );
+
+    let revert = format!("/events/{event_id}/revert-lifecycle");
+    let (status, _, _) = app.post_form_with_header_csrf(&revert, &[]).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(
+        lifecycle_of(&app, event_id).await,
+        Some(Lifecycle::Investigating)
+    );
+    assert_eq!(
+        app.service(service_id).await.status,
+        ServiceStatus::MajorOutage
+    );
+
+    let (status, body, _) = app.post_form_with_header_csrf(&revert, &[]).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "one step back only");
+    assert!(body.contains("état précédent à rétablir"), "{body}");
+}
+
+#[tokio::test]
+async fn a_closed_event_belongs_to_administrators() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Intranet").await;
+    let path = app
+        .create_incident("Intranet slow", "Pages are slow", "minor", &[service_id])
+        .await;
+    let event_id = event_id_from_path(&path);
+    let (status, _, _) = app
+        .post_form_with_header_csrf(
+            &format!("/events/{event_id}/updates"),
+            &[("lifecycle", "resolved")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let csrf = app.csrf_from("/").await;
+    let (status, body, _) = app
+        .post_form(
+            &format!("/events/{event_id}/edit"),
+            &csrf,
+            &[
+                ("title", "Rewritten"),
+                ("description", "Rewritten"),
+                ("severity", "critical"),
+                ("service_ids", &service_id.to_string()),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "refused in the form");
+    assert!(body.contains("seul un administrateur"), "{body}");
+    for action in ["delete", "revert-lifecycle"] {
+        let (status, _, _) = app
+            .post_form_with_header_csrf(&format!("/events/{event_id}/{action}"), &[])
+            .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{action}");
+    }
+
+    let event = EventRepository::find_by_id(&app.pool, event_id)
+        .await
+        .expect("db error")
+        .expect("the event is still there");
+    assert_eq!(event.title, "Intranet slow");
+    assert_eq!(event.lifecycle, Some(Lifecycle::Resolved));
+    assert_eq!(
+        app.service(service_id).await.status,
+        ServiceStatus::Operational
+    );
+}

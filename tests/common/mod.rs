@@ -19,7 +19,7 @@ use statup::middleware::client_ip::{ClientIpSource, X_FORWARDED_FOR};
 use statup::middleware::rate_limit::RateLimit;
 use statup::models::Role;
 use statup::routes::create_router;
-use statup::services::{AuthService, LoginRateLimiter, NewAccount};
+use statup::services::{AuthService, DashboardLayoutService, LoginRateLimiter, NewAccount};
 use statup::session;
 use statup::state::AppState;
 
@@ -61,6 +61,10 @@ impl TestApp {
         db::run_migrations(&pool)
             .await
             .expect("failed to run migrations");
+        // As at start: every module the binary ships has its layout row.
+        DashboardLayoutService::reconcile(&pool)
+            .await
+            .expect("failed to reconcile the layout");
         let store = session::create_session_store(&pool)
             .await
             .expect("failed to create the session store");

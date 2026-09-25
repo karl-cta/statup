@@ -983,3 +983,104 @@ async fn switching_language_after_any_form_lands_on_a_page() {
         );
     }
 }
+
+/// Where each block stands on the page, in the order the page draws them.
+fn block_positions(page: &str, ids: &[&str]) -> Vec<Option<usize>> {
+    ids.iter()
+        .map(|id| page.find(&format!(r#"data-module-id="{id}""#)))
+        .collect()
+}
+
+#[tokio::test]
+async fn blocks_keep_the_order_and_the_visibility_the_admin_chose() {
+    let (app, _admin_id) = spawn_with_admin().await;
+    let ids = ["scheduled_maintenances", "recent_activity", "services"];
+
+    let csrf = app.csrf().await;
+    let order: Vec<(&str, &str)> = ids.iter().map(|id| ("order", *id)).collect();
+    let (status, _, _) = app
+        .post_form("/admin/dashboard/layout/order", &csrf, &order)
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (_, page) = app.get("/").await;
+    let positions = block_positions(&page, &ids);
+    assert!(
+        positions.iter().all(Option::is_some) && positions.is_sorted(),
+        "drawn in the saved order: {positions:?}"
+    );
+
+    let (status, _, _) = app
+        .post_form("/admin/dashboard/layout/services/toggle", &csrf, &[])
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (_, page) = app.get("/").await;
+    assert_eq!(block_positions(&page, &["services"]), [None], "hidden");
+
+    let (status, _, _) = app
+        .post_form("/admin/dashboard/layout/status_banner/toggle", &csrf, &[])
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "the banner always shows");
+}
+
+#[tokio::test]
+async fn a_deleted_template_is_gone_from_the_suggestions() {
+    let (app, admin_id) = spawn_with_admin().await;
+    let template_id: i64 = sqlx::query_scalar(
+        "INSERT INTO event_templates (title, description, kind, severity, created_by) \
+         VALUES ('Printer jam', 'The printer is stuck', 'incident', 'minor', ?) RETURNING id",
+    )
+    .bind(admin_id)
+    .fetch_one(&app.pool)
+    .await
+    .expect("template stored");
+
+    let csrf = app.csrf().await;
+    let path = format!("/events/templates/{template_id}/delete");
+    let (status, _, location) = app.post_form(&path, &csrf, &[]).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/events/new"));
+    let left: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM event_templates")
+        .fetch_one(&app.pool)
+        .await
+        .expect("count");
+    assert_eq!(left, 0);
+
+    let (status, _, _) = app.post_form(&path, &csrf, &[]).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "already gone");
+}
+
+#[tokio::test]
+async fn an_icon_in_use_stays_until_its_service_lets_it_go() {
+    let (app, _) = spawn_with_admin().await;
+    let csrf = app.csrf_from("/icons").await;
+    let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8"/></svg>"#;
+    let resp = upload_icon(
+        &app,
+        icon_upload_body(&csrf, "mail.svg", "image/svg+xml", svg),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
+    let (icon_id, filename): (i64, String) = sqlx::query_as("SELECT id, filename FROM icons")
+        .fetch_one(&app.pool)
+        .await
+        .expect("icon stored");
+    let service = ServiceRepository::create(&app.pool, "Mail", "mail", None, Some(icon_id), None)
+        .await
+        .expect("service stored");
+
+    let path = format!("/icons/{icon_id}/delete");
+    let (status, body, _) = app.post_form(&path, &csrf, &[]).await;
+    assert_eq!(status, StatusCode::OK, "refused in the page");
+    assert!(body.contains("encore utilisée"), "{body}");
+
+    sqlx::query("UPDATE services SET icon_id = NULL WHERE id = ?")
+        .bind(service.id)
+        .execute(&app.pool)
+        .await
+        .expect("icon let go");
+    let (status, _, location) = app.post_form(&path, &csrf, &[]).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert!(location.is_some_and(|l| l.starts_with("/icons?removed=")));
+    let (status, _) = app.get(&format!("/uploads/icons/{filename}")).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "the file went with it");
+}
