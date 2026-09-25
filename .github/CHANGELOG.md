@@ -28,7 +28,8 @@ Since the first public commit:
   both off with reduced motion.
 - Fixed: publishing needed two clicks in Safari; switching language right
   after a refused form could land on an error page; three menus kept the
-  light theme's shadow in the dark theme.
+  light theme's shadow in the dark theme; the Docker image and the release
+  archive left out the first launch's transitions.
 - Passwords chosen from now on need 12 characters with upper and lower case
   letters, a digit and a symbol, or 20 characters of any kind.
 - The Compose file publishes Statup on this machine only until you open it,

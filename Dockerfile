@@ -44,9 +44,10 @@ WORKDIR /app
 COPY static ./static
 COPY templates ./templates
 
-# Only the built stylesheet is served, never its sources.
+# Only what the pages load is served, never the sources: style.css, and the
+# transitions the first launch loads on their own.
 RUN tailwindcss --input static/css/input.css --output static/css/style.css --minify && \
-    find static/css -name '*.css' ! -name style.css -delete && \
+    find static/css -name '*.css' ! -name style.css ! -name setup-transitions.css -delete && \
     find static/css -mindepth 1 -type d -exec rm -rf {} +
 
 # Runtime

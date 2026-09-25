@@ -35,7 +35,8 @@ package() {
     mkdir -p "$stage"
     cp "$ROOT/target/$target/release/statup" "$stage/statup"
     cp -R "$ROOT/static" "$stage/static"
-    find "$stage/static/css" -name '*.css' ! -name style.css -delete
+    # The first launch loads its transitions on their own, apart from style.css.
+    find "$stage/static/css" -name '*.css' ! -name style.css ! -name setup-transitions.css -delete
     find "$stage/static/css" -mindepth 1 -type d -exec rm -rf {} +
     cp "$ROOT/LICENSE" "$ROOT/THIRD_PARTY_NOTICES.md" "$ROOT/README.md" "$stage/"
 
