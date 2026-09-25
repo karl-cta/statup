@@ -94,6 +94,7 @@
                 trigger.disabled = true;
             }
             this.list = buildList(native, native.id, label);
+            this.list.csSelect = this;
             this.onOutside = (event) => {
                 if (!this.wrap.contains(event.target) && !this.list.contains(event.target)) this.close(false);
             };
@@ -289,10 +290,13 @@
         new CustomSelect(native);
     }
 
-    // Lists whose select left the page go with it.
+    // Lists whose select left the page go with it, closed first so an
+    // open one lets go of the page's listeners.
     function prune() {
         document.querySelectorAll("body > .cs-list").forEach((list) => {
-            if (!list.csOwner || !list.csOwner.isConnected) list.remove();
+            if (list.csOwner && list.csOwner.isConnected) return;
+            if (list.csSelect) list.csSelect.close(false);
+            list.remove();
         });
     }
 
