@@ -55,9 +55,11 @@ git clone https://github.com/karl-cta/statup.git && cd statup
 docker compose up -d
 ```
 
-The first start compiles Statup, which takes a few minutes. Then open http://localhost:3000: an empty instance walks you through its first launch, starting with its administrator account. The first account created is the administrator, so create it before others can reach the instance, or preset it with `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
+The first start compiles Statup, which takes a few minutes. Then open http://localhost:3000: an empty instance walks you through its first launch, starting with its administrator account.
 
-The time zone of the instance is taken from your browser when you create the first account, and can be changed later in Settings. The host port is the left side of `ports:` in `docker-compose.yml`.
+Statup answers this machine only at first, because the first account created becomes the administrator. Once it exists, put Statup behind a reverse proxy (see below), or open it to your network by changing `"127.0.0.1:3000:3000"` to `"3000:3000"` under `ports:` in `docker-compose.yml`, then run `docker compose up -d` again. On a server without a browser, preset the administrator with `ADMIN_EMAIL` and `ADMIN_PASSWORD` first.
+
+The time zone of the instance is taken from your browser when you create the first account, and can be changed later in Settings. The host port is the part before `:3000` under `ports:`.
 
 ### Access and roles
 

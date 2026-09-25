@@ -1,10 +1,11 @@
 services:
   statup:
     build: .
-    # The host port is the left side. Behind a reverse proxy on the same
-    # host, publish on loopback only: "127.0.0.1:3000:3000".
+    # This machine only, so nobody else can create the first administrator.
+    # Once it exists, "3000:3000" opens Statup to the network; behind a
+    # reverse proxy on this host, keep it as is. The host port comes first.
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - statup_data:/data
     # Every value in .env reaches the container. The paths and the listen
