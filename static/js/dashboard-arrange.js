@@ -16,26 +16,14 @@
     let drag = null;
     let saveTimer = null;
 
-    const csrf = () => {
-        const meta = document.querySelector('meta[name="csrf-token"]');
-        return meta ? meta.content : "";
-    };
-
-    function announce(text) {
-        const region = document.getElementById("announcer");
-        if (!region || !text) return;
-        region.textContent = "";
-        window.setTimeout(() => {
-            region.textContent = text;
-        }, 100);
-    }
+    const { announce, csrfToken } = window.statup;
 
     function post(path, fields) {
         return fetch(path, {
             method: "POST",
             body: new URLSearchParams(fields),
             credentials: "same-origin",
-            headers: { "X-CSRF-Token": csrf() },
+            headers: { "X-CSRF-Token": csrfToken() },
             keepalive: true,
         }).then((response) => {
             if (!response.ok) throw new Error(`not saved: ${response.status}`);

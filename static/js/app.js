@@ -16,12 +16,17 @@
         field.value = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
     });
 
+    // The session token the page was drawn with, empty on a page that
+    // posts nothing.
+    function csrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.content : "";
+    }
+
     // htmx sends the session token with every request it makes.
     document.body.addEventListener("htmx:configRequest", (event) => {
-        const meta = document.querySelector('meta[name="csrf-token"]');
-        if (meta && meta.content) {
-            event.detail.headers["X-CSRF-Token"] = meta.content;
-        }
+        const token = csrfToken();
+        if (token) event.detail.headers["X-CSRF-Token"] = token;
         // Empty filters stay out of the address the list pushes.
         if (event.detail.verb === "get") {
             const parameters = event.detail.parameters;
@@ -153,6 +158,9 @@
             region.textContent = text;
         }, 100);
     }
+
+    // For the page scripts, loaded after this one.
+    window.statup = { announce, csrfToken };
 
     // Theme.
     function syncThemeButtons() {
