@@ -27,7 +27,7 @@ main#main:not(.setup-side) {
 }
 
 ::view-transition-new(page) {
-    animation: page-in 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: page-in 300ms var(--ease-out) both;
 }
 
 @keyframes page-out {

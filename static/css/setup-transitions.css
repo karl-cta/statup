@@ -18,12 +18,12 @@
 }
 
 ::view-transition-new(setup-step) {
-    animation: setup-step-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: setup-step-in 420ms var(--ease-out) both;
 }
 
 ::view-transition-group(setup-sheet) {
     animation-duration: 420ms;
-    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-timing-function: var(--ease-out);
 }
 
 @keyframes setup-step-out {

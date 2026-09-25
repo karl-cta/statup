@@ -31,9 +31,6 @@
         }
     });
 
-    // htmx leaves error responses unswapped; the server sends a short message
-    // for them, shown in the toast instead of failing in silence. The
-    // dashboard's own refresh reports under its banner instead.
     // Something that just arrived or changed lights up once.
     function flash(element) {
         element.classList.remove("is-fresh");
@@ -76,6 +73,9 @@
         return target instanceof Element && target.hasAttribute("data-live") ? target : null;
     }
 
+    // htmx leaves error responses unswapped; the server sends a short message
+    // for them, shown in the toast instead of failing in silence. The
+    // dashboard's own refresh reports under its banner instead.
     document.body.addEventListener("htmx:beforeSwap", (event) => {
         const live = liveTarget(event);
         if (live) {

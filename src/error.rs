@@ -169,13 +169,13 @@ fn error_to_render(response: &Response) -> Option<(StatusCode, String)> {
     bare_status_key(response.status()).map(|key| (response.status(), key.to_string()))
 }
 
-/// Statuses the timeout and body limit layers answer without a page.
 /// A form that names a service or an icon that no longer exists: the
 /// request is wrong, the server is fine.
 fn is_foreign_key_violation(error: &sqlx::Error) -> bool {
     matches!(error, sqlx::Error::Database(db) if db.is_foreign_key_violation())
 }
 
+/// Statuses the timeout and body limit layers answer without a page.
 fn bare_status_key(status: StatusCode) -> Option<&'static str> {
     match status {
         StatusCode::BAD_REQUEST => Some("error.invalid_data"),
