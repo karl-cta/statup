@@ -64,10 +64,6 @@ impl Module for ServicesModule {
         "modules.services.name"
     }
 
-    fn description_key(&self) -> &'static str {
-        "modules.services.description"
-    }
-
     fn default_position(&self) -> i64 {
         20
     }

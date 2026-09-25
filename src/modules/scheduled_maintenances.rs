@@ -46,10 +46,6 @@ impl Module for ScheduledMaintenancesModule {
         "modules.scheduled_maintenances.name"
     }
 
-    fn description_key(&self) -> &'static str {
-        "modules.scheduled_maintenances.description"
-    }
-
     fn default_position(&self) -> i64 {
         40
     }

@@ -412,9 +412,6 @@ mod tests {
     }
 
     #[test]
-    fn percent_spacing_follows_the_language() {}
-
-    #[test]
     fn dates_carry_the_year_only_when_needed() {
         let fr = I18n::new("fr");
         let old = NaiveDate::from_ymd_opt(2020, 2, 5).unwrap();
@@ -523,6 +520,38 @@ mod tests {
             }
         }
         assert!(missing.is_empty(), "untranslated keys: {missing:#?}");
+    }
+
+    /// And the other way round: a key that no template and no Rust names is
+    /// a text nobody sees any more. A plural is named by its base.
+    #[test]
+    fn every_translated_key_is_named_in_the_code() {
+        let fr: TranslationMap =
+            serde_json::from_str(include_str!("../locales/fr.json")).expect("fr.json parses");
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let mut named = std::collections::HashSet::new();
+        for file in source_files(&root.join("src"))
+            .into_iter()
+            .chain(source_files(&root.join("templates")))
+        {
+            let text = std::fs::read_to_string(&file).expect("source file reads");
+            let code = text
+                .split("#[cfg(test)]\nmod tests")
+                .next()
+                .unwrap_or_default();
+            named.extend(code.split('"').map(ToOwned::to_owned));
+        }
+        let unused: Vec<&String> = fr
+            .keys()
+            .filter(|key| {
+                let base = key
+                    .strip_suffix(".one")
+                    .or_else(|| key.strip_suffix(".other"))
+                    .unwrap_or(key);
+                !named.contains(key.as_str()) && !named.contains(base)
+            })
+            .collect();
+        assert!(unused.is_empty(), "keys named nowhere: {unused:#?}");
     }
 
     fn source_files(dir: &std::path::Path) -> Vec<std::path::PathBuf> {

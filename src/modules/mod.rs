@@ -84,8 +84,6 @@ pub trait Module: Send + Sync + 'static {
 
     fn name_key(&self) -> &'static str;
 
-    fn description_key(&self) -> &'static str;
-
     async fn render(&self, ctx: &ModuleRenderContext<'_>) -> Result<String, AppError>;
 
     /// What an administrator may show or leave out, with what is shown now.

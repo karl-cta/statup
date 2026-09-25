@@ -31,7 +31,7 @@ use axum::http::header::{
 };
 use axum::http::{HeaderName, HeaderValue, Request};
 use axum::middleware;
-use axum::response::{IntoResponse, Redirect, Response};
+use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::classify::{ServerErrorsAsFailures, SharedClassifier};
@@ -137,8 +137,6 @@ fn public_routes() -> Router<AppState> {
         .route("/events/:id", get(events::detail))
         .route("/events/:id/drawer", get(events::drawer_content))
         .route("/services/:id/drawer", get(services::drawer_content))
-        .route("/history", get(|| async { Redirect::permanent("/events") }))
-        .route("/search", get(events::search))
         .route("/feed", get(feed::atom))
         .route("/subscribe", get(dashboard::subscribe))
 }

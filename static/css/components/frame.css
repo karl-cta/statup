@@ -728,13 +728,6 @@
         gap: 12px;
     }
 
-    .section-title {
-        font-size: var(--text-lg);
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        color: var(--ink);
-    }
-
     @media (max-width: 639px) {
         .page-title {
             font-size: var(--text-2xl);

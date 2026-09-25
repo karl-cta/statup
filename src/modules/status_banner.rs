@@ -108,10 +108,6 @@ impl Module for StatusBannerModule {
         "modules.status_banner.name"
     }
 
-    fn description_key(&self) -> &'static str {
-        "modules.status_banner.description"
-    }
-
     fn default_position(&self) -> i64 {
         10
     }

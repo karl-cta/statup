@@ -33,10 +33,6 @@ impl Module for RecentActivityModule {
         "modules.recent_activity.name"
     }
 
-    fn description_key(&self) -> &'static str {
-        "modules.recent_activity.description"
-    }
-
     fn default_position(&self) -> i64 {
         30
     }

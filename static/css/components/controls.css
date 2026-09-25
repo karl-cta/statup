@@ -550,45 +550,6 @@
         cursor: not-allowed;
     }
 
-    /* Switch. */
-    .toggle {
-        position: relative;
-        display: inline-flex;
-        flex: none;
-        align-items: center;
-        width: 40px;
-        height: 24px;
-        background: var(--surface-subtle);
-        border: 1px solid var(--edge-input);
-        border-radius: 999px;
-        transition: background-color 180ms var(--ease-out), border-color 180ms var(--ease-out);
-    }
-
-    .toggle:hover {
-        background: var(--line);
-    }
-
-    .toggle[aria-checked="true"] {
-        background: var(--primary);
-        border-color: var(--primary);
-    }
-
-    .toggle-thumb {
-        position: absolute;
-        top: 3px;
-        left: 3px;
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        background: var(--muted);
-        transition: transform 220ms var(--ease-out), background-color 180ms ease;
-    }
-
-    .toggle[aria-checked="true"] .toggle-thumb {
-        background: var(--on-primary);
-        transform: translateX(16px);
-    }
-
     /* Status in words: a colored dot and a neutral word. The hue never
        paints the text or a ground, so the word reads the same for everyone.
        What is fine stays muted; emphasis is kept for what is not. */
@@ -910,8 +871,6 @@
     @media (prefers-reduced-motion: reduce) {
         .btn-primary::before,
         .back-link svg,
-        .toggle,
-        .toggle-thumb,
         .swap-fade > *,
         .cs-caret,
         .checkbox::after {

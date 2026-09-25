@@ -3,10 +3,6 @@
         color: var(--muted);
     }
 
-    .text-ink {
-        color: var(--ink);
-    }
-
     /* User text with no space to break on: names, titles, identifiers. */
     .wrap-anywhere {
         overflow-wrap: anywhere;

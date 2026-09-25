@@ -4,7 +4,7 @@
 use std::fmt::Write as _;
 
 use askama::Template;
-use axum::extract::{Path, Query, RawQuery, State};
+use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue};
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::{Deserialize, Deserializer};
@@ -255,14 +255,6 @@ pub async fn list(
         services: ServiceRepository::list_all(&state.pool).await?,
         i18n,
     })
-}
-
-/// The search page lives in the events list now; old links keep working.
-pub async fn search(RawQuery(query): RawQuery) -> Redirect {
-    match query.filter(|q| !q.is_empty()) {
-        Some(q) => Redirect::permanent(&format!("/events?{q}")),
-        None => Redirect::permanent("/events"),
-    }
 }
 
 // ---- Event page and side panel ----

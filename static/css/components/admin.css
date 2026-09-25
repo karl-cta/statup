@@ -763,7 +763,6 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .layout-row,
         .icon-choices-chevron {
             transition: none;
         }

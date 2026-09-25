@@ -998,24 +998,6 @@ async fn public_mode_read_routes_accessible_without_auth() {
 }
 
 #[tokio::test]
-async fn search_links_land_on_the_events_list() {
-    let app = TestApp::spawn_public().await;
-
-    let (status, location) = app.redirect_of("/search?q=disk").await;
-    assert_eq!(status, StatusCode::PERMANENT_REDIRECT);
-    assert_eq!(location.as_deref(), Some("/events?q=disk"));
-}
-
-#[tokio::test]
-async fn history_bookmarks_land_on_the_events_list() {
-    let app = TestApp::spawn_public().await;
-
-    let (status, location) = app.redirect_of("/history").await;
-    assert_eq!(status, StatusCode::PERMANENT_REDIRECT);
-    assert_eq!(location.as_deref(), Some("/events"));
-}
-
-#[tokio::test]
 async fn missing_event_renders_a_styled_error_page_in_the_request_language() {
     let app = TestApp::spawn_public().await;
 
