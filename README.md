@@ -7,185 +7,119 @@
 
 # Statup
 
-A self-hosted status page for IT teams. One Rust binary and its static files, one SQLite database, no external service.
+**The status page your whole company reads.**<br>
+Outages, maintenance and what changed, published by IT, in plain words for everyone.
 
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
 [![Status: pre-v1](https://img.shields.io/badge/status-pre--v1-yellow.svg)](#status)
 
+[Features](#features) · [How it works](#how-it-works) · [Quick start](#quick-start) · [Roadmap](#roadmap) · [Self-hosting guide](.github/SELF-HOSTING.md)
+
 </div>
 
-Stop answering "is it down?" at the helpdesk. Statup gives your whole organization one place to check whether the tools work, follow an incident as it unfolds and read about planned maintenance. The IT team publishes; accounting, payroll, HR and everyone else read it in plain words, from a desk or a phone.
+<br>
+
+> *"Is the internet down?"* *"Is it just me, or is Outlook broken?"*<br>
+> Every outage starts with the same questions, by phone, by chat and at the IT office door.
+
+Statup answers them before they are asked. The IT team says what is broken, what is being fixed and what is planned, and also what changed: the new version of the payroll software, the printer that moved to the second floor, the VPN client everyone must install. Accounting, HR and everyone else read it in plain words, from a desk or a phone.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/status-page-dark.png">
   <img src=".github/assets/status-page.png" alt="The status page: a banner saying one service is disrupted, with the incident and its latest update, then the services with thirty days of availability, the recent activity and the maintenance schedule" width="1280">
 </picture>
 
-### Status
+## Features
 
-Statup is **pre-v1**. It is usable and self-hostable, and the interface is being finished before the first stable release. Expect changes between versions, and back up before upgrading.
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <strong>A page that answers first</strong><br>
+      A banner says whether something is wrong, what is affected and since when, above every service and its last 30 days. It refreshes itself every minute.
+    </td>
+    <td width="50%" valign="top">
+      <strong>Incidents, start to finish</strong><br>
+      From investigation to resolution, with dated updates and reusable templates. The services concerned change state on their own, and come back when it is over.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <strong>Maintenance that runs itself</strong><br>
+      Announced ahead, it starts and ends at the planned times, and says so when the services stay usable.
+    </td>
+    <td valign="top">
+      <strong>News from IT</strong><br>
+      Announcements for what changed: a software update, a new tool, an office move. Read as a short article, linked to the maintenance it follows.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <strong>Everyone in the loop</strong><br>
+      An events list with search and filters, a side panel to read without leaving it, and an Atom feed for feed readers and chat tools.
+    </td>
+    <td valign="top">
+      <strong>Your page, your way</strong><br>
+      Open to everyone or to members only, with your name and logo, and blocks you arrange on the page itself. French and English, light and dark, accessible.
+    </td>
+  </tr>
+</table>
 
-### Features
+**Light, private, safe by default.** One Rust binary and one SQLite file: no Redis, no Postgres, a Docker image under 10 MB. Fonts and scripts come from your instance, so no visitor's browser calls a third party. Passwords are hashed with Argon2id, every form carries a CSRF token, and a strict Content Security Policy guards every page.
 
-- **Status page**: every service with its state (operational, degraded, outage, maintenance) and its last 30 days. A banner answers "is something wrong?" first, names what is affected and since when, and the page refreshes itself every minute.
-- **Incidents** from investigation to resolution: a minor or major impact that sets the state of the services concerned, the step the incident starts at, dated updates with simple formatting, reusable templates.
-- **Maintenances**, announced ahead with a start and an end (the page switches on its own at those times) or started right away, and marked as without downtime when the services stay usable.
-- **Announcements** for releases and news that affect nobody's service, read as a short article.
-- **Events list** with full-text search over titles and descriptions, filters by type, state, service and dates, and a side panel to read an event without leaving the list.
-- **Following updates**: an Atom feed at `/feed` for feed readers and chat tools, with a page that explains how to use it.
-- **Roles**: Reader, Editor, Administrator. The page is open to everyone or to members only; members are added from the Team page, where an administrator can also give one a new temporary password.
-- **Your instance**: its own name and logo in the header, 24 built-in service icons or your own (PNG, JPEG, WebP or SVG up to 256 KB), and dashboard blocks arranged on the page itself: their order, their width, and what each one shows.
-- **First launch** in four steps: the administrator account, the page's name, logo and audience, the services to follow, then the address to share, beside a live preview of the page.
-- **French and English**, light and dark themes, usable with a keyboard and a screen reader, calm with reduced motion.
+## How it works
 
-### Why Statup
+- **Services** are the tools people rely on: mail, the VPN, the ERP, the phones. Each shows one state: operational, degraded, outage or maintenance.
+- **Events** are what the IT team publishes. An **incident** when something breaks, a **maintenance** when work is planned, an **announcement** for news. An incident or a maintenance sets the state of the services it names until it ends.
+- **People** read the page, with or without an account. **Editors** publish events and set service states; **administrators** also run the settings, the team and the layout of the page.
 
-- **Small footprint.** Templates, translations and migrations are compiled into the binary. SQLite in WAL mode; no Redis, no Postgres.
-- **Secure defaults.** Argon2id password hashing, CSRF tokens on every form, a Content Security Policy that allows the instance's own files only, rate limits on pages and on sign-in, parameterized SQL, sanitized Markdown and SVG. See [SECURITY.md](.github/SECURITY.md) for reporting a problem.
-- **Server-rendered.** Askama templates, htmx for the parts that update in place, a few small scripts, no JavaScript framework.
-- **Private.** Fonts and scripts are served by the instance: a visitor's browser never calls a third party.
+## Quick start
 
-### Quick start
+You need Docker with Docker Compose 2.24 or newer.
 
-Requirements: Docker with Docker Compose 2.24 or newer.
+**1. Get Statup and start it**
 
 ```bash
-git clone https://github.com/karl-cta/statup.git && cd statup
+git clone https://github.com/karl-cta/statup.git
+cd statup
 docker compose up -d
 ```
 
-The first start compiles Statup, which takes a few minutes. Then open http://localhost:3000: an empty instance walks you through its first launch, starting with its administrator account.
+The first start builds Statup, which takes a few minutes.
 
-Statup answers this machine only at first, because the first account created becomes the administrator. Once it exists, put Statup behind a reverse proxy (see below), or open it to your network by changing `"127.0.0.1:3000:3000"` to `"3000:3000"` under `ports:` in `docker-compose.yml`, then run `docker compose up -d` again. On a server without a browser, preset the administrator with `ADMIN_EMAIL` and `ADMIN_PASSWORD` first.
+**2. Open http://localhost:3000**
 
-The time zone of the instance is taken from your browser when you create the first account, and can be changed later in Settings. The host port is the part before `:3000` under `ports:`.
+An empty instance walks you through four steps: your administrator account, the page's name, logo and audience, the services to follow, then the address to share.
 
-### Access and roles
+**3. Open it to your colleagues**
 
-| Role | Can |
-|---|---|
-| Reader | Read the dashboard, the events and the feed, edit their own profile |
-| Editor | Everything a reader can, plus publish incidents, maintenances and announcements, set service states, manage services, templates and icons |
-| Administrator | Everything, plus the settings, the team, the dashboard blocks, and changing or deleting closed events |
+At first Statup answers this machine only, so nobody else can claim the administrator account. When yours exists, change `"127.0.0.1:3000:3000"` to `"3000:3000"` under `ports:` in `docker-compose.yml` and run `docker compose up -d` again, or put Statup behind a reverse proxy with HTTPS. Then add your colleagues from the **Team** page.
 
-Who can see the page is chosen at the first launch, then in **Settings, Who can see the page**:
+> [!TIP]
+> The [self-hosting guide](.github/SELF-HOSTING.md) has the rest: every setting, a reverse proxy with nginx or Caddy, backups, upgrades and a forgotten password.
 
-- **Everyone**: visitors read the page and the feed without an account.
-- **Members only**: visitors are asked to sign in, and feed readers can no longer read the feed.
+## Roadmap
 
-Accounts are created by an administrator on the **Team** page, with a temporary password shown once; the member chooses their own at first sign-in. Self-registration only exists on an empty instance, for its first administrator.
+Planned, without dates:
 
-`PUBLIC_MODE` only sets the starting choice: once an administrator picks one in Settings, it is kept across restarts.
+- **Automatic monitoring**: Statup checks that a service answers and sets its state on its own.
+- **Incidents from your monitoring**: Zabbix, Grafana or any other tool opens and closes an incident by itself.
+- **Alerts where people are**: messages in Microsoft Teams and Slack, and email subscriptions.
+- **Groups and visibility**: gather colleagues into groups and choose which services and events each group sees.
+- **Recurring maintenance**: announce once a slot that comes back every week or month.
+- **Themes** and an accent colour.
 
-### Configuration
+Ideas and requests are welcome in the [issues](https://github.com/karl-cta/statup/issues).
 
-Every setting is optional. Copy `.env.example` to `.env` to change one. With Docker Compose, `DATABASE_URL`, `UPLOAD_DIR`, `HOST` and `PORT` belong to the image, so the data stays in its volume.
+## Status
 
-| Variable | Default | Description |
-|---|---|---|
-| `TZ` | `UTC` | Time zone used until one is chosen, e.g. `Europe/Paris`. The zone set in Settings, or taken from the first account's browser, takes precedence. Dates are shown in it, with the UTC offset where it matters, and maintenance times are typed in it |
-| `PUBLIC_URL` | request host | Address visitors use, e.g. `https://status.example.com`. Feed links use it; an `https://` address marks the session cookie `Secure` and sends HSTS |
-| `TRUST_PROXY_HEADERS` | `false` | Read the client address from `CLIENT_IP_HEADER` and the scheme from `X-Forwarded-Proto`. Only behind a reverse proxy that sets them |
-| `CLIENT_IP_HEADER` | `X-Forwarded-For` | The header your proxy writes the client address in, such as `X-Real-IP`, `Forwarded` or `CF-Connecting-IP`. Only its last entry counts, and no other header is read |
-| `PUBLIC_MODE` | `false` | Starting public access, until an administrator chooses in Settings |
-| `DEFAULT_LOCALE` | `fr` | `fr` or `en`, for visitors whose browser asks for neither |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | unset | Create an administrator at start when no account exists. Both are needed. The password needs 12 characters with upper and lower case letters, a digit and a symbol, or 20 characters of any kind. Remove them afterwards |
-| `DATABASE_URL` | `./statup.db` | SQLite database file |
-| `UPLOAD_DIR` | `data/uploads` | Where uploaded icons are kept |
-| `HOST` | `0.0.0.0` | Listen address, an IP address |
-| `PORT` | `3000` | Listen port |
-| `SESSION_EXPIRY` | `3600` | Seconds a sign-in form stays valid. Once signed in, a session lasts 30 days without a visit with "Stay signed in", 24 hours otherwise |
-| `DB_MAX_CONNECTIONS` | `10` | Database pool size |
-| `LOG_LEVEL` | `info` | `trace`, `debug`, `info`, `warn`, `error` or `off` |
-| `RUST_LOG` | unset | Finer log filter, e.g. `statup=debug,tower_http=info`. Replaces `LOG_LEVEL` when set |
+Statup is **pre-v1**: usable and self-hostable, with the interface being finished before the first stable release. Expect changes between versions and back up before upgrading. Every change is in the [changelog](.github/CHANGELOG.md).
 
-### Running behind a reverse proxy
+## Contributing
 
-Terminate TLS at the proxy, keep Statup on loopback as `docker-compose.yml` publishes it, then set:
+Built with Rust, Axum, SQLite, Askama templates and htmx. The [contributing guide](.github/CONTRIBUTING.md) explains how to build Statup, where things are in the code, and the checks a change must pass.
 
-```bash
-PUBLIC_URL=https://status.example.com
-TRUST_PROXY_HEADERS=true
-```
-
-Statup then takes the client address from the last entry of `X-Forwarded-For`: the one your proxy appended, whatever a client sent before it. nginx, Caddy, Traefik, Apache and HAProxy (with `option forwardfor`) all append it. If your proxy writes the address in another header, name that header in `CLIENT_IP_HEADER`.
-
-With nginx:
-
-```nginx
-location / {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
-```
-
-With Caddy, which sets both headers on its own:
-
-```caddy
-status.example.com {
-    reverse_proxy 127.0.0.1:3000
-}
-```
-
-Never enable `TRUST_PROXY_HEADERS` when Statup can be reached directly: anyone could then pick their own address and walk around the rate limits.
-
-### Backups
-
-Everything lives in the SQLite database (with its `-wal` and `-shm` files) and the uploads directory. With Docker, both are in the `statup_data` volume, which Compose names after the project folder: `statup_statup_data` for a clone called `statup`.
-
-```bash
-docker compose stop statup
-docker run --rm -v statup_statup_data:/data -v "$PWD":/backup alpine \
-  tar czf /backup/statup-backup.tar.gz -C /data .
-docker compose start statup
-```
-
-From source, stop the server and copy `statup.db*` and `data/uploads/`.
-
-### Upgrading
-
-```bash
-git pull
-docker compose up -d --build
-```
-
-Database migrations are compiled into the binary and run at start. Back up first: a database migrated by a newer version is refused by an older one.
-
-### Forgotten password
-
-Give the account a temporary password from the server:
-
-```bash
-docker compose exec statup /app/statup reset-password you@example.com
-# From source, next to your .env: ./target/release/statup reset-password you@example.com
-```
-
-Hand it over. The person signs in with it and is asked to choose their own, and any session still open on that account is signed out. Only active accounts can be reset, and the command never creates a database: a mistyped `DATABASE_URL` is reported as such.
-
-### Health check
-
-`GET /health` answers `{"status":"ok"}` with 200, or `{"status":"degraded"}` with 503 when the database does not respond. It is not rate limited and opens no session.
-
-### Development
-
-Requires Rust 1.88 or newer and the [Tailwind CSS standalone CLI](https://github.com/tailwindlabs/tailwindcss/releases) v4.1.18, saved at the repository root as `tailwindcss`.
-
-```bash
-./scripts/build-css.sh           # add --watch while editing styles
-cargo run                        # http://localhost:3000, from the repository root
-cargo test
-cargo clippy --all-targets -- -D warnings
-cargo fmt
-```
-
-The server serves `static/` from its working directory; templates live in `templates/`, translations in `locales/`, migrations in `migrations/`. A release build is `cargo build --release`, run next to a built `static/` directory.
-
-Other scripts: `scripts/build-release.sh` packages a release archive for the host or the given Rust targets, `scripts/coverage.sh` runs the tests under `cargo-llvm-cov`, `scripts/build-icons.py` regenerates the favicons from the logo. Continuous integration runs the format check, clippy, the tests on stable and on Rust 1.88, the dependency advisories, the stylesheet and the Docker build.
-
-### License
+## License
 
 Statup is licensed under the [GNU Affero General Public License v3.0 or later](LICENSE). If you run a modified version for others over a network, offer them its source code.
 

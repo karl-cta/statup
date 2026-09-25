@@ -12,13 +12,21 @@ third-party call at runtime needs a strong case.
 
 ## Setting up
 
-Rust 1.88 or newer and the Tailwind CSS standalone CLI, as described under
-Development in the README. Then:
+Rust 1.88 or newer and the
+[Tailwind CSS standalone CLI](https://github.com/tailwindlabs/tailwindcss/releases)
+v4.1.18, saved at the repository root as `tailwindcss`. Then:
 
 ```bash
-./scripts/build-css.sh
-cargo run
+./scripts/build-css.sh           # add --watch while editing styles
+cargo run                        # http://localhost:3000, from the repository root
 ```
+
+The server serves `static/` from its working directory. A release build is
+`cargo build --release`, run next to a built `static/` directory. Other
+scripts: `scripts/build-release.sh` packages a release archive for the host
+or the given Rust targets, `scripts/coverage.sh` runs the tests under
+`cargo-llvm-cov`, `scripts/build-icons.py` regenerates the favicons from the
+logo.
 
 ## Where things are
 
@@ -53,6 +61,9 @@ cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test
 ```
+
+Continuous integration also runs the tests on Rust 1.88, the dependency
+advisories, the stylesheet build and the Docker build.
 
 Add or adjust tests with the change. Integration tests in `tests/` run the
 real router over TCP; unit tests sit next to the code they cover.

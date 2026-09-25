@@ -22,9 +22,9 @@ the Docker image and the default configuration.
 ## Out of scope
 
 Reports that need a compromised host, a compromised administrator account, or
-a reverse proxy configured against the installation guide. Denial of service
-by volume: the built-in rate limits are a courtesy, not a defence, and belong
-in front of the application.
+a reverse proxy configured against the [self-hosting guide](SELF-HOSTING.md).
+Denial of service by volume: the built-in rate limits are a courtesy, not a
+defence, and belong in front of the application.
 
 ## What the application does by design
 
