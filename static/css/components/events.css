@@ -161,7 +161,7 @@
         background: var(--raised);
         border: 1px solid var(--line);
         border-radius: 6px;
-        box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+        box-shadow: var(--shadow-menu);
     }
 
     .more-actions-item {
@@ -272,17 +272,6 @@
         .fact {
             flex-basis: 100%;
         }
-    }
-
-    .event-section {
-        max-width: 72ch;
-        margin-top: 40px;
-    }
-
-    .event-section-head {
-        display: flex;
-        align-items: baseline;
-        gap: 8px;
     }
 
     @media (max-width: 639px) {
@@ -819,7 +808,7 @@
         background: var(--raised);
         border: 1px solid var(--line);
         border-radius: 6px;
-        box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+        box-shadow: var(--shadow-menu);
     }
 
     .time-option {
@@ -953,7 +942,7 @@
         background: var(--raised);
         border: 1px solid var(--line);
         border-radius: 6px;
-        box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+        box-shadow: var(--shadow-menu);
     }
 
     .cal-head {
