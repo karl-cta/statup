@@ -18,7 +18,7 @@ impl DashboardLayoutRepository {
     pub async fn list(pool: &DbPool) -> Result<Vec<LayoutEntry>, sqlx::Error> {
         sqlx::query_as::<_, LayoutEntry>(
             "SELECT module_id, position, enabled, config FROM dashboard_layouts \
-             WHERE user_id IS NULL ORDER BY position ASC, id ASC",
+             ORDER BY position ASC, id ASC",
         )
         .fetch_all(pool)
         .await
@@ -30,14 +30,11 @@ impl DashboardLayoutRepository {
         position: i64,
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
-            "INSERT INTO dashboard_layouts (user_id, module_id, position, enabled) \
-             SELECT NULL, ?, ?, 1 WHERE NOT EXISTS ( \
-                 SELECT 1 FROM dashboard_layouts \
-                 WHERE user_id IS NULL AND module_id = ?)",
+            "INSERT INTO dashboard_layouts (module_id, position) VALUES (?, ?) \
+             ON CONFLICT (module_id) DO NOTHING",
         )
         .bind(module_id)
         .bind(position)
-        .bind(module_id)
         .execute(pool)
         .await?;
         Ok(())
@@ -49,7 +46,7 @@ impl DashboardLayoutRepository {
         for (position, module_id) in (0_i64..).zip(module_ids) {
             sqlx::query(
                 "UPDATE dashboard_layouts SET position = ?, updated_at = datetime('now') \
-                 WHERE user_id IS NULL AND module_id = ?",
+                 WHERE module_id = ?",
             )
             .bind(position)
             .bind(module_id)
@@ -66,7 +63,7 @@ impl DashboardLayoutRepository {
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
             "UPDATE dashboard_layouts SET enabled = ?, updated_at = datetime('now') \
-             WHERE user_id IS NULL AND module_id = ?",
+             WHERE module_id = ?",
         )
         .bind(enabled)
         .bind(module_id)
@@ -80,7 +77,7 @@ impl DashboardLayoutRepository {
         sqlx::query(
             "UPDATE dashboard_layouts \
              SET config = json_set(config, '$.width', ?), updated_at = datetime('now') \
-             WHERE user_id IS NULL AND module_id = ?",
+             WHERE module_id = ?",
         )
         .bind(width)
         .bind(module_id)
@@ -99,7 +96,7 @@ impl DashboardLayoutRepository {
         sqlx::query(
             "UPDATE dashboard_layouts \
              SET config = json_set(config, '$.hide', json(?)), updated_at = datetime('now') \
-             WHERE user_id IS NULL AND module_id = ?",
+             WHERE module_id = ?",
         )
         .bind(values)
         .bind(module_id)
@@ -110,11 +107,9 @@ impl DashboardLayoutRepository {
 
     /// Removes the rows of modules this binary does not ship.
     pub async fn prune_unknown(pool: &DbPool, known_ids: &[&str]) -> Result<(), sqlx::Error> {
-        let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
-            "DELETE FROM dashboard_layouts WHERE user_id IS NULL",
-        );
+        let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new("DELETE FROM dashboard_layouts");
         if !known_ids.is_empty() {
-            qb.push(" AND module_id NOT IN (");
+            qb.push(" WHERE module_id NOT IN (");
             let mut ids = qb.separated(", ");
             for id in known_ids {
                 ids.push_bind(*id);
