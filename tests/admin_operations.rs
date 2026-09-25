@@ -948,3 +948,38 @@ async fn a_service_left_out_of_the_card_comes_back_when_it_is_down() {
         "a service left out comes back when it is down"
     );
 }
+
+#[tokio::test]
+async fn switching_language_after_any_form_lands_on_a_page() {
+    let (app, admin_id) = spawn_with_admin().await;
+    for action in [
+        format!("/admin/users/{admin_id}/reset-password"),
+        "/admin/settings/time-zone".to_string(),
+        "/admin/settings/logo".to_string(),
+        "/admin/settings/logo/remove".to_string(),
+        "/admin/dashboard/layout/order".to_string(),
+        "/events/templates/4/delete".to_string(),
+        "/icons/3/delete".to_string(),
+        "/services/2/status".to_string(),
+        "/profile/password".to_string(),
+    ] {
+        let resp = app
+            .client
+            .get(app.url("/i18n?locale=en"))
+            .header("referer", app.url(&action))
+            .send()
+            .await
+            .expect("GET /i18n failed");
+        let target = resp
+            .headers()
+            .get("location")
+            .and_then(|v| v.to_str().ok())
+            .expect("a place to go back to")
+            .to_string();
+        let (status, _) = app.get(&target).await;
+        assert!(
+            status.is_success() || status.is_redirection(),
+            "{action} led to {target}, which answers {status}"
+        );
+    }
+}

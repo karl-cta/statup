@@ -89,32 +89,44 @@ fn same_site_page(referer: &str, host: &str) -> Option<String> {
 
 /// The page a visitor sees for a path. A form posted to an action path
 /// (`/admin/users/7/role`) leaves that path as the referrer of the next
-/// page, and following it would ask for a page that only takes a POST.
+/// page, and following it would ask for a page that only takes a POST: an
+/// action leads back to the page of its form, anything else home.
 fn canonical_page(path: &str) -> String {
     let segments: Vec<&str> = path.trim_start_matches('/').split('/').collect();
-    match segments.as_slice() {
-        ["admin", "users", _] | ["admin", "users", _, "role" | "disable"] => "/admin/users".into(),
-        ["admin", "settings", "instance-name" | "public-mode"] => "/admin/settings".into(),
-        ["admin", "dashboard", context, "layout", "order"]
-        | ["admin", "dashboard", context, "layout", _, "toggle"] => {
-            format!("/admin/dashboard/{context}/layout")
-        }
-        ["profile", "password"] => "/profile".into(),
-        ["icons", "upload" | "upload-picker"] | ["icons", _, "delete"] => "/icons".into(),
-        ["events", "templates", ..] => "/events/new".into(),
-        [
-            "events",
-            id,
-            "updates" | "lifecycle" | "revert-lifecycle" | "drawer",
-        ] => {
-            format!("/events/{id}")
-        }
-        ["events", _, "delete"] => "/events".into(),
-        ["services", _, "status" | "delete"] => "/services".into(),
-        ["logout"] => "/login".into(),
-        ["i18n"] => "/".into(),
-        _ => path.to_string(),
+    if is_page(&segments) {
+        return path.to_string();
     }
+    let page = match segments.as_slice() {
+        ["admin", "users", ..] => "/admin/users",
+        ["admin", "settings", ..] => "/admin/settings",
+        ["profile", ..] => "/profile",
+        ["icons", ..] => "/icons",
+        ["events", "templates", ..] => "/events/new",
+        ["events", id, action, ..] if is_id(id) && *action != "delete" => {
+            return format!("/events/{id}");
+        }
+        ["events", ..] => "/events",
+        ["services", ..] => "/services",
+        ["logout"] => "/login",
+        _ => "/",
+    };
+    page.to_string()
+}
+
+/// The paths that answer a GET with a page of their own.
+fn is_page(segments: &[&str]) -> bool {
+    match segments {
+        ["" | "events" | "services" | "icons" | "subscribe" | "login" | "register" | "profile"]
+        | ["events" | "services" | "password", "new"]
+        | ["admin", "settings" | "users"]
+        | ["setup", "page" | "services" | "done"] => true,
+        ["events", id] | ["events" | "services", id, "edit"] => is_id(id),
+        _ => false,
+    }
+}
+
+fn is_id(segment: &str) -> bool {
+    !segment.is_empty() && segment.bytes().all(|b| b.is_ascii_digit())
 }
 
 #[cfg(test)]
@@ -127,33 +139,47 @@ mod tests {
             ("/admin/users/new", "/admin/users"),
             ("/admin/users/7/role", "/admin/users"),
             ("/admin/users/7/disable", "/admin/users"),
+            ("/admin/users/7/reset-password", "/admin/users"),
             ("/admin/settings/instance-name", "/admin/settings"),
             ("/admin/settings/public-mode", "/admin/settings"),
-            (
-                "/admin/dashboard/public/layout/order",
-                "/admin/dashboard/public/layout",
-            ),
-            (
-                "/admin/dashboard/admin/layout/services/toggle",
-                "/admin/dashboard/admin/layout",
-            ),
+            ("/admin/settings/time-zone", "/admin/settings"),
+            ("/admin/settings/logo", "/admin/settings"),
+            ("/admin/settings/logo/remove", "/admin/settings"),
             ("/profile/password", "/profile"),
             ("/icons/upload", "/icons"),
             ("/icons/upload-picker", "/icons"),
             ("/icons/3/delete", "/icons"),
             ("/events/12/updates", "/events/12"),
-            ("/events/12/lifecycle", "/events/12"),
+            ("/events/12/panel-updates", "/events/12"),
+            ("/events/12/updates/3/delete", "/events/12"),
             ("/events/12/revert-lifecycle", "/events/12"),
+            ("/events/12/drawer", "/events/12"),
             ("/events/12/delete", "/events"),
             ("/events/templates/4/delete", "/events/new"),
             ("/services/2/status", "/services"),
             ("/services/2/delete", "/services"),
+            ("/services/2/drawer", "/services"),
             ("/logout", "/login"),
-            ("/i18n", "/"),
         ];
         for (path, page) in cases {
             assert_eq!(canonical_page(path), page, "{path}");
         }
+    }
+
+    #[test]
+    fn a_path_that_is_no_page_leads_home() {
+        for path in [
+            "/i18n",
+            "/admin/dashboard/layout/order",
+            "/admin/dashboard/layout/services/width",
+            "/search",
+            "/feed",
+            "/nowhere",
+        ] {
+            assert_eq!(canonical_page(path), "/", "{path}");
+        }
+        assert_eq!(canonical_page("/events/templates"), "/events/new");
+        assert_eq!(canonical_page("/events/abc"), "/events");
     }
 
     #[test]
@@ -164,11 +190,16 @@ mod tests {
             "/events/12",
             "/events/new",
             "/events/12/edit",
+            "/services",
             "/services/new",
             "/services/2/edit",
+            "/icons",
+            "/subscribe",
             "/admin/users",
             "/admin/settings",
-            "/admin/dashboard/public/layout",
+            "/setup/page",
+            "/setup/services",
+            "/setup/done",
             "/password/new",
             "/profile",
             "/login",
