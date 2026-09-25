@@ -15,8 +15,13 @@ use crate::error::AppError;
 use crate::models::{Role, User};
 use crate::repositories::{NewUser, UserRepository};
 
-/// Minimum password length, in characters.
+/// Shortest password accepted with lowercase, uppercase, digits and symbols
+/// in it, as in the first example of the CNIL recommendation of 2022.
 const MIN_PASSWORD_LENGTH: usize = 12;
+
+/// Shortest password accepted whatever it is made of: a passphrase, easier
+/// to remember and as hard to guess.
+const PASSPHRASE_LENGTH: usize = 20;
 
 /// Long enough to resist guessing, short enough to read out over a call.
 const TEMP_PASSWORD_LENGTH: usize = 16;
@@ -62,14 +67,16 @@ impl AuthService {
         off_runtime(move || verify_blocking(&password, &hash)).await
     }
 
-    /// Validate password strength: at least 12 characters, not bytes.
+    /// Check a password someone chose: 12 characters mixing the four kinds,
+    /// or 20 of any kind. Characters are counted, not bytes.
     pub fn validate_password(password: &str) -> Result<(), AppError> {
-        if password.chars().count() < MIN_PASSWORD_LENGTH {
-            return Err(AppError::Validation(
-                "validation.password_min_length".to_string(),
-            ));
+        if is_strong_enough(password) {
+            Ok(())
+        } else {
+            Err(AppError::Validation(
+                "validation.password_too_weak".to_string(),
+            ))
         }
-        Ok(())
     }
 
     /// The email as stored: trimmed, lowercase, and well formed.
@@ -145,14 +152,14 @@ impl AuthService {
         Ok((user, password))
     }
 
-    /// Create an account. An email used by any account, a disabled one
-    /// included, is refused with a message rather than a database error.
+    /// Create an account with a generated password, which needs no check.
+    /// An email used by any account, a disabled one included, is refused
+    /// with a message rather than a database error.
     pub async fn create_account(pool: &DbPool, account: &NewAccount<'_>) -> Result<User, AppError> {
         let email = Self::normalize_email(account.email)?;
         if UserRepository::email_exists(pool, &email).await? {
             return Err(email_taken());
         }
-        Self::validate_password(account.password)?;
         let password_hash = Self::hash_password(account.password).await?;
         let new_user = NewUser {
             email: &email,
@@ -257,6 +264,19 @@ impl AuthService {
         tracing::info!(user_id = user.id, "User logged in");
         Ok(user)
     }
+}
+
+fn is_strong_enough(password: &str) -> bool {
+    let length = password.chars().count();
+    if length >= PASSPHRASE_LENGTH {
+        return true;
+    }
+    let has = |kind: fn(char) -> bool| password.chars().any(kind);
+    length >= MIN_PASSWORD_LENGTH
+        && has(char::is_lowercase)
+        && has(char::is_uppercase)
+        && has(char::is_numeric)
+        && has(|c| !c.is_alphanumeric())
 }
 
 /// The HTML5 rule for an email address: a local part made of the usual
@@ -400,24 +420,28 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_password_too_short() {
-        assert!(AuthService::validate_password("short").is_err());
+    fn twelve_characters_need_the_four_kinds() {
+        let check = AuthService::validate_password;
+        assert!(check("Abcdefgh12!?").is_ok());
+        assert!(check("Abcdefgh1!?").is_err(), "eleven characters");
+        assert!(check("abcdefgh12!?").is_err(), "no uppercase");
+        assert!(check("ABCDEFGH12!?").is_err(), "no lowercase");
+        assert!(check("Abcdefghij!?").is_err(), "no digit");
+        assert!(check("Abcdefgh1234").is_err(), "no symbol");
+        assert!(check("Mot de passe 1").is_ok(), "a space is a symbol");
     }
 
     #[test]
-    fn test_validate_password_ok() {
-        assert!(AuthService::validate_password("valid_password_123").is_ok());
-    }
-
-    #[test]
-    fn test_validate_password_exact_minimum() {
-        assert!(AuthService::validate_password("123456789012").is_ok());
+    fn twenty_characters_of_any_kind_pass() {
+        assert!(AuthService::validate_password("le serveur dort bien").is_ok());
+        assert!(AuthService::validate_password("le serveur dort bie").is_err());
     }
 
     #[test]
     fn password_length_counts_characters() {
-        assert!(AuthService::validate_password("éééééé").is_err());
-        assert!(AuthService::validate_password("éééééééééééé").is_ok());
+        assert!(AuthService::validate_password("Éé1!éééééé").is_err());
+        assert!(AuthService::validate_password("Éé1!éééééééé").is_ok());
+        assert!(AuthService::validate_password(&"é".repeat(20)).is_ok());
     }
 
     #[test]

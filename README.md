@@ -90,7 +90,7 @@ Every setting is optional. Copy `.env.example` to `.env` to change one. With Doc
 | `CLIENT_IP_HEADER` | `X-Forwarded-For` | The header your proxy writes the client address in, such as `X-Real-IP`, `Forwarded` or `CF-Connecting-IP`. Only its last entry counts, and no other header is read |
 | `PUBLIC_MODE` | `false` | Starting public access, until an administrator chooses in Settings |
 | `DEFAULT_LOCALE` | `fr` | `fr` or `en`, for visitors whose browser asks for neither |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | unset | Create an administrator at start when no account exists. Both are needed, and the password needs 12 characters or more. Remove them afterwards |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | unset | Create an administrator at start when no account exists. Both are needed. The password needs 12 characters with upper and lower case letters, a digit and a symbol, or 20 characters of any kind. Remove them afterwards |
 | `DATABASE_URL` | `./statup.db` | SQLite database file |
 | `UPLOAD_DIR` | `data/uploads` | Where uploaded icons are kept |
 | `HOST` | `0.0.0.0` | Listen address, an IP address |

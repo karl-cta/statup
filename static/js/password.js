@@ -1,4 +1,4 @@
-// Password fields: a button that shows what is typed, and the length rule
+// Password fields: a button that shows what is typed, and the password rule
 // ticked as the author types.
 (function () {
     "use strict";
@@ -17,10 +17,17 @@
         });
     });
 
+    // The server's rule: the field's minimum length with lowercase,
+    // uppercase, digits and symbols in it, or a passphrase of any kind.
+    const PASSPHRASE_LENGTH = 20;
+    const KINDS = [/\p{Lowercase}/u, /\p{Uppercase}/u, /\p{N}/u, /[^\p{Alphabetic}\p{N}]/u];
+
     document.querySelectorAll("[data-password-rule]").forEach((rule) => {
         const input = rule.closest(".field").querySelector("input");
         const check = () => {
-            rule.dataset.met = String([...input.value].length >= input.minLength);
+            const length = [...input.value].length;
+            const mixed = length >= input.minLength && KINDS.every((kind) => kind.test(input.value));
+            rule.dataset.met = String(length >= PASSPHRASE_LENGTH || mixed);
         };
         input.addEventListener("input", check);
         check();

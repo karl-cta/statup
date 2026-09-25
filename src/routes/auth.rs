@@ -65,7 +65,7 @@ impl RegisterErrors {
         let mut errors = Self::default();
         match key {
             "validation.email_taken" | "validation.email_invalid" => errors.email = message,
-            "validation.password_min_length" => errors.password = message,
+            "validation.password_too_weak" => errors.password = message,
             _ => errors.form = message,
         }
         errors
@@ -320,7 +320,7 @@ fn check_register_input(input: &RegisterInput, i18n: &I18n) -> Result<String, Re
         errors.email = message("validation.email_invalid");
     }
     if AuthService::validate_password(&input.password).is_err() {
-        errors.password = message("validation.password_min_length");
+        errors.password = message("validation.password_too_weak");
     }
     if errors.is_empty() {
         Ok(name)

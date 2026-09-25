@@ -108,8 +108,9 @@ async fn open_database(config: &Config) -> anyhow::Result<DbPool> {
     )
     .await
     .context(
-        "cannot create the administrator: ADMIN_EMAIL must be an email address \
-         and ADMIN_PASSWORD at least 12 characters long",
+        "cannot create the administrator: ADMIN_EMAIL must be an email address, \
+         and ADMIN_PASSWORD 12 characters with upper and lower case letters, a digit \
+         and a symbol, or at least 20 characters",
     )?;
     tracing::info!("Database ready");
     Ok(pool)

@@ -17,7 +17,7 @@ async fn register(app: &TestApp) {
             &csrf,
             &[
                 ("email", "owner@example.com"),
-                ("password", "owner_password_12"),
+                ("password", "Owner_password_12"),
                 ("display_name", "Owner"),
             ],
         )

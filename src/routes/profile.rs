@@ -190,7 +190,7 @@ async fn password_change_refusal(
     }
     limiter.clear_password_checks(user.id);
     if AuthService::validate_password(&input.new_password).is_err() {
-        return Ok(Some("validation.new_password_min_length"));
+        return Ok(Some("validation.new_password_too_weak"));
     }
     if input.new_password != input.new_password_confirm {
         return Ok(Some("validation.new_passwords_mismatch"));
