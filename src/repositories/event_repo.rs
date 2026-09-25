@@ -38,6 +38,21 @@ const UPDATE_COLUMNS: &str = "eu.id, eu.event_id, eu.message, eu.author_id, eu.c
 
 /// Longest search text and number of words kept from it.
 const MAX_QUERY_CHARS: usize = 200;
+
+/// [`drives_services`] in SQL, on events aliased `e`: an incident until it
+/// is under watch, a maintenance while it runs unless it keeps its services
+/// up. A test holds the two to the same answers.
+///
+/// [`drives_services`]: crate::models::drives_services
+const DRIVES_SERVICES: &str = "((e.kind = 'incident' \
+       AND e.lifecycle IN ('investigating', 'in_progress')) \
+     OR (e.kind = 'maintenance' AND e.lifecycle = 'in_progress' \
+       AND NOT e.keeps_services_up))";
+
+/// The worst first, events aliased `e`: a critical incident, a minor one,
+/// then a maintenance, the latest first among equals.
+const WORST_FIRST: &str = "CASE e.severity WHEN 'critical' THEN 0 WHEN 'minor' THEN 1 ELSE 2 END, \
+     e.created_at DESC";
 const MAX_QUERY_TERMS: usize = 10;
 
 pub struct EventRepository;
@@ -214,11 +229,7 @@ impl EventRepository {
     pub async fn list_open_for_banner(pool: &DbPool) -> Result<Vec<EventSummary>, sqlx::Error> {
         sqlx::query_as::<_, EventSummary>(&format!(
             "SELECT {SUMMARY_COLUMNS}, {LATEST_UPDATE_COLUMNS} FROM events e \
-             WHERE (e.kind = 'incident' AND e.lifecycle IN ('investigating', 'in_progress')) \
-                OR (e.kind = 'maintenance' AND e.lifecycle = 'in_progress' \
-                    AND NOT e.keeps_services_up) \
-             ORDER BY CASE e.severity WHEN 'critical' THEN 2 WHEN 'minor' THEN 1 ELSE 0 END DESC, \
-                      e.created_at DESC"
+             WHERE {DRIVES_SERVICES} ORDER BY {WORST_FIRST}"
         ))
         .fetch_all(pool)
         .await
@@ -259,16 +270,12 @@ impl EventRepository {
         pool: &DbPool,
         service_id: Option<i64>,
     ) -> Result<HashMap<i64, (i64, String)>, sqlx::Error> {
-        let rows: Vec<(i64, i64, String)> = sqlx::query_as(
+        let rows: Vec<(i64, i64, String)> = sqlx::query_as(&format!(
             "SELECT es.service_id, e.id, e.title FROM events e \
              INNER JOIN event_services es ON es.event_id = e.id \
-             WHERE (? IS NULL OR es.service_id = ?) \
-               AND ((e.kind = 'incident' AND e.lifecycle IN ('investigating', 'in_progress')) \
-                 OR (e.kind = 'maintenance' AND e.lifecycle = 'in_progress' \
-                     AND NOT e.keeps_services_up)) \
-             ORDER BY CASE e.severity WHEN 'critical' THEN 0 WHEN 'minor' THEN 1 ELSE 2 END, \
-                      e.created_at DESC",
-        )
+             WHERE (? IS NULL OR es.service_id = ?) AND {DRIVES_SERVICES} \
+             ORDER BY {WORST_FIRST}"
+        ))
         .bind(service_id)
         .bind(service_id)
         .fetch_all(pool)
@@ -287,14 +294,11 @@ impl EventRepository {
         pool: &DbPool,
         service_id: i64,
     ) -> Result<Vec<(Kind, Option<Severity>)>, sqlx::Error> {
-        sqlx::query_as(
+        sqlx::query_as(&format!(
             "SELECT e.kind, e.severity FROM events e \
              INNER JOIN event_services es ON es.event_id = e.id \
-             WHERE es.service_id = ? \
-               AND ((e.kind = 'incident' AND e.lifecycle IN ('investigating', 'in_progress')) \
-                 OR (e.kind = 'maintenance' AND e.lifecycle = 'in_progress' \
-                     AND NOT e.keeps_services_up))",
-        )
+             WHERE es.service_id = ? AND {DRIVES_SERVICES}"
+        ))
         .bind(service_id)
         .fetch_all(pool)
         .await
@@ -668,6 +672,63 @@ mod tests {
             service_ids,
             follows_event_id: None,
             author_id,
+        }
+    }
+
+    /// The SQL rule and `drives_services` answer alike for every kind,
+    /// step and downtime flag the table accepts.
+    #[tokio::test]
+    async fn the_sql_rule_matches_drives_services() {
+        let pool = test_pool().await;
+        let (author, _) = seed_user_and_service(&pool).await;
+        let steps = [
+            ("incident", "investigating"),
+            ("incident", "in_progress"),
+            ("incident", "monitoring"),
+            ("incident", "resolved"),
+            ("incident", "cancelled"),
+            ("maintenance", "scheduled"),
+            ("maintenance", "in_progress"),
+            ("maintenance", "completed"),
+            ("maintenance", "cancelled"),
+        ];
+        for keeps_up in [false, true] {
+            for (kind, lifecycle) in steps {
+                sqlx::query(
+                    "INSERT INTO events (kind, lifecycle, keeps_services_up, title, description, \
+                                         author_id) VALUES (?, ?, ?, 't', '', ?)",
+                )
+                .bind(kind)
+                .bind(lifecycle)
+                .bind(keeps_up)
+                .bind(author)
+                .execute(&pool)
+                .await
+                .unwrap();
+            }
+        }
+        sqlx::query(
+            "INSERT INTO events (kind, category, title, description, author_id) \
+             VALUES ('publication', 'info', 't', '', ?)",
+        )
+        .bind(author)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let rows: Vec<(Kind, Option<Lifecycle>, bool, bool)> = sqlx::query_as(&format!(
+            "SELECT e.kind, e.lifecycle, e.keeps_services_up, {DRIVES_SERVICES} FROM events e"
+        ))
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert_eq!(rows.len(), 19);
+        for (kind, lifecycle, keeps_up, in_sql) in rows {
+            assert_eq!(
+                in_sql,
+                crate::models::drives_services(kind, lifecycle, keeps_up),
+                "{kind:?} {lifecycle:?} keeps up: {keeps_up}"
+            );
         }
     }
 

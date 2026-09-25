@@ -59,7 +59,8 @@ pub fn derive_status(kind: Kind, severity: Option<Severity>) -> Option<ServiceSt
 
 /// Whether an event in `lifecycle` sets the state of its services: an
 /// incident until it is under watch, a maintenance while it runs unless it
-/// keeps them up. The same rule as `EventRepository::status_drivers`.
+/// keeps them up. The same rule as `DRIVES_SERVICES` in the event
+/// repository, which the status, the banner and the services page read.
 pub fn drives_services(kind: Kind, lifecycle: Option<Lifecycle>, keeps_services_up: bool) -> bool {
     match (kind, lifecycle) {
         (Kind::Incident, Some(Lifecycle::Investigating | Lifecycle::InProgress)) => true,
