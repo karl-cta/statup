@@ -27,6 +27,18 @@ Since the first public commit:
 - Page transitions and a short highlight on what just arrived or changed,
   both off with reduced motion.
 - Fixed: publishing needed two clicks in Safari.
+- Passwords chosen from now on need 12 characters with upper and lower case
+  letters, a digit and a symbol, or 20 characters of any kind.
+- The Compose file publishes Statup on this machine only until you open it,
+  so nobody else can create the first administrator.
+- Security: behind a proxy, the client address is read from the one header
+  named in `CLIENT_IP_HEADER` (the last entry of `X-Forwarded-For` by
+  default); an IPv6 client is limited as its whole /64; a sign-in form stays
+  valid one hour instead of seven days; wrong current passwords are limited
+  on the profile page; a temporary password is kept nowhere in clear and
+  expires after seven days; past 64 password checks waiting, a sign-in is
+  turned away instead of queued.
 
-Database: two migrations, applied on start (a maintenance without downtime
-flag, and a single dashboard layout that keeps the members' arrangement).
+Database: three migrations, applied on start (a maintenance without downtime
+flag, a single dashboard layout that keeps the members' arrangement, and the
+expiry of temporary passwords).

@@ -30,6 +30,9 @@ in front of the application.
 
 - Sign-in uses Argon2id. A wrong password costs the same time whether the
   account exists or not.
+- A chosen password needs 12 characters mixing upper and lower case letters,
+  digits and symbols, or 20 characters. A temporary password is shown once,
+  kept nowhere in clear, and expires after seven days.
 - Every form carries a CSRF token bound to the session; htmx sends it as a
   header.
 - The Content Security Policy allows the instance's own files only. No inline
