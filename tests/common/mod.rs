@@ -15,6 +15,7 @@ use reqwest::cookie::{CookieStore, Jar};
 use reqwest::redirect::Policy;
 
 use statup::db;
+use statup::middleware::client_ip::{ClientIpSource, X_FORWARDED_FOR};
 use statup::middleware::rate_limit::RateLimit;
 use statup::models::Role;
 use statup::routes::create_router;
@@ -73,10 +74,11 @@ impl TestApp {
             upload_dir: upload_dir.to_string_lossy().to_string(),
             public_mode: Arc::new(AtomicBool::new(options.public_mode)),
             trust_proxy_headers: options.trust_proxy_headers,
+            client_ip_source: client_ip_source(options.trust_proxy_headers),
             public_url: options.public_url.map(ToOwned::to_owned),
         };
         // A small budget, so a test can exhaust it with a short burst.
-        let rate_limit = RateLimit::with_quota(100, options.trust_proxy_headers)
+        let rate_limit = RateLimit::with_quota(100, client_ip_source(options.trust_proxy_headers))
             .expect("invalid rate limit quota");
         let secure = state.serves_https();
         let sessions = session::session_layer(store, Duration::from_secs(3600), secure);
@@ -205,6 +207,15 @@ impl TestApp {
 impl Drop for TestApp {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.upload_dir);
+    }
+}
+
+/// Behind the test's pretend proxy, the one that appends `X-Forwarded-For`.
+fn client_ip_source(trust_proxy_headers: bool) -> ClientIpSource {
+    if trust_proxy_headers {
+        ClientIpSource::Header(X_FORWARDED_FOR)
+    } else {
+        ClientIpSource::Peer
     }
 }
 

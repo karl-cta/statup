@@ -8,6 +8,8 @@ use std::net::IpAddr;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
+use crate::middleware::client_ip::limit_key;
+
 /// Failures allowed per address and account before blocking.
 const MAX_ATTEMPTS: u32 = 5;
 /// Failures allowed per address, all accounts together.
@@ -24,7 +26,7 @@ struct Key {
 impl Key {
     fn new(ip: &IpAddr, email: &str) -> Self {
         Self {
-            ip: *ip,
+            ip: limit_key(*ip),
             account: email.trim().to_lowercase(),
         }
     }
@@ -61,9 +63,10 @@ impl LoginRateLimiter {
         let account = map
             .get(&Key::new(ip, email))
             .is_some_and(|entry| entry.count >= MAX_ATTEMPTS);
+        let block = limit_key(*ip);
         let address: u32 = map
             .iter()
-            .filter(|(key, _)| key.ip == *ip)
+            .filter(|(key, _)| key.ip == block)
             .map(|(_, entry)| entry.count)
             .sum();
         account || address >= MAX_ATTEMPTS_PER_ADDRESS
@@ -144,6 +147,16 @@ mod tests {
         }
         assert!(limiter.is_blocked(&ip("127.0.0.1"), "someone-else@example.org"));
         assert!(!limiter.is_blocked(&ip("192.0.2.1"), "someone-else@example.org"));
+    }
+
+    #[test]
+    fn a_new_address_in_the_same_ipv6_block_is_still_blocked() {
+        let limiter = LoginRateLimiter::default();
+        for n in 0..MAX_ATTEMPTS {
+            limiter.record_failure(&ip(&format!("2001:db8:0:1::{n}")), ALICE);
+        }
+        assert!(limiter.is_blocked(&ip("2001:db8:0:1::ffff"), ALICE));
+        assert!(!limiter.is_blocked(&ip("2001:db8:0:2::1"), ALICE));
     }
 
     #[test]

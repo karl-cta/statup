@@ -7,7 +7,10 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::str::FromStr;
 use std::time::Duration;
 
+use axum::http::HeaderName;
 use tracing::level_filters::LevelFilter;
+
+use crate::middleware::client_ip::{ClientIpSource, X_FORWARDED_FOR};
 
 /// Errors that can occur when loading or validating configuration.
 #[derive(Debug, thiserror::Error)]
@@ -42,10 +45,12 @@ pub struct Config {
     /// Whether visitors without an account can read the pages, until an
     /// admin chooses in the settings.
     pub public_mode: bool,
-    /// Read the client address from `X-Real-IP`, `X-Forwarded-For` or
-    /// `Forwarded`. Only behind a reverse proxy that sets them: without one,
-    /// a client can forge them and walk around the rate limits.
+    /// Read the client address from `client_ip_header` and the scheme from
+    /// `X-Forwarded-Proto`. Only behind a reverse proxy that sets them:
+    /// without one, a client can forge them and walk around the rate limits.
     pub trust_proxy_headers: bool,
+    /// The header the reverse proxy writes the client address in.
+    pub client_ip_header: HeaderName,
     /// Address visitors use to reach the instance, without a trailing slash.
     /// Feed readers need absolute links, and the `Host` header is not reliable
     /// enough behind a proxy that rewrites it. Falls back to the request host.
@@ -74,6 +79,7 @@ impl Config {
             upload_dir: env_or("UPLOAD_DIR", "data/uploads"),
             public_mode: parse_env("PUBLIC_MODE", false)?,
             trust_proxy_headers: parse_env("TRUST_PROXY_HEADERS", false)?,
+            client_ip_header: parse_env("CLIENT_IP_HEADER", X_FORWARDED_FOR)?,
             public_url: non_empty_env("PUBLIC_URL")
                 .map(|url| url.trim().trim_end_matches('/').to_string()),
         };
@@ -101,6 +107,15 @@ impl Config {
     /// Return the full socket address for binding.
     pub fn bind_addr(&self) -> String {
         format!("{}:{}", self.host, self.port)
+    }
+
+    /// Where the client address is read from.
+    pub fn client_ip_source(&self) -> ClientIpSource {
+        if self.trust_proxy_headers {
+            ClientIpSource::Header(self.client_ip_header.clone())
+        } else {
+            ClientIpSource::Peer
+        }
     }
 
     /// Whether cookies are marked `Secure`. Only when visitors reach the

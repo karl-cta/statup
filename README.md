@@ -86,7 +86,8 @@ Every setting is optional. Copy `.env.example` to `.env` to change one. With Doc
 |---|---|---|
 | `TZ` | `UTC` | Time zone used until one is chosen, e.g. `Europe/Paris`. The zone set in Settings, or taken from the first account's browser, takes precedence. Dates are shown in it, with the UTC offset where it matters, and maintenance times are typed in it |
 | `PUBLIC_URL` | request host | Address visitors use, e.g. `https://status.example.com`. Feed links use it; an `https://` address marks the session cookie `Secure` and sends HSTS |
-| `TRUST_PROXY_HEADERS` | `false` | Read the client address from `X-Real-IP`, or the last entry of `X-Forwarded-For` or `Forwarded`, and the scheme from `X-Forwarded-Proto`. Only behind a reverse proxy that sets them |
+| `TRUST_PROXY_HEADERS` | `false` | Read the client address from `CLIENT_IP_HEADER` and the scheme from `X-Forwarded-Proto`. Only behind a reverse proxy that sets them |
+| `CLIENT_IP_HEADER` | `X-Forwarded-For` | The header your proxy writes the client address in, such as `X-Real-IP`, `Forwarded` or `CF-Connecting-IP`. Only its last entry counts, and no other header is read |
 | `PUBLIC_MODE` | `false` | Starting public access, until an administrator chooses in Settings |
 | `DEFAULT_LOCALE` | `fr` | `fr` or `en`, for visitors whose browser asks for neither |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | unset | Create an administrator at start when no account exists. Both are needed, and the password needs 12 characters or more. Remove them afterwards |
@@ -101,22 +102,31 @@ Every setting is optional. Copy `.env.example` to `.env` to change one. With Doc
 
 ### Running behind a reverse proxy
 
-Terminate TLS at the proxy, publish Statup on loopback only (`"127.0.0.1:3000:3000"` in `docker-compose.yml`), then set:
+Terminate TLS at the proxy, keep Statup on loopback as `docker-compose.yml` publishes it, then set:
 
 ```bash
 PUBLIC_URL=https://status.example.com
 TRUST_PROXY_HEADERS=true
 ```
 
-Statup takes the client address from `X-Real-IP`, otherwise from the last entry of `X-Forwarded-For` or `Forwarded`: the one your proxy wrote, whatever a client sent before it. With nginx:
+Statup then takes the client address from the last entry of `X-Forwarded-For`: the one your proxy appended, whatever a client sent before it. nginx, Caddy, Traefik, Apache and HAProxy (with `option forwardfor`) all append it. If your proxy writes the address in another header, name that header in `CLIENT_IP_HEADER`.
+
+With nginx:
 
 ```nginx
 location / {
     proxy_pass http://127.0.0.1:3000;
     proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+With Caddy, which sets both headers on its own:
+
+```caddy
+status.example.com {
+    reverse_proxy 127.0.0.1:3000
 }
 ```
 

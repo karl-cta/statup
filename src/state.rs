@@ -7,6 +7,7 @@ use axum::extract::FromRef;
 
 use crate::config::serves_https;
 use crate::db::DbPool;
+use crate::middleware::client_ip::ClientIpSource;
 use crate::services::LoginRateLimiter;
 
 /// Application state shared across all request handlers.
@@ -21,8 +22,10 @@ pub struct AppState {
     /// Whether visitors without an account can read the pages. An admin
     /// changes it at runtime.
     pub public_mode: Arc<AtomicBool>,
-    /// Read the client address from the headers of a trusted reverse proxy.
+    /// Read the scheme from the headers of a trusted reverse proxy.
     pub trust_proxy_headers: bool,
+    /// Where the client address is read from.
+    pub client_ip_source: ClientIpSource,
     /// Absolute address of the instance, for feed links and secure cookies.
     pub public_url: Option<String>,
 }

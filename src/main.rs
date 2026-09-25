@@ -42,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
     let session_store = session::create_session_store(&pool)
         .await
         .context("cannot create the session store")?;
-    let rate_limit = RateLimit::new(config.trust_proxy_headers)?;
+    let rate_limit = RateLimit::new(config.client_ip_source())?;
     let tasks = spawn_background_tasks(&pool, &rate_limit);
 
     let sessions = session::session_layer(
@@ -158,6 +158,7 @@ async fn build_state(config: &Config, pool: DbPool) -> anyhow::Result<AppState> 
         upload_dir: config.upload_dir.clone(),
         public_mode: Arc::new(AtomicBool::new(public_mode)),
         trust_proxy_headers: config.trust_proxy_headers,
+        client_ip_source: config.client_ip_source(),
         public_url: config.public_url.clone(),
     })
 }

@@ -19,7 +19,7 @@ use tower_governor::GovernorLayer;
 use tower_governor::governor::{GovernorConfig, GovernorConfigBuilder};
 use tower_governor::key_extractor::KeyExtractor;
 
-use super::client_ip::client_ip;
+use super::client_ip::{ClientIpSource, client_ip, limit_key};
 use crate::error::AppError;
 use crate::i18n::I18n;
 
@@ -31,9 +31,9 @@ const CLEANUP_PERIOD: Duration = Duration::from_secs(60);
 type Config = GovernorConfig<ClientIpKeyExtractor, NoOpMiddleware>;
 
 /// Rate limit keyed on the client address, see [`client_ip`].
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct ClientIpKeyExtractor {
-    trust_proxy: bool,
+    source: ClientIpSource,
 }
 
 impl KeyExtractor for ClientIpKeyExtractor {
@@ -44,7 +44,9 @@ impl KeyExtractor for ClientIpKeyExtractor {
             .extensions()
             .get::<ConnectInfo<SocketAddr>>()
             .map(|info| info.0.ip());
-        client_ip(req.headers(), peer, self.trust_proxy).ok_or(GovernorError::UnableToExtractKey)
+        client_ip(req.headers(), peer, &self.source)
+            .map(limit_key)
+            .ok_or(GovernorError::UnableToExtractKey)
     }
 }
 
@@ -58,8 +60,8 @@ impl RateLimit {
     /// # Errors
     ///
     /// Returns an error if the quota constants are invalid.
-    pub fn new(trust_proxy: bool) -> anyhow::Result<Self> {
-        Self::with_quota(DEFAULT_PER_MINUTE, trust_proxy)
+    pub fn new(source: ClientIpSource) -> anyhow::Result<Self> {
+        Self::with_quota(DEFAULT_PER_MINUTE, source)
     }
 
     /// A limiter allowing `per_minute` requests a minute per address.
@@ -67,10 +69,10 @@ impl RateLimit {
     /// # Errors
     ///
     /// Returns an error when `per_minute` is zero.
-    pub fn with_quota(per_minute: u32, trust_proxy: bool) -> anyhow::Result<Self> {
+    pub fn with_quota(per_minute: u32, source: ClientIpSource) -> anyhow::Result<Self> {
         let replenish_every_ms = 60_000 / u64::from(per_minute.max(1));
         let config = GovernorConfigBuilder::default()
-            .key_extractor(ClientIpKeyExtractor { trust_proxy })
+            .key_extractor(ClientIpKeyExtractor { source })
             .per_millisecond(replenish_every_ms)
             .burst_size(per_minute)
             .error_handler(|error| limit_response(&error))
@@ -204,8 +206,8 @@ mod tests {
 
     #[test]
     fn the_quota_is_valid() {
-        assert!(RateLimit::new(false).is_ok());
-        assert!(RateLimit::with_quota(1, false).is_ok());
-        assert!(RateLimit::with_quota(0, false).is_err());
+        assert!(RateLimit::new(ClientIpSource::Peer).is_ok());
+        assert!(RateLimit::with_quota(1, ClientIpSource::Peer).is_ok());
+        assert!(RateLimit::with_quota(0, ClientIpSource::Peer).is_err());
     }
 }

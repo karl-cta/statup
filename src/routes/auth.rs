@@ -174,7 +174,7 @@ pub async fn login(
     HtmlForm(input): HtmlForm<LoginInput>,
 ) -> Result<Response, AppError> {
     let peer = connect_info.map(|info| info.0.ip());
-    let ip = client_ip(&headers, peer, state.trust_proxy_headers)
+    let ip = client_ip(&headers, peer, &state.client_ip_source)
         .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
 
     let refusal = missing_credentials(&input).or_else(|| blocked(&state, &ip, &input.email));
