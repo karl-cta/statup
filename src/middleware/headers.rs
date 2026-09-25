@@ -1,9 +1,9 @@
-//! Response headers: caching of static and uploaded files, and the policy
-//! that confines uploaded files.
+//! Headers: whether htmx sent a request, caching of static and uploaded
+//! files, and the policy that confines uploaded files.
 
 use axum::extract::Request;
-use axum::http::HeaderValue;
 use axum::http::header::{CACHE_CONTROL, CONTENT_SECURITY_POLICY};
+use axum::http::{HeaderMap, HeaderValue};
 use axum::middleware::Next;
 use axum::response::Response;
 
@@ -20,6 +20,12 @@ const UPLOAD_CSP: &str = "default-src 'none'; style-src 'unsafe-inline'; sandbox
 /// Pages carry a CSRF token and personal data, so no shared cache may
 /// keep them and browsers ask again before reuse.
 pub const DYNAMIC_CACHE_CONTROL: &str = "no-cache, private";
+
+/// A request sent by htmx, which swaps the answer into the page it came
+/// from instead of loading a new one.
+pub fn is_htmx(headers: &HeaderMap) -> bool {
+    headers.contains_key("hx-request")
+}
 
 /// Static files: cached for a year when the page links them with a version
 /// (`?v=`), revalidated after five minutes otherwise. Errors are not cached.

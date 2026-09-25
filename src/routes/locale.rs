@@ -30,7 +30,7 @@ pub async fn switch(
     Query(query): Query<SwitchQuery>,
 ) -> Result<Response, AppError> {
     let Some(locale) = LOCALES.iter().copied().find(|l| *l == query.locale) else {
-        return Err(AppError::Validation("error.unsupported_locale".into()));
+        return Err(AppError::validation("error.unsupported_locale"));
     };
     if let Some(user) = &user {
         UserRepository::update_preferred_locale(&state.pool, user.id, Some(locale)).await?;

@@ -22,7 +22,7 @@ impl LogoService {
     /// replaces.
     pub async fn replace(pool: &DbPool, upload_dir: &str, data: Vec<u8>) -> Result<(), AppError> {
         if data.is_empty() {
-            return Err(AppError::Validation("validation.file_empty".to_string()));
+            return Err(AppError::validation("validation.file_empty"));
         }
         let (mime, image) = prepare_image(data, MAX_LOGO_DIMENSION).await?;
         let filename = format!("logo-{}.{}", uuid::Uuid::new_v4(), mime_to_extension(mime));

@@ -10,8 +10,7 @@ use serde::Deserialize;
 use crate::error::AppError;
 use crate::i18n::Locale;
 use crate::middleware::{HtmlForm, RequireAdmin};
-use crate::modules::{ColumnWidth, ModuleRegistry};
-use crate::repositories::DashboardLayoutRepository;
+use crate::services::DashboardLayoutService;
 use crate::state::AppState;
 
 #[derive(Deserialize)]
@@ -25,7 +24,7 @@ pub async fn save_order(
     State(state): State<AppState>,
     HtmlForm(form): HtmlForm<OrderForm>,
 ) -> Result<Response, AppError> {
-    DashboardLayoutRepository::save_order(&state.pool, &form.order).await?;
+    DashboardLayoutService::save_order(&state.pool, &form.order).await?;
     tracing::info!(admin_id = admin.id, "Dashboard order saved");
     Ok(StatusCode::NO_CONTENT.into_response())
 }
@@ -36,30 +35,14 @@ pub struct ToggleForm {
     enabled: Option<String>,
 }
 
-/// Shows or hides a module. The pinned banner cannot be hidden: a status
-/// page without its status is a blank page.
 pub async fn toggle_module(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
     Path(module_id): Path<String>,
     HtmlForm(form): HtmlForm<ToggleForm>,
 ) -> Result<Response, AppError> {
-    let module = ModuleRegistry::global()
-        .get(&module_id)
-        .ok_or(AppError::NotFound)?;
-    if module.column_width() == ColumnWidth::Full {
-        return Err(AppError::Validation(
-            "validation.banner_always_shown".to_string(),
-        ));
-    }
     let enabled = matches!(form.enabled.as_deref(), Some("true" | "on" | "1"));
-    DashboardLayoutRepository::insert_if_missing(
-        &state.pool,
-        &module_id,
-        module.default_position(),
-    )
-    .await?;
-    DashboardLayoutRepository::set_enabled(&state.pool, &module_id, enabled).await?;
+    DashboardLayoutService::set_enabled(&state.pool, &module_id, enabled).await?;
     tracing::info!(admin_id = admin.id, %module_id, enabled, "Dashboard module toggled");
     Ok(StatusCode::NO_CONTENT.into_response())
 }
@@ -70,26 +53,13 @@ pub struct WidthForm {
     width: String,
 }
 
-/// Gives a module a quarter of the row, half of it, or a row of its own.
 pub async fn set_width(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
     Path(module_id): Path<String>,
     HtmlForm(form): HtmlForm<WidthForm>,
 ) -> Result<Response, AppError> {
-    let module = ModuleRegistry::global()
-        .get(&module_id)
-        .ok_or(AppError::NotFound)?;
-    let width = ColumnWidth::parse(&form.width)
-        .filter(|_| module.column_width() != ColumnWidth::Full)
-        .ok_or_else(|| AppError::Validation("error.invalid_data".to_string()))?;
-    DashboardLayoutRepository::insert_if_missing(
-        &state.pool,
-        &module_id,
-        module.default_position(),
-    )
-    .await?;
-    DashboardLayoutRepository::set_width(&state.pool, &module_id, width.as_str()).await?;
+    let width = DashboardLayoutService::set_width(&state.pool, &module_id, &form.width).await?;
     tracing::info!(admin_id = admin.id, %module_id, width = width.as_str(), "Dashboard module width saved");
     Ok(StatusCode::NO_CONTENT.into_response())
 }
@@ -100,9 +70,6 @@ pub struct ShownForm {
     show: Vec<String>,
 }
 
-/// Saves what a module shows, among the options it offers, as what it
-/// leaves out. At least one stays ticked: a card that shows nothing is a
-/// blank card.
 pub async fn set_shown(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
@@ -110,30 +77,7 @@ pub async fn set_shown(
     Path(module_id): Path<String>,
     HtmlForm(form): HtmlForm<ShownForm>,
 ) -> Result<Response, AppError> {
-    let module = ModuleRegistry::global()
-        .get(&module_id)
-        .ok_or(AppError::NotFound)?;
-    let offered = module.options(&state.pool, &i18n, None).await?;
-    let valid = !form.show.is_empty()
-        && form
-            .show
-            .iter()
-            .all(|value| offered.iter().any(|option| &option.value == value));
-    if !valid {
-        return Err(AppError::Validation("error.invalid_data".to_string()));
-    }
-    let hidden: Vec<String> = offered
-        .into_iter()
-        .map(|option| option.value)
-        .filter(|value| !form.show.contains(value))
-        .collect();
-    DashboardLayoutRepository::insert_if_missing(
-        &state.pool,
-        &module_id,
-        module.default_position(),
-    )
-    .await?;
-    DashboardLayoutRepository::set_hidden(&state.pool, &module_id, &hidden).await?;
+    DashboardLayoutService::set_shown(&state.pool, &i18n, &module_id, &form.show).await?;
     tracing::info!(admin_id = admin.id, %module_id, "Dashboard module settings saved");
     Ok(StatusCode::NO_CONTENT.into_response())
 }

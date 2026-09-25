@@ -149,7 +149,7 @@ pub(super) async fn extract_upload(
 ) -> Result<(String, Vec<u8>), AppError> {
     let unreadable = |e: axum::extract::multipart::MultipartError| {
         tracing::debug!(error = %e, "Unreadable upload");
-        AppError::Validation("validation.invalid_form_data".to_string())
+        AppError::validation("validation.invalid_form_data")
     };
     let mut file_data = None;
     while let Some(field) = multipart.next_field().await.map_err(unreadable)? {
@@ -164,13 +164,11 @@ pub(super) async fn extract_upload(
             .collect();
         let data = field.bytes().await.map_err(unreadable)?;
         if data.len() > MAX_ICON_SIZE {
-            return Err(AppError::Validation(
-                "validation.file_too_large".to_string(),
-            ));
+            return Err(AppError::validation("validation.file_too_large"));
         }
         file_data = Some((original_name, data.to_vec()));
     }
-    file_data.ok_or_else(|| AppError::Validation("validation.no_file".to_string()))
+    file_data.ok_or_else(|| AppError::validation("validation.no_file"))
 }
 
 async fn store_upload(

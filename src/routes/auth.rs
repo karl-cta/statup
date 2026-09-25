@@ -24,8 +24,8 @@ use crate::middleware::client_ip::client_ip;
 use crate::middleware::csrf::{form_token, renew_token};
 use crate::middleware::{FormCsrfToken, HtmlForm, OptionalUser};
 use crate::models::{User, check_display_name};
-use crate::repositories::{SettingsRepository, UserRepository};
-use crate::services::AuthService;
+use crate::repositories::UserRepository;
+use crate::services::{AuthService, SettingsService};
 use crate::session::{USER_ID_KEY, rotate_id, stamp_credential, start_signed_in, write_value};
 use crate::state::AppState;
 
@@ -335,8 +335,7 @@ async fn adopt_browser_zone(state: &AppState, name: &str) -> Result<(), AppError
     let Some(zone) = clock::parse_zone(name) else {
         return Ok(());
     };
-    SettingsRepository::set(&state.pool, clock::ZONE_SETTING, zone.name()).await?;
-    clock::set_zone(zone);
+    SettingsService::set_time_zone(&state.pool, zone).await?;
     tracing::info!(
         time_zone = zone.name(),
         "Instance time zone taken from the browser"

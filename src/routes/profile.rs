@@ -121,17 +121,16 @@ async fn save_profile(
     user: &User,
     input: &ProfileInput,
 ) -> Result<User, AppError> {
-    let name = check_display_name(&input.display_name)
-        .map_err(|key| AppError::Validation(key.to_string()))?;
+    let name = check_display_name(&input.display_name).map_err(AppError::validation)?;
     let email = AuthService::normalize_email(&input.email)?;
     if UserRepository::email_taken_by_other(&state.pool, &email, user.id).await? {
-        return Err(AppError::Validation("validation.email_taken".to_string()));
+        return Err(AppError::validation("validation.email_taken"));
     }
     UserRepository::update_profile(&state.pool, user.id, &email, &name)
         .await
         .map_err(|e| match &e {
             sqlx::Error::Database(db) if db.is_unique_violation() => {
-                AppError::Validation("validation.email_taken".to_string())
+                AppError::validation("validation.email_taken")
             }
             _ => AppError::Database(e),
         })?;

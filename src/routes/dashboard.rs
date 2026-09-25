@@ -14,6 +14,7 @@ use super::{Frame, members_only, render};
 use crate::clock;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
+use crate::middleware::headers::is_htmx;
 use crate::middleware::{CsrfToken, OptionalUser};
 use crate::models::User;
 use crate::modules::{ColumnWidth, ModuleOption, ModuleRenderContext};
@@ -172,7 +173,7 @@ pub async fn index(
     }
     let page_address = origin(&state, &headers);
     let live = render_modules(&state, user.as_ref(), &page_address, &i18n).await?;
-    if headers.contains_key("hx-request") {
+    if is_htmx(&headers) {
         return live_response(live, i18n);
     }
     let frame = Frame::load(&state.pool, user.as_ref(), csrf_token.0, &i18n).await?;

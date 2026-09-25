@@ -10,6 +10,7 @@ use crate::clock;
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::i18n::I18n;
+use crate::middleware::headers::is_htmx;
 use crate::models::User;
 use crate::services::EventService;
 use crate::state::AppState;
@@ -25,7 +26,7 @@ pub fn members_only(
     if user.is_some() || state.is_public_mode() {
         return None;
     }
-    let response = if headers.contains_key("hx-request") {
+    let response = if is_htmx(headers) {
         [("hx-redirect", "/login")].into_response()
     } else {
         Redirect::to("/login").into_response()

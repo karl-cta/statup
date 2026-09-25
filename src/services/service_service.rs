@@ -21,7 +21,7 @@ impl ServiceService {
     ) -> Result<Service, AppError> {
         let name = name.trim();
         if let Some(key) = service_field_error(name, description) {
-            return Err(AppError::Validation(key.to_string()));
+            return Err(AppError::validation(key));
         }
         let slug = unique_slug(pool, name).await?;
         let description = clean_description(description);
@@ -38,7 +38,7 @@ impl ServiceService {
     ) -> Result<(), AppError> {
         let name = name.trim();
         if let Some(key) = service_field_error(name, description) {
-            return Err(AppError::Validation(key.to_string()));
+            return Err(AppError::validation(key));
         }
         ServiceRepository::find_by_id(pool, id)
             .await?
@@ -55,9 +55,7 @@ impl ServiceService {
             .await?
             .ok_or(AppError::NotFound)?;
         if ServiceRepository::has_events(pool, id).await? {
-            return Err(AppError::Validation(
-                "validation.service_has_events".to_string(),
-            ));
+            return Err(AppError::validation("validation.service_has_events"));
         }
         ServiceRepository::delete(pool, id).await?;
         Ok(())

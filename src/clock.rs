@@ -9,9 +9,6 @@ use std::sync::{OnceLock, PoisonError, RwLock};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Utc};
 use chrono_tz::Tz;
 
-/// Settings key of the zone an admin chose.
-pub const ZONE_SETTING: &str = "time_zone";
-
 /// The zone chosen in the settings, once there is one.
 static CHOSEN_ZONE: RwLock<Option<Tz>> = RwLock::new(None);
 

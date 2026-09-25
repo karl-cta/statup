@@ -9,7 +9,6 @@ use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 
-use super::admin::{instance_name_refusal, save_instance_name, save_public_mode};
 use super::dashboard::origin;
 use super::render;
 use crate::error::AppError;
@@ -17,7 +16,7 @@ use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, HtmlForm, RequireAdmin};
 use crate::models::{MAX_ICON_SIZE, Service};
 use crate::repositories::ServiceRepository;
-use crate::services::{LogoService, ServiceService};
+use crate::services::{LogoService, ServiceService, SettingsService};
 use crate::state::AppState;
 
 /// Rows the preview draws before counting the rest.
@@ -224,7 +223,7 @@ struct PageInput {
 }
 
 async fn read_page_input(multipart: &mut Multipart) -> Result<PageInput, AppError> {
-    let unreadable = |_| AppError::Validation("validation.invalid_form_data".to_string());
+    let unreadable = |_| AppError::validation("validation.invalid_form_data");
     let mut input = PageInput::default();
     while let Some(field) = multipart.next_field().await.map_err(unreadable)? {
         match field.name() {
@@ -237,9 +236,7 @@ async fn read_page_input(multipart: &mut Multipart) -> Result<PageInput, AppErro
         }
     }
     if input.logo.len() > MAX_ICON_SIZE {
-        return Err(AppError::Validation(
-            "validation.file_too_large".to_string(),
-        ));
+        return Err(AppError::validation("validation.file_too_large"));
     }
     Ok(input)
 }
@@ -247,23 +244,21 @@ async fn read_page_input(multipart: &mut Multipart) -> Result<PageInput, AppErro
 /// Name, logo and audience, each kept as the settings page keeps it.
 async fn apply_page(state: &AppState, input: &PageInput) -> Result<(), AppError> {
     let name = input.instance_name.trim();
-    if let Some(key) = instance_name_refusal(name) {
-        return Err(AppError::Validation(key.to_string()));
+    if let Some(key) = SettingsService::name_refusal(name) {
+        return Err(AppError::validation(key));
     }
     let public = match input.access.as_str() {
         "everyone" => true,
         "members" => false,
         _ => {
-            return Err(AppError::Validation(
-                "validation.unknown_access".to_string(),
-            ));
+            return Err(AppError::validation("validation.unknown_access"));
         }
     };
     if !input.logo.is_empty() {
         LogoService::replace(&state.pool, &state.upload_dir, input.logo.clone()).await?;
     }
-    save_instance_name(state, name).await?;
-    save_public_mode(state, public).await
+    SettingsService::set_name(&state.pool, name).await?;
+    SettingsService::set_public_mode(state, public).await
 }
 
 pub async fn save_page(
@@ -349,9 +344,7 @@ fn new_names(input: &ServicesInput, existing: &[Service]) -> Vec<String> {
 
 async fn create_services(state: &AppState, names: &[String], i18n: &I18n) -> Result<(), AppError> {
     if names.len() > MAX_NEW_SERVICES {
-        return Err(AppError::Validation(
-            "validation.too_many_services".to_string(),
-        ));
+        return Err(AppError::validation("validation.too_many_services"));
     }
     for name in names {
         ServiceService::create(&state.pool, name, None, None, icon_for(name, i18n)).await?;

@@ -21,7 +21,7 @@ fn body_error(rejection: BytesRejection) -> AppError {
         }
         other => {
             tracing::debug!(error = %other, "Request body could not be read");
-            AppError::Validation("error.invalid_data".to_string())
+            AppError::validation("error.invalid_data")
         }
     }
 }

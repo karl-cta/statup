@@ -29,5 +29,5 @@ where
 async fn decode_form<T: DeserializeOwned>(req: Request) -> Result<T, AppError> {
     let bytes = buffer_body(req.into_body()).await?;
     serde_html_form::from_bytes(&bytes)
-        .map_err(|_| AppError::Validation("validation.invalid_form_data".to_string()))
+        .map_err(|_| AppError::validation("validation.invalid_form_data"))
 }

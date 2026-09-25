@@ -11,6 +11,7 @@ use serde::Deserialize;
 use super::{Frame, members_only, render};
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
+use crate::middleware::headers::is_htmx;
 use crate::middleware::{CsrfToken, HtmlForm, OptionalUser, RequirePublisher};
 use crate::models::{
     BUILTIN_ICONS, BuiltinIcon, EventFilters, EventSummary, Icon, Service, ServiceStatus, User,
@@ -387,7 +388,7 @@ pub struct StatusInput {
 #[derive(Template)]
 #[template(path = "components/status_selector.html")]
 struct StatusSelectorFragment {
-    frame: StatusFrame,
+    csrf_token: String,
     service: Service,
     /// The event holding the service in its state, if one does.
     driver: Option<(i64, String)>,
@@ -395,11 +396,6 @@ struct StatusSelectorFragment {
     /// an undo.
     previous: Option<ServiceStatus>,
     i18n: I18n,
-}
-
-/// The one field of the page frame the fragment reads.
-struct StatusFrame {
-    csrf_token: String,
 }
 
 /// Answers htmx with the refreshed cell; a plain form post goes back to the
@@ -416,22 +412,20 @@ pub async fn update_status(
     let status: ServiceStatus = input
         .status
         .parse()
-        .map_err(|()| AppError::Validation("error.invalid_data".to_string()))?;
+        .map_err(|()| AppError::validation("error.invalid_data"))?;
     let before = ServiceRepository::find_by_id(&state.pool, id)
         .await?
         .ok_or(AppError::NotFound)?
         .manual_status;
     ServiceService::set_manual_status(&state.pool, id, status).await?;
-    if !headers.contains_key("hx-request") {
+    if !is_htmx(&headers) {
         return Ok(Redirect::to(&format!("/services?saved={id}")).into_response());
     }
     let service = ServiceRepository::find_by_id(&state.pool, id)
         .await?
         .ok_or(AppError::NotFound)?;
     render(&StatusSelectorFragment {
-        frame: StatusFrame {
-            csrf_token: csrf_token.0,
-        },
+        csrf_token: csrf_token.0,
         previous: (input.undo.is_none() && before != status).then_some(before),
         driver: EventRepository::state_drivers(&state.pool, Some(id))
             .await?

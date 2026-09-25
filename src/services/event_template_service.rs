@@ -15,7 +15,7 @@ impl EventTemplateService {
     ) -> Result<EventTemplate, AppError> {
         let title = input.title.trim();
         if let Some(key) = event_field_error(title) {
-            return Err(AppError::Validation(key.to_string()));
+            return Err(AppError::validation(key));
         }
         let input = CreateTemplateInput {
             title,

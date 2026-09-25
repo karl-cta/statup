@@ -423,7 +423,7 @@ async fn a_disabled_accounts_email_is_still_taken() {
 }
 
 #[tokio::test]
-async fn modules_are_reordered_by_their_handle_alone() {
+async fn arrange_mode_draws_handles_and_widths_and_keeps_a_width() {
     let (app, _admin_id) = spawn_with_admin().await;
 
     let (status, body) = app.get("/?arrange=1").await;

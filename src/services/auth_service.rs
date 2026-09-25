@@ -73,9 +73,7 @@ impl AuthService {
         if is_strong_enough(password) {
             Ok(())
         } else {
-            Err(AppError::Validation(
-                "validation.password_too_weak".to_string(),
-            ))
+            Err(AppError::validation("validation.password_too_weak"))
         }
     }
 
@@ -90,9 +88,7 @@ impl AuthService {
     ) -> Result<String, AppError> {
         Self::validate_password(password)?;
         if password != confirmation {
-            return Err(AppError::Validation(
-                "validation.passwords_mismatch".to_string(),
-            ));
+            return Err(AppError::validation("validation.passwords_mismatch"));
         }
         let hash = Self::hash_password(password).await?;
         UserRepository::update_password(pool, user_id, &hash).await?;
@@ -106,7 +102,7 @@ impl AuthService {
         if is_well_formed_email(&email) {
             Ok(email)
         } else {
-            Err(AppError::Validation("validation.email_invalid".to_string()))
+            Err(AppError::validation("validation.email_invalid"))
         }
     }
 
@@ -140,7 +136,7 @@ impl AuthService {
             .await?
             .ok_or(AppError::NotFound)?;
         if !user.is_active {
-            return Err(AppError::Validation("validation.reset_inactive".into()));
+            return Err(AppError::validation("validation.reset_inactive"));
         }
         let password = Self::issue_temporary_password(pool, user.id).await?;
         Ok((user, password))
@@ -277,8 +273,8 @@ impl AuthService {
                 user_id = user.id,
                 "Sign-in refused: temporary password expired"
             );
-            return Err(AppError::Validation(
-                "validation.temporary_password_expired".to_string(),
+            return Err(AppError::validation(
+                "validation.temporary_password_expired",
             ));
         }
 
@@ -324,11 +320,11 @@ fn is_domain_label(label: &str) -> bool {
 }
 
 fn email_taken() -> AppError {
-    AppError::Validation("validation.email_taken".to_string())
+    AppError::validation("validation.email_taken")
 }
 
 fn invalid_credentials() -> AppError {
-    AppError::Validation("validation.invalid_credentials".to_string())
+    AppError::validation("validation.invalid_credentials")
 }
 
 /// The existence check and the insert are two statements: an account
@@ -419,7 +415,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_hash_and_verify() {
+    async fn a_hashed_password_verifies_and_a_wrong_one_does_not() {
         let password = "super_secure_password_123";
         let hash = AuthService::hash_password(password).await.unwrap();
 
@@ -433,7 +429,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_different_hashes_for_same_password() {
+    async fn the_same_password_hashes_differently_each_time() {
         let password = "super_secure_password_123";
         let hash1 = AuthService::hash_password(password).await.unwrap();
         let hash2 = AuthService::hash_password(password).await.unwrap();

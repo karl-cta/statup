@@ -13,10 +13,10 @@ use tokio::task::{AbortHandle, JoinError};
 use statup::config::{Config, init_logging};
 use statup::db::{self, DbPool};
 use statup::middleware::rate_limit::RateLimit;
-use statup::repositories::SettingsRepository;
 use statup::routes::create_router;
 use statup::services::{
-    AuthService, DashboardLayoutService, LoginRateLimiter, spawn_maintenance_schedule,
+    AuthService, DashboardLayoutService, LoginRateLimiter, SettingsService,
+    spawn_maintenance_schedule,
 };
 use statup::session;
 use statup::state::AppState;
@@ -124,33 +124,10 @@ async fn build_state(config: &Config, pool: DbPool) -> anyhow::Result<AppState> 
         .with_context(|| format!("cannot create {}", icons_dir.display()))?;
     tracing::info!("Upload directory ready: {}", config.upload_dir);
 
-    let public_mode = SettingsRepository::get(&pool, "public_mode")
+    let public_mode = SettingsService::load(&pool, config.public_mode)
         .await
-        .context("cannot read the access setting")?
-        .map_or(config.public_mode, |stored| stored == "true");
+        .context("cannot read the settings")?;
     tracing::info!(public_mode, "Public mode");
-
-    if let Some(name) = SettingsRepository::get(&pool, "instance_name")
-        .await
-        .context("cannot read the instance name")?
-    {
-        statup::set_instance_name(&name);
-    }
-
-    if let Some(logo) = SettingsRepository::get(&pool, statup::services::LOGO_SETTING)
-        .await
-        .context("cannot read the logo")?
-    {
-        statup::set_instance_logo(&logo);
-    }
-
-    let chosen_zone = SettingsRepository::get(&pool, statup::clock::ZONE_SETTING)
-        .await
-        .context("cannot read the time zone")?
-        .and_then(|name| statup::clock::parse_zone(&name));
-    if let Some(zone) = chosen_zone {
-        statup::clock::set_zone(zone);
-    }
     tracing::info!(time_zone = statup::clock::zone().name(), "Time zone");
 
     Ok(AppState {

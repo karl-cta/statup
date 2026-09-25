@@ -147,12 +147,10 @@ impl IconService {
         user_id: i64,
     ) -> Result<Icon, AppError> {
         if data.is_empty() {
-            return Err(AppError::Validation("validation.file_empty".to_string()));
+            return Err(AppError::validation("validation.file_empty"));
         }
         if data.len() > MAX_ICON_SIZE {
-            return Err(AppError::Validation(
-                "validation.file_too_large".to_string(),
-            ));
+            return Err(AppError::validation("validation.file_too_large"));
         }
 
         let (mime, processed) = prepare_image(data, MAX_ICON_DIMENSION).await?;
@@ -187,7 +185,7 @@ impl IconService {
         let file_path = icon_path(upload_dir, &icon.filename);
         let file_exists = file_exists(&file_path).await;
         if file_exists && IconRepository::is_referenced(pool, id).await? {
-            return Err(AppError::Validation("validation.icon_in_use".to_string()));
+            return Err(AppError::validation("validation.icon_in_use"));
         }
 
         IconRepository::delete(pool, id).await?;
@@ -222,9 +220,7 @@ fn detect_mime(data: &[u8]) -> Result<&'static str, AppError> {
     if is_svg(data) {
         return Ok("image/svg+xml");
     }
-    Err(AppError::Validation(
-        "validation.unsupported_file_type".to_string(),
-    ))
+    Err(AppError::validation("validation.unsupported_file_type"))
 }
 
 /// Check if the data looks like an SVG file.
@@ -286,7 +282,7 @@ fn process_image(data: &[u8], mime: &str, max_dimension: u32) -> Result<Vec<u8>,
 /// an XML parser accepts: browsers parse a file served as `image/svg+xml`
 /// as XML and show nothing when it is not well formed.
 fn sanitize_svg(data: &[u8]) -> Result<Vec<u8>, AppError> {
-    let invalid = || AppError::Validation("validation.invalid_svg".to_string());
+    let invalid = || AppError::validation("validation.invalid_svg");
     let text = std::str::from_utf8(data).map_err(|_| invalid())?;
     let cleaned = svg_sanitizer().clean(text).to_string();
     let xml = to_xml_text(cleaned.trim());
@@ -352,7 +348,7 @@ fn resize_raster(
     reader.limits(decode_limits());
     let img = reader
         .decode()
-        .map_err(|_| AppError::Validation("validation.image_read_error".to_string()))?;
+        .map_err(|_| AppError::validation("validation.image_read_error"))?;
 
     let img = if img.width() > max_dimension || img.height() > max_dimension {
         img.thumbnail(max_dimension, max_dimension)

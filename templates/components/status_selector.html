@@ -12,7 +12,7 @@
     <form method="post" action="/services/{{ service.id }}/status"
           hx-post="/services/{{ service.id }}/status" hx-target="closest .status-cell" hx-swap="outerHTML"
           data-status-form>
-        <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <label for="status-{{ service.id }}" class="sr-only">{{ i18n.t("services.status_of") }} {{ service.name }}</label>
         <select id="status-{{ service.id }}" name="status" class="input" data-custom-select data-committed="{{ service.manual_status.as_str() }}">
             {% for status in crate::models::ServiceStatus::ALL %}
@@ -33,7 +33,7 @@
     <div class="receipt">
         <span data-announce>{{ i18n.t("services.status_published") }} {{ i18n.t(service.manual_status.i18n_key()) }}</span>
         <form hx-post="/services/{{ service.id }}/status" hx-target="closest .status-cell" hx-swap="outerHTML">
-            <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="status" value="{{ before.as_str() }}">
             <input type="hidden" name="undo" value="1">
             <button type="submit" class="receipt-undo">{{ i18n.t("services.undo_status") }}</button>

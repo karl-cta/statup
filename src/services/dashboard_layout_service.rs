@@ -3,6 +3,7 @@
 
 use crate::db::DbPool;
 use crate::error::AppError;
+use crate::i18n::I18n;
 use crate::modules::{ColumnWidth, Module, ModuleRegistry};
 use crate::repositories::DashboardLayoutRepository;
 
@@ -32,6 +33,67 @@ impl DashboardLayoutService {
             )
             .await?;
         }
+        Ok(())
+    }
+
+    /// Saves the order the administrator left the modules in.
+    pub async fn save_order(pool: &DbPool, module_ids: &[String]) -> Result<(), AppError> {
+        DashboardLayoutRepository::save_order(pool, module_ids).await?;
+        Ok(())
+    }
+
+    /// Shows or hides a module. The pinned banner cannot be hidden: a status
+    /// page without its status is a blank page.
+    pub async fn set_enabled(
+        pool: &DbPool,
+        module_id: &str,
+        enabled: bool,
+    ) -> Result<(), AppError> {
+        if shipped(module_id)?.column_width() == ColumnWidth::Full {
+            return Err(AppError::validation("validation.banner_always_shown"));
+        }
+        DashboardLayoutRepository::set_enabled(pool, module_id, enabled).await?;
+        Ok(())
+    }
+
+    /// Gives a module a quarter of the row, half of it, or a row of its own.
+    /// The pinned banner keeps its full row.
+    pub async fn set_width(
+        pool: &DbPool,
+        module_id: &str,
+        width: &str,
+    ) -> Result<ColumnWidth, AppError> {
+        let pinned = shipped(module_id)?.column_width() == ColumnWidth::Full;
+        let width = ColumnWidth::parse(width)
+            .filter(|_| !pinned)
+            .ok_or_else(|| AppError::validation("error.invalid_data"))?;
+        DashboardLayoutRepository::set_width(pool, module_id, width.as_str()).await?;
+        Ok(width)
+    }
+
+    /// Saves what a module shows, among the options it offers, as what it
+    /// leaves out, so an option that appears later shows. At least one stays
+    /// ticked: a card that shows nothing is a blank card.
+    pub async fn set_shown(
+        pool: &DbPool,
+        i18n: &I18n,
+        module_id: &str,
+        shown: &[String],
+    ) -> Result<(), AppError> {
+        let offered = shipped(module_id)?.options(pool, i18n, None).await?;
+        let valid = !shown.is_empty()
+            && shown
+                .iter()
+                .all(|value| offered.iter().any(|option| &option.value == value));
+        if !valid {
+            return Err(AppError::validation("error.invalid_data"));
+        }
+        let hidden: Vec<String> = offered
+            .into_iter()
+            .map(|option| option.value)
+            .filter(|value| !shown.contains(value))
+            .collect();
+        DashboardLayoutRepository::set_hidden(pool, module_id, &hidden).await?;
         Ok(())
     }
 
@@ -89,6 +151,13 @@ fn stored_width(config: &str) -> Option<ColumnWidth> {
         .get("width")?
         .as_str()
         .and_then(ColumnWidth::parse)
+}
+
+/// A module this binary ships, by its id.
+fn shipped(module_id: &str) -> Result<&'static dyn Module, AppError> {
+    ModuleRegistry::global()
+        .get(module_id)
+        .ok_or(AppError::NotFound)
 }
 
 #[cfg(test)]

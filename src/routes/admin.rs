@@ -12,13 +12,9 @@ use crate::i18n::{I18n, Locale};
 use crate::middleware::headers::no_store;
 use crate::middleware::{CsrfToken, HtmlForm, RequireAdmin};
 use crate::models::{Role, User, check_display_name};
-use crate::repositories::{IconRepository, SettingsRepository, UserRepository};
-use crate::services::{AuthService, LogoService};
+use crate::repositories::{IconRepository, UserRepository};
+use crate::services::{AuthService, LogoService, SettingsService};
 use crate::state::AppState;
-
-/// Long enough for a company and a purpose, short enough to stay on one line
-/// of the masthead beside the mark.
-const INSTANCE_NAME_MAX_CHARS: usize = 40;
 
 #[derive(Template)]
 #[template(path = "admin/settings.html")]
@@ -219,10 +215,6 @@ pub struct RoleInput {
     role: String,
 }
 
-fn validation(key: &str) -> AppError {
-    AppError::Validation(key.to_string())
-}
-
 fn to_user_row(u: User, i18n: &I18n) -> UserRow {
     UserRow {
         id: u.id,
@@ -391,11 +383,11 @@ async fn create_member(
     state: &AppState,
     input: &AddMemberInput,
 ) -> Result<CreatedAccount, AppError> {
-    let name = check_display_name(&input.display_name).map_err(validation)?;
+    let name = check_display_name(&input.display_name).map_err(AppError::validation)?;
     let role: Role = input
         .role
         .parse()
-        .map_err(|_| validation("validation.invalid_role"))?;
+        .map_err(|_| AppError::validation("validation.invalid_role"))?;
     let (user, password) = AuthService::add_member(&state.pool, &input.email, &name, role).await?;
     tracing::info!(new_user_id = user.id, "Temporary password issued");
     Ok(CreatedAccount {
@@ -431,7 +423,7 @@ async fn issue_reset(
     user_id: i64,
 ) -> Result<CreatedAccount, AppError> {
     if user_id == admin.id {
-        return Err(validation("validation.cannot_reset_self"));
+        return Err(AppError::validation("validation.cannot_reset_self"));
     }
     let (user, password) = AuthService::reset_member_password(&state.pool, user_id).await?;
     tracing::info!(
@@ -474,15 +466,15 @@ async fn apply_role(
 ) -> Result<(), AppError> {
     let new_role: Role = role
         .parse()
-        .map_err(|_| validation("validation.invalid_role"))?;
+        .map_err(|_| AppError::validation("validation.invalid_role"))?;
     if user_id == admin.id {
-        return Err(validation("validation.cannot_change_own_role"));
+        return Err(AppError::validation("validation.cannot_change_own_role"));
     }
     UserRepository::find_by_id(&state.pool, user_id)
         .await?
         .ok_or(AppError::NotFound)?;
     if !UserRepository::update_role(&state.pool, user_id, new_role).await? {
-        return Err(validation("validation.last_admin"));
+        return Err(AppError::validation("validation.last_admin"));
     }
 
     tracing::info!(
@@ -514,14 +506,14 @@ pub async fn toggle_active(
 
 async fn apply_toggle(state: &AppState, admin: &User, user_id: i64) -> Result<(), AppError> {
     if user_id == admin.id {
-        return Err(validation("validation.cannot_disable_self"));
+        return Err(AppError::validation("validation.cannot_disable_self"));
     }
     let target = UserRepository::find_by_id(&state.pool, user_id)
         .await?
         .ok_or(AppError::NotFound)?;
     let new_active = !target.is_active;
     if !UserRepository::set_active(&state.pool, user_id, new_active).await? {
-        return Err(validation("validation.last_active_admin"));
+        return Err(AppError::validation("validation.last_active_admin"));
     }
 
     let action = if new_active { "enabled" } else { "disabled" };
@@ -540,17 +532,6 @@ pub struct InstanceNameInput {
     instance_name: String,
 }
 
-/// The message key refusing a name, if any.
-pub(super) fn instance_name_refusal(name: &str) -> Option<&'static str> {
-    if name.chars().count() > INSTANCE_NAME_MAX_CHARS {
-        Some("validation.instance_name_too_long")
-    } else if name.chars().any(char::is_control) {
-        Some("validation.display_name_invalid")
-    } else {
-        None
-    }
-}
-
 pub async fn update_instance_name(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
@@ -559,7 +540,7 @@ pub async fn update_instance_name(
     HtmlForm(input): HtmlForm<InstanceNameInput>,
 ) -> Result<Response, AppError> {
     let name = input.instance_name.trim();
-    if let Some(key) = instance_name_refusal(name) {
+    if let Some(key) = SettingsService::name_refusal(name) {
         let page = SettingsPage {
             instance_name: name.to_string(),
             notice: None,
@@ -568,7 +549,7 @@ pub async fn update_instance_name(
         return render_settings(&state, &admin, csrf_token, i18n, page).await;
     }
 
-    save_instance_name(&state, name).await?;
+    SettingsService::set_name(&state.pool, name).await?;
     tracing::info!(
         admin_id = admin.id,
         instance_name = name,
@@ -627,32 +608,15 @@ pub async fn update_time_zone(
     State(state): State<AppState>,
     HtmlForm(input): HtmlForm<TimeZoneInput>,
 ) -> Result<Response, AppError> {
-    let zone =
-        clock::parse_zone(&input.time_zone).ok_or_else(|| validation("validation.unknown_zone"))?;
-    SettingsRepository::set(&state.pool, clock::ZONE_SETTING, zone.name()).await?;
-    clock::set_zone(zone);
+    let zone = clock::parse_zone(&input.time_zone)
+        .ok_or_else(|| AppError::validation("validation.unknown_zone"))?;
+    SettingsService::set_time_zone(&state.pool, zone).await?;
     tracing::info!(
         admin_id = admin.id,
         time_zone = zone.name(),
         "Time zone updated"
     );
     Ok(Redirect::to("/admin/settings?zone=1").into_response())
-}
-
-/// The name shown in place of Statup, checked by `instance_name_refusal`.
-pub(super) async fn save_instance_name(state: &AppState, name: &str) -> Result<(), AppError> {
-    SettingsRepository::set(&state.pool, "instance_name", name).await?;
-    crate::set_instance_name(name);
-    Ok(())
-}
-
-/// The database is written first: memory never holds a choice a restart
-/// would lose.
-pub(super) async fn save_public_mode(state: &AppState, public: bool) -> Result<(), AppError> {
-    let stored = if public { "true" } else { "false" };
-    SettingsRepository::set(&state.pool, "public_mode", stored).await?;
-    state.set_public_mode(public);
-    Ok(())
 }
 
 #[derive(Deserialize)]
@@ -671,9 +635,9 @@ pub async fn set_public_access(
     let public = match input.access.as_str() {
         "everyone" => true,
         "members" => false,
-        _ => return Err(validation("validation.unknown_access")),
+        _ => return Err(AppError::validation("validation.unknown_access")),
     };
-    save_public_mode(&state, public).await?;
+    SettingsService::set_public_mode(&state, public).await?;
 
     tracing::info!(
         admin_id = admin.id,
@@ -683,23 +647,4 @@ pub async fn set_public_access(
 
     let receipt = if public { "on" } else { "off" };
     Ok(Redirect::to(&format!("/admin/settings?public={receipt}")).into_response())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn instance_names_are_bounded_and_printable() {
-        assert_eq!(instance_name_refusal("Acme Status"), None);
-        assert_eq!(instance_name_refusal(&"é".repeat(40)), None);
-        assert_eq!(
-            instance_name_refusal(&"a".repeat(41)),
-            Some("validation.instance_name_too_long")
-        );
-        assert_eq!(
-            instance_name_refusal("Acme\u{7}"),
-            Some("validation.display_name_invalid")
-        );
-    }
 }

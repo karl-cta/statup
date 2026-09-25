@@ -15,6 +15,7 @@ use super::{Frame, members_only, render};
 use crate::clock;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
+use crate::middleware::headers::is_htmx;
 use crate::middleware::{CsrfToken, HtmlForm, OptionalUser, RequirePublisher};
 use crate::models::{
     Category, CreateEventInput, DayGroup, Event, EventFilters, EventWithServices, Kind, Lifecycle,
@@ -60,10 +61,6 @@ where
         return Ok(None);
     }
     trimmed.parse().map(Some).map_err(serde::de::Error::custom)
-}
-
-fn is_htmx(headers: &HeaderMap) -> bool {
-    headers.contains_key("hx-request")
 }
 
 // ---- List and search ----
@@ -1068,9 +1065,7 @@ pub async fn edit_form(
 ) -> Result<Response, AppError> {
     let ews = EventService::find_with_services(&state.pool, id).await?;
     if !can_modify(&ews.event, user.role) {
-        return Err(AppError::Validation(
-            "validation.event_closed_admin_only".to_string(),
-        ));
+        return Err(AppError::validation("validation.event_closed_admin_only"));
     }
     let service_ids = ews.services.iter().map(|s| s.id).collect();
     let form = EventFormData::from_event(&ews.event, service_ids);

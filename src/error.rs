@@ -7,6 +7,7 @@ use axum::middleware::Next;
 use axum::response::{Html, IntoResponse, Response};
 
 use crate::i18n::{I18n, Locale};
+use crate::middleware::headers::is_htmx;
 use crate::middleware::rate_limit::{RateLimited, rate_limited_page};
 
 #[derive(Debug, thiserror::Error)]
@@ -43,6 +44,11 @@ pub enum AppError {
 }
 
 impl AppError {
+    /// A refusal shown to the person, by the translation key of its message.
+    pub fn validation(key: &str) -> Self {
+        Self::Validation(key.to_string())
+    }
+
     /// The status and the translation key of the message shown to the person.
     fn status_and_key(&self) -> (StatusCode, &str) {
         match self {
@@ -148,7 +154,7 @@ pub async fn render_error_pages(
         return response;
     };
     let message = i18n.t(&key).to_string();
-    let rendered = if headers.contains_key("hx-request") {
+    let rendered = if is_htmx(&headers) {
         ErrorFragment { message }.render()
     } else {
         error_page(status, message, i18n).render()

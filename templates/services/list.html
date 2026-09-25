@@ -52,6 +52,7 @@
             </div>
             <div class="admin-row-cell">
                 {% let driver = self.driver_of(service.id) %}
+                {% let csrf_token = frame.csrf_token.as_str() %}
                 {% include "components/status_selector.html" %}
             </div>
         </li>

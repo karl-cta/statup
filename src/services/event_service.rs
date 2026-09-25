@@ -36,7 +36,7 @@ impl EventService {
                 schedule_error(input.kind, input.planned, start, input.planned_end)
             })
         {
-            return Err(AppError::Validation(key.to_string()));
+            return Err(AppError::validation(key));
         }
         let mut input = input;
         input.follows_event_id =
@@ -70,7 +70,7 @@ impl EventService {
                 schedule_error(event.kind, event.planned, start, input.planned_end)
             })
         {
-            return Err(AppError::Validation(key.to_string()));
+            return Err(AppError::validation(key));
         }
         input.follows_event_id =
             followed_maintenance(pool, event.kind, input.follows_event_id).await?;
@@ -93,20 +93,18 @@ impl EventService {
         check_modification_allowed(&event, author.role)?;
         let message = message.trim();
         if let Some(key) = update_error(&event, message, next) {
-            return Err(AppError::Validation(key.to_string()));
+            return Err(AppError::validation(key));
         }
         if !message.is_empty() {
             EventRepository::add_update(pool, id, &sanitize_markdown(message), author.id).await?;
         }
         if let Some(next) = next {
-            let current = event.lifecycle.ok_or_else(|| {
-                AppError::Validation("validation.event_has_no_lifecycle".to_string())
-            })?;
+            let current = event
+                .lifecycle
+                .ok_or_else(|| AppError::validation("validation.event_has_no_lifecycle"))?;
             // A second submit, or a colleague's, finds the event elsewhere.
             if !EventRepository::transition(pool, id, current, next, Utc::now()).await? {
-                return Err(AppError::Validation(
-                    "validation.invalid_transition".to_string(),
-                ));
+                return Err(AppError::validation("validation.invalid_transition"));
             }
             recalculate_event_services(pool, id).await?;
         }
@@ -118,9 +116,7 @@ impl EventService {
         let event = find(pool, id).await?;
         check_modification_allowed(&event, role)?;
         if event.previous_lifecycle.is_none() {
-            return Err(AppError::Validation(
-                "validation.no_previous_lifecycle".to_string(),
-            ));
+            return Err(AppError::validation("validation.no_previous_lifecycle"));
         }
         EventRepository::revert_transition(pool, id).await?;
         recalculate_event_services(pool, id).await
@@ -271,7 +267,7 @@ async fn followed_maintenance(
     };
     match EventRepository::find_by_id(pool, id).await? {
         Some(followed) if followed.kind == Kind::Maintenance => Ok(Some(id)),
-        _ => Err(AppError::Validation("error.invalid_data".to_string())),
+        _ => Err(AppError::validation("error.invalid_data")),
     }
 }
 
@@ -305,9 +301,7 @@ fn check_modification_allowed(event: &Event, role: Role) -> Result<(), AppError>
     if can_modify(event, role) {
         Ok(())
     } else {
-        Err(AppError::Validation(
-            "validation.event_closed_admin_only".to_string(),
-        ))
+        Err(AppError::validation("validation.event_closed_admin_only"))
     }
 }
 
