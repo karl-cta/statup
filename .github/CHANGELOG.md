@@ -26,7 +26,9 @@ Since the first public commit:
   event that holds a service in its state.
 - Page transitions and a short highlight on what just arrived or changed,
   both off with reduced motion.
-- Fixed: publishing needed two clicks in Safari.
+- Fixed: publishing needed two clicks in Safari; switching language right
+  after a refused form could land on an error page; three menus kept the
+  light theme's shadow in the dark theme.
 - Passwords chosen from now on need 12 characters with upper and lower case
   letters, a digit and a symbol, or 20 characters of any kind.
 - The Compose file publishes Statup on this machine only until you open it,
@@ -39,6 +41,7 @@ Since the first public commit:
   expires after seven days; past 64 password checks waiting, a sign-in is
   turned away instead of queued.
 
-Database: three migrations, applied on start (a maintenance without downtime
-flag, a single dashboard layout that keeps the members' arrangement, and the
-expiry of temporary passwords).
+Database: four migrations, applied on start (a maintenance without downtime
+flag, a single dashboard layout that keeps the members' arrangement, the
+expiry of temporary passwords, and the layout table without its unused user
+column).
