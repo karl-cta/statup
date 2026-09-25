@@ -79,6 +79,27 @@ impl AuthService {
         }
     }
 
+    /// Replace a password with one its owner chose, after the checks both
+    /// password forms share: the rule, then the confirmation. Returns the
+    /// new hash, which the session is tied to next.
+    pub async fn change_password(
+        pool: &DbPool,
+        user_id: i64,
+        password: &str,
+        confirmation: &str,
+    ) -> Result<String, AppError> {
+        Self::validate_password(password)?;
+        if password != confirmation {
+            return Err(AppError::Validation(
+                "validation.passwords_mismatch".to_string(),
+            ));
+        }
+        let hash = Self::hash_password(password).await?;
+        UserRepository::update_password(pool, user_id, &hash).await?;
+        tracing::info!(user_id, "Password changed by its owner");
+        Ok(hash)
+    }
+
     /// The email as stored: trimmed, lowercase, and well formed.
     pub fn normalize_email(raw: &str) -> Result<String, AppError> {
         let email = raw.trim().to_lowercase();

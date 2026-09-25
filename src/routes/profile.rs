@@ -146,54 +146,55 @@ pub async fn update_password(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
     session: Session,
-    CsrfToken(csrf_token): CsrfToken,
+    CsrfToken(mut csrf_token): CsrfToken,
     Locale(i18n): Locale,
     HtmlForm(input): HtmlForm<PasswordInput>,
 ) -> Result<Response, AppError> {
-    if let Some(key) = password_change_refusal(&state, &user, &input).await? {
-        let messages = ProfileMessages {
-            password_error: Some(i18n.t(key).to_string()),
+    let messages = match change_own_password(&state, &user, &input).await? {
+        Ok(hash) => {
+            csrf_token = reopen_session(&session, &hash).await?;
+            ProfileMessages {
+                password_success: Some(i18n.t("success.password_changed").to_string()),
+                ..ProfileMessages::default()
+            }
+        }
+        Err(key) => ProfileMessages {
+            password_error: Some(i18n.t(&key).to_string()),
             ..ProfileMessages::default()
-        };
-        return render_profile(&state, &user, csrf_token, i18n, messages).await;
-    }
-
-    let hash = AuthService::hash_password(&input.new_password).await?;
-    UserRepository::update_password(&state.pool, user.id, &hash).await?;
-    let csrf_token = reopen_session(&session, &hash).await?;
-    tracing::info!(user_id = user.id, "Password changed");
-
-    let messages = ProfileMessages {
-        password_success: Some(i18n.t("success.password_changed").to_string()),
-        ..ProfileMessages::default()
+        },
     };
     render_profile(&state, &user, csrf_token, i18n, messages).await
 }
 
-/// The message key refusing the change, if any. Wrong current passwords
-/// are counted, so a session left open does not let anyone guess it.
-async fn password_change_refusal(
+/// The new password's hash, or the key of the message refusing it. Wrong
+/// current passwords are counted, so a session left open does not let
+/// anyone guess it.
+async fn change_own_password(
     state: &AppState,
     user: &User,
     input: &PasswordInput,
-) -> Result<Option<&'static str>, AppError> {
+) -> Result<Result<String, String>, AppError> {
     if input.current_password.is_empty() {
-        return Ok(Some("validation.current_password_required"));
+        return Ok(Err("validation.current_password_required".to_string()));
     }
     let limiter = &state.login_limiter;
     if limiter.is_password_check_blocked(user.id) {
-        return Ok(Some("validation.rate_limited"));
+        return Ok(Err("validation.rate_limited".to_string()));
     }
     if !AuthService::verify_password(&input.current_password, &user.password_hash).await? {
         limiter.record_password_check_failure(user.id);
-        return Ok(Some("validation.wrong_password"));
+        return Ok(Err("validation.wrong_password".to_string()));
     }
     limiter.clear_password_checks(user.id);
-    if AuthService::validate_password(&input.new_password).is_err() {
-        return Ok(Some("validation.new_password_too_weak"));
+    let changed = AuthService::change_password(
+        &state.pool,
+        user.id,
+        &input.new_password,
+        &input.new_password_confirm,
+    );
+    match changed.await {
+        Ok(hash) => Ok(Ok(hash)),
+        Err(AppError::Validation(key)) => Ok(Err(key)),
+        Err(e) => Err(e),
     }
-    if input.new_password != input.new_password_confirm {
-        return Ok(Some("validation.new_passwords_mismatch"));
-    }
-    Ok(None)
 }

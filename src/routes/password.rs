@@ -15,7 +15,6 @@ use crate::middleware::csrf::renew_token;
 use crate::middleware::headers::no_store;
 use crate::middleware::{AuthUser, CsrfToken, HtmlForm};
 use crate::models::User;
-use crate::repositories::UserRepository;
 use crate::services::AuthService;
 use crate::session::{rotate_id, stamp_credential};
 use crate::state::AppState;
@@ -27,8 +26,20 @@ struct NewPasswordErrors {
 }
 
 impl NewPasswordErrors {
-    fn is_empty(&self) -> bool {
-        self.password.is_none() && self.confirm.is_none()
+    /// The message under the field it is about.
+    fn from_key(key: &str, i18n: &I18n) -> Self {
+        let message = Some(i18n.t(key).to_string());
+        if key == "validation.passwords_mismatch" {
+            Self {
+                confirm: message,
+                ..Self::default()
+            }
+        } else {
+            Self {
+                password: message,
+                ..Self::default()
+            }
+        }
     }
 }
 
@@ -92,24 +103,8 @@ pub async fn form(
     render_page(&user, csrf_token, i18n, NewPasswordErrors::default())
 }
 
-/// The temporary password itself is refused, otherwise typing it again
-/// would pass the step.
-async fn check_new_password(
-    user: &User,
-    input: &NewPasswordInput,
-    i18n: &I18n,
-) -> Result<NewPasswordErrors, AppError> {
-    let mut errors = NewPasswordErrors::default();
-    if let Err(AppError::Validation(key)) = AuthService::validate_password(&input.password) {
-        errors.password = Some(i18n.t(&key).to_string());
-    } else if AuthService::verify_password(&input.password, &user.password_hash).await? {
-        errors.password = Some(i18n.t("validation.password_unchanged").to_string());
-    } else if input.password != input.password_confirm {
-        errors.confirm = Some(i18n.t("validation.passwords_mismatch").to_string());
-    }
-    Ok(errors)
-}
-
+/// The temporary password itself is refused first, otherwise typing it
+/// again would pass the step.
 pub async fn update(
     AuthUser(user): AuthUser,
     State(state): State<AppState>,
@@ -121,16 +116,25 @@ pub async fn update(
     if !user.must_change_password {
         return Ok(Redirect::to("/").into_response());
     }
-
-    let errors = check_new_password(&user, &input, &i18n).await?;
-    if !errors.is_empty() {
+    if AuthService::verify_password(&input.password, &user.password_hash).await? {
+        let errors = NewPasswordErrors::from_key("validation.password_unchanged", &i18n);
         return render_page(&user, csrf_token, i18n, errors);
     }
-
-    let hash = AuthService::hash_password(&input.password).await?;
-    UserRepository::update_password(&state.pool, user.id, &hash).await?;
-    reopen_session(&session, &hash).await?;
-    tracing::info!(user_id = user.id, "Temporary password replaced");
-
-    Ok(Redirect::to("/").into_response())
+    let changed = AuthService::change_password(
+        &state.pool,
+        user.id,
+        &input.password,
+        &input.password_confirm,
+    );
+    match changed.await {
+        Ok(hash) => {
+            reopen_session(&session, &hash).await?;
+            Ok(Redirect::to("/").into_response())
+        }
+        Err(AppError::Validation(key)) => {
+            let errors = NewPasswordErrors::from_key(&key, &i18n);
+            render_page(&user, csrf_token, i18n, errors)
+        }
+        Err(e) => Err(e),
+    }
 }
