@@ -7,11 +7,12 @@ use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 
+use askama::Template;
 use axum::body::Body;
 use axum::extract::ConnectInfo;
-use axum::http::header::{CONTENT_TYPE, RETRY_AFTER};
+use axum::http::header::RETRY_AFTER;
 use axum::http::{HeaderValue, Request, StatusCode};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use governor::middleware::NoOpMiddleware;
 use tokio::task::AbortHandle;
 use tower_governor::GovernorError;
@@ -128,55 +129,30 @@ fn limit_response(error: &GovernorError) -> Response<Body> {
     }
 }
 
-/// Files are served outside the rate limit, so the page keeps the app's
-/// stylesheet and theme. A slot frees in under a second, so the page
-/// reloads itself shortly.
-const RATE_LIMITED_PAGE: &str = r#"<!doctype html>
-<html lang="{lang}"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
-<meta http-equiv="refresh" content="{seconds}">
-<title>{title}</title>
-<link rel="stylesheet" href="{stylesheet}">
-<script src="{theme}"></script>
-</head>
-<body><div class="auth-page"><main class="auth-panel">
-  <h1 class="auth-title">{title}</h1>
-  <p class="auth-intro">{body}</p>
-</main></div></body></html>"#;
+#[derive(Template)]
+#[template(path = "rate_limited.html")]
+struct RateLimitedPage {
+    retry_after_secs: u64,
+    i18n: I18n,
+}
 
 /// The 429 page in the language of the request.
 pub fn rate_limited_page(i18n: &I18n, retry_after_secs: u64) -> Response {
-    let html = RATE_LIMITED_PAGE
-        .replace("{stylesheet}", &crate::asset("css/style.css"))
-        .replace("{theme}", &crate::asset("js/theme.js"))
-        .replace("{lang}", i18n.locale())
-        .replace("{seconds}", &retry_after_secs.to_string())
-        .replace("{title}", &escape_html(i18n.t("error.rate_limited_title")))
-        .replace("{body}", &escape_html(i18n.t("error.rate_limited_body")));
-    let mut response = (StatusCode::TOO_MANY_REQUESTS, html).into_response();
-    let headers = response.headers_mut();
-    headers.insert(
-        CONTENT_TYPE,
-        HeaderValue::from_static("text/html; charset=utf-8"),
-    );
-    headers.insert(RETRY_AFTER, HeaderValue::from(retry_after_secs));
-    response
-}
-
-fn escape_html(text: &str) -> String {
-    let mut escaped = String::with_capacity(text.len());
-    for c in text.chars() {
-        match c {
-            '&' => escaped.push_str("&amp;"),
-            '<' => escaped.push_str("&lt;"),
-            '>' => escaped.push_str("&gt;"),
-            '"' => escaped.push_str("&quot;"),
-            '\'' => escaped.push_str("&#39;"),
-            _ => escaped.push(c),
+    let page = RateLimitedPage {
+        retry_after_secs,
+        i18n: i18n.clone(),
+    };
+    let mut response = match page.render() {
+        Ok(html) => (StatusCode::TOO_MANY_REQUESTS, Html(html)).into_response(),
+        Err(e) => {
+            tracing::error!("rate limit page render failed: {e}");
+            StatusCode::TOO_MANY_REQUESTS.into_response()
         }
-    }
-    escaped
+    };
+    response
+        .headers_mut()
+        .insert(RETRY_AFTER, HeaderValue::from(retry_after_secs));
+    response
 }
 
 #[cfg(test)]
@@ -193,14 +169,6 @@ mod tests {
                 .get(RETRY_AFTER)
                 .and_then(|v| v.to_str().ok()),
             Some("2")
-        );
-    }
-
-    #[test]
-    fn page_text_is_escaped() {
-        assert_eq!(
-            escape_html(r#"<a href="x">'&'</a>"#),
-            "&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;"
         );
     }
 

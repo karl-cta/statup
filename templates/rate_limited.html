@@ -1,0 +1,19 @@
+{# Past the request rate limit. Files are served outside it, so the page
+   keeps the app's stylesheet and theme; a slot frees in under a second, so
+   the page reloads itself shortly. #}
+{% extends "base.html" %}
+
+{% block title %}{{ i18n.t("error.rate_limited_title") }}{% endblock %}
+
+{% block head %}
+<meta http-equiv="refresh" content="{{ retry_after_secs }}">
+{% endblock %}
+
+{% block body %}
+<div class="auth-page">
+    <main id="main" class="auth-panel">
+        <h1 class="auth-title">{{ i18n.t("error.rate_limited_title") }}</h1>
+        <p class="auth-intro">{{ i18n.t("error.rate_limited_body") }}</p>
+    </main>
+</div>
+{% endblock %}
