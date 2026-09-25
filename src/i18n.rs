@@ -487,6 +487,24 @@ mod tests {
         assert!(missing_in_fr.is_empty(), "missing in fr: {missing_in_fr:?}");
     }
 
+    /// French typography: a no-break space before a colon and inside
+    /// quotation marks, a narrow one before `;`, `?` and `!`. A plain space
+    /// there lets the line break before the mark.
+    #[test]
+    fn french_marks_hold_to_their_word() {
+        let fr: TranslationMap =
+            serde_json::from_str(include_str!("../locales/fr.json")).expect("fr.json parses");
+        let loose: Vec<(&String, &String)> = fr
+            .iter()
+            .filter(|(_, text)| {
+                [" :", " ;", " ?", " !", " »", "« "]
+                    .iter()
+                    .any(|pair| text.contains(pair))
+            })
+            .collect();
+        assert!(loose.is_empty(), "plain spaces before a mark: {loose:#?}");
+    }
+
     /// Every key named in a template or in Rust is translated: a missing one
     /// would be shown to people as a raw key.
     #[test]
