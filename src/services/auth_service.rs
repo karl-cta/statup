@@ -33,6 +33,10 @@ static HASHING_PERMITS: LazyLock<Semaphore> = LazyLock::new(|| {
     Semaphore::new(cores.max(2))
 });
 
+/// Hashes running or waiting. Past this, a request is turned away at once
+/// rather than queued for seconds behind a burst.
+static HASHING_QUEUE: Semaphore = Semaphore::const_new(64);
+
 /// An account to create, before its email is checked and its password hashed.
 pub struct NewAccount<'a> {
     pub email: &'a str,
@@ -238,11 +242,23 @@ impl AuthService {
             tracing::warn!(user_id = user.id, "Failed login attempt: wrong password");
             return Err(invalid_credentials());
         }
+        if user.must_change_password
+            && UserRepository::temporary_password_expired(pool, user.id).await?
+        {
+            tracing::info!(
+                user_id = user.id,
+                "Sign-in refused: temporary password expired"
+            );
+            return Err(AppError::Validation(
+                "validation.temporary_password_expired".to_string(),
+            ));
+        }
 
         tracing::info!(user_id = user.id, "User logged in");
         Ok(user)
     }
 }
+
 /// The HTML5 rule for an email address: a local part made of the usual
 /// characters, one `@`, then domain labels of letters, digits and inner
 /// hyphens. Enough to catch a typo without refusing a valid address.
@@ -289,7 +305,21 @@ where
     T: Send + 'static,
     F: FnOnce() -> Result<T, AppError> + Send + 'static,
 {
-    let _permit = HASHING_PERMITS
+    run_queued(&HASHING_QUEUE, &HASHING_PERMITS, work).await
+}
+
+/// Takes a place in `queue` or refuses at once, then waits for one of the
+/// `permits` to run.
+async fn run_queued<T, F>(queue: &Semaphore, permits: &Semaphore, work: F) -> Result<T, AppError>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, AppError> + Send + 'static,
+{
+    let Ok(_place) = queue.try_acquire() else {
+        tracing::warn!("Password hashing queue full, request turned away");
+        return Err(AppError::Busy);
+    };
+    let _permit = permits
         .acquire()
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("hashing queue closed: {e}")))?;
@@ -333,6 +363,18 @@ mod tests {
             must_change_password: false,
         };
         AuthService::create_account(pool, &account).await
+    }
+
+    #[tokio::test]
+    async fn a_full_hashing_queue_turns_requests_away() {
+        let full = Semaphore::new(0);
+        let permits = Semaphore::new(1);
+        let refused = run_queued(&full, &permits, || Ok(())).await;
+        assert!(matches!(refused, Err(AppError::Busy)));
+
+        let open = Semaphore::new(1);
+        assert!(run_queued(&open, &permits, || Ok(())).await.is_ok());
+        assert_eq!(open.available_permits(), 1, "the place is given back");
     }
 
     #[tokio::test]
@@ -428,13 +470,65 @@ mod tests {
         );
     }
 
+    async fn expire_now(pool: &DbPool, user_id: i64) {
+        sqlx::query(
+            "UPDATE users SET temporary_password_expires_at = datetime('now', '-1 minute') \
+             WHERE id = ?",
+        )
+        .bind(user_id)
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_temporary_password_stops_working_after_its_week() {
+        let pool = test_pool().await;
+        let (member, password) = AuthService::add_member(&pool, "m@x.com", "Member", Role::Reader)
+            .await
+            .unwrap();
+        assert!(
+            AuthService::login(&pool, "m@x.com", &password)
+                .await
+                .is_ok()
+        );
+
+        expire_now(&pool, member.id).await;
+        let refused = AuthService::login(&pool, "m@x.com", &password).await;
+        assert!(
+            matches!(refused, Err(AppError::Validation(key)) if key == "validation.temporary_password_expired")
+        );
+
+        let issued = AuthService::reset_member_password(&pool, member.id)
+            .await
+            .unwrap()
+            .1;
+        assert!(
+            AuthService::login(&pool, "m@x.com", &issued).await.is_ok(),
+            "a new one works"
+        );
+
+        expire_now(&pool, member.id).await;
+        let own = AuthService::hash_password("A-password-of-my-own-1")
+            .await
+            .unwrap();
+        UserRepository::update_password(&pool, member.id, &own)
+            .await
+            .unwrap();
+        assert!(
+            !UserRepository::temporary_password_expired(&pool, member.id)
+                .await
+                .unwrap()
+        );
+    }
+
     #[tokio::test]
     async fn only_an_empty_instance_gets_a_first_admin() {
         let pool = test_pool().await;
-        let first = AuthService::create_first_admin(&pool, "a@x.com", "first_password_1", "A")
+        let first = AuthService::create_first_admin(&pool, "a@x.com", "First_password_1", "A")
             .await
             .unwrap();
-        let second = AuthService::create_first_admin(&pool, "b@x.com", "second_password", "B")
+        let second = AuthService::create_first_admin(&pool, "b@x.com", "Second_password_2", "B")
             .await
             .unwrap();
 

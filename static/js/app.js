@@ -709,6 +709,15 @@
         const saved = document.querySelector("[data-scroll-into-view]");
         if (saved) saved.scrollIntoView({ block: "center" });
         lightPublished();
+        takeListAddress();
+    }
+
+    // A page answering a form, the one showing a temporary password, takes
+    // the address of its list: a reload then reads the list instead of
+    // sending the form again.
+    function takeListAddress() {
+        const marker = document.querySelector("[data-replace-url]");
+        if (marker) window.history.replaceState(null, "", marker.dataset.replaceUrl);
     }
 
     // Back on an event just published or updated, what was written lights

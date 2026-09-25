@@ -2,6 +2,8 @@
 //! one client address, so a colleague's typos never lock the office out of
 //! its own page, and a guess at one account from one address stops early.
 //! A ceiling per address alone slows a walk through many accounts.
+//! Checks of the current password from a signed-in session are counted per
+//! account alone: only whoever holds that session can make them.
 
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -43,17 +45,50 @@ impl Entry {
     }
 }
 
-/// In-memory failed sign-in counter, keyed by client address and account.
+/// In-memory failed sign-in counter, keyed by client address and account,
+/// and failed current password checks, keyed by account.
 #[derive(Default)]
 pub struct LoginRateLimiter {
     attempts: Mutex<HashMap<Key, Entry>>,
+    password_checks: Mutex<HashMap<i64, Entry>>,
+}
+
+/// A panic while a map was held leaves plain counters behind, still usable,
+/// so a poisoned lock is recovered rather than propagated.
+fn lock<K>(map: &Mutex<HashMap<K, Entry>>) -> MutexGuard<'_, HashMap<K, Entry>> {
+    map.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 impl LoginRateLimiter {
-    /// A panic while the map was held leaves plain counters behind, still
-    /// usable, so a poisoned lock is recovered rather than propagated.
     fn attempts(&self) -> MutexGuard<'_, HashMap<Key, Entry>> {
-        self.attempts.lock().unwrap_or_else(PoisonError::into_inner)
+        lock(&self.attempts)
+    }
+
+    /// Whether this account has had too many wrong current passwords.
+    pub fn is_password_check_blocked(&self, user_id: i64) -> bool {
+        let mut map = lock(&self.password_checks);
+        map.retain(|_, entry| !entry.expired());
+        map.get(&user_id)
+            .is_some_and(|entry| entry.count >= MAX_ATTEMPTS)
+    }
+
+    /// Record a wrong current password for this account.
+    pub fn record_password_check_failure(&self, user_id: i64) {
+        let mut map = lock(&self.password_checks);
+        map.retain(|_, entry| !entry.expired());
+        let entry = map.entry(user_id).or_insert(Entry {
+            count: 0,
+            first_attempt: Instant::now(),
+        });
+        entry.count += 1;
+        if entry.count == MAX_ATTEMPTS {
+            tracing::warn!(user_id, "Current password check limit reached");
+        }
+    }
+
+    /// Forget the wrong current passwords of this account.
+    pub fn clear_password_checks(&self, user_id: i64) {
+        lock(&self.password_checks).remove(&user_id);
     }
 
     /// Whether this address is blocked from trying this account.
@@ -169,6 +204,21 @@ mod tests {
 
         limiter.clear(&ip("127.0.0.1"), ALICE);
         assert!(!limiter.is_blocked(&ip("127.0.0.1"), ALICE));
+    }
+
+    #[test]
+    fn current_password_checks_are_counted_per_account() {
+        let limiter = LoginRateLimiter::default();
+        for _ in 0..MAX_ATTEMPTS {
+            assert!(!limiter.is_password_check_blocked(1));
+            limiter.record_password_check_failure(1);
+        }
+        assert!(limiter.is_password_check_blocked(1));
+        assert!(!limiter.is_password_check_blocked(2));
+        assert!(!limiter.is_blocked(&ip("127.0.0.1"), ALICE));
+
+        limiter.clear_password_checks(1);
+        assert!(!limiter.is_password_check_blocked(1));
     }
 
     #[test]

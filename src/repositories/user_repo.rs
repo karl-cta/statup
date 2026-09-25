@@ -6,6 +6,10 @@
 use crate::db::DbPool;
 use crate::models::{Role, User};
 
+/// How long a temporary password opens the account, as an `SQLite` date
+/// modifier.
+const TEMPORARY_PASSWORD_LIFETIME: &str = "+7 days";
+
 /// An account to insert. The password is already hashed.
 pub struct NewUser<'a> {
     pub email: &'a str,
@@ -41,8 +45,9 @@ impl UserRepository {
     /// Insert an account and return the created record.
     pub async fn insert(pool: &DbPool, user: &NewUser<'_>) -> Result<User, sqlx::Error> {
         sqlx::query_as::<_, User>(
-            "INSERT INTO users (email, password_hash, display_name, role, must_change_password) \
-             VALUES (?, ?, ?, ?, ?) \
+            "INSERT INTO users (email, password_hash, display_name, role, must_change_password, \
+                                temporary_password_expires_at) \
+             VALUES (?, ?, ?, ?, ?, CASE WHEN ? THEN datetime('now', ?) END) \
              RETURNING *",
         )
         .bind(user.email)
@@ -50,6 +55,8 @@ impl UserRepository {
         .bind(user.display_name)
         .bind(user.role)
         .bind(user.must_change_password)
+        .bind(user.must_change_password)
+        .bind(TEMPORARY_PASSWORD_LIFETIME)
         .fetch_one(pool)
         .await
     }
@@ -206,26 +213,51 @@ impl UserRepository {
         user_id: i64,
         password_hash: &str,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?")
-            .bind(password_hash)
-            .bind(user_id)
-            .execute(pool)
-            .await?;
+        sqlx::query(
+            "UPDATE users SET password_hash = ?, must_change_password = 0, \
+                              temporary_password_expires_at = NULL \
+             WHERE id = ?",
+        )
+        .bind(password_hash)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
         Ok(())
     }
 
-    /// Replace the password with a temporary one the person must change.
+    /// Replace the password with a temporary one the person must change
+    /// within [`TEMPORARY_PASSWORD_LIFETIME`].
     pub async fn set_temporary_password(
         pool: &DbPool,
         user_id: i64,
         password_hash: &str,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?")
-            .bind(password_hash)
-            .bind(user_id)
-            .execute(pool)
-            .await?;
+        sqlx::query(
+            "UPDATE users SET password_hash = ?, must_change_password = 1, \
+                              temporary_password_expires_at = datetime('now', ?) \
+             WHERE id = ?",
+        )
+        .bind(password_hash)
+        .bind(TEMPORARY_PASSWORD_LIFETIME)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
         Ok(())
+    }
+
+    /// Whether the account holds a temporary password past its lifetime.
+    pub async fn temporary_password_expired(
+        pool: &DbPool,
+        user_id: i64,
+    ) -> Result<bool, sqlx::Error> {
+        sqlx::query_scalar(
+            "SELECT COALESCE(temporary_password_expires_at < datetime('now'), 0) \
+             FROM users WHERE id = ?",
+        )
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await
+        .map(|expired| expired.unwrap_or(false))
     }
 
     /// Check if an email is already used by another user.

@@ -150,7 +150,7 @@ pub async fn update_password(
     Locale(i18n): Locale,
     HtmlForm(input): HtmlForm<PasswordInput>,
 ) -> Result<Response, AppError> {
-    if let Some(key) = password_change_refusal(&user, &input).await? {
+    if let Some(key) = password_change_refusal(&state, &user, &input).await? {
         let messages = ProfileMessages {
             password_error: Some(i18n.t(key).to_string()),
             ..ProfileMessages::default()
@@ -170,17 +170,25 @@ pub async fn update_password(
     render_profile(&state, &user, csrf_token, i18n, messages).await
 }
 
-/// The message key refusing the change, if any.
+/// The message key refusing the change, if any. Wrong current passwords
+/// are counted, so a session left open does not let anyone guess it.
 async fn password_change_refusal(
+    state: &AppState,
     user: &User,
     input: &PasswordInput,
 ) -> Result<Option<&'static str>, AppError> {
     if input.current_password.is_empty() {
         return Ok(Some("validation.current_password_required"));
     }
+    let limiter = &state.login_limiter;
+    if limiter.is_password_check_blocked(user.id) {
+        return Ok(Some("validation.rate_limited"));
+    }
     if !AuthService::verify_password(&input.current_password, &user.password_hash).await? {
+        limiter.record_password_check_failure(user.id);
         return Ok(Some("validation.wrong_password"));
     }
+    limiter.clear_password_checks(user.id);
     if AuthService::validate_password(&input.new_password).is_err() {
         return Ok(Some("validation.new_password_min_length"));
     }

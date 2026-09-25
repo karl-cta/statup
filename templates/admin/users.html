@@ -30,10 +30,11 @@
     </div>
     {% endif %}
 
-    {# The temporary password is shown once, here: no mail leaves the
-       instance, the admin hands it over. #}
+    {# The temporary password is shown once, in the answer to the form: no
+       mail leaves the instance, the admin hands it over. The page then takes
+       the list's address, so a reload does not send the form again. #}
     {% if let Some(c) = created %}
-    <div class="form-notice notice-stack mb-5" role="status">
+    <div class="form-notice notice-stack mb-5" data-replace-url="/admin/users" role="status">
         <div>
             <p>{% if c.reset %}{{ i18n.t("admin.reset_for") }}{% else %}{{ i18n.t("admin.created_for") }}{% endif %} <strong>{{ c.name }}</strong> ({{ c.email }}).</p>
             <p class="temp-password-row">{{ i18n.t("admin.created_password") }} <code id="temp-password" class="temp-password">{{ c.password }}</code> <button type="button" class="btn btn-ghost" data-copy="#temp-password" data-copied="{{ i18n.t("admin.password_copied") }}">{{ i18n.t("admin.copy_password") }}</button></p>

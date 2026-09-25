@@ -307,19 +307,36 @@ async fn a_new_member_is_a_reader_unless_chosen_otherwise() {
 }
 
 #[tokio::test]
-async fn the_temporary_password_is_shown_once_after_the_redirect() {
+async fn the_temporary_password_is_shown_once_in_the_answer() {
     let (app, _admin_id) = spawn_with_admin().await;
 
-    let (status, body, location) = app
-        .add_member(&[
+    let csrf = app.csrf().await;
+    let resp = app
+        .client
+        .post(app.url("/admin/users/new"))
+        .form(&[
+            ("csrf_token", csrf.as_str()),
             ("display_name", "  Paul  "),
             ("email", "Paul@Test.com"),
             ("role", "publisher"),
         ])
-        .await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
-    assert_eq!(location.as_deref(), Some("/admin/users"));
-    assert!(!body.contains("temp-password"));
+        .send()
+        .await
+        .expect("POST failed");
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        resp.headers()
+            .get("cache-control")
+            .and_then(|v| v.to_str().ok()),
+        Some("no-store"),
+        "a page showing a password is not stored"
+    );
+    assert!(
+        resp.headers().get("set-cookie").is_none(),
+        "the password is not kept in the session"
+    );
+    let body = resp.text().await.unwrap_or_default();
+    assert!(body.contains(r#"data-replace-url="/admin/users""#));
 
     let member = UserRepository::find_by_email(&app.pool, "paul@test.com")
         .await
@@ -329,23 +346,7 @@ async fn the_temporary_password_is_shown_once_after_the_redirect() {
     assert_eq!(member.role, Role::Publisher);
     assert_eq!(member.display_name, "Paul");
 
-    let resp = app.get_response("/admin/users").await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    assert_eq!(
-        resp.headers()
-            .get("cache-control")
-            .and_then(|v| v.to_str().ok()),
-        Some("no-store"),
-        "a page showing a password is not stored"
-    );
-    let body = resp.text().await.unwrap_or_default();
-    assert!(body.contains("temp-password"), "shown after the redirect");
-    let password = body
-        .split(r#"<code id="temp-password" class="temp-password">"#)
-        .nth(1)
-        .and_then(|rest| rest.split("</code>").next())
-        .expect("password rendered")
-        .to_string();
+    let password = temporary_password_in(&body);
     assert!(
         statup::services::AuthService::verify_password(&password, &member.password_hash)
             .await
@@ -354,6 +355,14 @@ async fn the_temporary_password_is_shown_once_after_the_redirect() {
 
     let (_, body) = app.get("/admin/users").await;
     assert!(!body.contains("temp-password"), "and never again");
+}
+
+fn temporary_password_in(page: &str) -> String {
+    page.split(r#"<code id="temp-password" class="temp-password">"#)
+        .nth(1)
+        .and_then(|rest| rest.split("</code>").next())
+        .expect("password rendered")
+        .to_string()
 }
 
 #[tokio::test]
@@ -802,9 +811,8 @@ async fn admin_gives_a_member_a_new_temporary_password() {
 
     let csrf = app.csrf().await;
     let path = format!("/admin/users/{user_id}/reset-password");
-    let (status, _body, location) = app.post_form(&path, &csrf, &[]).await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
-    assert_eq!(location.as_deref(), Some("/admin/users"));
+    let (status, page, _) = app.post_form(&path, &csrf, &[]).await;
+    assert_eq!(status, StatusCode::OK);
 
     let after = UserRepository::find_by_id(&app.pool, user_id)
         .await
@@ -813,18 +821,13 @@ async fn admin_gives_a_member_a_new_temporary_password() {
     assert_ne!(after.password_hash, before.password_hash);
     assert!(after.must_change_password, "the person chooses their own");
 
-    let (_, page) = app.get("/admin/users").await;
     assert!(
         page.contains("Nouveau mot de passe provisoire pour <strong>Forgot</strong>"),
         "the password is shown once: {page}"
     );
-    let password = page
-        .split(r#"<code id="temp-password" class="temp-password">"#)
-        .nth(1)
-        .and_then(|rest| rest.split("</code>").next())
-        .expect("password rendered");
+    let password = temporary_password_in(&page);
     assert!(
-        statup::services::AuthService::verify_password(password, &after.password_hash)
+        statup::services::AuthService::verify_password(&password, &after.password_hash)
             .await
             .expect("hash error")
     );

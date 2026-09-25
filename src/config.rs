@@ -19,6 +19,10 @@ pub enum ConfigError {
     InvalidValue { key: String, message: String },
 }
 
+/// How long a sign-in form stays valid. Short, because every visit to the
+/// sign-in page stores one of these sessions.
+const FORM_SESSION_SECS: u64 = 60 * 60;
+
 /// Where the database lives when `DATABASE_URL` is not set.
 pub const DEFAULT_DATABASE_URL: &str = "./statup.db";
 
@@ -71,7 +75,7 @@ impl Config {
             database_url: env_or("DATABASE_URL", DEFAULT_DATABASE_URL),
             host: parse_env("HOST", IpAddr::V4(Ipv4Addr::UNSPECIFIED))?,
             port: parse_env("PORT", 3000)?,
-            session_expiry: Duration::from_secs(parse_env("SESSION_EXPIRY", 604_800)?),
+            session_expiry: Duration::from_secs(parse_env("SESSION_EXPIRY", FORM_SESSION_SECS)?),
             log_level: parse_log_level(&env_or("LOG_LEVEL", "info"))?,
             db_max_connections: parse_env("DB_MAX_CONNECTIONS", 10)?,
             admin_email: non_empty_env("ADMIN_EMAIL"),

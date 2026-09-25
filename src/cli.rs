@@ -51,7 +51,7 @@ async fn run_reset_password(email: &str) -> i32 {
         Ok(password) => {
             println!("Temporary password for {email}: {password}");
             println!(
-                "Hand it over. They choose their own at next sign-in, and their open sessions are signed out."
+                "Hand it over within 7 days. They choose their own at next sign-in, and their open sessions are signed out."
             );
             0
         }

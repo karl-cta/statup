@@ -3,8 +3,7 @@
 use askama::Template;
 use axum::extract::{Multipart, Path, Query, State};
 use axum::response::{IntoResponse, Redirect, Response};
-use serde::{Deserialize, Serialize};
-use tower_sessions::Session;
+use serde::Deserialize;
 
 use super::{Frame, render};
 use crate::clock;
@@ -15,11 +14,7 @@ use crate::middleware::{CsrfToken, HtmlForm, RequireAdmin};
 use crate::models::{Role, User, check_display_name};
 use crate::repositories::{IconRepository, SettingsRepository, UserRepository};
 use crate::services::{AuthService, LogoService};
-use crate::session::{read_value, write_value};
 use crate::state::AppState;
-
-/// Session key of the account just created, shown once on the team page.
-const CREATED_ACCOUNT_KEY: &str = "created_account";
 
 /// Long enough for a company and a purpose, short enough to stay on one line
 /// of the masthead beside the mark.
@@ -167,14 +162,11 @@ enum NoticeKind {
     Enabled,
 }
 
-/// Kept in the session between the creation, or a reset, and the page that
-/// shows the temporary password.
-#[derive(Serialize, Deserialize)]
+/// A new account, or a reset, with the temporary password to hand over.
 struct CreatedAccount {
     name: String,
     email: String,
     password: String,
-    #[serde(default)]
     reset: bool,
 }
 
@@ -283,38 +275,35 @@ async fn render_settings(
 pub async fn users_list(
     RequireAdmin(user): RequireAdmin,
     State(state): State<AppState>,
-    session: Session,
     CsrfToken(csrf_token): CsrfToken,
     Locale(i18n): Locale,
     Query(query): Query<UsersQuery>,
 ) -> Result<Response, AppError> {
     let users = load_rows(&state, &i18n).await?;
-    let created = take_created_account(&session).await?;
-    let shows_password = created.is_some();
     let page = ListPage {
         notice: query.notice(&users),
-        created,
         ..ListPage::default()
     };
-    let response = render_users(&state, &user, csrf_token, i18n, users, page).await?;
-    Ok(if shows_password {
-        no_store(response)
-    } else {
-        response
-    })
+    render_users(&state, &user, csrf_token, i18n, users, page).await
 }
 
-/// The account created by the previous request, removed from the session
-/// so the password is shown once. Reading alone does not write the session.
-async fn take_created_account(session: &Session) -> Result<Option<CreatedAccount>, AppError> {
-    let created: Option<CreatedAccount> = read_value(session, CREATED_ACCOUNT_KEY).await?;
-    if created.is_some() {
-        session
-            .remove_value(CREATED_ACCOUNT_KEY)
-            .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("session write failed: {e}")))?;
-    }
-    Ok(created)
+/// The temporary password is shown in the answer to the form, and kept
+/// nowhere, not even in the session. The page then takes the address of the
+/// list, so a reload does not send the form again.
+async fn show_password(
+    state: &AppState,
+    admin: &User,
+    csrf_token: String,
+    i18n: I18n,
+    created: CreatedAccount,
+) -> Result<Response, AppError> {
+    let users = load_rows(state, &i18n).await?;
+    let page = ListPage {
+        created: Some(created),
+        ..ListPage::default()
+    };
+    let response = render_users(state, admin, csrf_token, i18n, users, page).await?;
+    Ok(no_store(response))
 }
 
 async fn load_rows(state: &AppState, i18n: &I18n) -> Result<Vec<UserRow>, AppError> {
@@ -367,13 +356,10 @@ async fn render_users(
 }
 
 /// The admin creates the account and reads a temporary password off the
-/// page, once: there is no outgoing mail to carry an invitation. The
-/// password travels to the next page in the session, so a reload of that
-/// page does not post the form again.
+/// page, once: there is no outgoing mail to carry an invitation.
 pub async fn add_member(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
-    session: Session,
     CsrfToken(csrf_token): CsrfToken,
     Locale(i18n): Locale,
     HtmlForm(input): HtmlForm<AddMemberInput>,
@@ -381,8 +367,7 @@ pub async fn add_member(
     match create_member(&state, &input).await {
         Ok(created) => {
             tracing::info!(admin_id = admin.id, "Member added");
-            write_value(&session, CREATED_ACCOUNT_KEY, &created).await?;
-            Ok(Redirect::to("/admin/users").into_response())
+            show_password(&state, &admin, csrf_token, i18n, created).await
         }
         Err(AppError::Validation(key)) => {
             let page = ListPage {
@@ -425,15 +410,11 @@ pub async fn reset_member_password(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
     Path(user_id): Path<i64>,
-    session: Session,
     CsrfToken(csrf_token): CsrfToken,
     Locale(i18n): Locale,
 ) -> Result<Response, AppError> {
     match issue_reset(&state, &admin, user_id).await {
-        Ok(reset) => {
-            write_value(&session, CREATED_ACCOUNT_KEY, &reset).await?;
-            Ok(Redirect::to("/admin/users").into_response())
-        }
+        Ok(reset) => show_password(&state, &admin, csrf_token, i18n, reset).await,
         Err(AppError::Validation(key)) => {
             let users = load_rows(&state, &i18n).await?;
             let page = ListPage::refused(i18n.t(&key).to_string());

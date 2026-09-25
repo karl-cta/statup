@@ -11,7 +11,7 @@ use statup::repositories::UserRepository;
 use statup::services::AuthService;
 
 const OWNER_EMAIL: &str = "owner@example.com";
-const OWNER_PASSWORD: &str = "owner_password_12";
+const OWNER_PASSWORD: &str = "Owner_password_12";
 
 /// Create the first account through the form. The person is signed in on
 /// success. Returns the CSRF token of the form.
@@ -58,10 +58,10 @@ async fn logout(app: &TestApp) {
 async fn first_account_then_login_then_protected_then_logout() {
     let app = TestApp::spawn().await;
 
-    create_first_account(&app, "alice@example.com", "secure_password_123", "Alice").await;
+    create_first_account(&app, "alice@example.com", "Secure_password_123", "Alice").await;
     logout(&app).await;
 
-    app.login("alice@example.com", "secure_password_123").await;
+    app.login("alice@example.com", "Secure_password_123").await;
 
     let (status, body) = app.get("/").await;
     assert_eq!(status, StatusCode::OK);
@@ -202,9 +202,12 @@ async fn post_without_csrf_token_is_rejected() {
         .expect("request failed");
     assert_eq!(
         resp.status(),
-        StatusCode::FORBIDDEN,
-        "POST without a session should be 403"
+        StatusCode::UNAUTHORIZED,
+        "a form sent without a session asks to sign in again"
     );
+    let body = resp.text().await.expect("body");
+    assert!(body.contains("ouverte depuis trop longtemps"), "{body}");
+    assert!(body.contains(r#"href="/login""#), "{body}");
 
     let (status, _body) = app.get("/login").await;
     assert_eq!(status, StatusCode::OK);
@@ -491,7 +494,7 @@ async fn fresh_instance_offers_the_first_account() {
 async fn first_account_is_admin_and_signed_in() {
     let app = TestApp::spawn().await;
 
-    create_first_account(&app, "First@Example.com", "first_password_12", "  First  ").await;
+    create_first_account(&app, "First@Example.com", "First_password_12", "  First  ").await;
 
     let user = UserRepository::find_by_email(&app.pool, "first@example.com")
         .await
@@ -599,17 +602,17 @@ async fn signed_in_sessions_keep_their_own_lifetime() {
     let csrf = extract_csrf_token(&resp.text().await.unwrap_or_default());
     let resp = app
         .client
-        .post(app.url("/admin/users/new"))
+        .post(app.url("/profile/password"))
         .form(&[
             ("csrf_token", csrf.as_str()),
-            ("display_name", "Member"),
-            ("email", "member@example.com"),
-            ("role", "reader"),
+            ("current_password", OWNER_PASSWORD),
+            ("new_password", "Another-owner-pass-42"),
+            ("new_password_confirm", "Another-owner-pass-42"),
         ])
         .send()
         .await
         .expect("POST failed");
-    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
+    assert_eq!(resp.status(), StatusCode::OK);
     assert_eq!(
         session_max_age(&resp).as_deref(),
         Some("2592000"),
@@ -724,8 +727,8 @@ async fn temporary_password_must_be_replaced_before_anything_else() {
             "/password/new",
             &csrf,
             &[
-                ("password", "my_own_password_42"),
-                ("password_confirm", "my_own_password_43"),
+                ("password", "My_own_password_42"),
+                ("password_confirm", "My_own_password_43"),
             ],
         )
         .await;
@@ -738,8 +741,8 @@ async fn temporary_password_must_be_replaced_before_anything_else() {
             "/password/new",
             &csrf,
             &[
-                ("password", "my_own_password_42"),
-                ("password_confirm", "my_own_password_42"),
+                ("password", "My_own_password_42"),
+                ("password_confirm", "My_own_password_42"),
             ],
         )
         .await;
@@ -760,7 +763,7 @@ async fn temporary_password_must_be_replaced_before_anything_else() {
         .expect("user not found");
     assert!(!user.must_change_password);
     assert!(
-        AuthService::verify_password("my_own_password_42", &user.password_hash)
+        AuthService::verify_password("My_own_password_42", &user.password_hash)
             .await
             .expect("hash error")
     );
@@ -779,7 +782,7 @@ async fn account_created_by_its_owner_is_not_asked_for_a_new_password() {
 #[tokio::test]
 async fn host_reset_signs_the_account_out_and_asks_for_a_new_password() {
     let app = TestApp::spawn().await;
-    create_first_account(&app, "reset@example.com", "forgotten_password_1", "Reset").await;
+    create_first_account(&app, "reset@example.com", "Forgotten_password_1", "Reset").await;
     let (status, _body) = app.get("/profile").await;
     assert_eq!(status, StatusCode::OK);
 
@@ -820,7 +823,7 @@ async fn resetting_an_unknown_account_is_refused() {
 #[tokio::test]
 async fn changing_the_password_from_the_profile_keeps_this_session() {
     let app = TestApp::spawn().await;
-    create_first_account(&app, "profile@example.com", "first_password_12", "Profile").await;
+    create_first_account(&app, "profile@example.com", "First_password_12", "Profile").await;
 
     let resp = app.get_response("/profile").await;
     assert_eq!(
@@ -837,9 +840,9 @@ async fn changing_the_password_from_the_profile_keeps_this_session() {
             "/profile/password",
             &csrf,
             &[
-                ("current_password", "first_password_12"),
-                ("new_password", "second_password_34"),
-                ("new_password_confirm", "second_password_34"),
+                ("current_password", "First_password_12"),
+                ("new_password", "Second_password_34"),
+                ("new_password_confirm", "Second_password_34"),
             ],
         )
         .await;
@@ -873,7 +876,7 @@ async fn changing_the_password_from_the_profile_keeps_this_session() {
 #[tokio::test]
 async fn a_short_new_password_is_refused_in_the_profile_page() {
     let app = TestApp::spawn().await;
-    create_first_account(&app, "short@example.com", "first_password_12", "Short").await;
+    create_first_account(&app, "short@example.com", "First_password_12", "Short").await;
 
     let csrf = app.csrf_from("/profile").await;
     let (status, body, _) = app
@@ -881,7 +884,7 @@ async fn a_short_new_password_is_refused_in_the_profile_page() {
             "/profile/password",
             &csrf,
             &[
-                ("current_password", "first_password_12"),
+                ("current_password", "First_password_12"),
                 ("new_password", "short"),
                 ("new_password_confirm", "short"),
             ],
@@ -892,9 +895,37 @@ async fn a_short_new_password_is_refused_in_the_profile_page() {
 }
 
 #[tokio::test]
+async fn the_current_password_cannot_be_guessed_from_an_open_session() {
+    let app = TestApp::spawn().await;
+    create_first_account(&app, "guess@example.com", "First_password_12", "Guess").await;
+
+    let csrf = app.csrf_from("/profile").await;
+    let change = |current: &'static str| {
+        [
+            ("current_password", current),
+            ("new_password", "Second_password_34"),
+            ("new_password_confirm", "Second_password_34"),
+        ]
+    };
+    for _ in 0..5 {
+        let (_, body, _) = app
+            .post_form("/profile/password", &csrf, &change("Wrong_guess_123"))
+            .await;
+        assert!(body.contains("Le mot de passe actuel est incorrect"));
+    }
+    let (_, body, _) = app
+        .post_form("/profile/password", &csrf, &change("First_password_12"))
+        .await;
+    assert!(
+        body.contains("Trop de tentatives"),
+        "even the right one waits: {body}"
+    );
+}
+
+#[tokio::test]
 async fn a_blank_display_name_is_refused_in_the_profile_page() {
     let app = TestApp::spawn().await;
-    create_first_account(&app, "blank@example.com", "first_password_12", "Blank").await;
+    create_first_account(&app, "blank@example.com", "First_password_12", "Blank").await;
 
     let csrf = app.csrf_from("/profile").await;
     let (status, body, _) = app
@@ -916,7 +947,7 @@ async fn a_blank_display_name_is_refused_in_the_profile_page() {
 #[tokio::test]
 async fn signed_in_user_is_sent_home_from_login() {
     let app = TestApp::spawn().await;
-    create_first_account(&app, "home@example.com", "home_password_123", "Home").await;
+    create_first_account(&app, "home@example.com", "Home_password_123", "Home").await;
 
     let (status, location) = app.redirect_of("/login").await;
     assert_eq!(status, StatusCode::SEE_OTHER);

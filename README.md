@@ -95,7 +95,7 @@ Every setting is optional. Copy `.env.example` to `.env` to change one. With Doc
 | `UPLOAD_DIR` | `data/uploads` | Where uploaded icons are kept |
 | `HOST` | `0.0.0.0` | Listen address, an IP address |
 | `PORT` | `3000` | Listen port |
-| `SESSION_EXPIRY` | `604800` | Seconds a sign-in form stays valid. Once signed in, a session lasts 30 days without a visit with "Stay signed in", 24 hours otherwise |
+| `SESSION_EXPIRY` | `3600` | Seconds a sign-in form stays valid. Once signed in, a session lasts 30 days without a visit with "Stay signed in", 24 hours otherwise |
 | `DB_MAX_CONNECTIONS` | `10` | Database pool size |
 | `LOG_LEVEL` | `info` | `trace`, `debug`, `info`, `warn`, `error` or `off` |
 | `RUST_LOG` | unset | Finer log filter, e.g. `statup=debug,tower_http=info`. Replaces `LOG_LEVEL` when set |

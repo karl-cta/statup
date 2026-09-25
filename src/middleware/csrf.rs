@@ -129,7 +129,8 @@ async fn stored_token(session: &Session) -> Result<Option<String>, AppError> {
 ///
 /// # Errors
 ///
-/// Returns `AppError::Forbidden` when the token is missing or wrong,
+/// Returns `AppError::SessionExpired` when the session holds no token,
+/// `AppError::Forbidden` when the request carries a missing or wrong one,
 /// `AppError::PayloadTooLarge` for a body past the route limit, and
 /// `AppError::Internal` on session errors.
 pub async fn csrf_middleware(
@@ -146,8 +147,7 @@ pub async fn csrf_middleware(
     }
 
     let Some(expected) = stored else {
-        tracing::warn!("CSRF check failed: the session holds no token");
-        return Err(AppError::Forbidden);
+        return Err(AppError::SessionExpired);
     };
     let (parts, body, submitted) = extract_submitted_token(request).await?;
     validate_token(&expected, submitted.as_deref())?;

@@ -20,11 +20,20 @@ pub enum AppError {
     #[error("Forbidden")]
     Forbidden,
 
+    /// A form sent on a session that holds no form token: it expired, or
+    /// the page was never opened here.
+    #[error("Session expired")]
+    SessionExpired,
+
     #[error("Validation error: {0}")]
     Validation(String),
 
     #[error("Request body too large")]
     PayloadTooLarge,
+
+    /// Too many passwords are being checked at once.
+    #[error("Server busy")]
+    Busy,
 
     #[error("Database error")]
     Database(#[from] sqlx::Error),
@@ -40,8 +49,10 @@ impl AppError {
             Self::NotFound => (StatusCode::NOT_FOUND, "error.not_found"),
             Self::Unauthorized => (StatusCode::UNAUTHORIZED, "error.unauthorized"),
             Self::Forbidden => (StatusCode::FORBIDDEN, "error.forbidden"),
+            Self::SessionExpired => (StatusCode::UNAUTHORIZED, "error.session_expired"),
             Self::Validation(key) => (StatusCode::BAD_REQUEST, key.as_str()),
             Self::PayloadTooLarge => (StatusCode::PAYLOAD_TOO_LARGE, "error.payload_too_large"),
+            Self::Busy => (StatusCode::SERVICE_UNAVAILABLE, "error.busy"),
             Self::Database(err) if is_foreign_key_violation(err) => {
                 (StatusCode::BAD_REQUEST, "error.invalid_data")
             }
@@ -53,11 +64,14 @@ impl AppError {
 
     fn log(&self) {
         match self {
-            Self::NotFound | Self::Validation(_) | Self::PayloadTooLarge => {
+            Self::NotFound | Self::Validation(_) | Self::PayloadTooLarge | Self::Busy => {
                 tracing::debug!("{self}");
             }
             Self::Unauthorized => {
                 tracing::info!("Unauthorized access attempt");
+            }
+            Self::SessionExpired => {
+                tracing::info!("Form sent without a session token");
             }
             Self::Forbidden => {
                 tracing::warn!("Forbidden access attempt");
