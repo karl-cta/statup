@@ -79,10 +79,10 @@ real router over TCP; unit tests sit next to the code they cover.
 
 A change to a screen or to `static/js` also passes the browser tests, a few
 journeys that Playwright plays in Chromium as a desktop and as a phone
-against a fresh instance. They need Node.js and the Tailwind binary:
+against a fresh instance. They need Node.js and the Tailwind binary; the
+script installs the pinned Playwright and its Chromium on first run:
 
 ```bash
-npx --prefix tests/browser playwright install chromium   # once
 scripts/browser-tests.sh
 ```
 

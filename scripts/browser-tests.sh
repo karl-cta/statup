@@ -9,5 +9,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cargo build --locked --manifest-path "$ROOT/Cargo.toml"
 
 cd "$ROOT/tests/browser"
-[ -d node_modules ] || npm ci
+# Reinstall when the lock file changed since the last install.
+if [ package-lock.json -nt node_modules/.package-lock.json ]; then
+    npm ci --no-audit --no-fund
+fi
+npx playwright install chromium
 npx playwright test "$@"

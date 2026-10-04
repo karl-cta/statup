@@ -29,12 +29,16 @@ test("the menu opens over the page and closes with the same button", async ({ pa
 });
 
 test("the masthead tucks away going down and comes back going up", async ({ page }) => {
-    await page.goto("/events/new");
+    await page.goto("/");
+    // A page long enough to scroll, whatever the dashboard holds today.
+    await page.getByRole("main").evaluate((main) => {
+        const room = document.createElement("div");
+        room.style.height = "3000px";
+        main.append(room);
+    });
     const masthead = page.getByRole("banner");
     const scrollTo = (y) => page.evaluate((top) => window.scrollTo(0, top), y);
     const maxScroll = await page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
-    const mastHeight = (await masthead.boundingBox()).height;
-    expect(maxScroll, "a page long enough to scroll past the masthead").toBeGreaterThan(mastHeight + 100);
     await expect(masthead).not.toHaveClass(/is-tucked/);
 
     await scrollTo(maxScroll);
