@@ -61,8 +61,9 @@ impl ServiceService {
         Ok(())
     }
 
-    /// Shows the worse of the state set by hand and the ones open work
-    /// implies, so closing an event falls back to what the team declared.
+    /// Shows the worst of the state set by hand, the ones open work implies
+    /// and the one the checks found, so closing an event falls back to what
+    /// the team declared.
     pub async fn recalculate_status(pool: &DbPool, service_id: i64) -> Result<(), AppError> {
         let service = ServiceRepository::find_by_id(pool, service_id)
             .await?
@@ -72,6 +73,7 @@ impl ServiceService {
             .into_iter()
             .filter_map(|(kind, severity)| derive_status(kind, severity))
             .chain([service.manual_status])
+            .chain(service.detected_status)
             .max_by_key(|status| status.priority())
             .unwrap_or(service.manual_status);
         ServiceRepository::update_status(pool, service_id, worst).await?;

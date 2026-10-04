@@ -304,6 +304,19 @@ impl EventRepository {
         .await
     }
 
+    /// Services a maintenance under way takes down: the checks keep quiet
+    /// about them.
+    pub async fn services_under_maintenance(pool: &DbPool) -> Result<Vec<i64>, sqlx::Error> {
+        sqlx::query_scalar(
+            "SELECT DISTINCT es.service_id FROM events e \
+             INNER JOIN event_services es ON es.event_id = e.id \
+             WHERE e.kind = 'maintenance' AND e.lifecycle = 'in_progress' \
+               AND NOT e.keeps_services_up",
+        )
+        .fetch_all(pool)
+        .await
+    }
+
     /// Starts every announced maintenance whose start has come. Returns the
     /// ids that changed.
     pub async fn start_due_maintenance(

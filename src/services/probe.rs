@@ -31,9 +31,15 @@ impl Probes {
             timeout,
         })
     }
+}
 
-    /// Runs the check a service is set up with.
-    pub async fn check(&self, service: &CheckedService) -> Outcome {
+/// Runs the check a service is set up with; tests swap in a scripted one.
+pub trait Prober: Send + Sync + 'static {
+    fn check(&self, service: &CheckedService) -> impl Future<Output = Outcome> + Send;
+}
+
+impl Prober for Probes {
+    async fn check(&self, service: &CheckedService) -> Outcome {
         match service.kind {
             CheckKind::Http => {
                 let client = if service.internal_cert {
