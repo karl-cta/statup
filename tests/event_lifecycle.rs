@@ -7,9 +7,11 @@ mod common;
 
 use reqwest::StatusCode;
 
+use chrono::Utc;
 use common::{TestApp, extract_csrf_token};
-use statup::models::{Lifecycle, Role, ServiceStatus};
+use statup::models::{CheckKind, Lifecycle, Role, ServiceCheck, ServiceStatus};
 use statup::repositories::{EventRepository, ServiceRepository};
+use statup::services::ServiceService;
 
 impl TestApp {
     /// POST via the `X-CSRF-Token` header, the way htmx sends it.
@@ -681,6 +683,113 @@ async fn rejected_service_creation_gives_the_input_back() {
     assert!(
         body.contains(r#"id="name-error""#) && !body.contains(r#"id="form-error""#),
         "a refused name is said under the name field, not above the form"
+    );
+}
+
+#[tokio::test]
+async fn a_service_saved_with_a_check_is_watched() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let csrf = app.csrf_from("/services/new").await;
+
+    let (status, _, _) = app
+        .post_form(
+            "/services/new",
+            &csrf,
+            &[
+                ("name", "Intranet"),
+                ("check_kind", "http"),
+                ("check_url", " https://intranet.example.com "),
+                ("check_address", "left over from the other kind"),
+                ("check_internal_cert", "on"),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let checked = ServiceRepository::list_checked(&app.pool).await.unwrap();
+    assert_eq!(checked.len(), 1);
+    assert_eq!(checked[0].kind, CheckKind::Http);
+    assert_eq!(checked[0].target, "https://intranet.example.com");
+    assert!(checked[0].internal_cert);
+
+    let (_, form) = app.get(&format!("/services/{}/edit", checked[0].id)).await;
+    assert!(form.contains(r#"value="https://intranet.example.com""#));
+    assert!(form.contains(r#"value="http" class="sr-only" checked"#));
+}
+
+#[tokio::test]
+async fn a_refused_check_saves_nothing_and_is_said_under_its_field() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let csrf = app.csrf_from("/services/new").await;
+
+    let (status, body, _) = app
+        .post_form(
+            "/services/new",
+            &csrf,
+            &[
+                ("name", "NAS"),
+                ("check_kind", "tcp"),
+                ("check_address", "nas"),
+            ],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK, "should re-render the form");
+    assert!(body.contains(r#"id="check-error""#) && !body.contains(r#"id="form-error""#));
+    assert!(
+        body.contains(r#"value="nas""#),
+        "the typed address should survive"
+    );
+    assert!(
+        ServiceRepository::list_all(&app.pool)
+            .await
+            .unwrap()
+            .is_empty(),
+        "a refused check should save no service"
+    );
+}
+
+#[tokio::test]
+async fn removing_the_check_clears_a_detected_outage() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let id = app.create_service("Paie").await;
+    let check = ServiceCheck {
+        kind: CheckKind::Tcp,
+        target: "10.0.0.9:443".to_string(),
+        internal_cert: false,
+    };
+    ServiceRepository::set_check(&app.pool, id, Some(&check), Utc::now())
+        .await
+        .unwrap();
+    ServiceRepository::mark_detected_down(&app.pool, id, Utc::now())
+        .await
+        .unwrap();
+    ServiceService::recalculate_status(&app.pool, id)
+        .await
+        .unwrap();
+    assert_eq!(app.service(id).await.status, ServiceStatus::MajorOutage);
+
+    let csrf = app.csrf_from(&format!("/services/{id}/edit")).await;
+    let (status, _, _) = app
+        .post_form(
+            &format!("/services/{id}/edit"),
+            &csrf,
+            &[("name", "Paie"), ("check_kind", "none")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let service = app.service(id).await;
+    assert_eq!(service.status, ServiceStatus::Operational);
+    assert_eq!(service.detected_status, None);
+    assert!(
+        ServiceRepository::list_checked(&app.pool)
+            .await
+            .unwrap()
+            .is_empty()
     );
 }
 

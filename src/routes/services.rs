@@ -9,17 +9,18 @@ use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 
 use super::{Frame, members_only, render};
+use crate::db::DbPool;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::headers::is_htmx;
 use crate::middleware::{CsrfToken, HtmlForm, OptionalUser, RequirePublisher};
 use crate::models::{
-    BUILTIN_ICONS, BuiltinIcon, EventFilters, EventSummary, Icon, Service, ServiceStatus, User,
-    find_builtin_icon,
+    BUILTIN_ICONS, BuiltinIcon, CheckKind, EventFilters, EventSummary, Icon, Service, ServiceCheck,
+    ServiceStatus, User, find_builtin_icon,
 };
 use crate::modules::services::{ServiceRow, service_history};
 use crate::repositories::{EventRepository, ServiceRepository};
-use crate::services::{IconService, ServiceService};
+use crate::services::{IconService, ServiceService, target_allowed};
 use crate::state::AppState;
 
 #[derive(Template)]
@@ -99,6 +100,7 @@ struct ServiceFormTemplate {
     frame: Frame,
     error: Option<String>,
     name_error: Option<String>,
+    check_error: Option<String>,
     edit_id: Option<i64>,
     form: ServiceFormData,
     selected_icon_id: Option<i64>,
@@ -117,6 +119,11 @@ impl ServiceFormTemplate {
     fn status_line(&self) -> String {
         let status = self.i18n.t(self.form.status.i18n_key());
         self.i18n.tf("services.status_now", &[("status", status)])
+    }
+
+    /// Whether the form shows this check, `none` for no check.
+    fn check_is(&self, kind: &str) -> bool {
+        self.form.check_kind.map_or("none", CheckKind::as_str) == kind
     }
 
     fn is_builtin_selected(&self, name: &str) -> bool {
@@ -146,6 +153,43 @@ pub struct ServiceFormData {
     pub name: String,
     pub description: String,
     pub status: ServiceStatus,
+    pub check_kind: Option<CheckKind>,
+    pub check_url: String,
+    pub check_address: String,
+    pub check_internal_cert: bool,
+}
+
+impl ServiceFormData {
+    fn empty() -> Self {
+        Self {
+            name: String::new(),
+            description: String::new(),
+            status: ServiceStatus::Operational,
+            check_kind: None,
+            check_url: String::new(),
+            check_address: String::new(),
+            check_internal_cert: false,
+        }
+    }
+
+    /// An edited service as saved; its target fills the field of its kind.
+    fn from_service(service: Service) -> Self {
+        let target = service.check_target.unwrap_or_default();
+        let (check_url, check_address) = match service.check_kind {
+            Some(CheckKind::Http) => (target, String::new()),
+            Some(CheckKind::Tcp) => (String::new(), target),
+            None => (String::new(), String::new()),
+        };
+        Self {
+            name: service.name,
+            description: service.description.unwrap_or_default(),
+            status: service.status,
+            check_kind: service.check_kind,
+            check_url,
+            check_address,
+            check_internal_cert: service.check_internal_cert,
+        }
+    }
 }
 
 /// Everything a form page shows besides the frame.
@@ -167,9 +211,42 @@ pub struct ServiceInput {
     icon_id: Option<String>,
     #[serde(default)]
     icon_name: Option<String>,
+    #[serde(default)]
+    check_kind: String,
+    #[serde(default)]
+    check_url: String,
+    #[serde(default)]
+    check_address: String,
+    #[serde(default)]
+    check_internal_cert: Option<String>,
 }
 
 impl ServiceInput {
+    fn check_kind(&self) -> Option<CheckKind> {
+        self.check_kind.parse().ok()
+    }
+
+    /// What to check, read from the field of the chosen kind; the other one
+    /// is ignored, so a page without script that sends both still works.
+    fn check(&self) -> Result<Option<ServiceCheck>, AppError> {
+        let Some(kind) = self.check_kind() else {
+            return match self.check_kind.as_str() {
+                "" | "none" => Ok(None),
+                _ => Err(AppError::validation("error.invalid_data")),
+            };
+        };
+        let target = match kind {
+            CheckKind::Http => self.check_url.trim(),
+            CheckKind::Tcp => self.check_address.trim(),
+        };
+        target_allowed(kind, target).map_err(AppError::validation)?;
+        Ok(Some(ServiceCheck {
+            kind,
+            target: target.to_string(),
+            internal_cert: kind == CheckKind::Http && self.check_internal_cert.is_some(),
+        }))
+    }
+
     fn icon_id(&self) -> Option<i64> {
         self.icon_id
             .as_deref()
@@ -187,9 +264,13 @@ impl ServiceInput {
             icon_id: self.icon_id(),
             icon_name: self.icon_name(),
             form: ServiceFormData {
+                check_kind: self.check_kind(),
+                check_internal_cert: self.check_internal_cert.is_some(),
                 name: self.name,
                 description: self.description,
                 status,
+                check_url: self.check_url,
+                check_address: self.check_address,
             },
             error_key: Some(error_key),
         }
@@ -216,20 +297,12 @@ async fn render_form(
             .is_some_and(|service| !service.has_history),
         None => false,
     };
-    let message = page.error_key.as_deref().map(|key| i18n.t(key).to_string());
-    let on_name = page
-        .error_key
-        .as_deref()
-        .is_some_and(|key| key.starts_with("validation.service_name_"));
-    let (error, name_error) = if on_name {
-        (None, message)
-    } else {
-        (message, None)
-    };
+    let (error, name_error, check_error) = place_error(page.error_key.as_deref(), &i18n);
     render(&ServiceFormTemplate {
         frame: Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?,
         error,
         name_error,
+        check_error,
         edit_id: page.edit_id,
         form: page.form,
         selected_icon_id: page.icon_id.filter(|_| selected_icon_url.is_some()),
@@ -243,6 +316,22 @@ async fn render_form(
     })
 }
 
+/// A refusal is said under its field when it has one: the name, the
+/// address to check; anything else above the form.
+fn place_error(key: Option<&str>, i18n: &I18n) -> (Option<String>, Option<String>, Option<String>) {
+    let Some(key) = key else {
+        return (None, None, None);
+    };
+    let message = Some(i18n.t(key).to_string());
+    if key.starts_with("validation.service_name_") {
+        (None, message, None)
+    } else if key.starts_with("validation.check_") {
+        (None, None, message)
+    } else {
+        (message, None, None)
+    }
+}
+
 pub async fn new_form(
     RequirePublisher(user): RequirePublisher,
     State(state): State<AppState>,
@@ -251,11 +340,7 @@ pub async fn new_form(
 ) -> Result<Response, AppError> {
     let page = FormPage {
         edit_id: None,
-        form: ServiceFormData {
-            name: String::new(),
-            description: String::new(),
-            status: ServiceStatus::Operational,
-        },
+        form: ServiceFormData::empty(),
         icon_id: None,
         icon_name: None,
         error_key: None,
@@ -270,23 +355,45 @@ pub async fn create(
     Locale(i18n): Locale,
     HtmlForm(input): HtmlForm<ServiceInput>,
 ) -> Result<Response, AppError> {
-    let icon_name = input.icon_name();
-    let result = ServiceService::create(
-        &state.pool,
-        &input.name,
-        Some(input.description.as_str()),
-        input.icon_id(),
-        icon_name.as_deref(),
-    )
-    .await;
-    match result {
-        Ok(service) => Ok(Redirect::to(&format!("/services?saved={}", service.id)).into_response()),
+    match save_new(&state.pool, &input).await {
+        Ok(id) => Ok(Redirect::to(&format!("/services?saved={id}")).into_response()),
         Err(AppError::Validation(key)) => {
             let page = input.into_page(None, ServiceStatus::Operational, key);
             render_form(&state, &user, csrf_token.0, i18n, page).await
         }
         Err(e) => Err(e),
     }
+}
+
+/// The check is read first, so a refused address saves nothing.
+async fn save_new(pool: &DbPool, input: &ServiceInput) -> Result<i64, AppError> {
+    let check = input.check()?;
+    let icon_name = input.icon_name();
+    let service = ServiceService::create(
+        pool,
+        &input.name,
+        Some(input.description.as_str()),
+        input.icon_id(),
+        icon_name.as_deref(),
+    )
+    .await?;
+    ServiceService::set_check(pool, service.id, check.as_ref()).await?;
+    Ok(service.id)
+}
+
+async fn save_edit(pool: &DbPool, id: i64, input: &ServiceInput) -> Result<(), AppError> {
+    let check = input.check()?;
+    let icon_name = input.icon_name();
+    ServiceService::update(
+        pool,
+        id,
+        &input.name,
+        Some(input.description.as_str()),
+        input.icon_id(),
+        icon_name.as_deref(),
+    )
+    .await?;
+    ServiceService::set_check(pool, id, check.as_ref()).await
 }
 
 pub async fn edit_form(
@@ -302,12 +409,8 @@ pub async fn edit_form(
     let page = FormPage {
         edit_id: Some(id),
         icon_id: service.icon_id,
-        icon_name: service.icon_name,
-        form: ServiceFormData {
-            name: service.name,
-            description: service.description.unwrap_or_default(),
-            status: service.status,
-        },
+        icon_name: service.icon_name.clone(),
+        form: ServiceFormData::from_service(service),
         error_key: None,
     };
     render_form(&state, &user, csrf_token.0, i18n, page).await
@@ -321,17 +424,7 @@ pub async fn update(
     Locale(i18n): Locale,
     HtmlForm(input): HtmlForm<ServiceInput>,
 ) -> Result<Response, AppError> {
-    let icon_name = input.icon_name();
-    let result = ServiceService::update(
-        &state.pool,
-        id,
-        &input.name,
-        Some(input.description.as_str()),
-        input.icon_id(),
-        icon_name.as_deref(),
-    )
-    .await;
-    match result {
+    match save_edit(&state.pool, id, &input).await {
         Ok(()) => Ok(Redirect::to(&format!("/services?saved={id}")).into_response()),
         Err(AppError::Validation(key)) => {
             let status = ServiceRepository::find_by_id(&state.pool, id)

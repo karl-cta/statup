@@ -92,6 +92,26 @@ pub enum CheckKind {
     Tcp,
 }
 
+impl CheckKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Http => "http",
+            Self::Tcp => "tcp",
+        }
+    }
+}
+
+impl FromStr for CheckKind {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        [Self::Http, Self::Tcp]
+            .into_iter()
+            .find(|kind| kind.as_str() == s)
+            .ok_or(())
+    }
+}
+
 /// What to check for a service, as set in its form.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServiceCheck {
@@ -191,6 +211,14 @@ mod tests {
             ServiceStatus::MajorOutage,
         ];
         assert!(order.windows(2).all(|w| w[0].priority() < w[1].priority()));
+    }
+
+    #[test]
+    fn check_kinds_round_trip() {
+        for kind in [CheckKind::Http, CheckKind::Tcp] {
+            assert_eq!(kind.as_str().parse::<CheckKind>(), Ok(kind));
+        }
+        assert!("ping".parse::<CheckKind>().is_err());
     }
 
     #[test]
