@@ -53,6 +53,17 @@ pub(super) async fn open_outage(
     Ok(())
 }
 
+pub(super) async fn delete_open_outage(
+    tx: &mut sqlx::Transaction<'_, Sqlite>,
+    service_id: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM service_outages WHERE service_id = ? AND ended_at IS NULL")
+        .bind(service_id)
+        .execute(&mut **tx)
+        .await?;
+    Ok(())
+}
+
 /// Never ends an outage before it started, should the clock step back.
 pub(super) async fn close_outage(
     tx: &mut sqlx::Transaction<'_, Sqlite>,

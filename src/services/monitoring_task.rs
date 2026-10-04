@@ -243,7 +243,7 @@ mod tests {
             target: format!("https://service-{service_id}.example"),
             internal_cert: false,
         };
-        ServiceRepository::set_check(pool, service_id, Some(&check), minute(0))
+        ServiceRepository::set_check(pool, service_id, Some(&check))
             .await
             .unwrap();
     }
@@ -395,9 +395,7 @@ mod tests {
         let mut state = MonitorState::default();
 
         rounds(&pool, &mut state, Outcome::Failed, &[1, 2]).await;
-        ServiceRepository::set_check(&pool, id, None, minute(3))
-            .await
-            .unwrap();
+        ServiceRepository::set_check(&pool, id, None).await.unwrap();
         rounds(&pool, &mut state, Outcome::Failed, &[3]).await;
         set_web_check(&pool, id).await;
         rounds(&pool, &mut state, Outcome::Failed, &[4]).await;

@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 
-use super::outage_repo::{close_outage, open_outage};
+use super::outage_repo::{close_outage, delete_open_outage, open_outage};
 use crate::db::DbPool;
 use crate::models::{CheckedService, Service, ServiceCheck, ServiceStatus};
 
@@ -126,14 +126,13 @@ impl ServiceRepository {
     }
 
     /// Saves what to check. A changed check drops what the old one detected
-    /// and ends its outage, so fixing a wrong address clears a false outage.
-    /// Returns whether a detected state was dropped, which changes the
-    /// status to show.
+    /// and erases its outage under way: fixing a wrong address leaves no
+    /// false outage on the public strip. Returns whether a detected state
+    /// was dropped, which changes the status to show.
     pub async fn set_check(
         pool: &DbPool,
         id: i64,
         check: Option<&ServiceCheck>,
-        now: DateTime<Utc>,
     ) -> Result<bool, sqlx::Error> {
         let kind = check.map(|c| c.kind);
         let target = check.map(|c| c.target.as_str());
@@ -164,7 +163,7 @@ impl ServiceRepository {
         .bind(id)
         .execute(&mut *tx)
         .await?;
-        close_outage(&mut tx, id, now).await?;
+        delete_open_outage(&mut tx, id).await?;
         tx.commit().await?;
         Ok(detected)
     }
@@ -351,7 +350,7 @@ mod tests {
             target: "10.0.0.1:443".to_string(),
             internal_cert: true,
         };
-        ServiceRepository::set_check(&pool, watched.id, Some(&check), at(9))
+        ServiceRepository::set_check(&pool, watched.id, Some(&check))
             .await
             .unwrap();
 
@@ -369,14 +368,14 @@ mod tests {
         let pool = test_pool().await;
         let svc = create(&pool, "Wiki", "wiki").await;
         let check = web("https://wiki.example");
-        ServiceRepository::set_check(&pool, svc.id, Some(&check), at(8))
+        ServiceRepository::set_check(&pool, svc.id, Some(&check))
             .await
             .unwrap();
         ServiceRepository::mark_detected_down(&pool, svc.id, at(9))
             .await
             .unwrap();
 
-        let dropped = ServiceRepository::set_check(&pool, svc.id, Some(&check), at(10))
+        let dropped = ServiceRepository::set_check(&pool, svc.id, Some(&check))
             .await
             .unwrap();
         assert!(!dropped);
@@ -389,29 +388,35 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn changing_or_removing_the_check_clears_a_detected_outage() {
+    async fn changing_or_removing_the_check_erases_the_outage_under_way() {
         let pool = test_pool().await;
         let svc = create(&pool, "Paie", "paie").await;
-        ServiceRepository::set_check(&pool, svc.id, Some(&web("https://wrong")), at(8))
+        ServiceRepository::set_check(&pool, svc.id, Some(&web("https://wrong")))
             .await
             .unwrap();
-        ServiceRepository::mark_detected_down(&pool, svc.id, at(9))
+        ServiceRepository::mark_detected_down(&pool, svc.id, at(8))
+            .await
+            .unwrap();
+        ServiceRepository::mark_detected_up(&pool, svc.id, at(9))
+            .await
+            .unwrap();
+        ServiceRepository::mark_detected_down(&pool, svc.id, at(10))
             .await
             .unwrap();
 
-        let dropped =
-            ServiceRepository::set_check(&pool, svc.id, Some(&web("https://paie")), at(10))
-                .await
-                .unwrap();
+        let dropped = ServiceRepository::set_check(&pool, svc.id, Some(&web("https://paie")))
+            .await
+            .unwrap();
         assert!(dropped);
         assert_eq!(detected(&pool, svc.id).await, None);
         let spans = OutageRepository::since(&pool, at(0)).await.unwrap();
-        assert_eq!(spans[&svc.id][0].end, Some(at(10)));
+        assert_eq!(spans[&svc.id].len(), 1, "the ended outage stays");
+        assert_eq!(spans[&svc.id][0].end, Some(at(9)));
 
         ServiceRepository::mark_detected_down(&pool, svc.id, at(11))
             .await
             .unwrap();
-        let dropped = ServiceRepository::set_check(&pool, svc.id, None, at(12))
+        let dropped = ServiceRepository::set_check(&pool, svc.id, None)
             .await
             .unwrap();
         assert!(dropped);
@@ -422,6 +427,8 @@ mod tests {
                 .is_empty()
         );
         assert_eq!(detected(&pool, svc.id).await, None);
+        let spans = OutageRepository::since(&pool, at(0)).await.unwrap();
+        assert_eq!(spans[&svc.id].len(), 1);
     }
 
     #[tokio::test]

@@ -761,7 +761,7 @@ async fn removing_the_check_clears_a_detected_outage() {
         target: "10.0.0.9:443".to_string(),
         internal_cert: false,
     };
-    ServiceRepository::set_check(&app.pool, id, Some(&check), Utc::now())
+    ServiceRepository::set_check(&app.pool, id, Some(&check))
         .await
         .unwrap();
     ServiceRepository::mark_detected_down(&app.pool, id, Utc::now())

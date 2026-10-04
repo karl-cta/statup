@@ -1,8 +1,6 @@
 //! Service rules: creation, edits, deletion and the status that open work
 //! gives them.
 
-use chrono::Utc;
-
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::{CheckKind, Service, ServiceCheck, ServiceStatus, derive_status};
@@ -100,7 +98,7 @@ impl ServiceService {
         service_id: i64,
         check: Option<&ServiceCheck>,
     ) -> Result<(), AppError> {
-        if ServiceRepository::set_check(pool, service_id, check, Utc::now()).await? {
+        if ServiceRepository::set_check(pool, service_id, check).await? {
             Self::recalculate_status(pool, service_id).await?;
         }
         Ok(())
