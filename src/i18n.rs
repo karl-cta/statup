@@ -295,6 +295,8 @@ where
 {
     type Rejection = Infallible;
 
+    // Not an `async fn` like the other extractors: nothing here awaits, and
+    // clippy's `unused_async` refuses an async body without an await.
     fn from_request_parts(
         parts: &mut Parts,
         _state: &S,
