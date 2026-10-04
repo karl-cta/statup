@@ -2,6 +2,7 @@ target/
 dist/
 data/
 coverage/
+tests/browser/
 .env
 **/*.db
 **/*.db-*
