@@ -1369,3 +1369,131 @@ async fn an_administrator_can_still_edit_a_closed_event() {
         .expect("the event is still there");
     assert_eq!(event.title, "Rewritten");
 }
+
+#[tokio::test]
+async fn a_publisher_edits_a_service() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Billing").await;
+
+    let (status, form) = app.get(&format!("/services/{service_id}/edit")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(form.contains("Billing"), "the form starts from the name");
+    let (status, _) = app.get("/services/9999/edit").await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "unknown service");
+
+    let (status, _, location) = app
+        .post_form(
+            &format!("/services/{service_id}/edit"),
+            &extract_csrf_token(&form),
+            &[
+                ("name", "Billing API"),
+                ("description", "Handles invoices."),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(
+        location.as_deref(),
+        Some(format!("/services?saved={service_id}").as_str())
+    );
+    let service = app.service(service_id).await;
+    assert_eq!(service.name, "Billing API");
+    assert_eq!(service.description.as_deref(), Some("Handles invoices."));
+}
+
+#[tokio::test]
+async fn an_empty_name_is_refused_on_the_service_edit_form() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Billing").await;
+    let csrf = app.csrf_from(&format!("/services/{service_id}/edit")).await;
+
+    let (status, body, _) = app
+        .post_form(
+            &format!("/services/{service_id}/edit"),
+            &csrf,
+            &[("name", "  "), ("description", "Handles invoices.")],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK, "should re-render the form");
+    assert!(
+        body.contains("Handles invoices."),
+        "description should survive the rejection"
+    );
+    assert!(
+        body.contains(r#"id="name-error""#),
+        "the refusal is said under the name field"
+    );
+    let service = app.service(service_id).await;
+    assert_eq!(service.name, "Billing");
+    assert_eq!(service.description, None);
+}
+
+#[tokio::test]
+async fn a_service_is_deleted_unless_events_cite_it() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let idle_id = app.create_service("Idle").await;
+    let cited_id = app.create_service("Intranet").await;
+    app.create_incident("Intranet slow", "Pages are slow", "minor", &[cited_id])
+        .await;
+
+    let (status, body, _) = app
+        .post_form_with_header_csrf(&format!("/services/{cited_id}/delete"), &[])
+        .await;
+    assert_eq!(status, StatusCode::OK, "the list is redrawn");
+    assert!(
+        body.contains("Ce service est cité par des événements\u{a0}: il est conservé."),
+        "the refusal is said in the list"
+    );
+    let kept = ServiceRepository::find_by_id(&app.pool, cited_id)
+        .await
+        .expect("db error");
+    assert!(kept.is_some(), "a service with history stays");
+
+    let (status, _, location) = app
+        .post_form_with_header_csrf(&format!("/services/{idle_id}/delete"), &[])
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert!(
+        location
+            .as_deref()
+            .is_some_and(|path| path.starts_with("/services?deleted=")),
+        "{location:?}"
+    );
+    let gone = ServiceRepository::find_by_id(&app.pool, idle_id)
+        .await
+        .expect("db error");
+    assert!(gone.is_none(), "a service without history is gone");
+}
+
+#[tokio::test]
+async fn a_reader_cannot_edit_or_delete_a_service() {
+    let app = TestApp::spawn().await;
+    let service_id = app.create_service("Billing").await;
+    app.create_user(
+        "reader@example.com",
+        "reader_pass_1234",
+        "Reader",
+        Role::Reader,
+    )
+    .await;
+    app.login("reader@example.com", "reader_pass_1234").await;
+
+    let (status, _) = app.get(&format!("/services/{service_id}/edit")).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "edit form");
+    for (action, fields) in [
+        ("edit", &[("name", "Renamed"), ("description", "")][..]),
+        ("delete", &[][..]),
+    ] {
+        let (status, _, _) = app
+            .post_form_with_header_csrf(&format!("/services/{service_id}/{action}"), fields)
+            .await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{action}");
+    }
+
+    let service = app.service(service_id).await;
+    assert_eq!(service.name, "Billing");
+}
