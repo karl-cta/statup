@@ -91,6 +91,14 @@
                             {% endif %}{% endif %}
                         </div>
                     </div>
+
+                    <div class="reveal-row form-block{% if !self.check_is("none") %} is-open{% endif %}" data-for-check="any">
+                        <div class="flex items-center gap-3">
+                            <button type="button" class="btn btn-ghost btn-sm" hx-post="/services/check-test" hx-target="next [data-check-result]" hx-swap="innerHTML" hx-disabled-elt="this" hx-indicator="next .htmx-indicator">{{ i18n.t("services.check_test") }}</button>
+                            <span class="field-hint htmx-indicator">{{ i18n.t("services.check_testing") }}</span>
+                        </div>
+                        <div aria-live="polite" data-check-result></div>
+                    </div>
                 </div>
                 <div class="form-col">
                     <div class="form-block">

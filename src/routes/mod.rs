@@ -181,6 +181,7 @@ fn publisher_routes() -> Router<AppState> {
             "/services/{id}/edit",
             get(services::edit_form).post(services::update),
         )
+        .route("/services/check-test", post(services::test_check))
         .route("/services/{id}/status", post(services::update_status))
         .route("/services/{id}/delete", post(services::delete))
         .route("/icons", get(icons::list))

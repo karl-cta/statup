@@ -15,12 +15,14 @@ use crate::i18n::{I18n, Locale};
 use crate::middleware::headers::is_htmx;
 use crate::middleware::{CsrfToken, HtmlForm, OptionalUser, RequirePublisher};
 use crate::models::{
-    BUILTIN_ICONS, BuiltinIcon, CheckKind, EventFilters, EventSummary, Icon, Service, ServiceCheck,
-    ServiceStatus, User, find_builtin_icon,
+    BUILTIN_ICONS, BuiltinIcon, CheckKind, CheckedService, EventFilters, EventSummary, Icon,
+    Service, ServiceCheck, ServiceStatus, Tone, User, find_builtin_icon,
 };
 use crate::modules::services::{ServiceRow, service_history};
 use crate::repositories::{EventRepository, ServiceRepository};
-use crate::services::{IconService, ServiceService, target_allowed};
+use crate::services::{
+    CHECK_TIMEOUT, Finding, IconService, Probes, Report, ServiceService, target_allowed,
+};
 use crate::state::AppState;
 
 #[derive(Template)]
@@ -466,6 +468,90 @@ pub async fn delete(
             render_list(&state, &user, csrf_token.0, i18n, query, error).await
         }
         Err(e) => Err(e),
+    }
+}
+
+#[derive(Template)]
+#[template(path = "services/_check_result.html")]
+struct CheckResultFragment {
+    /// The tone of the verdict; none when the address itself was refused.
+    tone: Option<&'static str>,
+    message: String,
+    detail: Option<String>,
+    i18n: I18n,
+}
+
+/// Runs the check the form describes, without saving anything, and says
+/// what the automatic checks would make of it.
+pub async fn test_check(
+    _publisher: RequirePublisher,
+    Locale(i18n): Locale,
+    HtmlForm(input): HtmlForm<ServiceInput>,
+) -> Result<Response, AppError> {
+    let check = match input.check() {
+        Ok(Some(check)) => check,
+        Ok(None) => return Err(AppError::validation("error.invalid_data")),
+        Err(AppError::Validation(key)) => {
+            let message = i18n.t(&key).to_string();
+            return render(&CheckResultFragment {
+                tone: None,
+                message,
+                detail: None,
+                i18n,
+            });
+        }
+        Err(e) => return Err(e),
+    };
+    let probes = Probes::new(CHECK_TIMEOUT).map_err(anyhow::Error::from)?;
+    let service = CheckedService {
+        id: 0,
+        kind: check.kind,
+        target: check.target,
+        internal_cert: check.internal_cert,
+        detected_status: None,
+    };
+    let report = probes.examine(&service).await;
+    let (tone, message) = verdict(&report, &i18n);
+    render(&CheckResultFragment {
+        tone: Some(tone.as_str()),
+        message,
+        detail: report.detail,
+        i18n,
+    })
+}
+
+/// What a test found, in the words of the form: green for what the checks
+/// count as an answer, red for a failure.
+fn verdict(report: &Report, i18n: &I18n) -> (Tone, String) {
+    let ms = report.elapsed.as_millis().to_string();
+    let failure = |key: &str| (Tone::Crit, i18n.t(key).to_string());
+    match report.finding {
+        Finding::Answered {
+            status: Some(status),
+        } => (
+            Tone::Ok,
+            i18n.tf(
+                "services.check_result_web_ok",
+                &[("status", &status.to_string()), ("ms", &ms)],
+            ),
+        ),
+        Finding::Answered { status: None } => (
+            Tone::Ok,
+            i18n.tf("services.check_result_port_ok", &[("ms", &ms)]),
+        ),
+        Finding::ServerError(status) => (
+            Tone::Crit,
+            i18n.tf(
+                "services.check_result_server_error",
+                &[("status", &status.to_string())],
+            ),
+        ),
+        Finding::Refused => failure("services.check_result_refused"),
+        Finding::TimedOut => failure("services.check_result_timeout"),
+        Finding::NameNotFound => failure("services.check_result_name"),
+        Finding::Certificate => failure("services.check_result_certificate"),
+        Finding::TooManyRedirects => failure("services.check_result_redirects"),
+        Finding::Unreachable => failure("services.check_result_unreachable"),
     }
 }
 

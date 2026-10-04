@@ -794,6 +794,110 @@ async fn removing_the_check_clears_a_detected_outage() {
 }
 
 #[tokio::test]
+async fn testing_a_check_says_why_it_fails_and_saves_nothing() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let closed = std::net::TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .to_string();
+    let csrf = app.csrf_from("/services/new").await;
+
+    let (status, body, _) = app
+        .post_form(
+            "/services/check-test",
+            &csrf,
+            &[
+                ("name", ""),
+                ("check_kind", "tcp"),
+                ("check_address", &closed),
+            ],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains(r#"data-tone="crit""#), "a failure is red");
+    assert!(body.contains("Port fermé"), "the reason is said in words");
+    assert!(body.contains("Détail technique"), "the raw error follows");
+    assert!(
+        ServiceRepository::list_all(&app.pool)
+            .await
+            .unwrap()
+            .is_empty(),
+        "a test saves nothing"
+    );
+}
+
+#[tokio::test]
+async fn testing_an_open_port_says_it_answers() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let csrf = app.csrf_from("/services/new").await;
+
+    let (status, body, _) = app
+        .post_form(
+            "/services/check-test",
+            &csrf,
+            &[
+                ("check_kind", "tcp"),
+                ("check_address", &app.addr.to_string()),
+            ],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains(r#"data-tone="ok""#));
+    assert!(body.contains("Le port accepte la connexion"));
+}
+
+#[tokio::test]
+async fn testing_a_misspelt_address_says_what_is_wrong() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let csrf = app.csrf_from("/services/new").await;
+
+    let (status, body, _) = app
+        .post_form(
+            "/services/check-test",
+            &csrf,
+            &[("check_kind", "tcp"), ("check_address", "nas")],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains(r#"class="field-error""#));
+    assert!(body.contains("suivie de son port"));
+}
+
+#[tokio::test]
+async fn readers_cannot_test_a_check() {
+    let app = TestApp::spawn().await;
+    app.create_user(
+        "reader@example.com",
+        "reader_password_12",
+        "Reader",
+        Role::Reader,
+    )
+    .await;
+    app.login("reader@example.com", "reader_password_12").await;
+    let csrf = app.csrf_from("/").await;
+
+    let (status, _, _) = app
+        .post_form(
+            "/services/check-test",
+            &csrf,
+            &[
+                ("check_kind", "tcp"),
+                ("check_address", &app.addr.to_string()),
+            ],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
 async fn feed_is_private_when_public_mode_is_off() {
     let app = TestApp::spawn().await;
 

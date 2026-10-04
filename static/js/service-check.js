@@ -1,5 +1,6 @@
 // Service form: the address row follows the chosen check, and the row that
-// does not apply leaves the request.
+// does not apply leaves the request. A test result belongs to the check it
+// was run for, so changing the check clears it.
 (function () {
     "use strict";
 
@@ -21,11 +22,17 @@
     function update(animate) {
         const chosen = form.querySelector('input[name="check_kind"]:checked');
         const kind = chosen ? chosen.value : "none";
-        form.querySelectorAll("[data-for-check]").forEach((row) => setOpen(row, row.dataset.forCheck === kind, animate));
+        form.querySelectorAll("[data-for-check]").forEach((row) => {
+            const target = row.dataset.forCheck;
+            setOpen(row, target === kind || (target === "any" && kind !== "none"), animate);
+        });
     }
 
     form.addEventListener("change", (event) => {
         if (event.target.name === "check_kind") update(true);
+        if (event.target.closest("[data-for-check]") || event.target.name === "check_kind") {
+            form.querySelectorAll("[data-check-result]").forEach((result) => result.replaceChildren());
+        }
     });
     update(false);
 })();
