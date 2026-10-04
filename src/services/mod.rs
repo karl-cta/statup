@@ -23,7 +23,7 @@ pub use login_rate_limiter::LoginRateLimiter;
 pub use logo_service::*;
 pub use monitoring::*;
 pub use monitoring_task::{MonitorState, run_round, spawn_monitoring};
-pub use probe::{CHECK_TIMEOUT, Prober, Probes};
+pub use probe::{CHECK_TIMEOUT, Finding, Prober, Probes, Report};
 pub use service_service::*;
 pub use settings_service::SettingsService;
 pub use update_check::{CURRENT_VERSION, NewerRelease, UpdateStatus, spawn_update_check};
