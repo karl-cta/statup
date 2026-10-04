@@ -2,7 +2,7 @@
 
 All notable changes to Statup are listed here. The project is pre-v1: until 1.0, a minor version may change the interface or the database, and the README asks you to back up before upgrading.
 
-## Unreleased
+## 0.1.3, 2026-10-04
 
 - On a phone, the masthead tucks away while you read down the page and comes back as soon as you scroll up.
 - On a phone, the menu opens over the page without moving it, its pages are rows you can tap across the whole width, and signing out is a button of its own.
