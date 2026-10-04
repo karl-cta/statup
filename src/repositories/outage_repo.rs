@@ -32,6 +32,16 @@ impl OutageRepository {
         }
         Ok(spans)
     }
+
+    /// When each outage under way began, by service.
+    pub async fn open_starts(pool: &DbPool) -> Result<HashMap<i64, DateTime<Utc>>, sqlx::Error> {
+        let rows: Vec<(i64, DateTime<Utc>)> = sqlx::query_as(
+            "SELECT service_id, started_at FROM service_outages WHERE ended_at IS NULL",
+        )
+        .fetch_all(pool)
+        .await?;
+        Ok(rows.into_iter().collect())
+    }
 }
 
 /// One detected outage on one service, as the availability strip reads it.

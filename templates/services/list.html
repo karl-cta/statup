@@ -45,8 +45,11 @@
                 <span class="svc-icon">{% call ui::service_icon(service) %}{% endcall %}</span>
                 <div class="min-w-0">
                     <p class="admin-row-name"><a href="/services/{{ service.id }}/edit" class="row-link">{{ service.name }}</a></p>
-                    {% if let Some(description) = service.description %}
-                    <p class="admin-row-sub">{{ description }}</p>
+                    {% if service.description.is_some() || service.check_kind.is_some() %}
+                    <p class="admin-row-sub">
+                        {%- if let Some(description) = service.description %}{{ description }}{% if service.check_kind.is_some() %}&nbsp;<span aria-hidden="true">·</span> {% endif %}{% endif -%}
+                        {%- if service.check_kind.is_some() %}{{ i18n.t("services.checked") }}{% endif -%}
+                    </p>
                     {% endif %}
                 </div>
             </div>

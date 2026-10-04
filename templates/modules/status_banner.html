@@ -66,6 +66,10 @@
                 <span class="hero-item-meta">
                     {%- if let Some(since) = cause.since %}{{ cause.title }}&nbsp;<span aria-hidden="true">·</span> {{ since }}{% else %}{{ cause.title }}{% endif -%}
                 </span>
+                {% else if let Some(detected) = row.detected %}
+                <span class="hero-item-meta">
+                    {{- i18n.t("banner.detected") }}{% if let Some(since) = detected.since %}&nbsp;<span aria-hidden="true">·</span> {{ since }}{% endif %}{% if detected.declare_href.is_some() %}&nbsp;<span aria-hidden="true">·</span> <span class="hero-item-action">{{ i18n.t("banner.declare_incident") }}</span>{% endif -%}
+                </span>
                 {% endif %}
             </a>
         </li>

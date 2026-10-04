@@ -169,6 +169,20 @@
         color: var(--ink-soft);
     }
 
+    /* For a publisher, a row the checks found down leads to the incident to
+       declare; the words say so. */
+    .hero-item-action {
+        font-weight: 500;
+        color: var(--ink);
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-underline-offset: 3px;
+    }
+
+    .hero-item-link:hover .hero-item-action {
+        text-decoration-color: currentColor;
+    }
+
     .hero-item-state {
         font-size: var(--text-xs);
         font-weight: 500;

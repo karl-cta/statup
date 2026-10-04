@@ -897,6 +897,100 @@ async fn readers_cannot_test_a_check() {
     assert_eq!(status, StatusCode::FORBIDDEN);
 }
 
+/// Sets a port check on a service and records that the checks found it
+/// down at `started_at`, as the background task would.
+async fn detect_outage(app: &TestApp, id: i64, started_at: chrono::DateTime<Utc>) {
+    let check = ServiceCheck {
+        kind: CheckKind::Tcp,
+        target: "10.0.0.9:443".to_string(),
+        internal_cert: false,
+    };
+    ServiceRepository::set_check(&app.pool, id, Some(&check))
+        .await
+        .unwrap();
+    ServiceRepository::mark_detected_down(&app.pool, id, started_at)
+        .await
+        .unwrap();
+    ServiceService::recalculate_status(&app.pool, id)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn visitors_read_that_an_outage_was_detected_automatically() {
+    let app = TestApp::spawn_public().await;
+    let id = app.create_service("Messagerie").await;
+    detect_outage(&app, id, Utc::now() - chrono::Duration::minutes(14)).await;
+
+    let (_, page) = app.get("/").await;
+    assert!(page.contains("Détecté automatiquement"));
+    assert!(page.contains("depuis 14"), "the banner says for how long");
+    assert!(
+        !page.contains("/events/new?service="),
+        "visitors cannot declare"
+    );
+
+    let (_, panel) = app.get(&format!("/services/{id}/drawer")).await;
+    assert!(panel.contains("détecté automatiquement"));
+}
+
+#[tokio::test]
+async fn editors_declare_the_incident_of_a_detected_outage_from_the_banner() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let id = app.create_service("Paie").await;
+    let started = Utc::now() - chrono::Duration::minutes(20);
+    detect_outage(&app, id, started).await;
+
+    let (_, page) = app.get("/").await;
+    assert!(page.contains(&format!(r#"href="/events/new?service={id}""#)));
+    assert!(page.contains("Déclarer un incident"));
+
+    let (status, form) = app.get(&format!("/events/new?service={id}")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        form.contains(&format!(
+            r#"value="{id}" class="checkbox" data-service-name="Paie" checked"#
+        )),
+        "the service is ticked"
+    );
+    assert!(form.contains(r#"value="critical" class="sr-only" checked"#));
+    let began = statup::clock::format_input(&started);
+    assert!(
+        form.contains(&format!(
+            r#"name="started_at" type="hidden" value="{began}""#
+        )),
+        "the incident begins with the outage"
+    );
+
+    let (_, services) = app.get("/services").await;
+    assert!(services.contains("Vérifié automatiquement"));
+    assert!(services.contains("Détecté automatiquement"));
+}
+
+#[tokio::test]
+async fn a_declared_incident_replaces_the_detection_note() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let id = app.create_service("Wiki").await;
+    detect_outage(&app, id, Utc::now()).await;
+
+    app.submit_create_event(
+        vec![
+            ("kind", "incident".to_string()),
+            ("severity", "critical".to_string()),
+            ("title", "Le wiki ne répond plus".to_string()),
+            ("description", String::new()),
+        ],
+        &[id],
+    )
+    .await;
+
+    let (_, page) = app.get("/").await;
+    assert!(page.contains("Le wiki ne répond plus"));
+    assert!(!page.contains("Détecté automatiquement"));
+}
+
 #[tokio::test]
 async fn feed_is_private_when_public_mode_is_off() {
     let app = TestApp::spawn().await;

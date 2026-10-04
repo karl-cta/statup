@@ -9,14 +9,16 @@
 //! rather than claiming that everything is fine; its administrator gets the
 //! first steps instead.
 
+use std::collections::HashMap;
+
 use askama::Template;
 use async_trait::async_trait;
-use chrono::{Duration, Utc};
+use chrono::{DateTime, Duration, Utc};
 
 use crate::error::AppError;
 use crate::i18n::I18n;
-use crate::models::{EventSummary, Kind, Lifecycle, Service, ServiceStatus, Tone};
-use crate::repositories::{EventRepository, ServiceRepository};
+use crate::models::{EventSummary, Kind, Lifecycle, Service, ServiceStatus, Tone, split_duration};
+use crate::repositories::{EventRepository, OutageRepository, ServiceRepository};
 
 use super::{ColumnWidth, Module, ModuleRenderContext, render_template};
 
@@ -33,6 +35,15 @@ pub struct BannerRow {
     pub state: String,
     pub anchor: String,
     pub cause: Option<Cause>,
+    /// The checks found the service down and no incident explains it yet.
+    pub detected: Option<Detected>,
+}
+
+/// An outage the checks found, before anyone declared it.
+pub struct Detected {
+    pub since: Option<String>,
+    /// The incident form, filled in, for those who may publish.
+    pub declare_href: Option<String>,
 }
 
 /// The open event that puts a service in its state.
@@ -45,12 +56,16 @@ pub struct Cause {
 }
 
 impl BannerRow {
-    /// The event that explains the service, or the service on this page.
+    /// The event that explains the service, the incident to declare for an
+    /// outage the checks found, or the service on this page.
     pub fn href(&self) -> String {
-        match &self.cause {
-            Some(cause) => format!("/events/{}", cause.event_id),
-            None => format!("#{}", self.anchor),
+        if let Some(cause) = &self.cause {
+            return format!("/events/{}", cause.event_id);
         }
+        self.detected
+            .as_ref()
+            .and_then(|detected| detected.declare_href.clone())
+            .unwrap_or_else(|| format!("#{}", self.anchor))
     }
 
     pub fn drawer_url(&self) -> Option<String> {
@@ -120,6 +135,11 @@ impl Module for StatusBannerModule {
         let services = ServiceRepository::list_all(ctx.pool).await?;
         let events = EventRepository::list_open_for_banner(ctx.pool).await?;
         let maintenance = EventRepository::list_open_maintenance(ctx.pool).await?;
+        let sources = RowSources {
+            events: &events,
+            outage_starts: &OutageRepository::open_starts(ctx.pool).await?,
+            can_publish: ctx.can_publish(),
+        };
         let i18n = ctx.i18n;
         let affected = affected_services(&services);
         let template = StatusBannerTemplate {
@@ -128,7 +148,7 @@ impl Module for StatusBannerModule {
             headline: headline(&affected, i18n),
             rows: affected
                 .iter()
-                .map(|service| row(service, &events, i18n))
+                .map(|service| row(service, &sources, i18n))
                 .collect(),
             next_maintenance: next_maintenance(&services, &maintenance, i18n),
             can_publish: ctx.can_publish(),
@@ -163,13 +183,34 @@ fn affected_services(services: &[Service]) -> Vec<&Service> {
     affected
 }
 
-fn row(service: &Service, events: &[EventSummary], i18n: &I18n) -> BannerRow {
+/// What a row draws on besides the service itself.
+struct RowSources<'a> {
+    events: &'a [EventSummary],
+    outage_starts: &'a HashMap<i64, DateTime<Utc>>,
+    can_publish: bool,
+}
+
+fn row(service: &Service, sources: &RowSources<'_>, i18n: &I18n) -> BannerRow {
+    let cause = cause_of(service, sources.events).map(|event| cause(event, i18n));
+    let detected = (cause.is_none() && service.detected_status.is_some()).then(|| Detected {
+        since: sources.outage_starts.get(&service.id).map(|start| {
+            let parts = split_duration(Utc::now() - *start);
+            i18n.tf(
+                "banner.detected_for",
+                &[("duration", &i18n.format_duration(&parts))],
+            )
+        }),
+        declare_href: sources
+            .can_publish
+            .then(|| format!("/events/new?service={}", service.id)),
+    });
     BannerRow {
         tone: service.status.tone().as_str(),
         service: service.name.clone(),
         state: i18n.t(service.status.i18n_key()).to_string(),
         anchor: service.anchor(),
-        cause: cause_of(service, events).map(|event| cause(event, i18n)),
+        cause,
+        detected,
     }
 }
 
@@ -319,6 +360,16 @@ mod tests {
         }
     }
 
+    fn sources(events: &[EventSummary], can_publish: bool) -> RowSources<'_> {
+        static NO_OUTAGES: std::sync::LazyLock<HashMap<i64, DateTime<Utc>>> =
+            std::sync::LazyLock::new(HashMap::new);
+        RowSources {
+            events,
+            outage_starts: &NO_OUTAGES,
+            can_publish,
+        }
+    }
+
     #[test]
     fn only_disrupted_services_are_listed_worst_first() {
         let services = [
@@ -406,9 +457,34 @@ mod tests {
             "Wiki",
         )];
         assert!(cause_of(&mail, &events).is_none());
-        let row = row(&mail, &events, &I18n::new("en"));
+        let row = row(&mail, &sources(&events, false), &I18n::new("en"));
         assert_eq!(row.href(), "#service-mail");
         assert!(row.drawer_url().is_none());
+        assert!(row.detected.is_none());
+    }
+
+    #[test]
+    fn an_outage_the_checks_found_says_so_until_an_incident_explains_it() {
+        let mut mail = service("Mail", ServiceStatus::MajorOutage);
+        mail.detected_status = Some(ServiceStatus::MajorOutage);
+        let i18n = I18n::new("en");
+
+        let visitor = row(&mail, &sources(&[], false), &i18n);
+        assert!(visitor.detected.is_some());
+        assert_eq!(visitor.href(), "#service-mail");
+
+        let editor = row(&mail, &sources(&[], true), &i18n);
+        assert_eq!(editor.href(), "/events/new?service=1");
+
+        let events = [event(
+            Kind::Incident,
+            Some(Severity::Critical),
+            Lifecycle::Investigating,
+            "Mail",
+        )];
+        let explained = row(&mail, &sources(&events, true), &i18n);
+        assert!(explained.detected.is_none());
+        assert_eq!(explained.href(), "/events/1");
     }
 
     #[test]

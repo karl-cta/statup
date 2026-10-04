@@ -622,6 +622,8 @@ const PANEL_EVENTS: i64 = 3;
 struct ServiceDrawerTemplate {
     row: ServiceRow,
     events: Vec<EventSummary>,
+    /// The checks found the service down and no open event explains it.
+    detected: bool,
     i18n: I18n,
 }
 
@@ -653,6 +655,15 @@ pub async fn drawer_content(
         ..EventFilters::default()
     };
     let events = EventRepository::list_page(&state.pool, &filters).await?;
+    let explained = EventRepository::state_drivers(&state.pool, Some(id))
+        .await?
+        .contains_key(&id);
+    let detected = service.detected_status.is_some() && !explained;
     let row = service_history(&state.pool, service, &i18n).await?;
-    render(&ServiceDrawerTemplate { row, events, i18n })
+    render(&ServiceDrawerTemplate {
+        row,
+        events,
+        detected,
+        i18n,
+    })
 }
