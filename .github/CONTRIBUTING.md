@@ -2,7 +2,7 @@
 
 Thank you for looking at Statup. Issues and pull requests are welcome; small,
 focused changes are the easiest to review. Everyone taking part follows the
-[code of conduct](CODE_OF_CONDUCT.md).
+[code of conduct](https://github.com/karl-cta/statup/blob/main/.github/CODE_OF_CONDUCT.md).
 
 ## Before you start
 
@@ -101,6 +101,6 @@ Statup is free software under the AGPL-3.0-or-later, and the code in this
 repository stays under it.
 
 Every pull request, code or translation, comes with a three-sentence
-[Contributor License Agreement](CLA.md): it lets the maintainer also use the
+[Contributor License Agreement](https://github.com/karl-cta/statup/blob/main/.github/CLA.md): it lets the maintainer also use the
 contribution in paid modules or a hosted version of Statup, which the AGPL
 alone would not allow. Tick its box in the pull request template to agree.
