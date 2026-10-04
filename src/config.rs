@@ -233,4 +233,83 @@ mod tests {
         assert_eq!(parse_log_level("off").unwrap(), LevelFilter::OFF);
         assert!(parse_log_level("verbose").is_err());
     }
+
+    fn config() -> Config {
+        Config {
+            database_url: DEFAULT_DATABASE_URL.to_string(),
+            host: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+            port: 3000,
+            session_expiry: Duration::from_secs(FORM_SESSION_SECS),
+            log_level: LevelFilter::INFO,
+            db_max_connections: 10,
+            admin_email: None,
+            admin_password: None,
+            upload_dir: "data/uploads".to_string(),
+            public_mode: false,
+            trust_proxy_headers: false,
+            client_ip_header: X_FORWARDED_FOR,
+            public_url: None,
+            update_check: true,
+        }
+    }
+
+    fn rejected_key(config: &Config) -> Option<String> {
+        match config.validate() {
+            Err(ConfigError::InvalidValue { key, .. }) => Some(key),
+            Ok(()) => None,
+        }
+    }
+
+    #[test]
+    fn default_settings_are_valid() {
+        assert!(config().validate().is_ok());
+    }
+
+    #[test]
+    fn settings_that_would_break_the_server_name_the_faulty_key() {
+        let mut zero_port = config();
+        zero_port.port = 0;
+        assert_eq!(rejected_key(&zero_port).as_deref(), Some("PORT"));
+
+        let mut no_connections = config();
+        no_connections.db_max_connections = 0;
+        assert_eq!(
+            rejected_key(&no_connections).as_deref(),
+            Some("DB_MAX_CONNECTIONS")
+        );
+    }
+
+    #[test]
+    fn session_expiry_must_be_positive_and_fit_in_signed_seconds() {
+        let mut instant = config();
+        instant.session_expiry = Duration::ZERO;
+        assert_eq!(rejected_key(&instant).as_deref(), Some("SESSION_EXPIRY"));
+
+        let mut endless = config();
+        endless.session_expiry = Duration::from_secs(u64::MAX);
+        assert_eq!(rejected_key(&endless).as_deref(), Some("SESSION_EXPIRY"));
+    }
+
+    #[test]
+    fn client_address_ignores_the_header_without_a_trusted_proxy() {
+        let mut config = config();
+        config.client_ip_header = HeaderName::from_static("true-client-ip");
+        assert!(matches!(config.client_ip_source(), ClientIpSource::Peer));
+    }
+
+    #[test]
+    fn client_address_is_read_from_the_header_behind_a_trusted_proxy() {
+        let mut config = config();
+        config.trust_proxy_headers = true;
+        assert!(matches!(
+            config.client_ip_source(),
+            ClientIpSource::Header(name) if name == X_FORWARDED_FOR
+        ));
+
+        config.client_ip_header = HeaderName::from_static("true-client-ip");
+        assert!(matches!(
+            config.client_ip_source(),
+            ClientIpSource::Header(name) if name == "true-client-ip"
+        ));
+    }
 }
