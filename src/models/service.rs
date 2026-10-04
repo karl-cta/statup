@@ -82,6 +82,38 @@ impl ServiceStatus {
     }
 }
 
+/// How Statup checks on its own that a service answers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+pub enum CheckKind {
+    /// A web address answers with a status below 500.
+    Http,
+    /// A `host:port` accepts a connection.
+    Tcp,
+}
+
+/// What to check for a service, as set in its form.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ServiceCheck {
+    pub kind: CheckKind,
+    pub target: String,
+    /// Accept a certificate the instance cannot verify.
+    pub internal_cert: bool,
+}
+
+/// A service the checks watch, with the state they last found.
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct CheckedService {
+    pub id: i64,
+    #[sqlx(rename = "check_kind")]
+    pub kind: CheckKind,
+    #[sqlx(rename = "check_target")]
+    pub target: String,
+    #[sqlx(rename = "check_internal_cert")]
+    pub internal_cert: bool,
+    pub detected_status: Option<ServiceStatus>,
+}
+
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct Service {
     pub id: i64,
@@ -95,6 +127,11 @@ pub struct Service {
     pub manual_status: ServiceStatus,
     pub icon_id: Option<i64>,
     pub icon_name: Option<String>,
+    pub check_kind: Option<CheckKind>,
+    pub check_target: Option<String>,
+    pub check_internal_cert: bool,
+    /// What the checks found, while the service does not answer.
+    pub detected_status: Option<ServiceStatus>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
     /// File name of the uploaded icon, when the query joins it.
