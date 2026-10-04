@@ -72,10 +72,19 @@ cargo test
 ```
 
 Continuous integration also runs the tests on Rust 1.88, the dependency
-advisories, the stylesheet build and the Docker build.
+advisories, the stylesheet build, the Docker build and the browser tests.
 
 Add or adjust tests with the change. Integration tests in `tests/` run the
 real router over TCP; unit tests sit next to the code they cover.
+
+A change to a screen or to `static/js` also passes the browser tests, a few
+journeys that Playwright plays in Chromium as a desktop and as a phone
+against a fresh instance. They need Node.js and the Tailwind binary; the
+script installs the pinned Playwright and its Chromium on first run:
+
+```bash
+scripts/browser-tests.sh
+```
 
 ## Conventions
 

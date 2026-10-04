@@ -1369,3 +1369,296 @@ async fn an_administrator_can_still_edit_a_closed_event() {
         .expect("the event is still there");
     assert_eq!(event.title, "Rewritten");
 }
+
+#[tokio::test]
+async fn a_publisher_edits_a_service() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Billing").await;
+
+    let (status, form) = app.get(&format!("/services/{service_id}/edit")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(form.contains("Billing"), "the form starts from the name");
+    let (status, _) = app.get("/services/9999/edit").await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "unknown service");
+
+    let (status, _, location) = app
+        .post_form(
+            &format!("/services/{service_id}/edit"),
+            &extract_csrf_token(&form),
+            &[
+                ("name", "Billing API"),
+                ("description", "Handles invoices."),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(
+        location.as_deref(),
+        Some(format!("/services?saved={service_id}").as_str())
+    );
+    let service = app.service(service_id).await;
+    assert_eq!(service.name, "Billing API");
+    assert_eq!(service.description.as_deref(), Some("Handles invoices."));
+}
+
+#[tokio::test]
+async fn an_empty_name_is_refused_on_the_service_edit_form() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Billing").await;
+    let csrf = app.csrf_from(&format!("/services/{service_id}/edit")).await;
+
+    let (status, body, _) = app
+        .post_form(
+            &format!("/services/{service_id}/edit"),
+            &csrf,
+            &[("name", "  "), ("description", "Handles invoices.")],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK, "should re-render the form");
+    assert!(
+        body.contains("Handles invoices."),
+        "description should survive the rejection"
+    );
+    assert!(
+        body.contains(r#"id="name-error""#),
+        "the refusal is said under the name field"
+    );
+    let service = app.service(service_id).await;
+    assert_eq!(service.name, "Billing");
+    assert_eq!(service.description, None);
+}
+
+#[tokio::test]
+async fn a_service_is_deleted_unless_events_cite_it() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let idle_id = app.create_service("Idle").await;
+    let cited_id = app.create_service("Intranet").await;
+    app.create_incident("Intranet slow", "Pages are slow", "minor", &[cited_id])
+        .await;
+
+    let (status, body, _) = app
+        .post_form_with_header_csrf(&format!("/services/{cited_id}/delete"), &[])
+        .await;
+    assert_eq!(status, StatusCode::OK, "the list is redrawn");
+    assert!(
+        body.contains("Ce service est cité par des événements\u{a0}: il est conservé."),
+        "the refusal is said in the list"
+    );
+    let kept = ServiceRepository::find_by_id(&app.pool, cited_id)
+        .await
+        .expect("db error");
+    assert!(kept.is_some(), "a service with history stays");
+
+    let (status, _, location) = app
+        .post_form_with_header_csrf(&format!("/services/{idle_id}/delete"), &[])
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert!(
+        location
+            .as_deref()
+            .is_some_and(|path| path.starts_with("/services?deleted=")),
+        "{location:?}"
+    );
+    let gone = ServiceRepository::find_by_id(&app.pool, idle_id)
+        .await
+        .expect("db error");
+    assert!(gone.is_none(), "a service without history is gone");
+}
+
+#[tokio::test]
+async fn a_reader_cannot_edit_or_delete_a_service() {
+    let app = TestApp::spawn().await;
+    let service_id = app.create_service("Billing").await;
+    app.create_user(
+        "reader@example.com",
+        "reader_pass_1234",
+        "Reader",
+        Role::Reader,
+    )
+    .await;
+    app.login("reader@example.com", "reader_pass_1234").await;
+
+    let (status, _) = app.get(&format!("/services/{service_id}/edit")).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "edit form");
+    for (action, fields) in [
+        ("edit", &[("name", "Renamed"), ("description", "")][..]),
+        ("delete", &[][..]),
+    ] {
+        let (status, _, _) = app
+            .post_form_with_header_csrf(&format!("/services/{service_id}/{action}"), fields)
+            .await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{action}");
+    }
+
+    let service = app.service(service_id).await;
+    assert_eq!(service.name, "Billing");
+}
+
+async fn template_id_by_title(app: &TestApp, title: &str) -> Option<i64> {
+    sqlx::query_scalar("SELECT id FROM event_templates WHERE title = ?")
+        .bind(title)
+        .fetch_optional(&app.pool)
+        .await
+        .expect("template lookup failed")
+}
+
+async fn publish_incident_as_template(app: &TestApp, title: &str) -> i64 {
+    app.submit_create_event(
+        vec![
+            ("title", title.to_string()),
+            ("description", "Card payments are failing".to_string()),
+            ("kind", "incident".to_string()),
+            ("severity", "critical".to_string()),
+            ("save_as_template", "on".to_string()),
+        ],
+        &[],
+    )
+    .await;
+    template_id_by_title(app, title)
+        .await
+        .expect("the template should have been saved")
+}
+
+#[tokio::test]
+async fn an_incident_saved_as_a_template_can_be_searched_and_read() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let id = publish_incident_as_template(&app, "Payment gateway down").await;
+
+    let (status, body) = app.get("/events/templates/search?q=Payment").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("Payment gateway down"), "match on 2+ chars");
+    let (status, body) = app.get("/events/templates/search?q=P").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        !body.contains("Payment gateway down"),
+        "one char is too few"
+    );
+
+    let (status, body) = app.get(&format!("/events/templates/{id}")).await;
+    assert_eq!(status, StatusCode::OK);
+    let detail: serde_json::Value = serde_json::from_str(&body).expect("detail is JSON");
+    assert_eq!(detail["title"], "Payment gateway down");
+    assert_eq!(detail["description"], "Card payments are failing");
+    assert_eq!(detail["kind"], "incident");
+    assert_eq!(detail["severity"], "critical");
+
+    let (status, _) = app.get("/events/templates/999999").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn publishing_from_a_template_counts_its_usage() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let id = publish_incident_as_template(&app, "Payment gateway down").await;
+    let usage = || async {
+        sqlx::query_scalar::<_, i64>("SELECT usage_count FROM event_templates WHERE id = ?")
+            .bind(id)
+            .fetch_one(&app.pool)
+            .await
+            .expect("usage lookup failed")
+    };
+    assert_eq!(usage().await, 0, "saving a template is not using it");
+
+    app.submit_create_event(
+        vec![
+            ("title", "Payment gateway down again".to_string()),
+            ("description", "Same failure".to_string()),
+            ("kind", "incident".to_string()),
+            ("severity", "critical".to_string()),
+            ("template_id", id.to_string()),
+        ],
+        &[],
+    )
+    .await;
+
+    assert_eq!(usage().await, 1);
+}
+
+#[tokio::test]
+async fn deleting_a_template_goes_back_to_the_form_or_answers_htmx() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let first = publish_incident_as_template(&app, "Payment gateway down").await;
+    let second = publish_incident_as_template(&app, "Mail relay down").await;
+
+    let (status, _, location) = app
+        .post_form_with_header_csrf(&format!("/events/templates/{first}/delete"), &[])
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/events/new"));
+    assert!(
+        template_id_by_title(&app, "Payment gateway down")
+            .await
+            .is_none()
+    );
+
+    let csrf = app.csrf_from("/").await;
+    let resp = app
+        .client
+        .post(app.url(&format!("/events/templates/{second}/delete")))
+        .header("x-csrf-token", &csrf)
+        .header("hx-request", "true")
+        .send()
+        .await
+        .expect("POST request failed");
+    assert_eq!(resp.status(), StatusCode::OK, "htmx removes the suggestion");
+    assert!(
+        template_id_by_title(&app, "Mail relay down")
+            .await
+            .is_none()
+    );
+
+    let (status, _, _) = app
+        .post_form_with_header_csrf(&format!("/events/templates/{first}/delete"), &[])
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "already gone");
+}
+
+#[tokio::test]
+async fn a_reader_cannot_search_read_or_delete_templates() {
+    let app = TestApp::spawn().await;
+    let reader_id = app
+        .create_user(
+            "reader@example.com",
+            "reader_pass_1234",
+            "Reader",
+            Role::Reader,
+        )
+        .await;
+    let template = statup::repositories::EventTemplateRepository::create(
+        &app.pool,
+        statup::repositories::CreateTemplateInput {
+            title: "Payment gateway down",
+            description: "Card payments are failing",
+            kind: statup::models::Kind::Incident,
+            severity: Some(statup::models::Severity::Critical),
+            planned: false,
+            category: None,
+            created_by: reader_id,
+        },
+    )
+    .await
+    .expect("failed to create template");
+    app.login("reader@example.com", "reader_pass_1234").await;
+
+    let (status, _) = app.get("/events/templates/search?q=Payment").await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "search");
+    let (status, _) = app.get(&format!("/events/templates/{}", template.id)).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "detail");
+    let (status, _, _) = app
+        .post_form_with_header_csrf(&format!("/events/templates/{}/delete", template.id), &[])
+        .await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "delete");
+
+    assert!(
+        template_id_by_title(&app, "Payment gateway down")
+            .await
+            .is_some()
+    );
+}

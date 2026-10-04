@@ -10,6 +10,12 @@
 *.db-wal
 *.db-shm
 
+# Browser tests
+/tests/browser/node_modules/
+/tests/browser/test-results/
+/tests/browser/playwright-report/
+/tests/browser/.auth/
+
 # Tailwind
 /tailwindcss
 /static/css/style.css
