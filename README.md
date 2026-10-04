@@ -64,13 +64,19 @@ Statup answers them before they are asked. IT, or whoever runs the tool, says wh
       Open to everyone or to members only, with your name and logo, and blocks you arrange on the page itself. French and English, light and dark, accessible.
     </td>
   </tr>
+  <tr>
+    <td colspan="2" valign="top">
+      <strong>Statup notices first</strong><br>
+      Every minute, it checks that a website answers, or that a server, a router or a firewall accepts a connection. After three failed checks in a row, the service shows an outage on its own, marked "detected automatically", and comes back as soon as it answers. Your team declares the incident in one click, already filled in, and a Test button says why an address does not answer before you save it.
+    </td>
+  </tr>
 </table>
 
-**Light, private, safe by default.** One Rust binary and one SQLite file: no Redis, no Postgres, a Docker image under 10 MB to download. Fonts and scripts come from your instance, so no visitor's browser calls a third party; the server itself only asks GitHub once a day whether a newer version is out, which `UPDATE_CHECK=false` turns off. Passwords are hashed with Argon2id, every form carries a CSRF token, and a strict Content Security Policy guards every page.
+**Light, private, safe by default.** One Rust binary and one SQLite file: no Redis, no Postgres, a Docker image under 10 MB to download. Fonts and scripts come from your instance, so no visitor's browser calls a third party; the server itself only reaches the addresses you ask it to check, and GitHub once a day to see whether a newer version is out, which `UPDATE_CHECK=false` turns off. Passwords are hashed with Argon2id, every form carries a CSRF token, and a strict Content Security Policy guards every page.
 
 ## How it works
 
-- **Services** are the tools people rely on: mail, the VPN, the ERP, the phones. Each shows one state: operational, degraded, outage or maintenance.
+- **Services** are the tools people rely on: mail, the VPN, the ERP, the phones. Each shows one state: operational, degraded, outage or maintenance. Statup can also check on its own that a service answers.
 - **Events** are what gets published. An **incident** when something breaks, a **maintenance** when work is planned, an **announcement** for news. An incident or a maintenance sets the state of the services it names until it ends.
 - **People** read the page, with or without an account. **Editors** publish events and set service states; **administrators** also run the settings, the team and the layout of the page.
 
@@ -103,7 +109,6 @@ Add them from the **Team** page: they open the same address. For HTTPS and a nam
 
 Planned, without dates:
 
-- **Automatic monitoring**: Statup checks that a service answers and sets its state on its own.
 - **Incidents from your monitoring**: Zabbix, Grafana or any other tool opens and closes an incident by itself.
 - **Alerts where people are**: messages in Microsoft Teams and Slack, and email subscriptions.
 - **Groups and visibility**: gather colleagues into groups and choose which services and events each group sees.
