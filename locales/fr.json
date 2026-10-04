@@ -131,6 +131,7 @@
   "banner.detected_for": "depuis {duration}",
   "banner.declare_incident": "Déclarer un incident",
   "availability.day_ok": "Sans incident",
+  "availability.day_detected": "Panne détectée, {duration}",
   "availability.day_untracked": "Pas encore suivi",
   "availability.days_ok.one": "{n} jour sans incident",
   "availability.days_ok.other": "{n} jours sans incident",

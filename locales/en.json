@@ -131,6 +131,7 @@
   "banner.detected_for": "for {duration}",
   "banner.declare_incident": "Declare an incident",
   "availability.day_ok": "No incident",
+  "availability.day_detected": "Outage detected, {duration}",
   "availability.day_untracked": "Not tracked yet",
   "availability.days_ok.one": "{n} day without an incident",
   "availability.days_ok.other": "{n} days without an incident",
