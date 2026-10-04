@@ -1,5 +1,7 @@
 //! Statup server entry point and maintenance commands.
 
+#![deny(clippy::unwrap_used, clippy::expect_used)]
+
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;

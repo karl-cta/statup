@@ -3,6 +3,7 @@
 //! Rust, Axum, `SQLite`, HTMX and Tailwind CSS, rendered on the server.
 
 #![warn(clippy::pedantic)]
+#![deny(clippy::unwrap_used, clippy::expect_used)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::must_use_candidate)]
 #![allow(clippy::missing_errors_doc)]
