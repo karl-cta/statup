@@ -7,6 +7,8 @@ import { join, resolve } from "node:path";
 
 import { defineConfig, devices } from "@playwright/test";
 
+import { OWNER_SESSION } from "./owner.js";
+
 const ROOT = resolve(import.meta.dirname, "../..");
 const PORT = 3100;
 
@@ -23,6 +25,7 @@ const BINARY = join(JSON.parse(metadata).target_directory, "debug", "statup");
 
 export default defineConfig({
     testDir: "./specs",
+    testMatch: /\.(spec|setup)\.js$/,
     workers: 1,
     retries: 0,
     forbidOnly: Boolean(process.env.CI),
@@ -36,12 +39,25 @@ export default defineConfig({
     },
     projects: [
         {
-            name: "desktop",
+            name: "setup",
+            testMatch: /\.setup\.js$/,
             use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } },
         },
         {
+            name: "desktop",
+            dependencies: ["setup"],
+            testIgnore: /\.setup\.js$/,
+            use: {
+                ...devices["Desktop Chrome"],
+                viewport: { width: 1280, height: 800 },
+                storageState: OWNER_SESSION,
+            },
+        },
+        {
             name: "phone",
-            use: { ...devices["Pixel 7"] },
+            dependencies: ["setup"],
+            testIgnore: /\.setup\.js$/,
+            use: { ...devices["Pixel 7"], storageState: OWNER_SESSION },
         },
     ],
     webServer: {
