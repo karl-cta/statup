@@ -14,7 +14,7 @@
 <div class="page">
     <header class="page-head">
         <div>
-            <a href="/services" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("services.back_to_services") }}</a>
+            <a href="/services" class="back-link">{% call ui::arrow_left() %}{% endcall %}{{ i18n.t("services.back_to_services") }}</a>
             <h1 class="page-title">{% if edit_id.is_some() %}{{ i18n.t("services.edit") }} <span class="wrap-anywhere">{{ form.name }}</span>{% else %}{{ i18n.t("services.new") }}{% endif %}</h1>
             {% if edit_id.is_some() %}
             <p class="event-state" data-tone="{{ form.status.tone().as_str() }}">

@@ -54,7 +54,7 @@
                     {% include "components/mast_switches.html" %}
                     {% if frame.is_authenticated %}
                     <details class="more-actions user-menu" data-more-actions>
-                        <summary class="mnav-tool mnav-user"><span class="avatar" aria-hidden="true">{{ frame.user_initial }}</span><span class="mnav-user-name">{{ frame.user_name }}</span>{% call ui::caret_icon() %}</summary>
+                        <summary class="mnav-tool mnav-user"><span class="avatar" aria-hidden="true">{{ frame.user_initial }}</span><span class="mnav-user-name">{{ frame.user_name }}</span>{% call ui::caret_icon() %}{% endcall %}</summary>
                         <div class="more-actions-menu user-menu-list">
                             <p class="user-menu-who"><strong>{{ frame.user_name }}</strong><span>{{ frame.role_label }}</span></p>
                             <a class="more-actions-item" href="/profile">{{ i18n.t("nav.profile") }}</a>
@@ -77,20 +77,20 @@
         </div>
         <div id="mast-menu" class="mast-menu" hidden>
             <nav class="mast-menu-list mast-menu-tabs" aria-label="{{ i18n.t("nav.main_menu") }}">
-                <a class="mast-menu-item" data-nav="home" href="/">{{ i18n.t("nav.dashboard") }}{% call ui::chevron_right() %}</a>
+                <a class="mast-menu-item" data-nav="home" href="/">{{ i18n.t("nav.dashboard") }}{% call ui::chevron_right() %}{% endcall %}</a>
                 <a class="mast-menu-item" data-nav="events" href="/events">
                     {{ i18n.t("nav.events") }}
                     {% if frame.unread_count > 0 %}
                     <span class="unread" aria-hidden="true">{% if frame.unread_count > 99 %}99+{% else %}{{ frame.unread_count }}{% endif %}</span>
                     <span class="sr-only">{{ frame.unread_label }}</span>
                     {% endif %}
-                    {% call ui::chevron_right() %}
+                    {% call ui::chevron_right() %}{% endcall %}
                 </a>
                 {% if frame.can_publish %}
-                <a class="mast-menu-item" data-nav="services" href="/services">{{ i18n.t("nav.services") }}{% call ui::chevron_right() %}</a>
+                <a class="mast-menu-item" data-nav="services" href="/services">{{ i18n.t("nav.services") }}{% call ui::chevron_right() %}{% endcall %}</a>
                 {% endif %}
                 {% if frame.is_admin %}
-                <a class="mast-menu-item" data-nav="admin" href="/admin/settings">{{ i18n.t("nav.admin") }}{% call ui::chevron_right() %}</a>
+                <a class="mast-menu-item" data-nav="admin" href="/admin/settings">{{ i18n.t("nav.admin") }}{% call ui::chevron_right() %}{% endcall %}</a>
                 {% endif %}
             </nav>
             <div class="mast-menu-list mast-menu-prefs">
@@ -104,15 +104,15 @@
                 <div class="menu-pref" role="group" aria-labelledby="menu-theme">
                     <span id="menu-theme" class="menu-pref-name">{{ i18n.t("nav.theme") }}</span>
                     <span class="menu-seg">
-                        <button type="button" aria-pressed="false" data-theme-choice="light">{% call ui::sun_icon() %}{{ i18n.t("nav.theme_light") }}</button>
-                        <button type="button" aria-pressed="false" data-theme-choice="dark">{% call ui::moon_icon() %}{{ i18n.t("nav.theme_dark") }}</button>
+                        <button type="button" aria-pressed="false" data-theme-choice="light">{% call ui::sun_icon() %}{% endcall %}{{ i18n.t("nav.theme_light") }}</button>
+                        <button type="button" aria-pressed="false" data-theme-choice="dark">{% call ui::moon_icon() %}{% endcall %}{{ i18n.t("nav.theme_dark") }}</button>
                     </span>
                 </div>
             </div>
             <div class="mast-menu-list">
                 {% if frame.is_authenticated %}
                 <p class="menu-who"><span class="avatar" aria-hidden="true">{{ frame.user_initial }}</span><span><strong class="wrap-anywhere">{{ frame.user_name }}</strong><span>{{ frame.role_label }}</span></span></p>
-                <a class="mast-menu-item" href="/profile">{{ i18n.t("nav.profile") }}{% call ui::chevron_right() %}</a>
+                <a class="mast-menu-item" href="/profile">{{ i18n.t("nav.profile") }}{% call ui::chevron_right() %}{% endcall %}</a>
                 <form method="post" action="/logout">
                     <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
                     <button type="submit" class="btn btn-ghost menu-logout">{{ i18n.t("nav.logout") }}</button>
@@ -143,7 +143,7 @@
 
     <div id="toast" class="toast" aria-live="assertive" data-failed="{{ i18n.t("error.request_failed") }}" data-offline="{{ i18n.t("error.offline") }}"></div>
     <template id="toast-close">
-        <button type="button" class="toast-close" data-toast-close aria-label="{{ i18n.t("common.close") }}">{% call ui::close_icon() %}</button>
+        <button type="button" class="toast-close" data-toast-close aria-label="{{ i18n.t("common.close") }}">{% call ui::close_icon() %}{% endcall %}</button>
     </template>
     {# Messages that appear together with their text are read from here. #}
     <div id="announcer" class="sr-only" role="status"></div>
@@ -154,7 +154,7 @@
         {# Outside the loaded content, so the panel can be closed while it
            loads or after a failure. #}
         <div class="drawer-head">
-            <button type="button" class="drawer-close" data-drawer-close aria-label="{{ i18n.t("common.close") }}">{% call ui::close_icon() %}</button>
+            <button type="button" class="drawer-close" data-drawer-close aria-label="{{ i18n.t("common.close") }}">{% call ui::close_icon() %}{% endcall %}</button>
         </div>
         <div id="drawer-content" class="drawer-content"></div>
     </div>

@@ -6,6 +6,7 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use askama::Template;
+use axum::Extension;
 use axum::extract::{ConnectInfo, State};
 use axum::http::HeaderMap;
 use axum::http::header::{LOCATION, SET_COOKIE};
@@ -173,11 +174,11 @@ pub async fn login(
     session: Session,
     FormCsrfToken(csrf_token): FormCsrfToken,
     headers: HeaderMap,
-    connect_info: Option<ConnectInfo<SocketAddr>>,
+    connect_info: Option<Extension<ConnectInfo<SocketAddr>>>,
     Locale(i18n): Locale,
     HtmlForm(input): HtmlForm<LoginInput>,
 ) -> Result<Response, AppError> {
-    let peer = connect_info.map(|info| info.0.ip());
+    let peer = connect_info.map(|Extension(ConnectInfo(addr))| addr.ip());
     let ip = client_ip(&headers, peer, &state.client_ip_source)
         .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
 

@@ -29,7 +29,7 @@ use axum::http::header::{
     CACHE_CONTROL, CONTENT_SECURITY_POLICY, REFERRER_POLICY, STRICT_TRANSPORT_SECURITY,
     X_CONTENT_TYPE_OPTIONS, X_FRAME_OPTIONS,
 };
-use axum::http::{HeaderName, HeaderValue, Request};
+use axum::http::{HeaderName, HeaderValue, Request, StatusCode};
 use axum::middleware;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -95,7 +95,10 @@ fn dynamic_routes(state: &AppState, rate_limit: &RateLimit) -> Router<AppState> 
     pages
         .merge(uploads)
         .fallback(not_found)
-        .layer(TimeoutLayer::new(REQUEST_TIMEOUT))
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            REQUEST_TIMEOUT,
+        ))
         .layer(CatchPanicLayer::custom(|panic: Box<dyn Any + Send>| {
             panic_response(&*panic)
         }))
@@ -134,9 +137,9 @@ fn public_routes() -> Router<AppState> {
         .route("/i18n", get(locale::switch))
         .route("/", get(dashboard::index))
         .route("/events", get(events::list))
-        .route("/events/:id", get(events::detail))
-        .route("/events/:id/drawer", get(events::drawer_content))
-        .route("/services/:id/drawer", get(services::drawer_content))
+        .route("/events/{id}", get(events::detail))
+        .route("/events/{id}/drawer", get(events::drawer_content))
+        .route("/services/{id}/drawer", get(services::drawer_content))
         .route("/feed", get(feed::atom))
         .route("/subscribe", get(dashboard::subscribe))
 }
@@ -146,27 +149,27 @@ fn publisher_routes() -> Router<AppState> {
     Router::new()
         .route("/events/new", get(events::new_form).post(events::create))
         .route(
-            "/events/:id/edit",
+            "/events/{id}/edit",
             get(events::edit_form).post(events::update),
         )
         .route(
-            "/events/:id/revert-lifecycle",
+            "/events/{id}/revert-lifecycle",
             post(events::revert_lifecycle),
         )
-        .route("/events/:id/delete", post(events::delete))
-        .route("/events/:id/updates", post(events::add_update))
+        .route("/events/{id}/delete", post(events::delete))
+        .route("/events/{id}/updates", post(events::add_update))
         .route(
-            "/events/:id/panel-updates",
+            "/events/{id}/panel-updates",
             post(events::add_update_in_panel),
         )
         .route(
-            "/events/:id/updates/:update_id/delete",
+            "/events/{id}/updates/{update_id}/delete",
             post(events::delete_update),
         )
         .route("/events/templates/search", get(events::template_search))
-        .route("/events/templates/:id", get(events::template_detail))
+        .route("/events/templates/{id}", get(events::template_detail))
         .route(
-            "/events/templates/:id/delete",
+            "/events/templates/{id}/delete",
             post(events::template_delete),
         )
         .route("/services", get(services::list))
@@ -175,13 +178,13 @@ fn publisher_routes() -> Router<AppState> {
             get(services::new_form).post(services::create),
         )
         .route(
-            "/services/:id/edit",
+            "/services/{id}/edit",
             get(services::edit_form).post(services::update),
         )
-        .route("/services/:id/status", post(services::update_status))
-        .route("/services/:id/delete", post(services::delete))
+        .route("/services/{id}/status", post(services::update_status))
+        .route("/services/{id}/delete", post(services::delete))
         .route("/icons", get(icons::list))
-        .route("/icons/:id/delete", post(icons::delete))
+        .route("/icons/{id}/delete", post(icons::delete))
 }
 
 /// The only routes that accept a file. The first launch's page step sends
@@ -214,10 +217,10 @@ fn admin_routes() -> Router<AppState> {
         .route("/admin/settings/logo/remove", post(admin::remove_logo))
         .route("/admin/users", get(admin::users_list))
         .route("/admin/users/new", post(admin::add_member))
-        .route("/admin/users/:id/role", post(admin::update_role))
-        .route("/admin/users/:id/disable", post(admin::toggle_active))
+        .route("/admin/users/{id}/role", post(admin::update_role))
+        .route("/admin/users/{id}/disable", post(admin::toggle_active))
         .route(
-            "/admin/users/:id/reset-password",
+            "/admin/users/{id}/reset-password",
             post(admin::reset_member_password),
         )
         .route(
@@ -225,15 +228,15 @@ fn admin_routes() -> Router<AppState> {
             post(dashboard_layout::save_order),
         )
         .route(
-            "/admin/dashboard/layout/:module_id/toggle",
+            "/admin/dashboard/layout/{module_id}/toggle",
             post(dashboard_layout::toggle_module),
         )
         .route(
-            "/admin/dashboard/layout/:module_id/width",
+            "/admin/dashboard/layout/{module_id}/width",
             post(dashboard_layout::set_width),
         )
         .route(
-            "/admin/dashboard/layout/:module_id/show",
+            "/admin/dashboard/layout/{module_id}/show",
             post(dashboard_layout::set_shown),
         )
 }

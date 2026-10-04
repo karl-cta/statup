@@ -1,7 +1,7 @@
 {% import "components/macros.html" as ui %}
 <div class="drawer-body">
     <h2 id="drawer-title" class="drawer-title drawer-title-svc">
-        <span class="svc-icon">{% call ui::service_icon(row.service) %}</span>
+        <span class="svc-icon">{% call ui::service_icon(row.service) %}{% endcall %}</span>
         <span>{{ row.service.name }}</span>
     </h2>
     {% if let Some(description) = row.service.description %}
@@ -36,7 +36,7 @@
                     <span class="log-time">{{ self.event_day(event) }}</span>
                     <span class="log-body">
                         <span class="log-head">
-                            {% call ui::kind_chip(event.chip_label(i18n), event.tone().as_str()) %}
+                            {% call ui::kind_chip(event.chip_label(i18n), event.tone().as_str()) %}{% endcall %}
                             <span class="log-title">{{ event.title }}</span>
                         </span>
                     </span>
@@ -48,6 +48,6 @@
             {% endfor %}
         </ul>
         {% endif %}
-        <a class="hero-link" href="/events?service_id={{ row.service.id }}">{{ i18n.t("services.panel_all_events") }}{% call ui::arrow_right() %}</a>
+        <a class="hero-link" href="/events?service_id={{ row.service.id }}">{{ i18n.t("services.panel_all_events") }}{% call ui::arrow_right() %}{% endcall %}</a>
     </section>
 </div>

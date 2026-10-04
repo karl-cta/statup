@@ -8,7 +8,7 @@
 <div class="page">
     <header class="page-head">
         <div>
-            <a href="/admin/settings" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("admin.back_to_settings") }}</a>
+            <a href="/admin/settings" class="back-link">{% call ui::arrow_left() %}{% endcall %}{{ i18n.t("admin.back_to_settings") }}</a>
             <h1 class="page-title">{{ i18n.t("icons.heading") }}</h1>
             <p class="page-lede">{{ i18n.t("icons.intro") }}</p>
         </div>
@@ -45,7 +45,7 @@
         <li class="icon-card">
             <div class="icon-card-figure">
                 {% if card.file_missing %}
-                {% call ui::image_placeholder() %}
+                {% call ui::image_placeholder() %}{% endcall %}
                 {% else %}
                 <img src="{{ card.icon.url() }}" alt="" loading="lazy">
                 {% endif %}

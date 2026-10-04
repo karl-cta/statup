@@ -1,7 +1,6 @@
 //! Form extractor: `application/x-www-form-urlencoded` bodies decoded with
 //! `serde_html_form`, which turns repeated keys into a `Vec`.
 
-use async_trait::async_trait;
 use axum::extract::{FromRequest, Request};
 use serde::de::DeserializeOwned;
 
@@ -13,7 +12,6 @@ use crate::error::AppError;
 /// re-render a form give their fields `#[serde(default)]` and check them.
 pub struct HtmlForm<T>(pub T);
 
-#[async_trait]
 impl<S, T> FromRequest<S> for HtmlForm<T>
 where
     S: Send + Sync,

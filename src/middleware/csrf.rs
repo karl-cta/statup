@@ -6,7 +6,6 @@
 //! uploads work without script. A visitor who is not signed in only gets a
 //! session, and so a token, from a page that shows a form.
 
-use async_trait::async_trait;
 use axum::body::{Body, Bytes};
 use axum::extract::FromRequestParts;
 use axum::http::header::CONTENT_TYPE;
@@ -46,7 +45,6 @@ pub struct CsrfToken(pub String);
 #[derive(Clone, Debug)]
 pub struct FormCsrfToken(pub String);
 
-#[async_trait]
 impl<S> FromRequestParts<S> for CsrfToken
 where
     S: Send + Sync,
@@ -68,7 +66,6 @@ where
     }
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for FormCsrfToken
 where
     S: Send + Sync,

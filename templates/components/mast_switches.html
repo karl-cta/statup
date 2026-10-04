@@ -9,7 +9,7 @@
         <span class="sr-only" lang="{{ i18n.other_locale() }}">{{ i18n.t("nav.switch_language") }}</span>
     </a>
     <button type="button" class="mast-switch" aria-pressed="false" aria-label="{{ i18n.t("nav.dark_theme") }}" title="{{ i18n.t("nav.dark_theme") }}" data-theme-toggle>
-        <span class="theme-now-light">{% call ui::sun_icon() %}</span>
-        <span class="theme-now-dark">{% call ui::moon_icon() %}</span>
+        <span class="theme-now-light">{% call ui::sun_icon() %}{% endcall %}</span>
+        <span class="theme-now-dark">{% call ui::moon_icon() %}{% endcall %}</span>
     </button>
 </div>

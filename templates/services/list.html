@@ -18,7 +18,7 @@
             <h1 class="page-title">{{ i18n.t("services.heading") }}</h1>
         </div>
         <div class="page-actions">
-            <a href="/services/new" class="btn btn-primary">{% call ui::plus() %}{{ i18n.t("services.new") }}</a>
+            <a href="/services/new" class="btn btn-primary">{% call ui::plus() %}{% endcall %}{{ i18n.t("services.new") }}</a>
         </div>
     </header>
 
@@ -42,7 +42,7 @@
         {% for service in services %}
         <li class="admin-row svc-admin-row{% if self.is_saved(service.id) %} row-saved{% endif %}" id="{{ service.anchor() }}"{% if self.is_saved(service.id) %} data-scroll-into-view{% endif %}>
             <div class="admin-row-ident">
-                <span class="svc-icon">{% call ui::service_icon(service) %}</span>
+                <span class="svc-icon">{% call ui::service_icon(service) %}{% endcall %}</span>
                 <div class="min-w-0">
                     <p class="admin-row-name"><a href="/services/{{ service.id }}/edit" class="row-link">{{ service.name }}</a></p>
                     {% if let Some(description) = service.description %}

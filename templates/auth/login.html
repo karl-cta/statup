@@ -4,7 +4,7 @@
 {% block title %}{{ i18n.t("auth.login_title") }} | {{ instance }}{% endblock %}
 
 {% block auth_back %}
-{% if public_page %}<a href="/" class="back-link auth-back">{% call ui::arrow_left() %}{{ i18n.t("auth.back") }}</a>{% endif %}
+{% if public_page %}<a href="/" class="back-link auth-back">{% call ui::arrow_left() %}{% endcall %}{{ i18n.t("auth.back") }}</a>{% endif %}
 {% endblock %}
 
 {% block auth_head %}

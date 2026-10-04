@@ -27,7 +27,7 @@
                 <li class="sheet-empty" data-sheet-empty{% if !preview.services.is_empty() %} hidden{% endif %}><strong>{{ i18n.t("setup.preview_empty_title") }}</strong>{{ i18n.t("setup.preview_empty_text") }}</li>
                 {% for service in preview.services %}
                 <li class="sheet-svc" data-name="{{ service.name }}">
-                    <span class="sheet-svc-name"><span class="sheet-svc-icon">{% call ui::service_icon(service) %}</span>{{ service.name }}</span>
+                    <span class="sheet-svc-name"><span class="sheet-svc-icon">{% call ui::service_icon(service) %}{% endcall %}</span>{{ service.name }}</span>
                     <span class="sheet-svc-state">{{ i18n.t("status.service.operational") }}</span>
                     <span class="sheet-bars" aria-hidden="true">{% for _ in 0..29 %}<i></i>{% endfor %}<i class="is-on"></i></span>
                 </li>

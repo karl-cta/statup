@@ -3,7 +3,7 @@
     <header class="card-head">
         <h2 id="activity-title" class="card-title">{{ i18n.t("dashboard.activity") }}</h2>
         <div class="card-actions">
-            <a href="/subscribe" class="card-action card-follow">{% call ui::feed_icon() %}{{ i18n.t("dashboard.follow") }}</a>
+            <a href="/subscribe" class="card-action card-follow">{% call ui::feed_icon() %}{% endcall %}{{ i18n.t("dashboard.follow") }}</a>
             {% if !groups.is_empty() %}
             <a href="/events" class="card-action">{{ i18n.t("dashboard.view_all") }}</a>
             {% endif %}
@@ -24,11 +24,11 @@
                 <span class="log-time">{{ i18n.format_time(event.created_at) }}</span>
                 <span class="log-body">
                     <span class="log-head">
-                        {% call ui::kind_chip(event.chip_label(i18n), event.tone().as_str()) %}
+                        {% call ui::kind_chip(event.chip_label(i18n), event.tone().as_str()) %}{% endcall %}
                         <span class="log-title">{{ event.title }}</span>
                     </span>
                     {% if event.has_services() %}
-                    {% call ui::service_tags(event.service_tags(i18n), i18n.t("events.concerns")) %}
+                    {% call ui::service_tags(event.service_tags(i18n), i18n.t("events.concerns")) %}{% endcall %}
                     {% endif %}
                 </span>
                 {% if let Some(word) = event.row_state(i18n) %}

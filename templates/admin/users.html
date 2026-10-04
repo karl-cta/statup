@@ -13,7 +13,7 @@
 <div class="page">
     <header class="page-head">
         <div>
-            <a href="/admin/settings" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("admin.back_to_settings") }}</a>
+            <a href="/admin/settings" class="back-link">{% call ui::arrow_left() %}{% endcall %}{{ i18n.t("admin.back_to_settings") }}</a>
             <h1 class="page-title">{{ i18n.t("admin.users_heading") }}</h1>
         </div>
     </header>
@@ -48,7 +48,7 @@
     {% endif %}
 
     <details class="add-member"{% if add_open %} open{% endif %}>
-        <summary class="btn btn-primary">{% call ui::plus() %}{{ i18n.t("admin.add_member") }}</summary>
+        <summary class="btn btn-primary">{% call ui::plus() %}{% endcall %}{{ i18n.t("admin.add_member") }}</summary>
         <form method="post" action="/admin/users/new" class="add-member-form stack">
             <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
             <div class="form-grid form-grid-2">

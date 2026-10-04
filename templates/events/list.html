@@ -18,7 +18,7 @@
         </div>
         {% if frame.can_publish %}
         <div class="page-actions">
-            <a href="/events/new" class="btn btn-primary">{% call ui::plus() %}{{ i18n.t("events.new") }}</a>
+            <a href="/events/new" class="btn btn-primary">{% call ui::plus() %}{% endcall %}{{ i18n.t("events.new") }}</a>
         </div>
         {% endif %}
     </header>

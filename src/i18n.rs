@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 use std::sync::LazyLock;
 
-use async_trait::async_trait;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use chrono::{DateTime, Datelike, NaiveDate, Utc};
@@ -290,18 +289,22 @@ fn weekday_key(day: u32) -> &'static str {
 /// `Accept-Language` header, then `DEFAULT_LOCALE`.
 pub struct Locale(pub I18n);
 
-#[async_trait]
 impl<S> FromRequestParts<S> for Locale
 where
     S: Send + Sync,
 {
     type Rejection = Infallible;
 
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+    // Not an `async fn` like the other extractors: nothing here awaits, and
+    // clippy's `unused_async` refuses an async body without an await.
+    fn from_request_parts(
+        parts: &mut Parts,
+        _state: &S,
+    ) -> impl Future<Output = Result<Self, Self::Rejection>> + Send {
         let chosen = cookie_locale(&parts.headers).or_else(|| accept_language(&parts.headers));
-        Ok(Locale(I18n::new(
+        std::future::ready(Ok(Locale(I18n::new(
             chosen.as_deref().unwrap_or(DEFAULT_LOCALE.as_str()),
-        )))
+        ))))
     }
 }
 
