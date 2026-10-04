@@ -31,7 +31,7 @@ tower-http = { version = "0.5", features = [
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 
 # Database
-sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "chrono", "time"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono", "time"] }
 
 # Templates
 askama = { version = "0.16", features = ["serde_json"] }
@@ -40,7 +40,7 @@ askama = { version = "0.16", features = ["serde_json"] }
 argon2 = "0.5"
 subtle = "2"
 tower-sessions = "0.12"
-tower-sessions-sqlx-store = { version = "0.12", features = ["sqlite"] }
+tower-sessions-sqlx-store = { version = "0.13", features = ["sqlite"] }
 rmp-serde = "1"
 
 # Serialization
