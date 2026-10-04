@@ -24,6 +24,8 @@ Statup is a self-hosted internal status page. IT, or whoever runs a service, pos
   <img src=".github/assets/status-page.png" alt="The status page: a banner saying one service is disrupted, with the incident and its latest update, then the services with thirty days of availability, the recent activity and the maintenance schedule" width="1280">
 </picture>
 
+**Monitoring tools are made for the people who fix things. Statup is made for everyone else.**
+
 > *"Is the internet down?"* *"Is it just me, or is Outlook broken?"*<br>
 > Every outage starts with the same questions, by phone, by chat and at the IT office door.
 
@@ -116,6 +118,8 @@ Ideas and requests are welcome in the [issues](https://github.com/karl-cta/statu
 ## Status
 
 Statup is **pre-v1**: usable and self-hostable, with the interface being finished before the first stable release. Expect changes between versions and back up before upgrading. Every change is in the [changelog](.github/CHANGELOG.md).
+
+Statup is not related to Statping, a Go project first published under the name Statup.
 
 ## Contributing
 
