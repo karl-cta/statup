@@ -64,6 +64,37 @@ jobs:
       - run: ./scripts/build-css.sh
       - run: test -s static/css/style.css
 
+  browser:
+    name: Browser tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/browser/package-lock.json
+      - run: |
+          curl -sSL -o tailwindcss \
+            "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-x64"
+          chmod +x tailwindcss
+      - run: npm ci
+        working-directory: tests/browser
+      - run: npx playwright install --with-deps chromium
+        working-directory: tests/browser
+      - run: scripts/browser-tests.sh
+      # The trace, video and screenshots of a failed journey.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-report
+          path: |
+            tests/browser/playwright-report/
+            tests/browser/test-results/
+          retention-days: 14
+
   docker:
     name: Docker image builds
     runs-on: ubuntu-latest
