@@ -18,16 +18,16 @@
         <div>
             {% match edit_id %}
             {% when Some with (id) %}
-            <a href="/events/{{ id }}" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("events.back_to_event") }}</a>
+            <a href="/events/{{ id }}" class="back-link">{% call ui::arrow_left() %}{% endcall %}{{ i18n.t("events.back_to_event") }}</a>
             <h1 class="page-title">{{ i18n.t("events.edit_heading") }}</h1>
             {% when None %}
-            <a href="/events" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("events.back_to_events") }}</a>
+            <a href="/events" class="back-link">{% call ui::arrow_left() %}{% endcall %}{{ i18n.t("events.back_to_events") }}</a>
             <h1 class="page-title">{{ i18n.t("events.new_heading") }}</h1>
             {% endmatch %}
         </div>
         {% if !templates.is_empty() %}
         <details class="more-actions" data-more-actions data-template-menu>
-            <summary class="btn btn-ghost">{{ i18n.t("events.from_template") }} {% call ui::caret_icon() %}</summary>
+            <summary class="btn btn-ghost">{{ i18n.t("events.from_template") }} {% call ui::caret_icon() %}{% endcall %}</summary>
             <div class="more-actions-menu template-menu">
                 {% for template in templates %}
                 <button type="button" class="more-actions-item" data-template-choice="{{ template.id }}">
@@ -87,10 +87,10 @@
                                 <div class="schedule-start{% if !form.planned_start.is_empty() %} is-timed{% endif %}">
                                     <button type="button" class="input date-trigger" aria-haspopup="dialog" aria-expanded="false" aria-labelledby="start-label date-text" data-date-trigger{% if form.start_locked %} disabled{% endif %}>
                                         <span id="date-text" data-date-text>{{ i18n.t("events.start_now") }}</span>
-                                        {% call ui::calendar_icon() %}
+                                        {% call ui::calendar_icon() %}{% endcall %}
                                     </button>
                                     <span class="schedule-time"{% if form.planned_start.is_empty() %} hidden{% endif %}>
-                                        {% call ui::clock_icon() %}
+                                        {% call ui::clock_icon() %}{% endcall %}
                                         <input type="text" class="input" role="combobox" inputmode="text" autocomplete="off" maxlength="8" placeholder="{{ i18n.t("events.time_placeholder") }}" aria-label="{{ i18n.t("events.start_time") }}" aria-describedby="zone-hint" aria-autocomplete="none" aria-expanded="false" aria-controls="time-list" data-time{% if form.start_locked %} readonly{% endif %}>
                                         <ul id="time-list" class="time-list" role="listbox" aria-label="{{ i18n.t("events.start_time") }}" data-time-list hidden></ul>
                                     </span>
@@ -184,10 +184,10 @@
                                     <div class="schedule-start{% if !form.started_at.is_empty() %} is-timed{% endif %}">
                                         <button type="button" class="input date-trigger" aria-haspopup="dialog" aria-expanded="false" aria-labelledby="began-label began-date-text" data-date-trigger>
                                             <span id="began-date-text" data-date-text>{{ i18n.t("events.start_now") }}</span>
-                                            {% call ui::calendar_icon() %}
+                                            {% call ui::calendar_icon() %}{% endcall %}
                                         </button>
                                         <span class="schedule-time"{% if form.started_at.is_empty() %} hidden{% endif %}>
-                                            {% call ui::clock_icon() %}
+                                            {% call ui::clock_icon() %}{% endcall %}
                                             <input type="text" class="input" role="combobox" inputmode="text" autocomplete="off" maxlength="8" placeholder="{{ i18n.t("events.time_placeholder") }}" aria-label="{{ i18n.t("events.began_time") }}" aria-autocomplete="none" aria-expanded="false" aria-controls="began-time-list" data-time>
                                             <ul id="began-time-list" class="time-list" role="listbox" aria-label="{{ i18n.t("events.began_time") }}" data-time-list hidden></ul>
                                         </span>

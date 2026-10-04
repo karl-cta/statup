@@ -15,7 +15,7 @@
         <div class="setup-add">
             <label for="custom" class="sr-only">{{ i18n.t("setup.custom_label") }}</label>
             <input id="custom" name="custom" type="text" class="input" maxlength="100" autocomplete="off" placeholder="{{ i18n.t("setup.custom_label") }}" data-setup-custom>
-            <button type="button" class="btn btn-ghost" data-setup-add hidden>{% call ui::plus() %}{{ i18n.t("setup.add") }}</button>
+            <button type="button" class="btn btn-ghost" data-setup-add hidden>{% call ui::plus() %}{% endcall %}{{ i18n.t("setup.add") }}</button>
         </div>
         <fieldset class="setup-suggest">
             <legend class="label">{{ i18n.t("setup.suggested") }}</legend>
@@ -33,7 +33,7 @@
     </div>
     <div class="setup-foot">
         <a href="/setup/page" class="text-action">{{ i18n.t("setup.back") }}</a>
-        <button type="submit" class="btn btn-primary">{{ i18n.t("setup.continue") }}{% call ui::arrow_right() %}</button>
+        <button type="submit" class="btn btn-primary">{{ i18n.t("setup.continue") }}{% call ui::arrow_right() %}{% endcall %}</button>
     </div>
 </form>
 {% endblock %}

@@ -8,7 +8,7 @@
         {% if can_edit %}
         <button type="button" class="btn btn-primary" aria-controls="panel-composer" aria-expanded="{{ composer.error.is_some() }}" data-composer-toggle>{{ i18n.t("events.publish_update") }}</button>
         {% endif %}
-        <a class="hero-link" href="/events/{{ view.event.id }}">{{ i18n.t("events.open_full_page") }}{% call ui::arrow_right() %}</a>
+        <a class="hero-link" href="/events/{{ view.event.id }}">{{ i18n.t("events.open_full_page") }}{% call ui::arrow_right() %}{% endcall %}</a>
     </div>
 
     {% if let Some(article) = view.article %}

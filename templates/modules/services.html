@@ -20,7 +20,7 @@
             <a class="svc-link" href="/events?service_id={{ row.service.id }}" data-drawer="/services/{{ row.service.id }}/drawer">
                 <div class="svc-top">
                     <div class="svc-ident">
-                        <span class="svc-icon">{% call ui::service_icon(row.service) %}</span>
+                        <span class="svc-icon">{% call ui::service_icon(row.service) %}{% endcall %}</span>
                         <h3 class="svc-name">{{ row.service.name }}</h3>
                     </div>
                     <p class="svc-state" data-tone="{{ row.service.status.tone().as_str() }}">

@@ -756,8 +756,12 @@ async fn feed_lists_events_with_their_updates() {
         "the affected service should be named in the entry"
     );
     assert!(
-        body.contains("&lt;strong&gt;declined&lt;/strong&gt;"),
+        body.contains("&#60;strong&#62;declined&#60;/strong&#62;"),
         "the description should be rendered from Markdown and escaped for XML"
+    );
+    assert!(
+        !body.contains("<strong>declined"),
+        "rendered Markdown must never reach the feed unescaped"
     );
     assert!(
         body.contains("Provider confirmed the outage"),

@@ -10,7 +10,7 @@
 
 {% block content %}
 <div class="page">
-    <p><a href="/events" class="back-link">{% call ui::arrow_left() %}{{ i18n.t("events.back_to_events") }}</a></p>
+    <p><a href="/events" class="back-link">{% call ui::arrow_left() %}{% endcall %}{{ i18n.t("events.back_to_events") }}</a></p>
 
     {% if published_notice %}
     <div class="form-notice mt-4" role="status"><p>{{ i18n.t("events.published_notice") }}</p></div>

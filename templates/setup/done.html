@@ -20,7 +20,7 @@
     </div>
     <div class="setup-foot">
         <a href="/setup/services" class="text-action">{{ i18n.t("setup.back") }}</a>
-        <a href="/" class="btn btn-primary">{{ i18n.t("setup.open_dashboard") }}{% call ui::arrow_right() %}</a>
+        <a href="/" class="btn btn-primary">{{ i18n.t("setup.open_dashboard") }}{% call ui::arrow_right() %}{% endcall %}</a>
     </div>
 </div>
 {% endblock %}

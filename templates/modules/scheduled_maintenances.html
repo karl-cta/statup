@@ -22,7 +22,7 @@
                     {% if !m.when.is_empty() || !m.services.is_empty() %}
                     <span class="log-sub">
                         {% if !m.when.is_empty() %}<span class="meta">{{ m.when }}</span>{% endif %}
-                        {% if !m.services.is_empty() %}{% call ui::service_tags(m.services, i18n.t("events.concerns")) %}{% endif %}
+                        {% if !m.services.is_empty() %}{% call ui::service_tags(m.services, i18n.t("events.concerns")) %}{% endcall %}{% endif %}
                     </span>
                     {% endif %}
                 </span>
