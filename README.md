@@ -7,7 +7,7 @@
 
 ### Every team in the loop, before anyone asks.
 
-Statup is a self-hosted internal status page. IT, or whoever runs a service, posts outages, maintenance and news once; colleagues read them in plain words. Just as good for your customers or your family.
+Statup is a self-hosted internal status page. IT, or whoever runs a service, posts outages, maintenance and news once; colleagues read them in plain words.
 
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
