@@ -1295,14 +1295,23 @@ async fn a_closed_event_belongs_to_administrators() {
             ],
         )
         .await;
-    assert_eq!(status, StatusCode::OK, "refused in the form");
+    assert_eq!(status, StatusCode::FORBIDDEN, "edit");
     assert!(body.contains("seul un administrateur"), "{body}");
     for action in ["delete", "revert-lifecycle"] {
         let (status, _, _) = app
             .post_form_with_header_csrf(&format!("/events/{event_id}/{action}"), &[])
             .await;
-        assert_eq!(status, StatusCode::BAD_REQUEST, "{action}");
+        assert_eq!(status, StatusCode::FORBIDDEN, "{action}");
     }
+    let (status, _, _) = app
+        .post_form_with_header_csrf(
+            &format!("/events/{event_id}/updates"),
+            &[("message", "One more thing")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "update");
+    let (status, _) = app.get(&format!("/events/{event_id}/edit")).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "edit form");
 
     let event = EventRepository::find_by_id(&app.pool, event_id)
         .await
@@ -1314,4 +1323,49 @@ async fn a_closed_event_belongs_to_administrators() {
         app.service(service_id).await.status,
         ServiceStatus::Operational
     );
+}
+
+#[tokio::test]
+async fn an_administrator_can_still_edit_a_closed_event() {
+    let app = TestApp::spawn().await;
+    app.create_user("admin@example.com", "admin_pass_1234", "Admin", Role::Admin)
+        .await;
+    app.login("admin@example.com", "admin_pass_1234").await;
+    let service_id = app.create_service("Intranet").await;
+    let path = app
+        .create_incident("Intranet slow", "Pages are slow", "minor", &[service_id])
+        .await;
+    let event_id = event_id_from_path(&path);
+    let (status, _, _) = app
+        .post_form_with_header_csrf(
+            &format!("/events/{event_id}/updates"),
+            &[("lifecycle", "resolved")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let csrf = app.csrf_from("/").await;
+    let (status, _, location) = app
+        .post_form(
+            &format!("/events/{event_id}/edit"),
+            &csrf,
+            &[
+                ("title", "Rewritten"),
+                ("description", "Rewritten"),
+                ("severity", "minor"),
+                ("service_ids", &service_id.to_string()),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(
+        location.as_deref(),
+        Some(format!("/events/{event_id}").as_str())
+    );
+
+    let event = EventRepository::find_by_id(&app.pool, event_id)
+        .await
+        .expect("db error")
+        .expect("the event is still there");
+    assert_eq!(event.title, "Rewritten");
 }

@@ -461,7 +461,7 @@ pub async fn edit_form(
 ) -> Result<Response, AppError> {
     let ews = EventService::find_with_services(&state.pool, id).await?;
     if !can_modify(&ews.event, user.role) {
-        return Err(AppError::validation("validation.event_closed_admin_only"));
+        return Err(AppError::refused("validation.event_closed_admin_only"));
     }
     let service_ids = ews.services.iter().map(|s| s.id).collect();
     let form = EventFormData::from_event(&ews.event, service_ids);

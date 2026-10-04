@@ -6,6 +6,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 
 - On a phone, the masthead tucks away while you read down the page and comes back as soon as you scroll up.
 - On a phone, the menu opens over the page without moving it, its pages are rows you can tap across the whole width, and signing out is a button of its own.
+- An editor who tries to change a closed event is now refused with an access denied answer (403) that says only an administrator can change it, instead of a bad request answer.
 
 ## 0.1.2, 2026-10-03
 

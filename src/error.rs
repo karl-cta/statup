@@ -29,6 +29,10 @@ pub enum AppError {
     #[error("Validation error: {0}")]
     Validation(String),
 
+    /// A permission refusal that names its reason, by translation key.
+    #[error("Refused: {0}")]
+    Refused(String),
+
     #[error("Request body too large")]
     PayloadTooLarge,
 
@@ -49,6 +53,11 @@ impl AppError {
         Self::Validation(key.to_string())
     }
 
+    /// A permission refusal shown to the person, by the translation key of its message.
+    pub fn refused(key: &str) -> Self {
+        Self::Refused(key.to_string())
+    }
+
     /// The status and the translation key of the message shown to the person.
     fn status_and_key(&self) -> (StatusCode, &str) {
         match self {
@@ -57,6 +66,7 @@ impl AppError {
             Self::Forbidden => (StatusCode::FORBIDDEN, "error.forbidden"),
             Self::SessionExpired => (StatusCode::UNAUTHORIZED, "error.session_expired"),
             Self::Validation(key) => (StatusCode::BAD_REQUEST, key.as_str()),
+            Self::Refused(key) => (StatusCode::FORBIDDEN, key.as_str()),
             Self::PayloadTooLarge => (StatusCode::PAYLOAD_TOO_LARGE, "error.payload_too_large"),
             Self::Busy => (StatusCode::SERVICE_UNAVAILABLE, "error.busy"),
             Self::Database(err) if is_foreign_key_violation(err) => {
@@ -81,6 +91,9 @@ impl AppError {
             }
             Self::Forbidden => {
                 tracing::warn!("Forbidden access attempt");
+            }
+            Self::Refused(_) => {
+                tracing::info!("{self}");
             }
             Self::Database(err) if is_foreign_key_violation(err) => {
                 tracing::warn!("Request named a row that does not exist: {err}");

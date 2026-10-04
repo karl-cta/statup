@@ -301,7 +301,7 @@ fn check_modification_allowed(event: &Event, role: Role) -> Result<(), AppError>
     if can_modify(event, role) {
         Ok(())
     } else {
-        Err(AppError::validation("validation.event_closed_admin_only"))
+        Err(AppError::refused("validation.event_closed_admin_only"))
     }
 }
 
