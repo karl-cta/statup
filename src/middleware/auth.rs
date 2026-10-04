@@ -3,7 +3,6 @@
 
 use std::convert::Infallible;
 
-use async_trait::async_trait;
 use axum::extract::{FromRef, FromRequestParts, Request, State};
 use axum::http::request::Parts;
 use axum::middleware::Next;
@@ -29,7 +28,6 @@ struct SessionUser(Option<User>);
 /// or its password changed since the session was opened.
 pub struct AuthUser(pub User);
 
-#[async_trait]
 impl<S> FromRequestParts<S> for AuthUser
 where
     S: Send + Sync,
@@ -51,7 +49,6 @@ where
 /// without authentication.
 pub struct OptionalUser(pub Option<User>);
 
-#[async_trait]
 impl<S> FromRequestParts<S> for OptionalUser
 where
     S: Send + Sync,
@@ -137,7 +134,6 @@ pub async fn load_session_user(
 /// `AppError::Forbidden` (403) if the role is insufficient.
 pub struct RequirePublisher(pub User);
 
-#[async_trait]
 impl<S> FromRequestParts<S> for RequirePublisher
 where
     S: Send + Sync,
@@ -162,7 +158,6 @@ where
 /// `AppError::Forbidden` (403) if the role is insufficient.
 pub struct RequireAdmin(pub User);
 
-#[async_trait]
 impl<S> FromRequestParts<S> for RequireAdmin
 where
     S: Send + Sync,

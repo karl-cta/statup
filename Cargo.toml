@@ -14,10 +14,10 @@ publish = false
 
 [dependencies]
 # Web framework
-axum = { version = "0.7", features = ["macros", "multipart"] }
+axum = { version = "0.8", features = ["macros", "multipart"] }
 multer = "3"
 tokio = { version = "1", features = ["full"] }
-tower-http = { version = "0.5", features = [
+tower-http = { version = "0.6", features = [
     "catch-panic",
     "compression-gzip",
     "fs",
@@ -39,8 +39,8 @@ askama = { version = "0.16", features = ["serde_json"] }
 # Authentication
 argon2 = "0.5"
 subtle = "2"
-tower-sessions = "0.12"
-tower-sessions-sqlx-store = { version = "0.13", features = ["sqlite"] }
+tower-sessions = "0.14"
+tower-sessions-sqlx-store = { version = "0.15", features = ["sqlite"] }
 rmp-serde = "1"
 
 # Serialization
@@ -64,8 +64,8 @@ thiserror = "1"
 anyhow = "1"
 
 # Rate limiting
-governor = "0.6"
-tower_governor = "0.4"
+governor = "0.10"
+tower_governor = "0.8"
 
 # Markdown
 pulldown-cmark = "0.10"

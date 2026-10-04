@@ -76,7 +76,6 @@ impl RateLimit {
             .key_extractor(ClientIpKeyExtractor { source })
             .per_millisecond(replenish_every_ms)
             .burst_size(per_minute)
-            .error_handler(|error| limit_response(&error))
             .finish()
             .ok_or_else(|| anyhow::anyhow!("invalid rate limit quota"))?;
         Ok(Self {
@@ -84,10 +83,8 @@ impl RateLimit {
         })
     }
 
-    pub fn layer(&self) -> GovernorLayer<ClientIpKeyExtractor, NoOpMiddleware> {
-        GovernorLayer {
-            config: Arc::clone(&self.config),
-        }
+    pub fn layer(&self) -> GovernorLayer<ClientIpKeyExtractor, NoOpMiddleware, Body> {
+        GovernorLayer::new(Arc::clone(&self.config)).error_handler(|error| limit_response(&error))
     }
 
     /// Forgets the addresses whose budget is full again, every minute, so
