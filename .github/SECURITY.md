@@ -6,7 +6,7 @@ Statup is pre-v1 and has not been audited by a third party. Reports are welcome.
 
 Do not open a public issue for a security problem. Use GitHub's private
 reporting on this repository ("Report a vulnerability" under the Security
-tab), or write to the address on the maintainer's GitHub profile. Include the
+tab), or write to [karl.certa@ik.me](mailto:karl.certa@ik.me). Include the
 version or commit, the steps to reproduce, and what an attacker gains.
 
 You will get an acknowledgement within a few days. A fix ships as a new

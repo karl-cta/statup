@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question
+    url: https://github.com/karl-cta/statup/discussions
+    about: Ask how to install, set up or use Statup.
+  - name: Security problem
+    url: https://github.com/karl-cta/statup/security/advisories/new
+    about: Report it privately, never in a public issue.

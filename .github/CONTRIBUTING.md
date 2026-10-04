@@ -1,7 +1,8 @@
 # Contributing
 
 Thank you for looking at Statup. Issues and pull requests are welcome; small,
-focused changes are the easiest to review.
+focused changes are the easiest to review. Everyone taking part follows the
+[code of conduct](CODE_OF_CONDUCT.md).
 
 ## Before you start
 
@@ -35,15 +36,6 @@ To try a change in Docker, build the image under the name
 docker build -t ghcr.io/karl-cta/statup:latest .
 docker compose up -d
 ```
-
-## Releasing
-
-A version tag publishes the image: once the changelog has a
-`## 0.2.0, <date>` section and `Cargo.toml` says `0.2.0`,
-`git tag -a v0.2.0 -m 0.2.0 && git push origin v0.2.0` builds the image for
-x86-64 and ARM and tags it `0.2.0`, `0.2` and `latest`. The maintainer then
-publishes the release page (`gh release create v0.2.0 --verify-tag`), which
-running instances read to tell their administrators.
 
 ## Where things are
 
@@ -103,7 +95,12 @@ real router over TCP; unit tests sit next to the code they cover.
 - Commit messages are short and say what the change does, in the imperative
   or as a plain statement.
 
-## License
+## License and contributor agreement
 
-By contributing you agree that your work is released under the AGPL-3.0-or-later
-license of the project.
+Statup is free software under the AGPL-3.0-or-later, and the code in this
+repository stays under it.
+
+Every pull request, code or translation, comes with a three-sentence
+[Contributor License Agreement](CLA.md): it lets the maintainer also use the
+contribution in paid modules or a hosted version of Statup, which the AGPL
+alone would not allow. Tick its box in the pull request template to agree.
