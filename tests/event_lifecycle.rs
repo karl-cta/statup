@@ -992,6 +992,22 @@ async fn a_declared_incident_replaces_the_detection_note() {
 }
 
 #[tokio::test]
+async fn a_detected_outage_of_42_minutes_shows_in_the_strip() {
+    let app = TestApp::spawn_public().await;
+    let id = app.create_service("Messagerie").await;
+    let day_start = statup::clock::day_start(statup::clock::today()).unwrap();
+    ServiceRepository::mark_detected_down(&app.pool, id, day_start)
+        .await
+        .unwrap();
+    ServiceRepository::mark_detected_up(&app.pool, id, day_start + chrono::Duration::minutes(42))
+        .await
+        .unwrap();
+
+    let (_, page) = app.get("/").await;
+    assert!(page.contains("data-day-status=\"Panne détectée, 42\u{a0}min\""));
+}
+
+#[tokio::test]
 async fn feed_is_private_when_public_mode_is_off() {
     let app = TestApp::spawn().await;
 
