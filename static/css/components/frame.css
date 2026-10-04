@@ -425,17 +425,16 @@
         color: var(--muted);
     }
 
-    .mast-menu-quiet {
-        color: var(--muted);
-    }
-
-    .menu-login {
+    /* Signing in or out is a button, never a row that reads like a page. */
+    .menu-login,
+    .menu-logout {
         width: 100%;
         margin: 8px 0;
     }
 
     @media (min-width: 600px) {
-        .menu-login {
+        .menu-login,
+        .menu-logout {
             align-self: flex-start;
             width: auto;
             min-width: 200px;
@@ -507,18 +506,32 @@
         border-top: 1px solid var(--line);
     }
 
+    /* A row across the whole width, its chevron on the thumb's side, so
+       it reads as something to touch anywhere along it. */
     .mast-menu-item {
         position: relative;
         display: flex;
         align-items: center;
         gap: 8px;
         width: 100%;
-        min-height: 44px;
+        min-height: 52px;
         font-size: var(--text-lg);
         font-weight: 500;
         color: var(--ink-soft);
         text-align: left;
         transition: color 150ms ease;
+    }
+
+    .mast-menu-item:not(:last-child) {
+        border-bottom: 1px solid var(--hairline);
+    }
+
+    .mast-menu-chevron {
+        flex: none;
+        width: 16px;
+        height: 16px;
+        margin-left: auto;
+        color: var(--muted);
     }
 
     .mast-menu-item:hover {
@@ -632,8 +645,8 @@
 
     /* A phone, upright or on its side. This block is the one place that
        says so: the script reads `--phone-layout` to open pages instead of
-       the side panel. On a phone the masthead scrolls away with the page:
-       pinned, it took a band of every screen while reading. */
+       the side panel, and to tuck the masthead away while the reader goes
+       down the page (`is-tucked`); it slides back as soon as they go up. */
     @media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
         html {
             --phone-layout: 1;
@@ -641,26 +654,31 @@
         }
 
         .mast {
-            position: relative;
+            transition: transform 220ms var(--ease-out);
         }
 
-        /* Open, the compact menu fills the screen under the masthead as an
-           app's menu does, its clock at the foot, the page below it. */
-        .mast:has(.mast-menu:not([hidden])) {
-            display: flex;
-            flex-direction: column;
-            min-height: 100dvh;
+        .mast.is-tucked:not(:focus-within) {
+            transform: translateY(-100%);
         }
 
-        /* Its auto margins would otherwise centre the row in the column. */
-        .mast:has(.mast-menu:not([hidden])) > .mast-inner {
-            width: 100%;
+        /* The open menu lies over the page, under the masthead and its
+           rule, down to the bottom of the screen; the page stays put and
+           does not scroll behind it. */
+        html:has(.mast-menu:not([hidden])) {
+            overflow: hidden;
         }
 
         .mast-menu {
+            position: absolute;
+            top: calc(100% + 2px);
+            right: 0;
+            left: 0;
             display: flex;
-            flex: 1;
             flex-direction: column;
+            height: calc(100dvh - 100% - 2px);
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            background: var(--mast-ground);
         }
 
         .mast-menu-clock {
@@ -995,6 +1013,7 @@
         }
 
         .skip-link,
+        .mast,
         .mast-burger-icon,
         .mnav-bar {
             transition: none;

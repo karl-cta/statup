@@ -77,19 +77,20 @@
         </div>
         <div id="mast-menu" class="mast-menu" hidden>
             <nav class="mast-menu-list mast-menu-tabs" aria-label="{{ i18n.t("nav.main_menu") }}">
-                <a class="mast-menu-item" data-nav="home" href="/">{{ i18n.t("nav.dashboard") }}</a>
+                <a class="mast-menu-item" data-nav="home" href="/">{{ i18n.t("nav.dashboard") }}{% call ui::chevron_right() %}</a>
                 <a class="mast-menu-item" data-nav="events" href="/events">
                     {{ i18n.t("nav.events") }}
                     {% if frame.unread_count > 0 %}
                     <span class="unread" aria-hidden="true">{% if frame.unread_count > 99 %}99+{% else %}{{ frame.unread_count }}{% endif %}</span>
                     <span class="sr-only">{{ frame.unread_label }}</span>
                     {% endif %}
+                    {% call ui::chevron_right() %}
                 </a>
                 {% if frame.can_publish %}
-                <a class="mast-menu-item" data-nav="services" href="/services">{{ i18n.t("nav.services") }}</a>
+                <a class="mast-menu-item" data-nav="services" href="/services">{{ i18n.t("nav.services") }}{% call ui::chevron_right() %}</a>
                 {% endif %}
                 {% if frame.is_admin %}
-                <a class="mast-menu-item" data-nav="admin" href="/admin/settings">{{ i18n.t("nav.admin") }}</a>
+                <a class="mast-menu-item" data-nav="admin" href="/admin/settings">{{ i18n.t("nav.admin") }}{% call ui::chevron_right() %}</a>
                 {% endif %}
             </nav>
             <div class="mast-menu-list mast-menu-prefs">
@@ -111,10 +112,10 @@
             <div class="mast-menu-list">
                 {% if frame.is_authenticated %}
                 <p class="menu-who"><span class="avatar" aria-hidden="true">{{ frame.user_initial }}</span><span><strong class="wrap-anywhere">{{ frame.user_name }}</strong><span>{{ frame.role_label }}</span></span></p>
-                <a class="mast-menu-item" href="/profile">{{ i18n.t("nav.profile") }}</a>
+                <a class="mast-menu-item" href="/profile">{{ i18n.t("nav.profile") }}{% call ui::chevron_right() %}</a>
                 <form method="post" action="/logout">
                     <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                    <button type="submit" class="mast-menu-item mast-menu-quiet">{{ i18n.t("nav.logout") }}</button>
+                    <button type="submit" class="btn btn-ghost menu-logout">{{ i18n.t("nav.logout") }}</button>
                 </form>
                 {% else %}
                 <a class="btn btn-primary menu-login" href="/login">{{ i18n.t("nav.login") }}</a>

@@ -201,6 +201,23 @@
         return Boolean(menu && !menu.hidden);
     }
 
+    // On a phone the masthead tucks away while the reader goes down the
+    // page and comes back as soon as they go up. A few pixels of jitter
+    // change nothing; the open menu keeps it in place.
+    function watchMastOnScroll() {
+        const mast = document.querySelector(".mast");
+        if (!mast) return;
+        let last = window.scrollY;
+        window.addEventListener("scroll", () => {
+            const y = window.scrollY;
+            if (Math.abs(y - last) < 8) return;
+            const down = y > last;
+            last = y;
+            const tuck = down && y > mast.offsetHeight && isPhoneLayout() && !menuIsOpen();
+            mast.classList.toggle("is-tucked", tuck);
+        }, { passive: true });
+    }
+
     // The tab of the section; "page" only on the section's own address.
     function markCurrentSection() {
         const shell = document.querySelector("[data-section]");
@@ -717,6 +734,7 @@
 
     function onReady() {
         markCurrentSection();
+        watchMastOnScroll();
         syncThemeButtons();
         tickClock();
         window.setInterval(tickClock, 15000);
