@@ -281,6 +281,20 @@
             event.preventDefault();
             addTyped();
         });
+        // With the monitoring open, Add waits at its foot, after the test,
+        // instead of above the fields.
+        const addChecked = document.querySelector("[data-setup-add-checked]");
+        if (checkFold && addChecked) {
+            addChecked.hidden = false;
+            addChecked.addEventListener("click", () => {
+                addTyped();
+                custom.focus();
+            });
+            checkFold.addEventListener("toggle", () => {
+                addButton.hidden = checkFold.open;
+            });
+            addButton.hidden = checkFold.open;
+        }
         // Enter in the monitoring fields adds the name instead of leaving
         // the step.
         if (checkFold) {

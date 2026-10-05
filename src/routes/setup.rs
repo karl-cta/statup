@@ -28,7 +28,7 @@ const MAX_NEW_SERVICES: usize = 50;
 
 /// What most offices run, each with the built-in icon it gets: common words
 /// through the translations, product names as they are.
-const SUGGESTIONS: [(&str, &str); 21] = [
+const SUGGESTIONS: [(&str, &str); 17] = [
     ("setup.suggest_mail", "envelope"),
     ("Intranet", "globe"),
     ("VPN", "lock-closed"),
@@ -40,15 +40,11 @@ const SUGGESTIONS: [(&str, &str); 21] = [
     ("Microsoft 365", "cloud"),
     ("Outlook", "envelope"),
     ("Teams", "chat-bubble"),
-    ("SharePoint", "document-text"),
-    ("Google Workspace", "cloud"),
     ("Slack", "chat-bubble"),
     ("Zoom", "users"),
     ("Salesforce", "chart-bar"),
     ("SAP", "database"),
-    ("Sage", "credit-card"),
     ("Jira", "wrench-screwdriver"),
-    ("Confluence", "document-text"),
     ("GitLab", "code-bracket"),
 ];
 

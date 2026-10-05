@@ -26,6 +26,9 @@
         <details class="more-options setup-check"{% if !self.check().is("none") %} open{% endif %} data-setup-check data-kind-http="{{ i18n.t("services.check_http") }}" data-kind-tcp="{{ i18n.t("services.check_tcp") }}">
             <summary>{{ i18n.t("setup.check_toggle") }}</summary>
             {% include "components/check_fields.html" %}
+            <div class="setup-check-add">
+                <button type="button" class="btn btn-ghost" data-setup-add-checked hidden>{% call ui::plus() %}{% endcall %}{{ i18n.t("setup.add") }}</button>
+            </div>
         </details>
         <fieldset class="setup-suggest">
             <legend class="label">{{ i18n.t("setup.suggested") }}</legend>
