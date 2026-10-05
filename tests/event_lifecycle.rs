@@ -5,13 +5,13 @@
 
 mod common;
 
+use chrono::Utc;
 use reqwest::StatusCode;
 
-use chrono::Utc;
 use common::{TestApp, extract_csrf_token};
-use statup::models::{CheckKind, Lifecycle, Role, ServiceCheck, ServiceStatus};
+use statup::models::{CheckKind, CheckedService, Lifecycle, Role, ServiceCheck, ServiceStatus};
 use statup::repositories::{EventRepository, ServiceRepository};
-use statup::services::ServiceService;
+use statup::services::{Finding, MonitorState, Prober, Report, ServiceService, run_round};
 
 impl TestApp {
     /// POST via the `X-CSRF-Token` header, the way htmx sends it.
@@ -988,7 +988,10 @@ async fn editors_declare_the_incident_of_a_detected_outage_from_the_banner() {
     );
 
     let (_, services) = app.get("/services").await;
-    assert!(services.contains("Vérifié automatiquement"));
+    assert!(
+        services.contains(r#"class="svc-pulse""#),
+        "a monitored service shows its pulse"
+    );
     assert!(services.contains("Détecté automatiquement"));
 }
 
@@ -1029,6 +1032,63 @@ async fn a_detected_outage_of_42_minutes_shows_in_the_strip() {
 
     let (_, page) = app.get("/").await;
     assert!(page.contains("data-day-status=\"Panne détectée, 42\u{a0}min\""));
+}
+
+/// Answers for the service named, fails for the others.
+struct AnswersOnly(i64);
+
+impl Prober for AnswersOnly {
+    fn check(&self, service: &CheckedService) -> impl Future<Output = Report> + Send {
+        let finding = if service.id == self.0 {
+            Finding::Answered { status: Some(200) }
+        } else {
+            Finding::Refused
+        };
+        std::future::ready(Report {
+            finding,
+            detail: None,
+            elapsed: std::time::Duration::from_millis(84),
+        })
+    }
+}
+
+#[tokio::test]
+async fn the_services_page_shows_what_the_last_check_found() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let site = app.create_service("Syspirit").await;
+    let vps = app.create_service("VPS").await;
+    for id in [site, vps] {
+        let check = ServiceCheck {
+            kind: CheckKind::Http,
+            target: format!("https://service-{id}.example"),
+            internal_cert: false,
+        };
+        ServiceRepository::set_check(&app.pool, id, Some(&check))
+            .await
+            .unwrap();
+    }
+
+    let (_, before) = app.get("/services").await;
+    assert!(
+        before.contains("première vérification dans la minute"),
+        "the pulse waits for the first round"
+    );
+
+    let mut state = MonitorState::sharing(std::sync::Arc::clone(&app.checks));
+    run_round(
+        &app.pool,
+        &std::sync::Arc::new(AnswersOnly(site)),
+        &mut state,
+        Utc::now(),
+    )
+    .await
+    .unwrap();
+
+    let (_, after) = app.get("/services").await;
+    assert!(after.contains("84\u{a0}ms"), "an answer shows its latency");
+    assert!(after.contains("sans réponse"), "a failure says so");
+    assert!(!after.contains("première vérification"));
 }
 
 #[tokio::test]

@@ -21,7 +21,7 @@ use crate::models::{
 };
 use crate::modules::services::{ServiceRow, service_history};
 use crate::repositories::{EventRepository, ServiceRepository};
-use crate::services::{IconService, ServiceService};
+use crate::services::{IconService, LastCheck, ServiceService};
 use crate::state::AppState;
 
 #[derive(Template)]
@@ -37,6 +37,8 @@ struct ServiceListTemplate {
     saved_name: Option<String>,
     /// The saved service is monitored: the notice says what that means.
     saved_monitored: bool,
+    /// What the last check of each monitored service found.
+    pulses: HashMap<i64, Pulse>,
     deleted_name: Option<String>,
     error: Option<String>,
     i18n: I18n,
@@ -52,6 +54,42 @@ impl ServiceListTemplate {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     fn driver_of(&self, id: &i64) -> Option<(i64, String)> {
         self.drivers.get(id).cloned()
+    }
+
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    fn pulse_of(&self, id: &i64) -> Option<Pulse> {
+        self.pulses.get(id).cloned()
+    }
+}
+
+/// The last check of a monitored service, as its row says it: the latency,
+/// "no answer", or nothing before the first round; and the words a screen
+/// reader says instead.
+#[derive(Clone)]
+struct Pulse {
+    text: Option<String>,
+    label: String,
+}
+
+impl Pulse {
+    fn new(last: Option<LastCheck>, i18n: &I18n) -> Self {
+        match last {
+            Some(LastCheck::Answered(latency)) => {
+                let ms = latency.as_millis().to_string();
+                Self {
+                    text: Some(i18n.tf("services.check_latency", &[("ms", &ms)])),
+                    label: i18n.tf("services.check_aria_latency", &[("ms", &ms)]),
+                }
+            }
+            Some(LastCheck::Failed) => Self {
+                text: Some(i18n.t("services.check_no_answer").to_string()),
+                label: i18n.t("services.check_aria_no_answer").to_string(),
+            },
+            None => Self {
+                text: None,
+                label: i18n.t("services.check_aria_pending").to_string(),
+            },
+        }
     }
 }
 
@@ -75,6 +113,11 @@ async fn render_list(
         .and_then(|id| services.iter().find(|s| s.id == id));
     let saved_name = saved.map(|s| s.name.clone());
     let saved_monitored = saved.is_some_and(|s| s.check_kind.is_some());
+    let pulses = services
+        .iter()
+        .filter(|service| service.check_kind.is_some())
+        .map(|service| (service.id, Pulse::new(state.checks.get(service.id), &i18n)))
+        .collect();
     render(&ServiceListTemplate {
         frame: Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?,
         services,
@@ -83,6 +126,7 @@ async fn render_list(
         saved_id: query.saved,
         saved_name,
         saved_monitored,
+        pulses,
         deleted_name: query.deleted,
         error,
         i18n,

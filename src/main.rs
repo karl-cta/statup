@@ -50,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
         tasks.push(spawn_update_check(Arc::clone(&state.update)));
     }
     if config.monitoring {
-        tasks.push(spawn_monitoring(pool.clone()));
+        tasks.push(spawn_monitoring(pool.clone(), Arc::clone(&state.checks)));
     }
 
     let sessions = session::session_layer(
@@ -147,6 +147,7 @@ async fn build_state(config: &Config, pool: DbPool) -> anyhow::Result<AppState> 
         client_ip_source: config.client_ip_source(),
         public_url: config.public_url.clone(),
         update: Arc::default(),
+        checks: Arc::default(),
     })
 }
 

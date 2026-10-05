@@ -2,7 +2,7 @@
 //! apply the rules of [`super::monitoring`] and record what changes.
 
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, PoisonError, RwLock};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
@@ -13,7 +13,7 @@ use super::ServiceService;
 use super::monitoring::{
     Observation, Outcome, Transition, looks_like_own_failure, next_state, skip_round,
 };
-use super::probe::{CHECK_TIMEOUT, Prober, Probes};
+use super::probe::{CHECK_TIMEOUT, Prober, Probes, Report};
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::CheckedService;
@@ -23,6 +23,48 @@ const ROUND_INTERVAL: Duration = Duration::from_secs(60);
 /// Checks running at once, so a long list never floods the network.
 const MAX_CONCURRENT_CHECKS: usize = 16;
 
+/// What the last check of a service found.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LastCheck {
+    Answered(Duration),
+    Failed,
+}
+
+impl From<&Report> for LastCheck {
+    fn from(report: &Report) -> Self {
+        match report.outcome() {
+            Outcome::Answered => Self::Answered(report.elapsed),
+            Outcome::Failed => Self::Failed,
+        }
+    }
+}
+
+/// The last check of each monitored service, for the services page. It
+/// lives in memory and is never written; after a restart it comes back with
+/// the first round.
+#[derive(Debug, Default)]
+pub struct LastChecks(RwLock<HashMap<i64, LastCheck>>);
+
+impl LastChecks {
+    pub fn get(&self, service_id: i64) -> Option<LastCheck> {
+        self.0
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(&service_id)
+            .copied()
+    }
+
+    /// Keeps what this round found and forgets the services no longer
+    /// monitored; a check that stopped before its result keeps the last one.
+    fn record(&self, services: &[CheckedService], reports: &HashMap<i64, Report>) {
+        let mut last = self.0.write().unwrap_or_else(PoisonError::into_inner);
+        last.retain(|id, _| services.iter().any(|service| service.id == *id));
+        for (id, report) in reports {
+            last.insert(*id, LastCheck::from(report));
+        }
+    }
+}
+
 /// What the checks remember between rounds. It lives in memory: writing a
 /// count every minute would churn the database, and a restart only delays
 /// a new outage by a few rounds.
@@ -30,6 +72,7 @@ const MAX_CONCURRENT_CHECKS: usize = 16;
 pub struct MonitorState {
     streaks: HashMap<i64, Streak>,
     skipped_rounds: u8,
+    last: Arc<LastChecks>,
 }
 
 /// Consecutive failures of one service, and the first of them outside a
@@ -41,6 +84,14 @@ struct Streak {
 }
 
 impl MonitorState {
+    /// A state whose last checks the services page reads.
+    pub fn sharing(last: Arc<LastChecks>) -> Self {
+        Self {
+            last,
+            ..Self::default()
+        }
+    }
+
     fn failures(&self, service_id: i64) -> u8 {
         self.streaks.get(&service_id).map_or(0, |s| s.failures)
     }
@@ -87,17 +138,19 @@ pub async fn run_round<P: Prober>(
     let services = ServiceRepository::list_checked(pool).await?;
     state.keep_only(&services);
     if services.is_empty() {
+        state.last.record(&services, &HashMap::new());
         return Ok(());
     }
     let silenced: HashSet<i64> = EventRepository::services_under_maintenance(pool)
         .await?
         .into_iter()
         .collect();
-    let outcomes = probe_all(prober, &services).await;
+    let reports = probe_all(prober, &services).await;
+    state.last.record(&services, &reports);
     let observed: Vec<(i64, Observation)> = services
         .iter()
         .filter_map(|service| {
-            let outcome = *outcomes.get(&service.id)?;
+            let outcome = reports.get(&service.id)?.outcome();
             let observation = Observation {
                 failures: state.failures(service.id),
                 detected: service.detected_status.is_some(),
@@ -121,7 +174,7 @@ pub async fn run_round<P: Prober>(
 async fn probe_all<P: Prober>(
     prober: &Arc<P>,
     services: &[CheckedService],
-) -> HashMap<i64, Outcome> {
+) -> HashMap<i64, Report> {
     let permits = Arc::new(Semaphore::new(MAX_CONCURRENT_CHECKS));
     let mut checks = JoinSet::new();
     for service in services.iter().cloned() {
@@ -132,16 +185,16 @@ async fn probe_all<P: Prober>(
             (service.id, prober.check(&service).await)
         });
     }
-    let mut outcomes = HashMap::new();
+    let mut reports = HashMap::new();
     while let Some(done) = checks.join_next().await {
         match done {
-            Ok((service_id, outcome)) => {
-                outcomes.insert(service_id, outcome);
+            Ok((service_id, report)) => {
+                reports.insert(service_id, report);
             }
             Err(e) => tracing::warn!(error = %e, "A check stopped before its result"),
         }
     }
-    outcomes
+    reports
 }
 
 /// A round where every service that answered fails at once points at
@@ -184,8 +237,9 @@ async fn apply(
     ServiceService::recalculate_status(pool, service_id).await
 }
 
-/// Runs [`run_round`] every minute for the life of the server.
-pub fn spawn_monitoring(pool: DbPool) -> AbortHandle {
+/// Runs [`run_round`] every minute for the life of the server, sharing what
+/// each check found with the services page.
+pub fn spawn_monitoring(pool: DbPool, last: Arc<LastChecks>) -> AbortHandle {
     let task = tokio::spawn(async move {
         let probes = match Probes::new(CHECK_TIMEOUT) {
             Ok(probes) => Arc::new(probes),
@@ -194,7 +248,7 @@ pub fn spawn_monitoring(pool: DbPool) -> AbortHandle {
                 return;
             }
         };
-        let mut state = MonitorState::default();
+        let mut state = MonitorState::sharing(last);
         let mut ticker = tokio::time::interval(ROUND_INTERVAL);
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
@@ -214,14 +268,28 @@ mod tests {
     use super::*;
     use crate::models::{CheckKind, CreateEventInput, Kind, Role, ServiceCheck, ServiceStatus};
     use crate::repositories::{OutageRepository, UserRepository};
+    use crate::services::Finding;
     use crate::test_helpers::test_pool;
 
     /// Gives every service the same outcome.
     struct Always(Outcome);
 
     impl Prober for Always {
-        fn check(&self, _service: &CheckedService) -> impl Future<Output = Outcome> + Send {
-            std::future::ready(self.0)
+        fn check(&self, _service: &CheckedService) -> impl Future<Output = Report> + Send {
+            std::future::ready(report(self.0))
+        }
+    }
+
+    /// An answer in 84 ms, or a refused connection.
+    fn report(outcome: Outcome) -> Report {
+        let (finding, elapsed) = match outcome {
+            Outcome::Answered => (Finding::Answered { status: Some(200) }, 84),
+            Outcome::Failed => (Finding::Refused, 0),
+        };
+        Report {
+            finding,
+            detail: None,
+            elapsed: Duration::from_millis(elapsed),
         }
     }
 
@@ -385,6 +453,32 @@ mod tests {
         assert_eq!(
             states(&pool, service.id).await,
             (ServiceStatus::Operational, None)
+        );
+    }
+
+    #[tokio::test]
+    async fn the_last_check_of_each_service_is_shared() {
+        let pool = test_pool().await;
+        let id = checked_service(&pool, "Site").await;
+        let last = Arc::new(LastChecks::default());
+        let mut state = MonitorState::sharing(Arc::clone(&last));
+        assert_eq!(last.get(id), None);
+
+        rounds(&pool, &mut state, Outcome::Answered, &[1]).await;
+        assert_eq!(
+            last.get(id),
+            Some(LastCheck::Answered(Duration::from_millis(84)))
+        );
+
+        rounds(&pool, &mut state, Outcome::Failed, &[2]).await;
+        assert_eq!(last.get(id), Some(LastCheck::Failed));
+
+        ServiceRepository::set_check(&pool, id, None).await.unwrap();
+        rounds(&pool, &mut state, Outcome::Failed, &[3]).await;
+        assert_eq!(
+            last.get(id),
+            None,
+            "a service no longer monitored is forgotten"
         );
     }
 

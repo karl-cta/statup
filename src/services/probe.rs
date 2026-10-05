@@ -90,18 +90,17 @@ impl Probes {
 
 /// Runs the check a service is set up with; tests swap in a scripted one.
 pub trait Prober: Send + Sync + 'static {
-    fn check(&self, service: &CheckedService) -> impl Future<Output = Outcome> + Send;
+    fn check(&self, service: &CheckedService) -> impl Future<Output = Report> + Send;
 }
 
 impl Prober for Probes {
-    async fn check(&self, service: &CheckedService) -> Outcome {
+    async fn check(&self, service: &CheckedService) -> Report {
         let report = self.examine(service).await;
-        let outcome = report.outcome();
-        if outcome == Outcome::Failed {
+        if report.outcome() == Outcome::Failed {
             // The target stays out of the logs: it may carry a token.
             tracing::debug!(finding = ?report.finding, detail = report.detail.as_deref(), "Check failed");
         }
-        outcome
+        report
     }
 }
 
@@ -392,7 +391,7 @@ mod tests {
         let closed = closed_addr().await;
         let up = checked(CheckKind::Http, format!("http://{web}/"));
         let down = checked(CheckKind::Tcp, closed.to_string());
-        assert_eq!(probes.check(&up).await, Outcome::Answered);
-        assert_eq!(probes.check(&down).await, Outcome::Failed);
+        assert_eq!(probes.check(&up).await.outcome(), Outcome::Answered);
+        assert_eq!(probes.check(&down).await.outcome(), Outcome::Failed);
     }
 }
