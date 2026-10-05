@@ -15,7 +15,7 @@ use super::render;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, HtmlForm, RequireAdmin};
-use crate::models::{MAX_ICON_SIZE, Service, ServiceCheck};
+use crate::models::{CheckKind, MAX_ICON_SIZE, Service, ServiceCheck};
 use crate::repositories::ServiceRepository;
 use crate::services::{LogoService, ServiceService, SettingsService};
 use crate::state::AppState;
@@ -151,6 +151,15 @@ fn icon_for(name: &str, i18n: &I18n) -> Option<&'static str> {
         .iter()
         .find(|(label, _)| suggestion_label(label, i18n).eq_ignore_ascii_case(name))
         .map(|(_, icon)| *icon)
+}
+
+/// A name typed in and monitored gets the built-in icon of its kind until
+/// its own logo is set from its page.
+fn icon_for_kind(kind: CheckKind) -> &'static str {
+    match kind {
+        CheckKind::Http => "globe",
+        CheckKind::Tcp => "server-stack",
+    }
 }
 
 #[derive(Template)]
@@ -477,12 +486,12 @@ async fn create_services(
         return Err(AppError::validation("validation.too_many_services"));
     }
     for name in names {
-        let service =
-            ServiceService::create(&state.pool, name, None, None, icon_for(name, i18n)).await?;
         let check = checks
             .iter()
             .find(|(checked, _)| checked.eq_ignore_ascii_case(name))
             .map(|(_, check)| check);
+        let icon = icon_for(name, i18n).or_else(|| check.map(|check| icon_for_kind(check.kind)));
+        let service = ServiceService::create(&state.pool, name, None, None, icon).await?;
         if check.is_some() {
             ServiceService::set_check(&state.pool, service.id, check).await?;
         }

@@ -142,6 +142,16 @@ async fn the_setup_steps_are_for_administrators() {
     }
 }
 
+/// The built-in icon of a service, by name.
+async fn icon_of(app: &TestApp, name: &str) -> Option<String> {
+    ServiceRepository::list_all(&app.pool)
+        .await
+        .expect("db error")
+        .into_iter()
+        .find(|s| s.name == name)
+        .and_then(|s| s.icon_name)
+}
+
 /// The monitored services of an instance, by name, with their target.
 async fn checked(app: &TestApp) -> Vec<(String, String)> {
     let services = ServiceRepository::list_all(&app.pool)
@@ -188,6 +198,16 @@ async fn a_name_typed_without_the_script_keeps_its_monitoring() {
             "https://syspirit.example".to_string()
         )]
     );
+    assert_eq!(
+        icon_of(&app, "Syspirit").await.as_deref(),
+        Some("globe"),
+        "a monitored name gets the icon of its kind"
+    );
+    assert_eq!(
+        icon_of(&app, "Messagerie").await.as_deref(),
+        Some("envelope"),
+        "a suggestion keeps its own"
+    );
 }
 
 #[tokio::test]
@@ -218,6 +238,7 @@ async fn chips_added_with_the_script_carry_their_monitoring() {
         checked(&app).await,
         [("VPS".to_string(), "203.0.113.7:22".to_string())]
     );
+    assert_eq!(icon_of(&app, "VPS").await.as_deref(), Some("server-stack"));
 }
 
 #[tokio::test]
