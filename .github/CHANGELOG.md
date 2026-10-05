@@ -2,13 +2,13 @@
 
 All notable changes to Statup are listed here. The project is pre-v1: until 1.0, a minor version may change the interface or the database, and the README asks you to back up before upgrading.
 
-## Unreleased
+## 0.2.0, 2026-10-05
 
-- Statup monitors a service on its own: in its form, under Monitoring, choose Web for an address that should answer, or Port for a server, a router or a firewall by its host and port, and test it before saving.
-- At the first launch, a service typed in can be monitored right away, from a fold under its name.
+- Statup monitors a service on its own: in its form, under Monitoring, choose Web for an address that should answer, or Port for a server, a router or a firewall by its host and port, and test it before saving; the test says why an address does not answer.
+- At the first launch, a service typed in can be monitored right away, from a fold under its name, and gets a built-in icon of its kind; the suggestions no longer include Google Workspace, Sage, Confluence and SharePoint.
 - After three failed checks in a row, the service shows an outage marked "detected automatically", and comes back on its own as soon as it answers; nothing is declared during a maintenance that takes it down, or when every service fails at once.
 - An editor declares the incident of a detected outage in one click, from the banner or the Services page, with the service, the impact and the start already filled in.
-- A detected outage of fifteen minutes or more counts in the thirty days of the service.
+- A detected outage of fifteen minutes or more counts in the thirty days of the service; choosing None or changing the address of a service in a false outage clears it, from its state and from its thirty days.
 - The Services page shows the last latency of each monitored service, or that its last check got no answer, in place of a label.
 - `MONITORING=false` turns every check off.
 - The database is upgraded on start to keep the checks of the services and the outages they detect.
