@@ -385,13 +385,13 @@ impl ServicesInput {
         Refusal {
             error: Some(error),
             custom: self.custom.clone(),
-            check: CheckFields {
-                kind: self.check_kind.parse().ok(),
-                url: self.check_url.clone(),
-                host: self.check_host.clone(),
-                port: self.check_port.clone(),
-                internal_cert: self.check_internal_cert.is_some(),
-            },
+            check: CheckFields::typed(
+                &self.check_kind,
+                &self.check_url,
+                &self.check_host,
+                &self.check_port,
+                self.check_internal_cert.is_some(),
+            ),
         }
     }
 

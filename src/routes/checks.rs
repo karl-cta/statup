@@ -29,6 +29,17 @@ impl CheckFields {
         self.kind.map_or("none", CheckKind::as_str) == kind
     }
 
+    /// The fields as a form sent them, to show them again after a refusal.
+    pub fn typed(kind: &str, url: &str, host: &str, port: &str, internal_cert: bool) -> Self {
+        Self {
+            kind: kind.parse().ok(),
+            url: url.to_string(),
+            host: host.to_string(),
+            port: port.to_string(),
+            internal_cert,
+        }
+    }
+
     /// The fields of a saved check; a port target is split back into its
     /// host and its port.
     pub fn from_saved(kind: Option<CheckKind>, target: Option<&str>, internal_cert: bool) -> Self {
@@ -72,13 +83,13 @@ pub struct CheckInput {
 impl CheckInput {
     /// The fields as typed, to show them again after a refusal.
     pub fn fields(&self) -> CheckFields {
-        CheckFields {
-            kind: self.kind.parse().ok(),
-            url: self.url.clone(),
-            host: self.host.clone(),
-            port: self.port.clone(),
-            internal_cert: self.internal_cert.is_some(),
-        }
+        CheckFields::typed(
+            &self.kind,
+            &self.url,
+            &self.host,
+            &self.port,
+            self.internal_cert.is_some(),
+        )
     }
 
     pub fn check(&self) -> Result<Option<ServiceCheck>, AppError> {
