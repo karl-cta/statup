@@ -5,8 +5,9 @@
   <img src=".github/assets/wordmark.svg" width="220" height="59" alt="Statup">
 </picture>
 
-**Your outages, maintenance and news, on one status page.**<br>
-Whoever runs the service writes it once, for colleagues, customers or family, and nobody has to ask.
+### Every team in the loop, before anyone asks.
+
+Statup is a self-hosted internal status page. IT, or whoever runs a service, posts outages, maintenance and news once; colleagues read them in plain words.
 
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
@@ -18,15 +19,17 @@ Whoever runs the service writes it once, for colleagues, customers or family, an
 
 <br>
 
-> *"Is the internet down?"* *"Is it just me, or is Outlook broken?"*<br>
-> Every outage starts with the same questions, by phone, by chat and at the IT office door.
-
-Statup answers them before they are asked. IT, or whoever runs the tool, says what is broken, what is being fixed and what is planned, and also what changed: the new version of the payroll software, the printer that moved to the second floor, the VPN client everyone must install. Accounting, HR and everyone else read it in plain words, from a desk or a phone. It works the same for the customers of a service you run, or for a server at home.
-
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/status-page-dark.png">
   <img src=".github/assets/status-page.png" alt="The status page: a banner saying one service is disrupted, with the incident and its latest update, then the services with thirty days of availability, the recent activity and the maintenance schedule" width="1280">
 </picture>
+
+**Monitoring tools are made for the people who fix things. Statup is made for everyone else.**
+
+> *"Is the internet down?"* *"Is it just me, or is Outlook broken?"*<br>
+> Every outage starts with the same questions, by phone, by chat and at the IT office door.
+
+With Statup, the answer is already there: what is broken, what is being fixed, what is planned. And what changed, too: the new version of the payroll software, the printer that moved to the second floor, the VPN client everyone must install. Accounting, HR and everyone else read it from a desk or a phone.
 
 > [!TIP]
 > **See it live** at [demo.statup.dev](https://demo.statup.dev): the page is open to everyone. Sign in with `demo@statup.dev` and `StatupDemo#1` to publish incidents, maintenance and news as an editor would. Visitors share this account, and the demo starts over every hour.
@@ -120,6 +123,8 @@ Ideas and requests are welcome in the [issues](https://github.com/karl-cta/statu
 ## Status
 
 Statup is **pre-v1**: usable and self-hostable, with the interface being finished before the first stable release. Expect changes between versions and back up before upgrading. Every change is in the [changelog](.github/CHANGELOG.md).
+
+Statup is not related to Statping, a Go project first published under the name Statup.
 
 ## Contributing
 
