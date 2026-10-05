@@ -14,7 +14,8 @@ use crate::models::{
     Severity, UpdateEventInput, User,
 };
 use crate::repositories::{
-    CreateTemplateInput, EventRepository, EventTemplateRepository, ServiceRepository,
+    CreateTemplateInput, EventRepository, EventTemplateRepository, OutageRepository,
+    ServiceRepository,
 };
 use crate::routes::{Frame, render};
 use crate::services::{EventService, EventTemplateService, can_modify};
@@ -173,6 +174,20 @@ impl EventFormData {
             opening_step: None,
             keeps_services_up: false,
             follows_event_id: None,
+        }
+    }
+
+    /// A critical incident on one service, like the outage the page shows,
+    /// begun when the checks first failed.
+    fn outage_on(service_id: i64, started: Option<chrono::DateTime<chrono::Utc>>) -> Self {
+        Self {
+            severity: Some(Severity::Critical),
+            service_ids: vec![service_id],
+            started_at: started
+                .as_ref()
+                .map(clock::format_input)
+                .unwrap_or_default(),
+            ..Self::blank(Kind::Incident)
         }
     }
 
@@ -367,6 +382,8 @@ pub struct NewFormQuery {
     /// A maintenance the announcement follows: the form opens on what is
     /// new after it.
     after: Option<i64>,
+    /// A service the checks found down: the form opens on its incident.
+    service: Option<i64>,
 }
 
 pub async fn new_form(
@@ -382,11 +399,34 @@ pub async fn new_form(
             .filter(|ews| ews.event.kind == Kind::Maintenance),
         None => None,
     };
-    let form = match followed {
-        Some(ews) => EventFormData::changelog_after(&ews, &i18n),
-        None => EventFormData::blank(query.kind.unwrap_or(Kind::Incident)),
+    let outage = match query.service {
+        Some(id) => detected_outage(&state, id).await?,
+        None => None,
+    };
+    let form = match (followed, outage) {
+        (Some(ews), _) => EventFormData::changelog_after(&ews, &i18n),
+        (None, Some(form)) => form,
+        (None, None) => EventFormData::blank(query.kind.unwrap_or(Kind::Incident)),
     };
     render_form(&state, &user, csrf_token.0, i18n, None, form, None).await
+}
+
+/// The incident on a service the checks found down, dated from the start of
+/// the outage; nothing for a service that does not exist.
+async fn detected_outage(
+    state: &AppState,
+    service_id: i64,
+) -> Result<Option<EventFormData>, AppError> {
+    if ServiceRepository::find_by_id(&state.pool, service_id)
+        .await?
+        .is_none()
+    {
+        return Ok(None);
+    }
+    let started = OutageRepository::open_starts(&state.pool)
+        .await?
+        .remove(&service_id);
+    Ok(Some(EventFormData::outage_on(service_id, started)))
 }
 
 pub async fn create(

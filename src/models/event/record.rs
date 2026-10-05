@@ -104,7 +104,8 @@ fn open_elapsed(
         .map(|start| split_duration(Utc::now() - start))
 }
 
-fn split_duration(diff: chrono::TimeDelta) -> (i64, i64, i64) {
+/// Days, hours and minutes of a span, as `I18n::format_duration` reads them.
+pub fn split_duration(diff: chrono::TimeDelta) -> (i64, i64, i64) {
     (
         diff.num_days().max(0),
         (diff.num_hours() % 24).max(0),

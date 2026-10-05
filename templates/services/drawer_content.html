@@ -12,7 +12,7 @@
         <div class="fact">
             <dt>{{ i18n.t("events.fact_state") }}</dt>
             <dd class="fact-state" data-tone="{{ row.service.status.tone().as_str() }}">
-                <span class="dot" aria-hidden="true"></span><strong>{{ i18n.t(row.service.status.i18n_key()) }}</strong>
+                <span class="dot" aria-hidden="true"></span><strong>{{ i18n.t(row.service.status.i18n_key()) }}</strong>{% if detected %}&nbsp;<span aria-hidden="true">·</span> {{ i18n.t("services.panel_detected") }}{% endif %}
             </dd>
         </div>
     </dl>

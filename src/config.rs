@@ -27,6 +27,8 @@ const FORM_SESSION_SECS: u64 = 60 * 60;
 pub const DEFAULT_DATABASE_URL: &str = "./statup.db";
 
 /// Application configuration.
+// Each flag is a setting of its own, read from its own variable.
+#[allow(clippy::struct_excessive_bools)]
 pub struct Config {
     /// `SQLite` database path.
     pub database_url: String,
@@ -61,6 +63,8 @@ pub struct Config {
     pub public_url: Option<String>,
     /// Ask GitHub once a day whether a newer version is published.
     pub update_check: bool,
+    /// Check every minute that the services set up for it answer.
+    pub monitoring: bool,
 }
 
 impl Config {
@@ -89,6 +93,7 @@ impl Config {
             public_url: non_empty_env("PUBLIC_URL")
                 .map(|url| url.trim().trim_end_matches('/').to_string()),
             update_check: parse_env("UPDATE_CHECK", true)?,
+            monitoring: parse_env("MONITORING", true)?,
         };
         config.validate()?;
         Ok(config)
@@ -250,6 +255,7 @@ mod tests {
             client_ip_header: X_FORWARDED_FOR,
             public_url: None,
             update_check: true,
+            monitoring: true,
         }
     }
 

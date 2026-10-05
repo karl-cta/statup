@@ -232,6 +232,22 @@
         overflow-wrap: anywhere;
     }
 
+    /* A monitored service: a pulse and its last latency, no colour. */
+    .svc-pulse {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+        vertical-align: bottom;
+    }
+
+    .svc-pulse svg {
+        flex: none;
+        width: 14px;
+        height: 14px;
+    }
+
     .admin-row-actions {
         display: flex;
         flex-wrap: wrap;

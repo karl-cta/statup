@@ -8,6 +8,7 @@
 
 {% block scripts %}
 <script src="{{ crate::asset("js/icon-picker.js") }}" defer></script>
+<script src="{{ crate::asset("js/service-check.js") }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -52,6 +53,8 @@
                         <textarea id="description" name="description" class="input" rows="3" maxlength="500"
                                   placeholder="{{ i18n.t("services.description_placeholder") }}">{{ form.description }}</textarea>
                     </div>
+
+                    {% include "components/check_fields.html" %}
                 </div>
                 <div class="form-col">
                     <div class="form-block">

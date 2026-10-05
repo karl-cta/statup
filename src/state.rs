@@ -8,7 +8,7 @@ use axum::extract::FromRef;
 use crate::config::serves_https;
 use crate::db::DbPool;
 use crate::middleware::client_ip::ClientIpSource;
-use crate::services::{LoginRateLimiter, UpdateStatus};
+use crate::services::{LastChecks, LoginRateLimiter, UpdateStatus};
 
 /// Application state shared across all request handlers.
 #[derive(Clone)]
@@ -30,6 +30,8 @@ pub struct AppState {
     pub public_url: Option<String>,
     /// A newer published version, once the daily check finds one.
     pub update: Arc<UpdateStatus>,
+    /// What the last check of each monitored service found.
+    pub checks: Arc<LastChecks>,
 }
 
 impl AppState {

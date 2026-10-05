@@ -6,7 +6,11 @@
     {% if service.is_outranked() %}
     <div class="status-shown">
         <p class="status-shown-state" data-tone="{{ service.status.tone().as_str() }}"><span class="dot" aria-hidden="true"></span><strong>{{ i18n.t(service.status.i18n_key()) }}</strong></p>
-        {% if let Some(d) = driver %}<a class="link status-shown-by" href="/events/{{ d.0 }}">{{ d.1 }}</a>{% endif %}
+        {% if let Some(d) = driver %}<a class="link status-shown-by" href="/events/{{ d.0 }}">{{ d.1 }}</a>
+        {% else if service.detected_status.is_some() %}
+        <p class="status-shown-by block">{{ i18n.t("services.detected") }}</p>
+        <a class="link status-shown-by" href="/events/new?service={{ service.id }}">{{ i18n.t("services.declare_incident") }}</a>
+        {% endif %}
     </div>
     {% else %}
     <form method="post" action="/services/{{ service.id }}/status"

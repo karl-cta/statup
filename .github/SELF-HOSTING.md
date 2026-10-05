@@ -39,6 +39,7 @@ Every setting is optional. Write the ones you change in a `.env` file next to `d
 | `CLIENT_IP_HEADER` | `X-Forwarded-For` | The header your proxy writes the client address in, such as `X-Real-IP`, `Forwarded` or `CF-Connecting-IP`. Only its last entry counts, and no other header is read |
 | `PUBLIC_MODE` | `false` | Starting public access. Once an administrator chooses in Settings, that choice is kept across restarts |
 | `UPDATE_CHECK` | `true` | Ask GitHub once a day whether a newer version is published, and tell administrators in Settings. The request carries no information about the instance. `false` for an instance that must not reach the internet |
+| `MONITORING` | `true` | Run the monitoring of the services that have it. `false` turns every check off; the addresses stay saved |
 | `DEFAULT_LOCALE` | `fr` | `fr` or `en`, for visitors whose browser asks for neither |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | unset | Create an administrator at start when no account exists. Both are needed, and the password follows the rule above. Remove them afterwards |
 | `DATABASE_URL` | `./statup.db` | SQLite database file |
@@ -49,6 +50,16 @@ Every setting is optional. Write the ones you change in a `.env` file next to `d
 | `DB_MAX_CONNECTIONS` | `10` | Database pool size |
 | `LOG_LEVEL` | `info` | `trace`, `debug`, `info`, `warn`, `error` or `off` |
 | `RUST_LOG` | unset | Finer log filter, e.g. `statup=debug,tower_http=info`. Replaces `LOG_LEVEL` when set |
+
+## Monitoring
+
+A service is monitored from its form, under **Monitoring**: **Web** for an address that should answer (`https://intranet.example.com`), **Port** for a host and its port (`192.168.1.1` and `443`), such as a server, or a router or firewall by its administration port. **Test** runs the check at once and says why it fails: port closed, no answer, unknown name, certificate refused or a server error.
+
+- Statup checks every minute, from the server it runs on, so internal addresses work. A web address that answers with any status below 500 counts as answering, even a refusal such as 401 or 404. Tick **Internal certificate** for a tool whose certificate no public authority signed.
+- After three failed checks in a row, the service shows an outage, marked "detected automatically", and comes back as soon as it answers. Statup never writes an incident itself: the team declares one in a click, from the banner or the Services page, with the service and the start already filled in.
+- Nothing is declared during a maintenance that takes the service down, nor when every checked service fails at once, which points at Statup's own connection rather than at the services. If that lasts five minutes, the checks count again.
+- A detected outage of fifteen minutes or more counts in the service's thirty days. Choosing **None** or changing the address of a service in a false outage clears it, from its state and from the thirty days.
+- The checks only reach the addresses you set, never read a page's content, and keep no credentials: an address with a user name or a password is refused.
 
 ## Running behind a reverse proxy
 

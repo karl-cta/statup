@@ -9,12 +9,13 @@ use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 
+use super::checks::{CheckFields, CheckInput, parse_check};
 use super::dashboard::origin;
 use super::render;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, HtmlForm, RequireAdmin};
-use crate::models::{MAX_ICON_SIZE, Service};
+use crate::models::{CheckKind, MAX_ICON_SIZE, Service, ServiceCheck};
 use crate::repositories::ServiceRepository;
 use crate::services::{LogoService, ServiceService, SettingsService};
 use crate::state::AppState;
@@ -27,7 +28,7 @@ const MAX_NEW_SERVICES: usize = 50;
 
 /// What most offices run, each with the built-in icon it gets: common words
 /// through the translations, product names as they are.
-const SUGGESTIONS: [(&str, &str); 21] = [
+const SUGGESTIONS: [(&str, &str); 17] = [
     ("setup.suggest_mail", "envelope"),
     ("Intranet", "globe"),
     ("VPN", "lock-closed"),
@@ -39,15 +40,11 @@ const SUGGESTIONS: [(&str, &str); 21] = [
     ("Microsoft 365", "cloud"),
     ("Outlook", "envelope"),
     ("Teams", "chat-bubble"),
-    ("SharePoint", "document-text"),
-    ("Google Workspace", "cloud"),
     ("Slack", "chat-bubble"),
     ("Zoom", "users"),
     ("Salesforce", "chart-bar"),
     ("SAP", "database"),
-    ("Sage", "credit-card"),
     ("Jira", "wrench-screwdriver"),
-    ("Confluence", "document-text"),
     ("GitLab", "code-bracket"),
 ];
 
@@ -156,6 +153,15 @@ fn icon_for(name: &str, i18n: &I18n) -> Option<&'static str> {
         .map(|(_, icon)| *icon)
 }
 
+/// A name typed in and monitored gets the built-in icon of its kind until
+/// its own logo is set from its page.
+fn icon_for_kind(kind: CheckKind) -> &'static str {
+    match kind {
+        CheckKind::Http => "globe",
+        CheckKind::Tcp => "server-stack",
+    }
+}
+
 #[derive(Template)]
 #[template(path = "setup/page.html")]
 struct PageStepTemplate {
@@ -175,7 +181,19 @@ struct ServicesStepTemplate {
     preview: Preview,
     suggestions: Vec<Suggestion>,
     error: Option<String>,
+    /// The name typed and its monitoring, shown again after a refusal.
+    custom: String,
+    check_fields: CheckFields,
+    /// The shared monitoring block reads it; a refusal here is said above
+    /// the step, with the name of its service.
+    check_error: Option<String>,
     i18n: I18n,
+}
+
+impl ServicesStepTemplate {
+    fn check(&self) -> &CheckFields {
+        &self.check_fields
+    }
 }
 
 #[derive(Template)]
@@ -289,11 +307,20 @@ pub async fn save_page(
     }
 }
 
+/// What the step shows again after a refusal: the message, and the name
+/// typed with its monitoring.
+#[derive(Default)]
+struct Refusal {
+    error: Option<String>,
+    custom: String,
+    check: CheckFields,
+}
+
 async fn render_services_step(
     state: &AppState,
     csrf_token: String,
     i18n: I18n,
-    error: Option<String>,
+    refusal: Refusal,
 ) -> Result<Response, AppError> {
     let existing = ServiceRepository::list_all(&state.pool).await?;
     render(&ServicesStepTemplate {
@@ -301,7 +328,10 @@ async fn render_services_step(
         progress: Progress { step: 3 },
         preview: Preview::load(state).await?,
         suggestions: suggestions(&existing, &i18n),
-        error,
+        error: refusal.error,
+        custom: refusal.custom,
+        check_fields: refusal.check,
+        check_error: None,
         i18n,
     })
 }
@@ -312,10 +342,10 @@ pub async fn services_form(
     CsrfToken(csrf_token): CsrfToken,
     Locale(i18n): Locale,
 ) -> Result<Response, AppError> {
-    render_services_step(&state, csrf_token, i18n, None).await
+    render_services_step(&state, csrf_token, i18n, Refusal::default()).await
 }
 
-#[derive(Deserialize)]
+#[derive(Default, Deserialize)]
 pub struct ServicesInput {
     /// Ticked suggestions and names added with the script.
     #[serde(default)]
@@ -323,6 +353,89 @@ pub struct ServicesInput {
     /// A name typed without the script, or not yet added.
     #[serde(default)]
     custom: String,
+    /// The monitoring of `custom`, as the shared block sends it.
+    #[serde(flatten)]
+    check: CheckInput,
+    /// The monitoring of the names added with the script, one entry each
+    /// across these lists.
+    #[serde(default)]
+    checks: Vec<String>,
+    #[serde(default)]
+    check_kinds: Vec<String>,
+    #[serde(default)]
+    check_urls: Vec<String>,
+    #[serde(default)]
+    check_hosts: Vec<String>,
+    #[serde(default)]
+    check_ports: Vec<String>,
+    #[serde(default)]
+    check_certs: Vec<String>,
+}
+
+impl ServicesInput {
+    fn refusal(&self, error: String) -> Refusal {
+        Refusal {
+            error: Some(error),
+            custom: self.custom.clone(),
+            check: self.check.fields(),
+        }
+    }
+
+    /// The monitoring asked for each name, read before anything is created;
+    /// a refused address is said with the name of its service.
+    fn checks(&self, i18n: &I18n) -> Result<Vec<(String, ServiceCheck)>, String> {
+        let count = self.checks.len();
+        let lists = [
+            &self.check_kinds,
+            &self.check_urls,
+            &self.check_hosts,
+            &self.check_ports,
+            &self.check_certs,
+        ];
+        if lists.iter().any(|list| list.len() != count) {
+            return Err(i18n.t("error.invalid_data").to_string());
+        }
+        let mut checks = Vec::new();
+        for (i, name) in self.checks.iter().enumerate() {
+            let parsed = parse_check(
+                entry(&self.check_kinds, i),
+                entry(&self.check_urls, i),
+                entry(&self.check_hosts, i),
+                entry(&self.check_ports, i),
+                entry(&self.check_certs, i) == "1",
+            );
+            keep_check(&mut checks, name.trim(), parsed, i18n)?;
+        }
+        if !self.custom.trim().is_empty() {
+            keep_check(&mut checks, self.custom.trim(), self.check.check(), i18n)?;
+        }
+        Ok(checks)
+    }
+}
+
+/// One entry of the parallel lists, empty when a list is short.
+fn entry(list: &[String], i: usize) -> &str {
+    list.get(i).map_or("", String::as_str)
+}
+
+fn keep_check(
+    checks: &mut Vec<(String, ServiceCheck)>,
+    name: &str,
+    parsed: Result<Option<ServiceCheck>, AppError>,
+    i18n: &I18n,
+) -> Result<(), String> {
+    match parsed {
+        Ok(Some(check)) => checks.push((name.to_string(), check)),
+        Ok(None) => {}
+        Err(AppError::Validation(key)) => {
+            return Err(i18n.tf(
+                "validation.setup_check_invalid",
+                &[("service", name), ("reason", i18n.t(&key))],
+            ));
+        }
+        Err(_) => return Err(i18n.t("error.invalid_data").to_string()),
+    }
+    Ok(())
 }
 
 /// The names to create: trimmed, once each, none already followed.
@@ -342,12 +455,25 @@ fn new_names(input: &ServicesInput, existing: &[Service]) -> Vec<String> {
     names
 }
 
-async fn create_services(state: &AppState, names: &[String], i18n: &I18n) -> Result<(), AppError> {
+async fn create_services(
+    state: &AppState,
+    names: &[String],
+    checks: &[(String, ServiceCheck)],
+    i18n: &I18n,
+) -> Result<(), AppError> {
     if names.len() > MAX_NEW_SERVICES {
         return Err(AppError::validation("validation.too_many_services"));
     }
     for name in names {
-        ServiceService::create(&state.pool, name, None, None, icon_for(name, i18n)).await?;
+        let check = checks
+            .iter()
+            .find(|(checked, _)| checked.eq_ignore_ascii_case(name))
+            .map(|(_, check)| check);
+        let icon = icon_for(name, i18n).or_else(|| check.map(|check| icon_for_kind(check.kind)));
+        let service = ServiceService::create(&state.pool, name, None, None, icon).await?;
+        if check.is_some() {
+            ServiceService::set_check(&state.pool, service.id, check).await?;
+        }
     }
     Ok(())
 }
@@ -361,14 +487,21 @@ pub async fn save_services(
 ) -> Result<Response, AppError> {
     let existing = ServiceRepository::list_all(&state.pool).await?;
     let names = new_names(&input, &existing);
-    match create_services(&state, &names, &i18n).await {
+    let checks = match input.checks(&i18n) {
+        Ok(checks) => checks,
+        Err(message) => {
+            let refusal = input.refusal(message);
+            return render_services_step(&state, csrf_token, i18n, refusal).await;
+        }
+    };
+    match create_services(&state, &names, &checks, &i18n).await {
         Ok(()) => {
             tracing::info!(admin_id = admin.id, added = names.len(), "Services set up");
             Ok(Redirect::to("/setup/done").into_response())
         }
         Err(AppError::Validation(key)) => {
-            let error = Some(i18n.t(&key).to_string());
-            render_services_step(&state, csrf_token, i18n, error).await
+            let refusal = input.refusal(i18n.t(&key).to_string());
+            render_services_step(&state, csrf_token, i18n, refusal).await
         }
         Err(e) => Err(e),
     }
@@ -398,6 +531,7 @@ mod tests {
         ServicesInput {
             services: services.iter().map(ToString::to_string).collect(),
             custom: custom.to_string(),
+            ..ServicesInput::default()
         }
     }
 

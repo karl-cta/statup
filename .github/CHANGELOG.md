@@ -4,6 +4,14 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 
 ## Unreleased
 
+- Statup monitors a service on its own: in its form, under Monitoring, choose Web for an address that should answer, or Port for a server, a router or a firewall by its host and port, and test it before saving.
+- At the first launch, a service typed in can be monitored right away, from a fold under its name.
+- After three failed checks in a row, the service shows an outage marked "detected automatically", and comes back on its own as soon as it answers; nothing is declared during a maintenance that takes it down, or when every service fails at once.
+- An editor declares the incident of a detected outage in one click, from the banner or the Services page, with the service, the impact and the start already filled in.
+- A detected outage of fifteen minutes or more counts in the thirty days of the service.
+- The Services page shows the last latency of each monitored service, or that its last check got no answer, in place of a label.
+- `MONITORING=false` turns every check off.
+- The database is upgraded on start to keep the checks of the services and the outages they detect.
 - The web framework, the templates, the database layer and the sign-in sessions run on their current major versions; nothing changes on screen and nobody has to sign in again.
 
 ## 0.1.3, 2026-10-04

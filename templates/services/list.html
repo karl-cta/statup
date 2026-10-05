@@ -23,7 +23,7 @@
     </header>
 
     {% if let Some(name) = saved_name %}
-    <div class="form-notice mb-5" role="status"><p><q>{{ name }}</q> {{ i18n.t("services.saved_notice") }}</p></div>
+    <div class="form-notice mb-5" role="status"><p><q>{{ name }}</q> {% if saved_monitored %}{{ i18n.t("services.saved_monitored_notice") }}{% else %}{{ i18n.t("services.saved_notice") }}{% endif %}</p></div>
     {% endif %}
     {% if let Some(name) = deleted_name %}
     <div class="form-notice mb-5" role="status"><p><q>{{ name }}</q> {{ i18n.t("services.deleted_notice") }}</p></div>
@@ -45,8 +45,14 @@
                 <span class="svc-icon">{% call ui::service_icon(service) %}{% endcall %}</span>
                 <div class="min-w-0">
                     <p class="admin-row-name"><a href="/services/{{ service.id }}/edit" class="row-link">{{ service.name }}</a></p>
-                    {% if let Some(description) = service.description %}
-                    <p class="admin-row-sub">{{ description }}</p>
+                    {% let pulse = self.pulse_of(service.id) %}
+                    {% if service.description.is_some() || pulse.is_some() %}
+                    <p class="admin-row-sub">
+                        {%- if let Some(description) = service.description %}{{ description }}{% if pulse.is_some() %}&nbsp;<span aria-hidden="true">·</span> {% endif %}{% endif -%}
+                        {%- if let Some(pulse) = pulse -%}
+                        <span class="svc-pulse" role="img" aria-label="{{ pulse.label }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>{% if let Some(text) = pulse.text %}<span aria-hidden="true">{{ text }}</span>{% endif %}</span>
+                        {%- endif -%}
+                    </p>
                     {% endif %}
                 </div>
             </div>

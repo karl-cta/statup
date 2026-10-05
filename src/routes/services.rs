@@ -8,7 +8,9 @@ use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 
+use super::checks::{CheckFields, CheckInput};
 use super::{Frame, members_only, render};
+use crate::db::DbPool;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::headers::is_htmx;
@@ -19,7 +21,7 @@ use crate::models::{
 };
 use crate::modules::services::{ServiceRow, service_history};
 use crate::repositories::{EventRepository, ServiceRepository};
-use crate::services::{IconService, ServiceService};
+use crate::services::{IconService, LastCheck, ServiceService};
 use crate::state::AppState;
 
 #[derive(Template)]
@@ -33,6 +35,10 @@ struct ServiceListTemplate {
     previous: Option<ServiceStatus>,
     saved_id: Option<i64>,
     saved_name: Option<String>,
+    /// The saved service is monitored: the notice says what that means.
+    saved_monitored: bool,
+    /// What the last check of each monitored service found.
+    pulses: HashMap<i64, Pulse>,
     deleted_name: Option<String>,
     error: Option<String>,
     i18n: I18n,
@@ -48,6 +54,42 @@ impl ServiceListTemplate {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     fn driver_of(&self, id: &i64) -> Option<(i64, String)> {
         self.drivers.get(id).cloned()
+    }
+
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    fn pulse_of(&self, id: &i64) -> Option<Pulse> {
+        self.pulses.get(id).cloned()
+    }
+}
+
+/// The last check of a monitored service, as its row says it: the latency,
+/// "no answer", or nothing before the first round; and the words a screen
+/// reader says instead.
+#[derive(Clone)]
+struct Pulse {
+    text: Option<String>,
+    label: String,
+}
+
+impl Pulse {
+    fn new(last: Option<LastCheck>, i18n: &I18n) -> Self {
+        match last {
+            Some(LastCheck::Answered(latency)) => {
+                let ms = latency.as_millis().to_string();
+                Self {
+                    text: Some(i18n.tf("services.check_latency", &[("ms", &ms)])),
+                    label: i18n.tf("services.check_aria_latency", &[("ms", &ms)]),
+                }
+            }
+            Some(LastCheck::Failed) => Self {
+                text: Some(i18n.t("services.check_no_answer").to_string()),
+                label: i18n.t("services.check_aria_no_answer").to_string(),
+            },
+            None => Self {
+                text: None,
+                label: i18n.t("services.check_aria_pending").to_string(),
+            },
+        }
     }
 }
 
@@ -66,10 +108,16 @@ async fn render_list(
     error: Option<String>,
 ) -> Result<Response, AppError> {
     let services = ServiceRepository::list_all(&state.pool).await?;
-    let saved_name = query
+    let saved = query
         .saved
-        .and_then(|id| services.iter().find(|s| s.id == id))
-        .map(|s| s.name.clone());
+        .and_then(|id| services.iter().find(|s| s.id == id));
+    let saved_name = saved.map(|s| s.name.clone());
+    let saved_monitored = saved.is_some_and(|s| s.check_kind.is_some());
+    let pulses = services
+        .iter()
+        .filter(|service| service.check_kind.is_some())
+        .map(|service| (service.id, Pulse::new(state.checks.get(service.id), &i18n)))
+        .collect();
     render(&ServiceListTemplate {
         frame: Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?,
         services,
@@ -77,6 +125,8 @@ async fn render_list(
         previous: None,
         saved_id: query.saved,
         saved_name,
+        saved_monitored,
+        pulses,
         deleted_name: query.deleted,
         error,
         i18n,
@@ -99,6 +149,7 @@ struct ServiceFormTemplate {
     frame: Frame,
     error: Option<String>,
     name_error: Option<String>,
+    check_error: Option<String>,
     edit_id: Option<i64>,
     form: ServiceFormData,
     selected_icon_id: Option<i64>,
@@ -117,6 +168,11 @@ impl ServiceFormTemplate {
     fn status_line(&self) -> String {
         let status = self.i18n.t(self.form.status.i18n_key());
         self.i18n.tf("services.status_now", &[("status", status)])
+    }
+
+    /// The monitoring fields, as the shared block reads them.
+    fn check(&self) -> &CheckFields {
+        &self.form.check
     }
 
     fn is_builtin_selected(&self, name: &str) -> bool {
@@ -146,6 +202,32 @@ pub struct ServiceFormData {
     pub name: String,
     pub description: String,
     pub status: ServiceStatus,
+    pub check: CheckFields,
+}
+
+impl ServiceFormData {
+    fn empty() -> Self {
+        Self {
+            name: String::new(),
+            description: String::new(),
+            status: ServiceStatus::Operational,
+            check: CheckFields::default(),
+        }
+    }
+
+    /// An edited service as saved.
+    fn from_service(service: Service) -> Self {
+        Self {
+            check: CheckFields::from_saved(
+                service.check_kind,
+                service.check_target.as_deref(),
+                service.check_internal_cert,
+            ),
+            name: service.name,
+            description: service.description.unwrap_or_default(),
+            status: service.status,
+        }
+    }
 }
 
 /// Everything a form page shows besides the frame.
@@ -167,6 +249,8 @@ pub struct ServiceInput {
     icon_id: Option<String>,
     #[serde(default)]
     icon_name: Option<String>,
+    #[serde(flatten)]
+    check: CheckInput,
 }
 
 impl ServiceInput {
@@ -187,6 +271,7 @@ impl ServiceInput {
             icon_id: self.icon_id(),
             icon_name: self.icon_name(),
             form: ServiceFormData {
+                check: self.check.fields(),
                 name: self.name,
                 description: self.description,
                 status,
@@ -216,20 +301,12 @@ async fn render_form(
             .is_some_and(|service| !service.has_history),
         None => false,
     };
-    let message = page.error_key.as_deref().map(|key| i18n.t(key).to_string());
-    let on_name = page
-        .error_key
-        .as_deref()
-        .is_some_and(|key| key.starts_with("validation.service_name_"));
-    let (error, name_error) = if on_name {
-        (None, message)
-    } else {
-        (message, None)
-    };
+    let (error, name_error, check_error) = place_error(page.error_key.as_deref(), &i18n);
     render(&ServiceFormTemplate {
         frame: Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?,
         error,
         name_error,
+        check_error,
         edit_id: page.edit_id,
         form: page.form,
         selected_icon_id: page.icon_id.filter(|_| selected_icon_url.is_some()),
@@ -243,6 +320,22 @@ async fn render_form(
     })
 }
 
+/// A refusal is said under its field when it has one: the name, the
+/// address to check; anything else above the form.
+fn place_error(key: Option<&str>, i18n: &I18n) -> (Option<String>, Option<String>, Option<String>) {
+    let Some(key) = key else {
+        return (None, None, None);
+    };
+    let message = Some(i18n.t(key).to_string());
+    if key.starts_with("validation.service_name_") {
+        (None, message, None)
+    } else if key.starts_with("validation.check_") {
+        (None, None, message)
+    } else {
+        (message, None, None)
+    }
+}
+
 pub async fn new_form(
     RequirePublisher(user): RequirePublisher,
     State(state): State<AppState>,
@@ -251,11 +344,7 @@ pub async fn new_form(
 ) -> Result<Response, AppError> {
     let page = FormPage {
         edit_id: None,
-        form: ServiceFormData {
-            name: String::new(),
-            description: String::new(),
-            status: ServiceStatus::Operational,
-        },
+        form: ServiceFormData::empty(),
         icon_id: None,
         icon_name: None,
         error_key: None,
@@ -270,23 +359,45 @@ pub async fn create(
     Locale(i18n): Locale,
     HtmlForm(input): HtmlForm<ServiceInput>,
 ) -> Result<Response, AppError> {
-    let icon_name = input.icon_name();
-    let result = ServiceService::create(
-        &state.pool,
-        &input.name,
-        Some(input.description.as_str()),
-        input.icon_id(),
-        icon_name.as_deref(),
-    )
-    .await;
-    match result {
-        Ok(service) => Ok(Redirect::to(&format!("/services?saved={}", service.id)).into_response()),
+    match save_new(&state.pool, &input).await {
+        Ok(id) => Ok(Redirect::to(&format!("/services?saved={id}")).into_response()),
         Err(AppError::Validation(key)) => {
             let page = input.into_page(None, ServiceStatus::Operational, key);
             render_form(&state, &user, csrf_token.0, i18n, page).await
         }
         Err(e) => Err(e),
     }
+}
+
+/// The check is read first, so a refused address saves nothing.
+async fn save_new(pool: &DbPool, input: &ServiceInput) -> Result<i64, AppError> {
+    let check = input.check.check()?;
+    let icon_name = input.icon_name();
+    let service = ServiceService::create(
+        pool,
+        &input.name,
+        Some(input.description.as_str()),
+        input.icon_id(),
+        icon_name.as_deref(),
+    )
+    .await?;
+    ServiceService::set_check(pool, service.id, check.as_ref()).await?;
+    Ok(service.id)
+}
+
+async fn save_edit(pool: &DbPool, id: i64, input: &ServiceInput) -> Result<(), AppError> {
+    let check = input.check.check()?;
+    let icon_name = input.icon_name();
+    ServiceService::update(
+        pool,
+        id,
+        &input.name,
+        Some(input.description.as_str()),
+        input.icon_id(),
+        icon_name.as_deref(),
+    )
+    .await?;
+    ServiceService::set_check(pool, id, check.as_ref()).await
 }
 
 pub async fn edit_form(
@@ -302,12 +413,8 @@ pub async fn edit_form(
     let page = FormPage {
         edit_id: Some(id),
         icon_id: service.icon_id,
-        icon_name: service.icon_name,
-        form: ServiceFormData {
-            name: service.name,
-            description: service.description.unwrap_or_default(),
-            status: service.status,
-        },
+        icon_name: service.icon_name.clone(),
+        form: ServiceFormData::from_service(service),
         error_key: None,
     };
     render_form(&state, &user, csrf_token.0, i18n, page).await
@@ -321,17 +428,7 @@ pub async fn update(
     Locale(i18n): Locale,
     HtmlForm(input): HtmlForm<ServiceInput>,
 ) -> Result<Response, AppError> {
-    let icon_name = input.icon_name();
-    let result = ServiceService::update(
-        &state.pool,
-        id,
-        &input.name,
-        Some(input.description.as_str()),
-        input.icon_id(),
-        icon_name.as_deref(),
-    )
-    .await;
-    match result {
+    match save_edit(&state.pool, id, &input).await {
         Ok(()) => Ok(Redirect::to(&format!("/services?saved={id}")).into_response()),
         Err(AppError::Validation(key)) => {
             let status = ServiceRepository::find_by_id(&state.pool, id)
@@ -443,6 +540,8 @@ const PANEL_EVENTS: i64 = 3;
 struct ServiceDrawerTemplate {
     row: ServiceRow,
     events: Vec<EventSummary>,
+    /// The checks found the service down and no open event explains it.
+    detected: bool,
     i18n: I18n,
 }
 
@@ -474,6 +573,15 @@ pub async fn drawer_content(
         ..EventFilters::default()
     };
     let events = EventRepository::list_page(&state.pool, &filters).await?;
+    let detected = service.detected_status.is_some()
+        && !EventRepository::state_drivers(&state.pool, Some(id))
+            .await?
+            .contains_key(&id);
     let row = service_history(&state.pool, service, &i18n).await?;
-    render(&ServiceDrawerTemplate { row, events, i18n })
+    render(&ServiceDrawerTemplate {
+        row,
+        events,
+        detected,
+        i18n,
+    })
 }

@@ -5,11 +5,13 @@
 
 mod common;
 
+use chrono::Utc;
 use reqwest::StatusCode;
 
 use common::{TestApp, extract_csrf_token};
-use statup::models::{Lifecycle, Role, ServiceStatus};
+use statup::models::{CheckKind, CheckedService, Lifecycle, Role, ServiceCheck, ServiceStatus};
 use statup::repositories::{EventRepository, ServiceRepository};
+use statup::services::{Finding, MonitorState, Prober, Report, ServiceService, run_round};
 
 impl TestApp {
     /// POST via the `X-CSRF-Token` header, the way htmx sends it.
@@ -682,6 +684,411 @@ async fn rejected_service_creation_gives_the_input_back() {
         body.contains(r#"id="name-error""#) && !body.contains(r#"id="form-error""#),
         "a refused name is said under the name field, not above the form"
     );
+}
+
+#[tokio::test]
+async fn a_service_saved_with_a_check_is_watched() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let csrf = app.csrf_from("/services/new").await;
+
+    let (status, _, _) = app
+        .post_form(
+            "/services/new",
+            &csrf,
+            &[
+                ("name", "Intranet"),
+                ("check_kind", "http"),
+                ("check_url", " https://intranet.example.com "),
+                ("check_host", "left over from the other kind"),
+                ("check_internal_cert", "on"),
+            ],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let checked = ServiceRepository::list_checked(&app.pool).await.unwrap();
+    assert_eq!(checked.len(), 1);
+    assert_eq!(checked[0].kind, CheckKind::Http);
+    assert_eq!(checked[0].target, "https://intranet.example.com");
+    assert!(checked[0].internal_cert);
+
+    let (_, list) = app.get(&format!("/services?saved={}", checked[0].id)).await;
+    assert!(
+        list.contains("surveillé chaque minute"),
+        "the notice says what monitoring means"
+    );
+
+    let (_, form) = app.get(&format!("/services/{}/edit", checked[0].id)).await;
+    assert!(form.contains(r#"value="https://intranet.example.com""#));
+    assert!(form.contains(r#"value="http" class="sr-only" checked"#));
+}
+
+#[tokio::test]
+async fn a_refused_check_saves_nothing_and_is_said_under_its_field() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let csrf = app.csrf_from("/services/new").await;
+
+    let (status, body, _) = app
+        .post_form(
+            "/services/new",
+            &csrf,
+            &[
+                ("name", "NAS"),
+                ("check_kind", "tcp"),
+                ("check_host", "nas"),
+                ("check_port", ""),
+            ],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK, "should re-render the form");
+    assert!(body.contains(r#"id="check-error""#) && !body.contains(r#"id="form-error""#));
+    assert!(
+        body.contains(r#"value="nas""#),
+        "the typed host should survive"
+    );
+    assert!(body.contains("Saisissez un port entre 1 et 65535"));
+    assert!(
+        ServiceRepository::list_all(&app.pool)
+            .await
+            .unwrap()
+            .is_empty(),
+        "a refused check should save no service"
+    );
+}
+
+#[tokio::test]
+async fn removing_the_check_clears_a_detected_outage() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let id = app.create_service("Paie").await;
+    let check = ServiceCheck {
+        kind: CheckKind::Tcp,
+        target: "10.0.0.9:443".to_string(),
+        internal_cert: false,
+    };
+    ServiceRepository::set_check(&app.pool, id, Some(&check))
+        .await
+        .unwrap();
+    ServiceRepository::mark_detected_down(&app.pool, id, Utc::now())
+        .await
+        .unwrap();
+    ServiceService::recalculate_status(&app.pool, id)
+        .await
+        .unwrap();
+    assert_eq!(app.service(id).await.status, ServiceStatus::MajorOutage);
+
+    let csrf = app.csrf_from(&format!("/services/{id}/edit")).await;
+    let (status, _, _) = app
+        .post_form(
+            &format!("/services/{id}/edit"),
+            &csrf,
+            &[("name", "Paie"), ("check_kind", "none")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let service = app.service(id).await;
+    assert_eq!(service.status, ServiceStatus::Operational);
+    assert_eq!(service.detected_status, None);
+    assert!(
+        ServiceRepository::list_checked(&app.pool)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn testing_a_check_says_why_it_fails_and_saves_nothing() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let closed = std::net::TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port()
+        .to_string();
+    let csrf = app.csrf_from("/services/new").await;
+
+    let (status, body, _) = app
+        .post_form(
+            "/services/check-test",
+            &csrf,
+            &[
+                ("name", ""),
+                ("check_kind", "tcp"),
+                ("check_host", "127.0.0.1"),
+                ("check_port", &closed),
+            ],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains(r#"data-tone="crit""#), "a failure is red");
+    assert!(body.contains("Port fermé"), "the reason is said in words");
+    assert!(
+        !body.contains("Après 3 échecs"),
+        "a failure says nothing of the rule"
+    );
+    assert!(body.contains("Détail technique"), "the raw error follows");
+    assert!(
+        ServiceRepository::list_all(&app.pool)
+            .await
+            .unwrap()
+            .is_empty(),
+        "a test saves nothing"
+    );
+}
+
+#[tokio::test]
+async fn testing_an_open_port_says_it_answers() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let csrf = app.csrf_from("/services/new").await;
+
+    let (status, body, _) = app
+        .post_form(
+            "/services/check-test",
+            &csrf,
+            &[
+                ("check_kind", "tcp"),
+                ("check_host", "127.0.0.1"),
+                ("check_port", &app.addr.port().to_string()),
+            ],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains(r#"data-tone="ok""#));
+    assert!(body.contains("Le port accepte la connexion"));
+    assert!(
+        body.contains("Après 3 échecs de suite, il passera en panne"),
+        "an answer says what the monitoring will do"
+    );
+}
+
+#[tokio::test]
+async fn testing_a_misspelt_address_says_what_is_wrong() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let csrf = app.csrf_from("/services/new").await;
+
+    let (status, body, _) = app
+        .post_form(
+            "/services/check-test",
+            &csrf,
+            &[
+                ("check_kind", "tcp"),
+                ("check_host", "nas"),
+                ("check_port", ""),
+            ],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains(r#"class="field-error""#));
+    assert!(body.contains("Saisissez un port entre 1 et 65535"));
+}
+
+#[tokio::test]
+async fn readers_cannot_test_a_check() {
+    let app = TestApp::spawn().await;
+    app.create_user(
+        "reader@example.com",
+        "reader_password_12",
+        "Reader",
+        Role::Reader,
+    )
+    .await;
+    app.login("reader@example.com", "reader_password_12").await;
+    let csrf = app.csrf_from("/").await;
+
+    let (status, _, _) = app
+        .post_form(
+            "/services/check-test",
+            &csrf,
+            &[
+                ("check_kind", "tcp"),
+                ("check_host", "127.0.0.1"),
+                ("check_port", &app.addr.port().to_string()),
+            ],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+/// Sets a port check on a service and records that the checks found it
+/// down at `started_at`, as the background task would.
+async fn detect_outage(app: &TestApp, id: i64, started_at: chrono::DateTime<Utc>) {
+    let check = ServiceCheck {
+        kind: CheckKind::Tcp,
+        target: "10.0.0.9:443".to_string(),
+        internal_cert: false,
+    };
+    ServiceRepository::set_check(&app.pool, id, Some(&check))
+        .await
+        .unwrap();
+    ServiceRepository::mark_detected_down(&app.pool, id, started_at)
+        .await
+        .unwrap();
+    ServiceService::recalculate_status(&app.pool, id)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn visitors_read_that_an_outage_was_detected_automatically() {
+    let app = TestApp::spawn_public().await;
+    let id = app.create_service("Messagerie").await;
+    detect_outage(&app, id, Utc::now() - chrono::Duration::minutes(14)).await;
+
+    let (_, page) = app.get("/").await;
+    assert!(page.contains("Détecté automatiquement"));
+    assert!(page.contains("depuis 14"), "the banner says for how long");
+    assert!(
+        !page.contains("/events/new?service="),
+        "visitors cannot declare"
+    );
+
+    let (_, panel) = app.get(&format!("/services/{id}/drawer")).await;
+    assert!(panel.contains("détecté automatiquement"));
+}
+
+#[tokio::test]
+async fn editors_declare_the_incident_of_a_detected_outage_from_the_banner() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let id = app.create_service("Paie").await;
+    let started = Utc::now() - chrono::Duration::minutes(20);
+    detect_outage(&app, id, started).await;
+
+    let (_, page) = app.get("/").await;
+    assert!(page.contains(&format!(r#"href="/events/new?service={id}""#)));
+    assert!(page.contains("Déclarer un incident"));
+
+    let (status, form) = app.get(&format!("/events/new?service={id}")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        form.contains(&format!(
+            r#"value="{id}" class="checkbox" data-service-name="Paie" checked"#
+        )),
+        "the service is ticked"
+    );
+    assert!(form.contains(r#"value="critical" class="sr-only" checked"#));
+    let began = statup::clock::format_input(&started);
+    assert!(
+        form.contains(&format!(
+            r#"name="started_at" type="hidden" value="{began}""#
+        )),
+        "the incident begins with the outage"
+    );
+
+    let (_, services) = app.get("/services").await;
+    assert!(
+        services.contains(r#"class="svc-pulse""#),
+        "a monitored service shows its pulse"
+    );
+    assert!(services.contains("Détecté automatiquement"));
+}
+
+#[tokio::test]
+async fn a_declared_incident_replaces_the_detection_note() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let id = app.create_service("Wiki").await;
+    detect_outage(&app, id, Utc::now()).await;
+
+    app.submit_create_event(
+        vec![
+            ("kind", "incident".to_string()),
+            ("severity", "critical".to_string()),
+            ("title", "Le wiki ne répond plus".to_string()),
+            ("description", String::new()),
+        ],
+        &[id],
+    )
+    .await;
+
+    let (_, page) = app.get("/").await;
+    assert!(page.contains("Le wiki ne répond plus"));
+    assert!(!page.contains("Détecté automatiquement"));
+}
+
+#[tokio::test]
+async fn a_detected_outage_of_42_minutes_shows_in_the_strip() {
+    let app = TestApp::spawn_public().await;
+    let id = app.create_service("Messagerie").await;
+    let day_start = statup::clock::day_start(statup::clock::today()).unwrap();
+    ServiceRepository::mark_detected_down(&app.pool, id, day_start)
+        .await
+        .unwrap();
+    ServiceRepository::mark_detected_up(&app.pool, id, day_start + chrono::Duration::minutes(42))
+        .await
+        .unwrap();
+
+    let (_, page) = app.get("/").await;
+    assert!(page.contains("data-day-status=\"Panne détectée, 42\u{a0}min\""));
+}
+
+/// Answers for the service named, fails for the others.
+struct AnswersOnly(i64);
+
+impl Prober for AnswersOnly {
+    fn check(&self, service: &CheckedService) -> impl Future<Output = Report> + Send {
+        let finding = if service.id == self.0 {
+            Finding::Answered { status: Some(200) }
+        } else {
+            Finding::Refused
+        };
+        std::future::ready(Report {
+            finding,
+            detail: None,
+            elapsed: std::time::Duration::from_millis(84),
+        })
+    }
+}
+
+#[tokio::test]
+async fn the_services_page_shows_what_the_last_check_found() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let site = app.create_service("Syspirit").await;
+    let vps = app.create_service("VPS").await;
+    for id in [site, vps] {
+        let check = ServiceCheck {
+            kind: CheckKind::Http,
+            target: format!("https://service-{id}.example"),
+            internal_cert: false,
+        };
+        ServiceRepository::set_check(&app.pool, id, Some(&check))
+            .await
+            .unwrap();
+    }
+
+    let (_, before) = app.get("/services").await;
+    assert!(
+        before.contains("première vérification dans la minute"),
+        "the pulse waits for the first round"
+    );
+
+    let mut state = MonitorState::sharing(std::sync::Arc::clone(&app.checks));
+    run_round(
+        &app.pool,
+        &std::sync::Arc::new(AnswersOnly(site)),
+        &mut state,
+        Utc::now(),
+    )
+    .await
+    .unwrap();
+
+    let (_, after) = app.get("/services").await;
+    assert!(after.contains("84\u{a0}ms"), "an answer shows its latency");
+    assert!(after.contains("sans réponse"), "a failure says so");
+    assert!(!after.contains("première vérification"));
 }
 
 #[tokio::test]

@@ -18,7 +18,7 @@ use statup::middleware::rate_limit::RateLimit;
 use statup::routes::create_router;
 use statup::services::{
     AuthService, DashboardLayoutService, LoginRateLimiter, SettingsService,
-    spawn_maintenance_schedule, spawn_update_check,
+    spawn_maintenance_schedule, spawn_monitoring, spawn_update_check,
 };
 use statup::session;
 use statup::state::AppState;
@@ -48,6 +48,9 @@ async fn main() -> anyhow::Result<()> {
     let mut tasks = spawn_background_tasks(&pool, &rate_limit);
     if config.update_check {
         tasks.push(spawn_update_check(Arc::clone(&state.update)));
+    }
+    if config.monitoring {
+        tasks.push(spawn_monitoring(pool.clone(), Arc::clone(&state.checks)));
     }
 
     let sessions = session::session_layer(
@@ -144,6 +147,7 @@ async fn build_state(config: &Config, pool: DbPool) -> anyhow::Result<AppState> 
         client_ip_source: config.client_ip_source(),
         public_url: config.public_url.clone(),
         update: Arc::default(),
+        checks: Arc::default(),
     })
 }
 

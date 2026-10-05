@@ -297,6 +297,34 @@
         flex: 1;
     }
 
+    /* The monitoring of the name being typed, folded under it. */
+    .setup-check {
+        margin-top: 0;
+    }
+
+    .setup-check [data-check-fields] > .form-block:first-child {
+        margin-top: 0;
+    }
+
+    /* The fold already says it; screen readers keep the legend. */
+    .setup-check legend {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    /* "· Web" after a chip that leaves with its monitoring. */
+    .setup-chip-kind {
+        font-weight: 400;
+        opacity: 0.8;
+    }
+
     .setup-suggest {
         min-width: 0;
         margin: 0;

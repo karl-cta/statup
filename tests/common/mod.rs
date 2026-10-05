@@ -20,7 +20,7 @@ use statup::middleware::rate_limit::RateLimit;
 use statup::models::Role;
 use statup::routes::create_router;
 use statup::services::{
-    AuthService, DashboardLayoutService, LoginRateLimiter, NewAccount, UpdateStatus,
+    AuthService, DashboardLayoutService, LastChecks, LoginRateLimiter, NewAccount, UpdateStatus,
 };
 use statup::session;
 use statup::state::AppState;
@@ -40,6 +40,8 @@ pub struct TestApp {
     pub addr: SocketAddr,
     pub client: reqwest::Client,
     pub pool: sqlx::SqlitePool,
+    /// The last checks the services page reads, as the monitoring shares them.
+    pub checks: Arc<LastChecks>,
     jar: Arc<Jar>,
     upload_dir: PathBuf,
 }
@@ -86,7 +88,9 @@ impl TestApp {
             client_ip_source: client_ip_source(options.trust_proxy_headers),
             public_url: options.public_url.map(ToOwned::to_owned),
             update: update_status(options.latest_release),
+            checks: Arc::default(),
         };
+        let checks = Arc::clone(&state.checks);
         // A small budget, so a test can exhaust it with a short burst.
         let rate_limit = RateLimit::with_quota(100, client_ip_source(options.trust_proxy_headers))
             .expect("invalid rate limit quota");
@@ -106,6 +110,7 @@ impl TestApp {
             addr,
             client,
             pool,
+            checks,
             jar,
             upload_dir,
         }

@@ -6,6 +6,7 @@
 
 mod admin;
 mod auth;
+mod checks;
 mod dashboard;
 mod dashboard_layout;
 mod events;
@@ -181,6 +182,7 @@ fn publisher_routes() -> Router<AppState> {
             "/services/{id}/edit",
             get(services::edit_form).post(services::update),
         )
+        .route("/services/check-test", post(checks::test_check))
         .route("/services/{id}/status", post(services::update_status))
         .route("/services/{id}/delete", post(services::delete))
         .route("/icons", get(icons::list))

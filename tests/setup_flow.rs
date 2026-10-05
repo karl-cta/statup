@@ -141,3 +141,163 @@ async fn the_setup_steps_are_for_administrators() {
         );
     }
 }
+
+/// The built-in icon of a service, by name.
+async fn icon_of(app: &TestApp, name: &str) -> Option<String> {
+    ServiceRepository::list_all(&app.pool)
+        .await
+        .expect("db error")
+        .into_iter()
+        .find(|s| s.name == name)
+        .and_then(|s| s.icon_name)
+}
+
+/// The monitored services of an instance, by name, with their target.
+async fn checked(app: &TestApp) -> Vec<(String, String)> {
+    let services = ServiceRepository::list_all(&app.pool)
+        .await
+        .expect("db error");
+    let mut checked: Vec<(String, String)> = ServiceRepository::list_checked(&app.pool)
+        .await
+        .expect("db error")
+        .into_iter()
+        .filter_map(|check| {
+            let service = services.iter().find(|s| s.id == check.id)?;
+            Some((service.name.clone(), check.target))
+        })
+        .collect();
+    checked.sort();
+    checked
+}
+
+#[tokio::test]
+async fn a_name_typed_without_the_script_keeps_its_monitoring() {
+    let app = TestApp::spawn().await;
+    register(&app).await;
+    let csrf = app.csrf_from("/setup/services").await;
+
+    let (status, _, location) = app
+        .post_form(
+            "/setup/services",
+            &csrf,
+            &[
+                ("services", "Messagerie"),
+                ("custom", "Syspirit"),
+                ("check_kind", "http"),
+                ("check_url", "https://syspirit.example"),
+            ],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/setup/done"));
+    assert_eq!(
+        checked(&app).await,
+        [(
+            "Syspirit".to_string(),
+            "https://syspirit.example".to_string()
+        )]
+    );
+    assert_eq!(
+        icon_of(&app, "Syspirit").await.as_deref(),
+        Some("globe"),
+        "a monitored name gets the icon of its kind"
+    );
+    assert_eq!(
+        icon_of(&app, "Messagerie").await.as_deref(),
+        Some("envelope"),
+        "a suggestion keeps its own"
+    );
+}
+
+#[tokio::test]
+async fn chips_added_with_the_script_carry_their_monitoring() {
+    let app = TestApp::spawn().await;
+    register(&app).await;
+    let csrf = app.csrf_from("/setup/services").await;
+
+    let (status, _, _) = app
+        .post_form(
+            "/setup/services",
+            &csrf,
+            &[
+                ("services", "Messagerie"),
+                ("services", "VPS"),
+                ("checks", "VPS"),
+                ("check_kinds", "tcp"),
+                ("check_urls", ""),
+                ("check_hosts", "203.0.113.7"),
+                ("check_ports", "22"),
+                ("check_certs", "0"),
+            ],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(
+        checked(&app).await,
+        [("VPS".to_string(), "203.0.113.7:22".to_string())]
+    );
+    assert_eq!(icon_of(&app, "VPS").await.as_deref(), Some("server-stack"));
+}
+
+#[tokio::test]
+async fn a_refused_address_names_its_service_and_creates_nothing() {
+    let app = TestApp::spawn().await;
+    register(&app).await;
+    let csrf = app.csrf_from("/setup/services").await;
+
+    let (status, body, _) = app
+        .post_form(
+            "/setup/services",
+            &csrf,
+            &[
+                ("services", "Messagerie"),
+                ("custom", "NAS"),
+                ("check_kind", "tcp"),
+                ("check_host", "nas.local"),
+                ("check_port", ""),
+            ],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK, "the step is shown again");
+    assert!(body.contains("NAS\u{a0}: Saisissez un port entre 1 et 65535"));
+    assert!(body.contains(r#"value="NAS""#), "the typed name stays");
+    assert!(body.contains(r#"value="nas.local""#), "its host stays");
+    assert!(
+        ServiceRepository::list_all(&app.pool)
+            .await
+            .expect("db error")
+            .is_empty(),
+        "nothing is created"
+    );
+}
+
+#[tokio::test]
+async fn monitoring_lists_of_different_lengths_are_refused() {
+    let app = TestApp::spawn().await;
+    register(&app).await;
+    let csrf = app.csrf_from("/setup/services").await;
+
+    let (status, body, _) = app
+        .post_form(
+            "/setup/services",
+            &csrf,
+            &[
+                ("services", "VPS"),
+                ("checks", "VPS"),
+                ("check_kinds", "tcp"),
+            ],
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("pas pu être traitée"));
+    assert!(
+        ServiceRepository::list_all(&app.pool)
+            .await
+            .expect("db error")
+            .is_empty()
+    );
+}
