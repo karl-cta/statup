@@ -24,8 +24,9 @@ test("an outage the checks found leads an editor to its incident", async ({ page
 
     await page.goto("/services/new");
     await page.getByLabel("Nom", { exact: true }).fill(service);
-    await page.getByText("Port", { exact: true }).click();
-    await page.getByLabel("Adresse et port").fill("127.0.0.1:1");
+    await page.getByText("Port", { exact: true }).filter({ visible: true }).click();
+    await page.getByRole("textbox", { name: "Adresse", exact: true }).fill("127.0.0.1");
+    await page.getByRole("textbox", { name: "Port", exact: true }).fill("1");
     await page.getByRole("button", { name: "Créer le service" }).click();
     await expect(page).toHaveURL(/\/services\?saved=/);
 

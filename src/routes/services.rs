@@ -8,6 +8,7 @@ use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 
+use super::checks::{CheckFields, CheckInput};
 use super::{Frame, members_only, render};
 use crate::db::DbPool;
 use crate::error::AppError;
@@ -15,14 +16,12 @@ use crate::i18n::{I18n, Locale};
 use crate::middleware::headers::is_htmx;
 use crate::middleware::{CsrfToken, HtmlForm, OptionalUser, RequirePublisher};
 use crate::models::{
-    BUILTIN_ICONS, BuiltinIcon, CheckKind, CheckedService, EventFilters, EventSummary, Icon,
-    Service, ServiceCheck, ServiceStatus, Tone, User, find_builtin_icon,
+    BUILTIN_ICONS, BuiltinIcon, EventFilters, EventSummary, Icon, Service, ServiceStatus, User,
+    find_builtin_icon,
 };
 use crate::modules::services::{ServiceRow, service_history};
 use crate::repositories::{EventRepository, ServiceRepository};
-use crate::services::{
-    CHECK_TIMEOUT, Finding, IconService, Probes, Report, ServiceService, target_allowed,
-};
+use crate::services::{IconService, ServiceService};
 use crate::state::AppState;
 
 #[derive(Template)]
@@ -123,9 +122,9 @@ impl ServiceFormTemplate {
         self.i18n.tf("services.status_now", &[("status", status)])
     }
 
-    /// Whether the form shows this check, `none` for no check.
-    fn check_is(&self, kind: &str) -> bool {
-        self.form.check_kind.map_or("none", CheckKind::as_str) == kind
+    /// The monitoring fields, as the shared block reads them.
+    fn check(&self) -> &CheckFields {
+        &self.form.check
     }
 
     fn is_builtin_selected(&self, name: &str) -> bool {
@@ -155,10 +154,7 @@ pub struct ServiceFormData {
     pub name: String,
     pub description: String,
     pub status: ServiceStatus,
-    pub check_kind: Option<CheckKind>,
-    pub check_url: String,
-    pub check_address: String,
-    pub check_internal_cert: bool,
+    pub check: CheckFields,
 }
 
 impl ServiceFormData {
@@ -167,29 +163,21 @@ impl ServiceFormData {
             name: String::new(),
             description: String::new(),
             status: ServiceStatus::Operational,
-            check_kind: None,
-            check_url: String::new(),
-            check_address: String::new(),
-            check_internal_cert: false,
+            check: CheckFields::default(),
         }
     }
 
-    /// An edited service as saved; its target fills the field of its kind.
+    /// An edited service as saved.
     fn from_service(service: Service) -> Self {
-        let target = service.check_target.unwrap_or_default();
-        let (check_url, check_address) = match service.check_kind {
-            Some(CheckKind::Http) => (target, String::new()),
-            Some(CheckKind::Tcp) => (String::new(), target),
-            None => (String::new(), String::new()),
-        };
         Self {
+            check: CheckFields::from_saved(
+                service.check_kind,
+                service.check_target.as_deref(),
+                service.check_internal_cert,
+            ),
             name: service.name,
             description: service.description.unwrap_or_default(),
             status: service.status,
-            check_kind: service.check_kind,
-            check_url,
-            check_address,
-            check_internal_cert: service.check_internal_cert,
         }
     }
 }
@@ -213,42 +201,11 @@ pub struct ServiceInput {
     icon_id: Option<String>,
     #[serde(default)]
     icon_name: Option<String>,
-    #[serde(default)]
-    check_kind: String,
-    #[serde(default)]
-    check_url: String,
-    #[serde(default)]
-    check_address: String,
-    #[serde(default)]
-    check_internal_cert: Option<String>,
+    #[serde(flatten)]
+    check: CheckInput,
 }
 
 impl ServiceInput {
-    fn check_kind(&self) -> Option<CheckKind> {
-        self.check_kind.parse().ok()
-    }
-
-    /// What to check, read from the field of the chosen kind; the other one
-    /// is ignored, so a page without script that sends both still works.
-    fn check(&self) -> Result<Option<ServiceCheck>, AppError> {
-        let Some(kind) = self.check_kind() else {
-            return match self.check_kind.as_str() {
-                "" | "none" => Ok(None),
-                _ => Err(AppError::validation("error.invalid_data")),
-            };
-        };
-        let target = match kind {
-            CheckKind::Http => self.check_url.trim(),
-            CheckKind::Tcp => self.check_address.trim(),
-        };
-        target_allowed(kind, target).map_err(AppError::validation)?;
-        Ok(Some(ServiceCheck {
-            kind,
-            target: target.to_string(),
-            internal_cert: kind == CheckKind::Http && self.check_internal_cert.is_some(),
-        }))
-    }
-
     fn icon_id(&self) -> Option<i64> {
         self.icon_id
             .as_deref()
@@ -266,13 +223,10 @@ impl ServiceInput {
             icon_id: self.icon_id(),
             icon_name: self.icon_name(),
             form: ServiceFormData {
-                check_kind: self.check_kind(),
-                check_internal_cert: self.check_internal_cert.is_some(),
+                check: self.check.fields(),
                 name: self.name,
                 description: self.description,
                 status,
-                check_url: self.check_url,
-                check_address: self.check_address,
             },
             error_key: Some(error_key),
         }
@@ -369,7 +323,7 @@ pub async fn create(
 
 /// The check is read first, so a refused address saves nothing.
 async fn save_new(pool: &DbPool, input: &ServiceInput) -> Result<i64, AppError> {
-    let check = input.check()?;
+    let check = input.check.check()?;
     let icon_name = input.icon_name();
     let service = ServiceService::create(
         pool,
@@ -384,7 +338,7 @@ async fn save_new(pool: &DbPool, input: &ServiceInput) -> Result<i64, AppError> 
 }
 
 async fn save_edit(pool: &DbPool, id: i64, input: &ServiceInput) -> Result<(), AppError> {
-    let check = input.check()?;
+    let check = input.check.check()?;
     let icon_name = input.icon_name();
     ServiceService::update(
         pool,
@@ -468,90 +422,6 @@ pub async fn delete(
             render_list(&state, &user, csrf_token.0, i18n, query, error).await
         }
         Err(e) => Err(e),
-    }
-}
-
-#[derive(Template)]
-#[template(path = "services/_check_result.html")]
-struct CheckResultFragment {
-    /// The tone of the verdict; none when the address itself was refused.
-    tone: Option<&'static str>,
-    message: String,
-    detail: Option<String>,
-    i18n: I18n,
-}
-
-/// Runs the check the form describes, without saving anything, and says
-/// what the automatic checks would make of it.
-pub async fn test_check(
-    _publisher: RequirePublisher,
-    Locale(i18n): Locale,
-    HtmlForm(input): HtmlForm<ServiceInput>,
-) -> Result<Response, AppError> {
-    let check = match input.check() {
-        Ok(Some(check)) => check,
-        Ok(None) => return Err(AppError::validation("error.invalid_data")),
-        Err(AppError::Validation(key)) => {
-            let message = i18n.t(&key).to_string();
-            return render(&CheckResultFragment {
-                tone: None,
-                message,
-                detail: None,
-                i18n,
-            });
-        }
-        Err(e) => return Err(e),
-    };
-    let probes = Probes::new(CHECK_TIMEOUT).map_err(anyhow::Error::from)?;
-    let service = CheckedService {
-        id: 0,
-        kind: check.kind,
-        target: check.target,
-        internal_cert: check.internal_cert,
-        detected_status: None,
-    };
-    let report = probes.examine(&service).await;
-    let (tone, message) = verdict(&report, &i18n);
-    render(&CheckResultFragment {
-        tone: Some(tone.as_str()),
-        message,
-        detail: report.detail,
-        i18n,
-    })
-}
-
-/// What a test found, in the words of the form: green for what the checks
-/// count as an answer, red for a failure.
-fn verdict(report: &Report, i18n: &I18n) -> (Tone, String) {
-    let ms = report.elapsed.as_millis().to_string();
-    let failure = |key: &str| (Tone::Crit, i18n.t(key).to_string());
-    match report.finding {
-        Finding::Answered {
-            status: Some(status),
-        } => (
-            Tone::Ok,
-            i18n.tf(
-                "services.check_result_web_ok",
-                &[("status", &status.to_string()), ("ms", &ms)],
-            ),
-        ),
-        Finding::Answered { status: None } => (
-            Tone::Ok,
-            i18n.tf("services.check_result_port_ok", &[("ms", &ms)]),
-        ),
-        Finding::ServerError(status) => (
-            Tone::Crit,
-            i18n.tf(
-                "services.check_result_server_error",
-                &[("status", &status.to_string())],
-            ),
-        ),
-        Finding::Refused => failure("services.check_result_refused"),
-        Finding::TimedOut => failure("services.check_result_timeout"),
-        Finding::NameNotFound => failure("services.check_result_name"),
-        Finding::Certificate => failure("services.check_result_certificate"),
-        Finding::TooManyRedirects => failure("services.check_result_redirects"),
-        Finding::Unreachable => failure("services.check_result_unreachable"),
     }
 }
 

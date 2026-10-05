@@ -1,10 +1,11 @@
-// Service form: the address row follows the chosen check, and the row that
-// does not apply leaves the request. A test result belongs to the check it
-// was run for, so changing the check clears it.
+// Monitoring fields, on a service's page and at the first launch: the
+// address row follows the chosen kind, and the row that does not apply leaves
+// the request. A test result belongs to the check it was run for, so changing
+// the check clears it.
 (function () {
     "use strict";
 
-    const form = document.querySelector("[data-service-form]");
+    const form = document.querySelector("[data-check-fields]");
     if (!form) return;
 
     // A row opened by a choice slides in; one open on arrival does not.

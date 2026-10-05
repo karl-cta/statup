@@ -700,7 +700,7 @@ async fn a_service_saved_with_a_check_is_watched() {
                 ("name", "Intranet"),
                 ("check_kind", "http"),
                 ("check_url", " https://intranet.example.com "),
-                ("check_address", "left over from the other kind"),
+                ("check_host", "left over from the other kind"),
                 ("check_internal_cert", "on"),
             ],
         )
@@ -731,7 +731,8 @@ async fn a_refused_check_saves_nothing_and_is_said_under_its_field() {
             &[
                 ("name", "NAS"),
                 ("check_kind", "tcp"),
-                ("check_address", "nas"),
+                ("check_host", "nas"),
+                ("check_port", ""),
             ],
         )
         .await;
@@ -740,8 +741,9 @@ async fn a_refused_check_saves_nothing_and_is_said_under_its_field() {
     assert!(body.contains(r#"id="check-error""#) && !body.contains(r#"id="form-error""#));
     assert!(
         body.contains(r#"value="nas""#),
-        "the typed address should survive"
+        "the typed host should survive"
     );
+    assert!(body.contains("Saisissez un port entre 1 et 65535"));
     assert!(
         ServiceRepository::list_all(&app.pool)
             .await
@@ -801,6 +803,7 @@ async fn testing_a_check_says_why_it_fails_and_saves_nothing() {
         .unwrap()
         .local_addr()
         .unwrap()
+        .port()
         .to_string();
     let csrf = app.csrf_from("/services/new").await;
 
@@ -811,7 +814,8 @@ async fn testing_a_check_says_why_it_fails_and_saves_nothing() {
             &[
                 ("name", ""),
                 ("check_kind", "tcp"),
-                ("check_address", &closed),
+                ("check_host", "127.0.0.1"),
+                ("check_port", &closed),
             ],
         )
         .await;
@@ -841,7 +845,8 @@ async fn testing_an_open_port_says_it_answers() {
             &csrf,
             &[
                 ("check_kind", "tcp"),
-                ("check_address", &app.addr.to_string()),
+                ("check_host", "127.0.0.1"),
+                ("check_port", &app.addr.port().to_string()),
             ],
         )
         .await;
@@ -861,13 +866,17 @@ async fn testing_a_misspelt_address_says_what_is_wrong() {
         .post_form(
             "/services/check-test",
             &csrf,
-            &[("check_kind", "tcp"), ("check_address", "nas")],
+            &[
+                ("check_kind", "tcp"),
+                ("check_host", "nas"),
+                ("check_port", ""),
+            ],
         )
         .await;
 
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains(r#"class="field-error""#));
-    assert!(body.contains("suivie de son port"));
+    assert!(body.contains("Saisissez un port entre 1 et 65535"));
 }
 
 #[tokio::test]
@@ -889,7 +898,8 @@ async fn readers_cannot_test_a_check() {
             &csrf,
             &[
                 ("check_kind", "tcp"),
-                ("check_address", &app.addr.to_string()),
+                ("check_host", "127.0.0.1"),
+                ("check_port", &app.addr.port().to_string()),
             ],
         )
         .await;

@@ -1,0 +1,58 @@
+{# The monitoring of a service, on its page and at the first launch: the
+   template gives `self.check()`, `check_error` and `i18n`. The rows that do
+   not apply leave the request (service-check.js). #}
+<div data-check-fields>
+    <fieldset class="form-block choice-group" aria-describedby="check-hint">
+        <legend class="field-label">{{ i18n.t("services.check_label") }}</legend>
+        <div class="choice-row">
+            <label class="choice"><input type="radio" name="check_kind" value="none" class="sr-only"{% if self.check().is("none") %} checked{% endif %}><span>{{ i18n.t("services.check_none") }}</span></label>
+            <label class="choice"><input type="radio" name="check_kind" value="http" class="sr-only"{% if self.check().is("http") %} checked{% endif %}><span>{{ i18n.t("services.check_http") }}</span></label>
+            <label class="choice"><input type="radio" name="check_kind" value="tcp" class="sr-only"{% if self.check().is("tcp") %} checked{% endif %}><span>{{ i18n.t("services.check_tcp") }}</span></label>
+        </div>
+        <p id="check-hint" class="field-hint">{{ i18n.t("services.check_hint") }}</p>
+    </fieldset>
+
+    <div class="reveal-row form-block{% if self.check().is("http") %} is-open{% endif %}" data-for-check="http">
+        <div class="field">
+            <label for="check_url" class="field-label">{{ i18n.t("services.check_url_label") }}</label>
+            <input id="check_url" name="check_url" type="text" class="input" inputmode="url" autocomplete="off" spellcheck="false" maxlength="2000" data-required
+                   value="{{ self.check().url }}" placeholder="{{ i18n.t("services.check_url_placeholder") }}"
+                   {% if self.check().is("http") && check_error.is_some() %}aria-invalid="true" aria-describedby="check-error" autofocus{% endif %}>
+            {% if self.check().is("http") %}{% if let Some(message) = check_error %}
+            <p id="check-error" class="field-error" role="alert">{{ message }}</p>
+            {% endif %}{% endif %}
+        </div>
+        <label class="check-row mt-3">
+            <input type="checkbox" name="check_internal_cert" value="on" class="checkbox"{% if self.check().internal_cert %} checked{% endif %}>
+            <span>{{ i18n.t("services.check_internal_cert") }} <span class="field-note">{{ i18n.t("services.check_internal_cert_note") }}</span></span>
+        </label>
+    </div>
+
+    <div class="reveal-row form-block{% if self.check().is("tcp") %} is-open{% endif %}" data-for-check="tcp">
+        <div class="check-host-port">
+            <div class="field">
+                <label for="check_host" class="field-label">{{ i18n.t("services.check_host_label") }}</label>
+                <input id="check_host" name="check_host" type="text" class="input" autocomplete="off" spellcheck="false" maxlength="255" data-required
+                       value="{{ self.check().host }}" placeholder="{{ i18n.t("services.check_host_placeholder") }}"
+                       {% if self.check().is("tcp") && check_error.is_some() %}aria-invalid="true" aria-describedby="check-error" autofocus{% endif %}>
+            </div>
+            <div class="field">
+                <label for="check_port" class="field-label">{{ i18n.t("services.check_port_label") }}</label>
+                <input id="check_port" name="check_port" type="text" class="input" inputmode="numeric" autocomplete="off" maxlength="5" data-required
+                       value="{{ self.check().port }}" placeholder="443"
+                       {% if self.check().is("tcp") && check_error.is_some() %}aria-describedby="check-error"{% endif %}>
+            </div>
+        </div>
+        {% if self.check().is("tcp") %}{% if let Some(message) = check_error %}
+        <p id="check-error" class="field-error" role="alert">{{ message }}</p>
+        {% endif %}{% endif %}
+    </div>
+
+    <div class="reveal-row form-block{% if !self.check().is("none") %} is-open{% endif %}" data-for-check="any">
+        <div class="flex items-center gap-3">
+            <button type="button" class="btn btn-ghost btn-sm" hx-post="/services/check-test" hx-target="next [data-check-result]" hx-swap="innerHTML" hx-disabled-elt="this" hx-indicator="next .htmx-indicator">{{ i18n.t("services.check_test") }}</button>
+            <span class="field-hint htmx-indicator">{{ i18n.t("services.check_testing") }}</span>
+        </div>
+        <div aria-live="polite" data-check-result></div>
+    </div>
+</div>

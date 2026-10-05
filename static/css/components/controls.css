@@ -481,6 +481,13 @@
         transform: rotate(45deg);
     }
 
+    /* A host and its port: the port takes five digits, the host the rest. */
+    .check-host-port {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 6.5rem;
+        gap: 12px;
+    }
+
     .check-row {
         display: flex;
         align-items: center;
