@@ -2,14 +2,13 @@
    template gives `self.check()`, `check_error` and `i18n`. The rows that do
    not apply leave the request (service-check.js). #}
 <div data-check-fields>
-    <fieldset class="form-block choice-group" aria-describedby="check-hint">
+    <fieldset class="form-block choice-group">
         <legend class="field-label">{{ i18n.t("services.check_label") }}</legend>
         <div class="choice-row">
             <label class="choice"><input type="radio" name="check_kind" value="none" class="sr-only"{% if self.check().is("none") %} checked{% endif %}><span>{{ i18n.t("services.check_none") }}</span></label>
             <label class="choice"><input type="radio" name="check_kind" value="http" class="sr-only"{% if self.check().is("http") %} checked{% endif %}><span>{{ i18n.t("services.check_http") }}</span></label>
             <label class="choice"><input type="radio" name="check_kind" value="tcp" class="sr-only"{% if self.check().is("tcp") %} checked{% endif %}><span>{{ i18n.t("services.check_tcp") }}</span></label>
         </div>
-        <p id="check-hint" class="field-hint">{{ i18n.t("services.check_hint") }}</p>
     </fieldset>
 
     <div class="reveal-row form-block{% if self.check().is("http") %} is-open{% endif %}" data-for-check="http">
@@ -24,7 +23,7 @@
         </div>
         <label class="check-row mt-3">
             <input type="checkbox" name="check_internal_cert" value="on" class="checkbox"{% if self.check().internal_cert %} checked{% endif %}>
-            <span>{{ i18n.t("services.check_internal_cert") }} <span class="field-note">{{ i18n.t("services.check_internal_cert_note") }}</span></span>
+            <span>{{ i18n.t("services.check_internal_cert") }}</span>
         </label>
     </div>
 
