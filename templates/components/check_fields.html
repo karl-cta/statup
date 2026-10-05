@@ -1,7 +1,8 @@
 {# The monitoring of a service, on its page and at the first launch: the
    template gives `self.check()`, `check_error` and `i18n`. The rows that do
-   not apply leave the request (service-check.js). #}
-<div data-check-fields>
+   not apply leave the request (service-check.js). The Test button sits by
+   the address it tests; its result comes under the rows. #}
+<div class="check-fields" data-check-fields>
     <fieldset class="form-block choice-group">
         <legend class="field-label">{{ i18n.t("services.check_label") }}</legend>
         <div class="choice-row">
@@ -11,12 +12,15 @@
         </div>
     </fieldset>
 
-    <div class="reveal-row form-block{% if self.check().is("http") %} is-open{% endif %}" data-for-check="http">
+    <div class="reveal-row{% if self.check().is("http") %} is-open{% endif %}" data-for-check="http">
         <div class="field">
             <label for="check_url" class="field-label">{{ i18n.t("services.check_url_label") }}</label>
-            <input id="check_url" name="check_url" type="text" class="input" inputmode="url" autocomplete="off" spellcheck="false" maxlength="2000" data-required
-                   value="{{ self.check().url }}" placeholder="{{ i18n.t("services.check_url_placeholder") }}"
-                   {% if self.check().is("http") && check_error.is_some() %}aria-invalid="true" aria-describedby="check-error" autofocus{% endif %}>
+            <div class="check-target">
+                <input id="check_url" name="check_url" type="text" class="input" inputmode="url" autocomplete="off" spellcheck="false" maxlength="2000" data-required
+                       value="{{ self.check().url }}" placeholder="{{ i18n.t("services.check_url_placeholder") }}"
+                       {% if self.check().is("http") && check_error.is_some() %}aria-invalid="true" aria-describedby="check-error" autofocus{% endif %}>
+                {% call test_button(i18n) %}{% endcall %}
+            </div>
             {% if self.check().is("http") %}{% if let Some(message) = check_error %}
             <p id="check-error" class="field-error" role="alert">{{ message }}</p>
             {% endif %}{% endif %}
@@ -27,8 +31,8 @@
         </label>
     </div>
 
-    <div class="reveal-row form-block{% if self.check().is("tcp") %} is-open{% endif %}" data-for-check="tcp">
-        <div class="check-host-port">
+    <div class="reveal-row{% if self.check().is("tcp") %} is-open{% endif %}" data-for-check="tcp">
+        <div class="check-target check-target-port">
             <div class="field">
                 <label for="check_host" class="field-label">{{ i18n.t("services.check_host_label") }}</label>
                 <input id="check_host" name="check_host" type="text" class="input" autocomplete="off" spellcheck="false" maxlength="255" data-required
@@ -41,17 +45,16 @@
                        value="{{ self.check().port }}" placeholder="443"
                        {% if self.check().is("tcp") && check_error.is_some() %}aria-describedby="check-error"{% endif %}>
             </div>
+            {% call test_button(i18n) %}{% endcall %}
         </div>
         {% if self.check().is("tcp") %}{% if let Some(message) = check_error %}
         <p id="check-error" class="field-error" role="alert">{{ message }}</p>
         {% endif %}{% endif %}
     </div>
 
-    <div class="reveal-row form-block{% if !self.check().is("none") %} is-open{% endif %}" data-for-check="any">
-        <div class="flex items-center gap-3">
-            <button type="button" class="btn btn-ghost btn-sm" hx-post="/services/check-test" hx-target="next [data-check-result]" hx-swap="innerHTML" hx-disabled-elt="this" hx-indicator="next .htmx-indicator">{{ i18n.t("services.check_test") }}</button>
-            <span class="field-hint htmx-indicator">{{ i18n.t("services.check_testing") }}</span>
-        </div>
-        <div aria-live="polite" data-check-result></div>
-    </div>
+    <div aria-live="polite" data-check-result></div>
 </div>
+
+{% macro test_button(i18n) %}
+<button type="button" class="btn btn-ghost check-test" hx-post="/services/check-test" hx-target="next [data-check-result]" hx-swap="innerHTML" hx-sync="this:drop"><span class="check-test-idle">{{ i18n.t("services.check_test") }}</span><span class="check-test-busy">{{ i18n.t("services.check_testing") }}</span></button>
+{% endmacro %}

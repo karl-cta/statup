@@ -713,6 +713,12 @@ async fn a_service_saved_with_a_check_is_watched() {
     assert_eq!(checked[0].target, "https://intranet.example.com");
     assert!(checked[0].internal_cert);
 
+    let (_, list) = app.get(&format!("/services?saved={}", checked[0].id)).await;
+    assert!(
+        list.contains("surveillé chaque minute"),
+        "the notice says what monitoring means"
+    );
+
     let (_, form) = app.get(&format!("/services/{}/edit", checked[0].id)).await;
     assert!(form.contains(r#"value="https://intranet.example.com""#));
     assert!(form.contains(r#"value="http" class="sr-only" checked"#));
@@ -823,6 +829,10 @@ async fn testing_a_check_says_why_it_fails_and_saves_nothing() {
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains(r#"data-tone="crit""#), "a failure is red");
     assert!(body.contains("Port fermé"), "the reason is said in words");
+    assert!(
+        !body.contains("Après 3 échecs"),
+        "a failure says nothing of the rule"
+    );
     assert!(body.contains("Détail technique"), "the raw error follows");
     assert!(
         ServiceRepository::list_all(&app.pool)
@@ -854,6 +864,10 @@ async fn testing_an_open_port_says_it_answers() {
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains(r#"data-tone="ok""#));
     assert!(body.contains("Le port accepte la connexion"));
+    assert!(
+        body.contains("Après 3 échecs de suite, il passera en panne"),
+        "an answer says what the monitoring will do"
+    );
 }
 
 #[tokio::test]

@@ -23,7 +23,7 @@
     </header>
 
     {% if let Some(name) = saved_name %}
-    <div class="form-notice mb-5" role="status"><p><q>{{ name }}</q> {{ i18n.t("services.saved_notice") }}</p></div>
+    <div class="form-notice mb-5" role="status"><p><q>{{ name }}</q> {% if saved_monitored %}{{ i18n.t("services.saved_monitored_notice") }}{% else %}{{ i18n.t("services.saved_notice") }}{% endif %}</p></div>
     {% endif %}
     {% if let Some(name) = deleted_name %}
     <div class="form-notice mb-5" role="status"><p><q>{{ name }}</q> {{ i18n.t("services.deleted_notice") }}</p></div>

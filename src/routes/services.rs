@@ -35,6 +35,8 @@ struct ServiceListTemplate {
     previous: Option<ServiceStatus>,
     saved_id: Option<i64>,
     saved_name: Option<String>,
+    /// The saved service is monitored: the notice says what that means.
+    saved_monitored: bool,
     deleted_name: Option<String>,
     error: Option<String>,
     i18n: I18n,
@@ -68,10 +70,11 @@ async fn render_list(
     error: Option<String>,
 ) -> Result<Response, AppError> {
     let services = ServiceRepository::list_all(&state.pool).await?;
-    let saved_name = query
+    let saved = query
         .saved
-        .and_then(|id| services.iter().find(|s| s.id == id))
-        .map(|s| s.name.clone());
+        .and_then(|id| services.iter().find(|s| s.id == id));
+    let saved_name = saved.map(|s| s.name.clone());
+    let saved_monitored = saved.is_some_and(|s| s.check_kind.is_some());
     render(&ServiceListTemplate {
         frame: Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?,
         services,
@@ -79,6 +82,7 @@ async fn render_list(
         previous: None,
         saved_id: query.saved,
         saved_name,
+        saved_monitored,
         deleted_name: query.deleted,
         error,
         i18n,

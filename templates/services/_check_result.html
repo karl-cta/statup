@@ -1,7 +1,7 @@
 {% if let Some(tone) = tone %}
 <p class="consequence">
     <span class="dot" data-tone="{{ tone }}" aria-hidden="true"></span>
-    <span>{{ message }}</span>
+    <span>{{ message }}{% if let Some(rule) = rule %}<span class="block font-normal">{{ rule }}</span>{% endif %}</span>
 </p>
 {% if let Some(detail) = detail %}
 <p class="field-hint wrap-anywhere mt-2">{{ i18n.t("services.check_result_detail") }} <code>{{ detail }}</code></p>

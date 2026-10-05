@@ -481,11 +481,46 @@
         transform: rotate(45deg);
     }
 
-    /* A host and its port: the port takes five digits, the host the rest. */
-    .check-host-port {
+    /* The monitoring of a service: one section, its rows close together. */
+    .check-fields {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 6.5rem;
-        gap: 12px;
+        gap: 16px;
+    }
+
+    /* The address and the Test button on one row. */
+    .check-target {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+    }
+
+    .check-target > .input {
+        flex: 1;
+        min-width: 0;
+    }
+
+    /* A host, its port (five digits) and the button. */
+    .check-target-port {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 6.5rem auto;
+    }
+
+    /* The button says it is checking while the request runs. */
+    .check-test-busy,
+    .check-test.htmx-request .check-test-idle {
+        display: none;
+    }
+
+    .check-test.htmx-request .check-test-busy {
+        display: inline;
+    }
+
+    [data-check-result]:empty {
+        display: none;
+    }
+
+    [data-check-result] .consequence {
+        margin-top: 0;
     }
 
     .check-row {

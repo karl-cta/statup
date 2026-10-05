@@ -11,7 +11,7 @@ use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{HtmlForm, RequirePublisher};
 use crate::models::{CheckKind, CheckedService, ServiceCheck, Tone};
-use crate::services::{CHECK_TIMEOUT, Finding, Probes, Report, target_allowed};
+use crate::services::{CHECK_TIMEOUT, Finding, Outcome, Probes, Report, target_allowed};
 
 /// What the monitoring fields show.
 #[derive(Debug, Clone, Default)]
@@ -153,6 +153,8 @@ struct CheckResultFragment {
     /// The tone of the verdict; none when the address itself was refused.
     tone: Option<&'static str>,
     message: String,
+    /// What the monitoring will do, said once the address answers.
+    rule: Option<String>,
     detail: Option<String>,
     i18n: I18n,
 }
@@ -172,6 +174,7 @@ pub async fn test_check(
             return render(&CheckResultFragment {
                 tone: None,
                 message,
+                rule: None,
                 detail: None,
                 i18n,
             });
@@ -188,9 +191,12 @@ pub async fn test_check(
     };
     let report = probes.examine(&service).await;
     let (tone, message) = verdict(&report, &i18n);
+    let rule = (report.outcome() == Outcome::Answered)
+        .then(|| i18n.t("services.check_result_rule").to_string());
     render(&CheckResultFragment {
         tone: Some(tone.as_str()),
         message,
+        rule,
         detail: report.detail,
         i18n,
     })
