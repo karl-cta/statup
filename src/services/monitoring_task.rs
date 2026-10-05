@@ -162,9 +162,13 @@ pub async fn run_round<P: Prober>(
     if skip_this_round(state, &observed) {
         return Ok(());
     }
+    // One service that cannot be recorded, such as one deleted during the
+    // round, leaves the others to be judged.
     for (service_id, observation) in observed {
         let silenced = silenced.contains(&service_id);
-        apply(pool, state, service_id, observation, silenced, now).await?;
+        if let Err(e) = apply(pool, state, service_id, observation, silenced, now).await {
+            tracing::warn!(service_id, error = %e, "Monitoring could not record a change");
+        }
     }
     Ok(())
 }
@@ -453,6 +457,53 @@ mod tests {
         assert_eq!(
             states(&pool, service.id).await,
             (ServiceStatus::Operational, None)
+        );
+    }
+
+    /// Answers for every service, after deleting the one named, as an
+    /// administrator could while the round runs.
+    struct DeletesDuringRound {
+        pool: DbPool,
+        deleted: i64,
+    }
+
+    impl Prober for DeletesDuringRound {
+        fn check(&self, service: &CheckedService) -> impl Future<Output = Report> + Send {
+            let pool = self.pool.clone();
+            let delete = service.id == self.deleted;
+            let id = service.id;
+            async move {
+                if delete {
+                    ServiceRepository::delete(&pool, id).await.unwrap();
+                }
+                report(Outcome::Answered)
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn a_service_deleted_during_the_round_leaves_the_others_judged() {
+        let pool = test_pool().await;
+        let gone = checked_service(&pool, "Gone").await;
+        let kept = checked_service(&pool, "Kept").await;
+        for id in [gone, kept] {
+            ServiceRepository::mark_detected_down(&pool, id, minute(0))
+                .await
+                .unwrap();
+        }
+        let prober = Arc::new(DeletesDuringRound {
+            pool: pool.clone(),
+            deleted: gone,
+        });
+        let mut state = MonitorState::default();
+
+        run_round(&pool, &prober, &mut state, minute(1))
+            .await
+            .unwrap();
+        assert_eq!(
+            states(&pool, kept).await.1,
+            None,
+            "the other service came back"
         );
     }
 
