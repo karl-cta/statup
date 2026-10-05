@@ -173,8 +173,68 @@
     const chips = document.querySelector("[data-setup-chips]");
     if (chips) {
         chips.addEventListener("change", (event) => {
-            if (event.target instanceof HTMLInputElement) tick(event.target);
+            if (!(event.target instanceof HTMLInputElement)) return;
+            tick(event.target);
+            // A chip left out takes its monitoring with it.
+            const chip = event.target.closest(".setup-chip");
+            chip.querySelectorAll("[data-chip-check] input").forEach((field) => {
+                field.disabled = !event.target.checked;
+            });
         });
+    }
+
+    // The monitoring of the name being typed: it leaves with the chip the
+    // name becomes, as hidden fields the server reads like the visible ones.
+    const checkFold = document.querySelector("[data-setup-check]");
+    function typedCheck() {
+        if (!checkFold) return null;
+        const chosen = checkFold.querySelector('input[name="check_kind"]:checked');
+        if (!chosen || chosen.value === "none") return null;
+        const value = (name) => checkFold.querySelector(`[name="${name}"]`).value.trim();
+        return {
+            check_kinds: chosen.value,
+            check_urls: value("check_url"),
+            check_hosts: value("check_host"),
+            check_ports: value("check_port"),
+            check_certs: checkFold.querySelector('[name="check_internal_cert"]').checked ? "1" : "0",
+        };
+    }
+
+    function attachCheck(chip, name, check) {
+        chip.querySelectorAll("[data-chip-check], [data-chip-kind]").forEach((old) => old.remove());
+        const holder = document.createElement("span");
+        holder.dataset.chipCheck = "";
+        holder.hidden = true;
+        Object.entries({ ...check, checks: name }).forEach(([field, value]) => {
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.name = field;
+            input.value = value;
+            holder.append(input);
+        });
+        const kind = document.createElement("span");
+        kind.className = "setup-chip-kind";
+        kind.dataset.chipKind = "";
+        const dot = document.createElement("span");
+        dot.setAttribute("aria-hidden", "true");
+        dot.textContent = "·";
+        const label = checkFold.dataset[check.check_kinds === "http" ? "kindHttp" : "kindTcp"];
+        kind.append("\u00a0", dot, ` ${label}`);
+        chip.querySelector("span").after(kind);
+        chip.append(holder);
+    }
+
+    // Back to no monitoring, folded, for the next name.
+    function resetCheck() {
+        if (!checkFold) return;
+        checkFold.querySelectorAll('input[type="text"]').forEach((field) => {
+            field.value = "";
+        });
+        checkFold.querySelector('[name="check_internal_cert"]').checked = false;
+        const none = checkFold.querySelector('input[name="check_kind"][value="none"]');
+        none.checked = true;
+        none.dispatchEvent(new Event("change", { bubbles: true }));
+        checkFold.open = false;
     }
 
     // A name typed freely becomes a ticked chip of its own; without the
@@ -185,7 +245,9 @@
         const name = custom.value.trim();
         custom.value = "";
         if (!name) return;
-        const known = Array.from(chips.querySelectorAll("input")).find(
+        const check = typedCheck();
+        resetCheck();
+        const known = Array.from(chips.querySelectorAll('input[name="services"]')).find(
             (box) => box.value.toLowerCase() === name.toLowerCase(),
         );
         if (known) {
@@ -193,15 +255,18 @@
                 known.checked = true;
                 tick(known);
             }
+            if (check && !known.disabled) attachCheck(known.closest(".setup-chip"), known.value, check);
             return;
         }
         const chip = chips.querySelector(".setup-chip").cloneNode(true);
         chip.querySelector(".setup-chip-icon").remove();
+        chip.querySelectorAll("[data-chip-check], [data-chip-kind]").forEach((old) => old.remove());
         const box = chip.querySelector("input");
         box.value = name;
         box.checked = true;
         box.disabled = false;
         chip.querySelector("span").textContent = name;
+        if (check) attachCheck(chip, name, check);
         chips.append(chip);
         tick(box);
     }
@@ -216,6 +281,17 @@
             event.preventDefault();
             addTyped();
         });
+        // Enter in the monitoring fields adds the name instead of leaving
+        // the step.
+        if (checkFold) {
+            checkFold.addEventListener("keydown", (event) => {
+                if (event.key !== "Enter" || !(event.target instanceof HTMLInputElement)) return;
+                if (event.target.type !== "text") return;
+                event.preventDefault();
+                addTyped();
+                custom.focus();
+            });
+        }
     }
 
     // The last step: the page is ready, its ring lights once.
