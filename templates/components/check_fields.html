@@ -55,6 +55,8 @@
     <div aria-live="polite" data-check-result></div>
 </div>
 
+{# hx-sync drops a second click while a test runs; htmx 1.9 leaves the
+   button marked busy when hx-disabled-elt points at the indicator itself. #}
 {% macro test_button(i18n) %}
 <button type="button" class="btn btn-ghost check-test" hx-post="/services/check-test" hx-target="next [data-check-result]" hx-swap="innerHTML" hx-sync="this:drop"><span class="check-test-idle">{{ i18n.t("services.check_test") }}</span><span class="check-test-busy">{{ i18n.t("services.check_testing") }}</span></button>
 {% endmacro %}

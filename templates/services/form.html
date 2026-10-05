@@ -32,7 +32,7 @@
 
     <form method="post"
           action="{% match edit_id %}{% when Some with (id) %}/services/{{ id }}/edit{% when None %}/services/new{% endmatch %}"
-          class="mt-6" data-service-form{% if error.is_some() %} aria-describedby="form-error"{% endif %}>
+          class="mt-6"{% if error.is_some() %} aria-describedby="form-error"{% endif %}>
         <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
 
         <div class="card form-card">

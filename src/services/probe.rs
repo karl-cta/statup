@@ -4,7 +4,7 @@
 use std::time::{Duration, Instant};
 
 use super::monitoring::Outcome;
-use crate::models::{CheckKind, CheckedService};
+use crate::models::{CheckKind, CheckedService, ServiceCheck};
 
 /// Longest wait for one check.
 pub const CHECK_TIMEOUT: Duration = Duration::from_secs(10);
@@ -72,18 +72,18 @@ impl Probes {
         })
     }
 
-    /// Runs the check a service is set up with and says what it found.
-    pub async fn examine(&self, service: &CheckedService) -> Report {
-        match service.kind {
+    /// Runs a check and says what it found.
+    pub async fn examine(&self, check: &ServiceCheck) -> Report {
+        match check.kind {
             CheckKind::Http => {
-                let client = if service.internal_cert {
+                let client = if check.internal_cert {
                     &self.lenient
                 } else {
                     &self.strict
                 };
-                probe_http(client, &service.target).await
+                probe_http(client, &check.target).await
             }
-            CheckKind::Tcp => probe_tcp(&service.target, self.timeout).await,
+            CheckKind::Tcp => probe_tcp(&check.target, self.timeout).await,
         }
     }
 }
@@ -95,7 +95,12 @@ pub trait Prober: Send + Sync + 'static {
 
 impl Prober for Probes {
     async fn check(&self, service: &CheckedService) -> Report {
-        let report = self.examine(service).await;
+        let check = ServiceCheck {
+            kind: service.kind,
+            target: service.target.clone(),
+            internal_cert: service.internal_cert,
+        };
+        let report = self.examine(&check).await;
         if report.outcome() == Outcome::Failed {
             // The target stays out of the logs: it may carry a token.
             tracing::debug!(finding = ?report.finding, detail = report.detail.as_deref(), "Check failed");
@@ -279,6 +284,14 @@ mod tests {
         }
     }
 
+    fn check_of(service: &CheckedService) -> ServiceCheck {
+        ServiceCheck {
+            kind: service.kind,
+            target: service.target.clone(),
+            internal_cert: service.internal_cert,
+        }
+    }
+
     /// An address nothing listens on: bound, then released.
     async fn closed_addr() -> SocketAddr {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -376,8 +389,8 @@ mod tests {
         let port = serve(OK).await;
         let http = checked(CheckKind::Http, format!("http://{web}/"));
         let tcp = checked(CheckKind::Tcp, port.to_string());
-        let http_report = probes.examine(&http).await;
-        let tcp_report = probes.examine(&tcp).await;
+        let http_report = probes.examine(&check_of(&http)).await;
+        let tcp_report = probes.examine(&check_of(&tcp)).await;
         assert_eq!(http_report.finding, Finding::Answered { status: Some(200) });
         assert_eq!(tcp_report.finding, Finding::Answered { status: None });
         assert!(http_report.elapsed > Duration::ZERO);

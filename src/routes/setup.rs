@@ -9,7 +9,7 @@ use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 
-use super::checks::{CheckFields, parse_check};
+use super::checks::{CheckFields, CheckInput, parse_check};
 use super::dashboard::origin;
 use super::render;
 use crate::error::AppError;
@@ -354,16 +354,8 @@ pub struct ServicesInput {
     #[serde(default)]
     custom: String,
     /// The monitoring of `custom`, as the shared block sends it.
-    #[serde(default)]
-    check_kind: String,
-    #[serde(default)]
-    check_url: String,
-    #[serde(default)]
-    check_host: String,
-    #[serde(default)]
-    check_port: String,
-    #[serde(default)]
-    check_internal_cert: Option<String>,
+    #[serde(flatten)]
+    check: CheckInput,
     /// The monitoring of the names added with the script, one entry each
     /// across these lists.
     #[serde(default)]
@@ -385,13 +377,7 @@ impl ServicesInput {
         Refusal {
             error: Some(error),
             custom: self.custom.clone(),
-            check: CheckFields::typed(
-                &self.check_kind,
-                &self.check_url,
-                &self.check_host,
-                &self.check_port,
-                self.check_internal_cert.is_some(),
-            ),
+            check: self.check.fields(),
         }
     }
 
@@ -421,14 +407,7 @@ impl ServicesInput {
             keep_check(&mut checks, name.trim(), parsed, i18n)?;
         }
         if !self.custom.trim().is_empty() {
-            let parsed = parse_check(
-                &self.check_kind,
-                &self.check_url,
-                &self.check_host,
-                &self.check_port,
-                self.check_internal_cert.is_some(),
-            );
-            keep_check(&mut checks, self.custom.trim(), parsed, i18n)?;
+            keep_check(&mut checks, self.custom.trim(), self.check.check(), i18n)?;
         }
         Ok(checks)
     }

@@ -54,14 +54,20 @@ impl LastChecks {
             .copied()
     }
 
-    /// Keeps what this round found and forgets the services no longer
-    /// monitored; a check that stopped before its result keeps the last one.
-    fn record(&self, services: &[CheckedService], reports: &HashMap<i64, Report>) {
+    /// Keeps what this round found; a check that stopped before its result
+    /// keeps the last one.
+    fn record(&self, reports: &HashMap<i64, Report>) {
         let mut last = self.0.write().unwrap_or_else(PoisonError::into_inner);
-        last.retain(|id, _| services.iter().any(|service| service.id == *id));
         for (id, report) in reports {
             last.insert(*id, LastCheck::from(report));
         }
+    }
+
+    fn keep_only(&self, checked: &HashSet<i64>) {
+        self.0
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+            .retain(|id, _| checked.contains(id));
     }
 }
 
@@ -125,6 +131,7 @@ impl MonitorState {
     fn keep_only(&mut self, services: &[CheckedService]) {
         let checked: HashSet<i64> = services.iter().map(|s| s.id).collect();
         self.streaks.retain(|id, _| checked.contains(id));
+        self.last.keep_only(&checked);
     }
 }
 
@@ -138,7 +145,6 @@ pub async fn run_round<P: Prober>(
     let services = ServiceRepository::list_checked(pool).await?;
     state.keep_only(&services);
     if services.is_empty() {
-        state.last.record(&services, &HashMap::new());
         return Ok(());
     }
     let silenced: HashSet<i64> = EventRepository::services_under_maintenance(pool)
@@ -146,7 +152,7 @@ pub async fn run_round<P: Prober>(
         .into_iter()
         .collect();
     let reports = probe_all(prober, &services).await;
-    state.last.record(&services, &reports);
+    state.last.record(&reports);
     let observed: Vec<(i64, Observation)> = services
         .iter()
         .filter_map(|service| {

@@ -211,8 +211,12 @@ fn tracked_day(
     now: DateTime<Utc>,
 ) -> Day {
     let level = worst_level_on(spans, date, today);
-    let detected = detected_minutes_on(outages, date, now);
-    if level == 0 && detected > 0 {
+    let detected = if level == 0 {
+        detected_minutes_on(outages, date, now)
+    } else {
+        0
+    };
+    if detected > 0 {
         return Day {
             date,
             level: Some(1),
@@ -248,6 +252,9 @@ fn severity_level(severity: Option<Severity>) -> u8 {
 
 /// Minutes of long enough detected outages that fall within `date`.
 fn detected_minutes_on(outages: &[OutageSpan], date: NaiveDate, now: DateTime<Utc>) -> i64 {
+    if outages.is_empty() {
+        return 0;
+    }
     let (Some(day_start), Some(day_end)) = (
         clock::day_start(date),
         clock::day_start(date + Duration::days(1)),

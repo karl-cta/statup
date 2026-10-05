@@ -10,7 +10,7 @@ use super::render;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{HtmlForm, RequirePublisher};
-use crate::models::{CheckKind, CheckedService, ServiceCheck, Tone};
+use crate::models::{CheckKind, ServiceCheck, Tone};
 use crate::services::{CHECK_TIMEOUT, Finding, Outcome, Probes, Report, target_allowed};
 
 /// What the monitoring fields show.
@@ -27,17 +27,6 @@ impl CheckFields {
     /// Whether the fields show this kind, `none` for no monitoring.
     pub fn is(&self, kind: &str) -> bool {
         self.kind.map_or("none", CheckKind::as_str) == kind
-    }
-
-    /// The fields as a form sent them, to show them again after a refusal.
-    pub fn typed(kind: &str, url: &str, host: &str, port: &str, internal_cert: bool) -> Self {
-        Self {
-            kind: kind.parse().ok(),
-            url: url.to_string(),
-            host: host.to_string(),
-            port: port.to_string(),
-            internal_cert,
-        }
     }
 
     /// The fields of a saved check; a port target is split back into its
@@ -83,13 +72,13 @@ pub struct CheckInput {
 impl CheckInput {
     /// The fields as typed, to show them again after a refusal.
     pub fn fields(&self) -> CheckFields {
-        CheckFields::typed(
-            &self.kind,
-            &self.url,
-            &self.host,
-            &self.port,
-            self.internal_cert.is_some(),
-        )
+        CheckFields {
+            kind: self.kind.parse().ok(),
+            url: self.url.clone(),
+            host: self.host.clone(),
+            port: self.port.clone(),
+            internal_cert: self.internal_cert.is_some(),
+        }
     }
 
     pub fn check(&self) -> Result<Option<ServiceCheck>, AppError> {
@@ -193,14 +182,7 @@ pub async fn test_check(
         Err(e) => return Err(e),
     };
     let probes = Probes::new(CHECK_TIMEOUT).map_err(anyhow::Error::from)?;
-    let service = CheckedService {
-        id: 0,
-        kind: check.kind,
-        target: check.target,
-        internal_cert: check.internal_cert,
-        detected_status: None,
-    };
-    let report = probes.examine(&service).await;
+    let report = probes.examine(&check).await;
     let (tone, message) = verdict(&report, &i18n);
     let rule = (report.outcome() == Outcome::Answered)
         .then(|| i18n.t("services.check_result_rule").to_string());

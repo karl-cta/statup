@@ -93,6 +93,8 @@ pub enum CheckKind {
 }
 
 impl CheckKind {
+    pub const ALL: [Self; 2] = [Self::Http, Self::Tcp];
+
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Http => "http",
@@ -105,7 +107,7 @@ impl FromStr for CheckKind {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        [Self::Http, Self::Tcp]
+        Self::ALL
             .into_iter()
             .find(|kind| kind.as_str() == s)
             .ok_or(())
@@ -215,7 +217,7 @@ mod tests {
 
     #[test]
     fn check_kinds_round_trip() {
-        for kind in [CheckKind::Http, CheckKind::Tcp] {
+        for kind in CheckKind::ALL {
             assert_eq!(kind.as_str().parse::<CheckKind>(), Ok(kind));
         }
         assert!("ping".parse::<CheckKind>().is_err());

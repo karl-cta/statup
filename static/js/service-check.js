@@ -23,10 +23,7 @@
     function update(animate) {
         const chosen = form.querySelector('input[name="check_kind"]:checked');
         const kind = chosen ? chosen.value : "none";
-        form.querySelectorAll("[data-for-check]").forEach((row) => {
-            const target = row.dataset.forCheck;
-            setOpen(row, target === kind || (target === "any" && kind !== "none"), animate);
-        });
+        form.querySelectorAll("[data-for-check]").forEach((row) => setOpen(row, row.dataset.forCheck === kind, animate));
     }
 
     form.addEventListener("change", (event) => {

@@ -135,9 +135,15 @@ impl Module for StatusBannerModule {
         let services = ServiceRepository::list_all(ctx.pool).await?;
         let events = EventRepository::list_open_for_banner(ctx.pool).await?;
         let maintenance = EventRepository::list_open_maintenance(ctx.pool).await?;
+        // Only a service the checks found down has an outage to date.
+        let outage_starts = if services.iter().any(|s| s.detected_status.is_some()) {
+            OutageRepository::open_starts(ctx.pool).await?
+        } else {
+            HashMap::new()
+        };
         let sources = RowSources {
             events: &events,
-            outage_starts: &OutageRepository::open_starts(ctx.pool).await?,
+            outage_starts: &outage_starts,
             can_publish: ctx.can_publish(),
         };
         let i18n = ctx.i18n;

@@ -170,16 +170,8 @@
     }
 
     /* For a publisher, a row the checks found down leads to the incident to
-       declare; the words say so. */
-    .hero-item-action {
-        font-weight: 500;
-        color: var(--ink);
-        text-decoration: underline;
-        text-decoration-color: var(--line-strong);
-        text-underline-offset: 3px;
-    }
-
-    .hero-item-link:hover .hero-item-action {
+       declare; its words read as a link. */
+    .hero-item-link:hover .link {
         text-decoration-color: currentColor;
     }
 

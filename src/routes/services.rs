@@ -573,10 +573,10 @@ pub async fn drawer_content(
         ..EventFilters::default()
     };
     let events = EventRepository::list_page(&state.pool, &filters).await?;
-    let explained = EventRepository::state_drivers(&state.pool, Some(id))
-        .await?
-        .contains_key(&id);
-    let detected = service.detected_status.is_some() && !explained;
+    let detected = service.detected_status.is_some()
+        && !EventRepository::state_drivers(&state.pool, Some(id))
+            .await?
+            .contains_key(&id);
     let row = service_history(&state.pool, service, &i18n).await?;
     render(&ServiceDrawerTemplate {
         row,
