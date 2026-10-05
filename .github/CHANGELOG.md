@@ -4,7 +4,8 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 
 ## Unreleased
 
-- Statup checks on its own that a service answers: in a service's form, choose Web for an address that should answer, or Port for a server, a router or a firewall, and test it before saving.
+- Statup monitors a service on its own: in its form, under Monitoring, choose Web for an address that should answer, or Port for a server, a router or a firewall by its host and port, and test it before saving.
+- At the first launch, a service typed in can be monitored right away, from a fold under its name.
 - After three failed checks in a row, the service shows an outage marked "detected automatically", and comes back on its own as soon as it answers; nothing is declared during a maintenance that takes it down, or when every service fails at once.
 - An editor declares the incident of a detected outage in one click, from the banner or the Services page, with the service, the impact and the start already filled in.
 - A detected outage of fifteen minutes or more counts in the thirty days of the service.
