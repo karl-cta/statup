@@ -9,6 +9,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 - In the dark theme, the masthead takes the colour of the page, as it does in the light theme.
 - Fixed: in Safari, opening the account menu no longer scrolls the page back to its top.
 - In the footer, the mark and the separator line up with the text beside them.
+- The footer links to the page that explains how to get notified, so visitors find it even when the Recent activity block is hidden.
 - Fixed: with several services disrupted, the banner gives the latest update of each incident on its own row, on one line, instead of a single update at the bottom that named no incident.
 
 ## 0.2.0, 2026-10-05
