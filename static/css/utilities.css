@@ -8,14 +8,13 @@
         overflow-wrap: anywhere;
     }
 
-    /* Paper grain over the page. A ready-made tile: Safari draws a noise
-       filter a moment after the page, which flashes the dark ground. */
+    /* Paper grain over the page. */
     .grain::before {
         content: "";
         position: fixed;
         inset: 0;
         z-index: 9999;
-        background-image: url("/static/noise.png");
+        background-image: url("/static/noise.svg");
         background-repeat: repeat;
         opacity: 0.022;
         pointer-events: none;
