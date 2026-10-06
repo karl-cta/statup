@@ -13,6 +13,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 - Fixed: in Safari with the dark theme, the page no longer darkens for a moment on each new page, and the toolbar keeps its colour.
 - Pages now change at once instead of fading into each other; the first launch keeps its step transitions.
 - In the dark theme, the masthead takes the colour of the page, as it does in the light theme.
+- Fixed: in Safari, opening the account menu no longer scrolls the page back to its top.
 
 ## 0.2.0, 2026-10-05
 
