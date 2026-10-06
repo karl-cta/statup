@@ -2,7 +2,7 @@
 
 All notable changes to Statup are listed here. The project is pre-v1: until 1.0, a minor version may change the interface or the database, and the README asks you to back up before upgrading.
 
-## Unreleased
+## 0.2.1, 2026-10-06
 
 - Fixed: in Safari with the dark theme, the page no longer darkens for a moment on each new page, and the toolbar keeps its colour.
 - Pages now change at once instead of fading into each other; the first launch keeps its step transitions.
