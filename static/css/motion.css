@@ -49,6 +49,21 @@ main#main:not(.setup-side) {
     }
 }
 
+/* A language switch stays on its page: the words change in place. */
+:root:active-view-transition-type(language)::view-transition-old(page) {
+    animation: page-out 120ms ease-in both;
+}
+
+:root:active-view-transition-type(language)::view-transition-new(page) {
+    animation: language-in 160ms var(--ease-out) both;
+}
+
+@keyframes language-in {
+    from {
+        opacity: 0;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     ::view-transition-group(*),
     ::view-transition-old(*),

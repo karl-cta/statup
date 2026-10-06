@@ -276,6 +276,9 @@
     }
 
     .lang-menu-list > .lang-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         padding: 8px 10px;
         font-size: var(--text-sm);
         color: var(--ink);
@@ -288,7 +291,24 @@
 
     .lang-menu-list > [aria-current="true"] {
         font-weight: 600;
-        background: var(--surface-subtle);
+    }
+
+    /* The current language is ticked; the others keep its room so that
+       the names line up. */
+    .lang-check {
+        display: inline-flex;
+        flex: none;
+        width: 14px;
+        height: 14px;
+    }
+
+    .lang-check svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .menu-seg .lang-check {
+        display: none;
     }
 
     .theme-now-dark,
