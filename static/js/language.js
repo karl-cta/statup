@@ -1,6 +1,5 @@
 // A language switch reloads the page it was made on. Loaded before the
-// first paint so that the page comes back where the reader was, its words
-// changing in place rather than sliding in like another page.
+// first paint so that the page comes back where the reader was.
 (function () {
     const KEY = "language-switch";
     const here = () => location.pathname + location.search;
@@ -26,10 +25,9 @@
     }
     if (!saved || saved.page !== here()) return;
 
-    const restore = () => window.scrollTo(0, saved.y);
-    window.addEventListener("pagereveal", (event) => {
-        if (event.viewTransition) event.viewTransition.types.add("language");
-        restore();
-    });
+    // At once: the page scrolls smoothly otherwise, and would slide down
+    // from its top.
+    const restore = () => window.scrollTo({ top: saved.y, behavior: "instant" });
+    window.addEventListener("pagereveal", restore);
     document.addEventListener("DOMContentLoaded", restore);
 })();
