@@ -10,6 +10,9 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 - The database is upgraded on start so that a member's preferred language can be any of them.
 - Adding a language takes its file in `locales/` and one line in the code; the contributing guide explains how.
 - Switching language keeps your place on the page, and the current language is ticked in the list.
+- Fixed: in Safari with the dark theme, the page no longer darkens for a moment on each new page, and the toolbar keeps its colour.
+- Pages now change at once instead of fading into each other; the first launch keeps its step transitions.
+- In the dark theme, the masthead takes the colour of the page, as it does in the light theme.
 
 ## 0.2.0, 2026-10-05
 

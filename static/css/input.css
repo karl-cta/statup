@@ -7,7 +7,6 @@
 
 @import "./tokens.css";
 @import "./base.css";
-@import "./motion.css";
 @import "./components/controls.css";
 @import "./components/frame.css";
 @import "./components/status.css";

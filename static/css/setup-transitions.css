@@ -1,6 +1,17 @@
-/* Loaded by the first-launch pages only, on top of the page transitions
-   of motion.css: the step slides, the progress and the preview stay in
-   place and change in it. */
+/* Loaded by the first-launch pages only, the one place where moving from
+   one page to the next is animated: the step slides, the progress and the
+   preview stay in place and change in it. The other pages change at once,
+   since Safari tints its toolbar after the layer a transition lays over
+   the page. */
+@view-transition {
+    navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 160ms;
+}
+
 .setup-stage {
     view-transition-name: setup-step;
 }
@@ -37,5 +48,13 @@
     from {
         opacity: 0;
         transform: translateX(28px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none !important;
     }
 }
