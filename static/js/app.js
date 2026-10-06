@@ -588,6 +588,16 @@
         if (form) delete form.dataset.pointer;
     });
 
+    // Safari scrolls the page to its top when a menu of the sticky masthead
+    // takes the focus, misled by the room kept above focused fields
+    // (scroll-padding-top, WebKit bug 272799): a click focuses it in place.
+    document.addEventListener("mousedown", (event) => {
+        const summary = event.target instanceof Element ? event.target.closest(".mast summary") : null;
+        if (!summary) return;
+        event.preventDefault();
+        summary.focus({ preventScroll: true });
+    });
+
     // A choice that applies itself under the pointer; from the keyboard the
     // arrows only move the choice and a button applies it.
     document.addEventListener("pointerdown", (event) => {
