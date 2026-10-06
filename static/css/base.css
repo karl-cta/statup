@@ -5,6 +5,7 @@
 
     .dark {
         color-scheme: dark;
+        --grain-veil: color-mix(in srgb, var(--ground) 97.2%, transparent);
     }
 
     /* A hidden element stays hidden whatever display its component sets. */
@@ -15,7 +16,15 @@
     html {
         font-family: var(--font-sans);
         color: var(--ink);
-        background: var(--ground);
+        /* Paper grain in the ground itself, seen through a veil of the
+           ground's colour. Nothing lies over the page: a layer fixed on
+           top would be left out of the page transitions, and Safari would
+           take its toolbar colour from it. */
+        --grain-veil: color-mix(in srgb, var(--ground) 97.1%, transparent);
+        background:
+            linear-gradient(var(--grain-veil) 0 0),
+            url("/static/noise.png"),
+            var(--ground);
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         scrollbar-gutter: stable;

@@ -26,7 +26,7 @@
         position: sticky;
         top: 0;
         z-index: 40;
-        background: var(--mast-ground);
+        background: var(--ground);
         border-bottom: 2px solid var(--ink);
     }
 
@@ -116,8 +116,7 @@
     }
 
     /* A line under the word, clear of the rule below: muted and grown from
-       the middle under the pointer, ink on the current tab, which a
-       navigation slides to the next one (motion.css). */
+       the middle under the pointer, ink on the current tab. */
     .mnav-bar {
         position: absolute;
         right: 14px;
@@ -156,7 +155,6 @@
         background: var(--ink);
         opacity: 1;
         transform: none;
-        view-transition-name: mnav-current;
     }
 
     /* Unread count: a neutral ink token, never the outage red. */
@@ -678,7 +676,7 @@
             height: calc(100dvh - 100% - 2px);
             overflow-y: auto;
             overscroll-behavior: contain;
-            background: var(--mast-ground);
+            background: var(--ground);
         }
 
         .mast-menu-clock {

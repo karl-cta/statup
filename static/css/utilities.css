@@ -8,20 +8,4 @@
         overflow-wrap: anywhere;
     }
 
-    /* Paper grain over the page. */
-    .grain::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        z-index: 9999;
-        background-image: url("/static/noise.svg");
-        background-repeat: repeat;
-        opacity: 0.022;
-        pointer-events: none;
-    }
-
-    .dark .grain::before,
-    .dark.grain::before {
-        opacity: 0.04;
-    }
 }

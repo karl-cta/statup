@@ -2,6 +2,12 @@
 
 All notable changes to Statup are listed here. The project is pre-v1: until 1.0, a minor version may change the interface or the database, and the README asks you to back up before upgrading.
 
+## Unreleased
+
+- Fixed: in Safari with the dark theme, the page no longer darkens for a moment on each new page, and the toolbar keeps its colour.
+- Pages now change at once instead of fading into each other; the first launch keeps its step transitions.
+- In the dark theme, the masthead takes the colour of the page, as it does in the light theme.
+
 ## 0.2.0, 2026-10-05
 
 - Statup monitors a service on its own: in its form, under Monitoring, choose Web for an address that should answer, or Port for a server, a router or a firewall by its host and port, and test it before saving; the test says why an address does not answer.

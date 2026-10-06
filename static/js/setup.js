@@ -3,6 +3,19 @@
 (function () {
     "use strict";
 
+    // Only the first-launch pages animate their changes. Leaving them, the
+    // transition is skipped rather than refused by the next page, which
+    // would report it as an error.
+    window.addEventListener("pageswap", (event) => {
+        const transition = event.viewTransition;
+        const next = event.activation && event.activation.entry.url;
+        if (!transition || !next) return;
+        const path = new URL(next).pathname;
+        if (path === "/register" || path.startsWith("/setup/")) return;
+        transition.ready.catch(() => {});
+        transition.skipTransition();
+    });
+
     const sheet = document.querySelector("[data-sheet]");
     if (!sheet) return;
 
