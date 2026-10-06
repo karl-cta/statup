@@ -9,7 +9,7 @@
 //! rather than claiming that everything is fine; its administrator gets the
 //! first steps instead.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use askama::Template;
 use async_trait::async_trait;
@@ -51,8 +51,13 @@ pub struct Cause {
     pub event_id: i64,
     pub title: String,
     pub since: Option<String>,
-    pub update: Option<String>,
-    pub update_time: Option<String>,
+    pub latest: Option<LatestUpdate>,
+}
+
+/// The latest word on an event, kept on one line under its service.
+pub struct LatestUpdate {
+    pub when: String,
+    pub text: String,
 }
 
 impl BannerRow {
@@ -101,16 +106,6 @@ impl StatusBannerTemplate {
     fn is_calm(&self) -> bool {
         self.tone == "neutral" && self.rows.is_empty() && self.next_maintenance.is_none()
     }
-
-    /// The latest word on the worst work under way, however many services
-    /// it touches.
-    fn lead_update(&self) -> Option<(&str, Option<&str>)> {
-        self.rows.iter().find_map(|row| {
-            let cause = row.cause.as_ref()?;
-            let update = cause.update.as_deref()?;
-            Some((update, cause.update_time.as_deref()))
-        })
-    }
 }
 
 #[async_trait]
@@ -148,14 +143,16 @@ impl Module for StatusBannerModule {
         };
         let i18n = ctx.i18n;
         let affected = affected_services(&services);
+        let mut rows: Vec<BannerRow> = affected
+            .iter()
+            .map(|service| row(service, &sources, i18n))
+            .collect();
+        keep_each_update_once(&mut rows);
         let template = StatusBannerTemplate {
             has_services: !services.is_empty(),
             tone: banner_tone(&affected).as_str(),
             headline: headline(&affected, i18n),
-            rows: affected
-                .iter()
-                .map(|service| row(service, &sources, i18n))
-                .collect(),
+            rows,
             next_maintenance: next_maintenance(&services, &maintenance, i18n),
             can_publish: ctx.can_publish(),
             first_steps: first_steps(ctx, services.is_empty()),
@@ -238,13 +235,33 @@ fn cause(event: &EventSummary, i18n: &I18n) -> Cause {
         event_id: event.id,
         title: event.title.clone(),
         since: until_text(event, i18n).or_else(|| event.elapsed_text(i18n)),
-        update: event.latest_update_excerpt(UPDATE_EXCERPT_CHARS),
-        update_time: event.latest_update_at.map(|t| {
-            i18n.tf(
-                "banner.latest_update",
-                &[("time", &i18n.format_datetime(&t))],
-            )
-        }),
+        latest: event
+            .latest_update_excerpt(UPDATE_EXCERPT_CHARS)
+            .zip(event.latest_update_at)
+            .map(|(text, at)| LatestUpdate {
+                when: short_when(&at, i18n),
+                text,
+            }),
+    }
+}
+
+/// An incident on several services gives its latest word once, on its
+/// first row, so the banner never repeats itself.
+fn keep_each_update_once(rows: &mut [BannerRow]) {
+    let mut told = HashSet::new();
+    for cause in rows.iter_mut().filter_map(|row| row.cause.as_mut()) {
+        if !told.insert(cause.event_id) {
+            cause.latest = None;
+        }
+    }
+}
+
+/// The time alone today, the date and time otherwise.
+fn short_when(at: &DateTime<Utc>, i18n: &I18n) -> String {
+    if crate::clock::local_date(at) == crate::clock::today() {
+        i18n.format_time(at)
+    } else {
+        i18n.format_datetime(at)
     }
 }
 
@@ -255,12 +272,7 @@ fn until_text(event: &EventSummary, i18n: &I18n) -> Option<String> {
         return None;
     }
     let end = event.planned_end?;
-    let when = if crate::clock::local_date(&end) == crate::clock::today() {
-        i18n.format_time(&end)
-    } else {
-        i18n.format_datetime(&end)
-    };
-    Some(i18n.tf("maintenance.until", &[("when", &when)]))
+    Some(i18n.tf("maintenance.until", &[("when", &short_when(&end, i18n))]))
 }
 
 /// The soonest maintenance still to come within the week. The list comes
@@ -491,6 +503,36 @@ mod tests {
         let explained = row(&mail, &sources(&events, true), &i18n);
         assert!(explained.detected.is_none());
         assert_eq!(explained.href(), "/events/1");
+    }
+
+    #[test]
+    fn an_incident_on_several_services_gives_its_latest_word_once() {
+        let mut outage = event(
+            Kind::Incident,
+            Some(Severity::Critical),
+            Lifecycle::Investigating,
+            &format!("Mail{NAME_SEPARATOR}Wiki"),
+        );
+        outage.latest_update = Some("<p>Supplier on it</p>".to_string());
+        outage.latest_update_at = Some(Utc::now());
+        let events = [outage];
+        let i18n = I18n::new("en");
+        let mut rows: Vec<BannerRow> = [
+            service("Mail", ServiceStatus::MajorOutage),
+            service("Wiki", ServiceStatus::Degraded),
+        ]
+        .iter()
+        .map(|s| row(s, &sources(&events, false), &i18n))
+        .collect();
+        keep_each_update_once(&mut rows);
+        let texts: Vec<Option<&str>> = rows
+            .iter()
+            .map(|row| {
+                let latest = row.cause.as_ref()?.latest.as_ref()?;
+                Some(latest.text.as_str())
+            })
+            .collect();
+        assert_eq!(texts, [Some("Supplier on it"), None]);
     }
 
     #[test]

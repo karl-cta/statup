@@ -71,21 +71,6 @@
         color: var(--ink);
     }
 
-    .hero-update {
-        max-width: 72ch;
-        margin-top: 12px;
-        font-size: var(--text-md);
-        line-height: 1.6;
-        color: var(--ink);
-    }
-
-    .hero-update-time {
-        display: block;
-        margin-bottom: 2px;
-        font-size: var(--text-xs);
-        color: var(--muted);
-    }
-
     /* The next announced maintenance: one line, in the ink of a fact. */
     .hero-next {
         margin-top: 12px;
@@ -169,6 +154,23 @@
         color: var(--ink-soft);
     }
 
+    /* The latest word holds on one line, however many rows carry one; the
+       event itself gives the rest. Its text in full ink sets it apart from
+       the incident line above. */
+    .hero-item-update {
+        grid-column: 2 / -1;
+        overflow: hidden;
+        font-size: var(--text-sm);
+        color: var(--ink);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .hero-item-update-time {
+        color: var(--ink-soft);
+        font-variant-numeric: tabular-nums;
+    }
+
     /* For a publisher, a row the checks found down leads to the incident to
        declare; its words read as a link. */
     .hero-item-link:hover .link {
@@ -193,8 +195,7 @@
         color: var(--muted);
     }
 
-    .hero-alert .hero-stale,
-    .hero-alert .hero-update-time {
+    .hero-alert .hero-stale {
         color: var(--ink-soft);
     }
 

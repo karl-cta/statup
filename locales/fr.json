@@ -125,7 +125,6 @@
   "banner.disrupted.one": "{n} service perturbé",
   "banner.disrupted.other": "{n} services perturbés",
   "banner.maintenance": "Maintenance en cours",
-  "banner.latest_update": "Dernière nouvelle, {time}",
   "banner.next_maintenance": "Maintenance prévue le {when}",
   "banner.refresh_lost": "Connexion perdue, nouvel essai en cours.",
   "banner.detected": "Détecté automatiquement",
