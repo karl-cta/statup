@@ -64,7 +64,7 @@ With Statup, the answer is already there: what is broken, what is being fixed, w
     </td>
     <td valign="top">
       <strong>Your page, your way</strong><br>
-      Open to everyone or to members only, with your name and logo, and blocks you arrange on the page itself. French and English, light and dark, accessible.
+      Open to everyone or to members only, with your name and logo, and blocks you arrange on the page itself. French, English, German and Spanish, light and dark, accessible.
     </td>
   </tr>
   <tr>

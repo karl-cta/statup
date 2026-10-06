@@ -86,13 +86,26 @@ script installs the pinned Playwright and its Chromium on first run:
 scripts/browser-tests.sh
 ```
 
+## Adding a language
+
+1. Copy `locales/en.json` to `locales/<code>.json`, with the two-letter
+   code of the language, and translate every text. Keep the keys, their
+   order and every `{placeholder}`; the date patterns (`date.*`) and the
+   durations (`duration.*`) are translated too.
+2. Add one line for it to `LANGUAGES` in `src/i18n.rs`: its code, its name
+   in its own language, whether it shows the time on 24 hours, its plural
+   rule and its file.
+3. Run `cargo test`: it checks that the file names every key, in order.
+
+A language is added complete: a text it lacks would show in English.
+
 ## Conventions
 
 - Code, comments, commit messages and documentation are in English. The
-  interface is translated in `locales/fr.json` and `locales/en.json`, which
-  hold the same keys in the same order; tests check that every key used by
-  the code exists in both, that every key is used, and that French marks
-  (`:`, `;`, `?`, `!`, quotation marks) keep a no-break space.
+  interface is translated in `locales/`, one file per language, all holding
+  the keys of `en.json` in the same order; tests check that every key used
+  by the code exists, that every key is used, and that French marks (`:`,
+  `;`, `?`, `!`, quotation marks) keep a no-break space.
 - No em dash, en dash or double hyphen in prose. Use a comma, a colon or a
   full stop.
 - No inline script, event handler or style in a template: the Content

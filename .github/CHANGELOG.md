@@ -2,6 +2,14 @@
 
 All notable changes to Statup are listed here. The project is pre-v1: until 1.0, a minor version may change the interface or the database, and the README asks you to back up before upgrading.
 
+## Unreleased
+
+- Statup speaks German and Spanish, next to French and English: the language button opens the list of languages, and a member's choice is kept for their next sign-in.
+- The time shows on 24 hours in French, German and Spanish, on 12 hours in English.
+- `DEFAULT_LOCALE` accepts `de` and `es`.
+- The database is upgraded on start so that a member's preferred language can be any of them.
+- Adding a language takes its file in `locales/` and one line in the code; the contributing guide explains how.
+
 ## 0.2.0, 2026-10-05
 
 - Statup monitors a service on its own: in its form, under Monitoring, choose Web for an address that should answer, or Port for a server, a router or a firewall by its host and port, and test it before saving; the test says why an address does not answer.
