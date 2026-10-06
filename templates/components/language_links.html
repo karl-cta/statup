@@ -1,0 +1,4 @@
+{# One link per language, each named in its own language. #}
+{% for language in crate::i18n::LANGUAGES %}
+<a class="lang-link" href="/i18n?locale={{ language.code }}" hreflang="{{ language.code }}" lang="{{ language.code }}"{% if language.code == i18n.locale() %} aria-current="true"{% endif %}>{{ language.name }}</a>
+{% endfor %}

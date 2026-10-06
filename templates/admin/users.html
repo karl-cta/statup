@@ -124,7 +124,7 @@
                     <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
                     <button type="button" class="btn btn-ghost" data-confirm-open aria-label="{{ i18n.t("admin.reset_password") }} {{ u.display_name }}">{{ i18n.t("admin.reset_password") }}</button>
                     <div class="confirm" role="group" aria-label="{{ i18n.t("admin.confirm_reset_aria") }}" aria-describedby="reset-q-{{ u.id }} reset-d-{{ u.id }}" data-confirm-box hidden>
-                        <span id="reset-q-{{ u.id }}" class="confirm-text">{{ i18n.t("admin.reset_question") }} <q>{{ u.display_name }}</q>{{ i18n.t("common.question_mark") }}</span>
+                        <span id="reset-q-{{ u.id }}" class="confirm-text">{{ i18n.t("common.question_open") }}{{ i18n.t("admin.reset_question") }} <q>{{ u.display_name }}</q>{{ i18n.t("common.question_mark") }}</span>
                         <span id="reset-d-{{ u.id }}" class="confirm-desc">{{ i18n.t("admin.reset_consequence") }}</span>
                         <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
                         <button type="submit" class="confirm-go">{{ i18n.t("admin.reset_go") }}</button>
@@ -137,7 +137,7 @@
                     {% if u.is_active %}
                     <button type="button" class="btn btn-danger" data-confirm-open aria-label="{{ i18n.t("admin.disable") }} {{ u.display_name }}">{{ i18n.t("admin.disable") }}</button>
                     <div class="confirm" role="group" aria-label="{{ i18n.t("admin.confirm_disable_aria") }}" aria-describedby="disable-q-{{ u.id }} disable-d-{{ u.id }}" data-confirm-box hidden>
-                        <span id="disable-q-{{ u.id }}" class="confirm-text">{{ i18n.t("admin.disable") }} <q>{{ u.display_name }}</q>{{ i18n.t("common.question_mark") }}</span>
+                        <span id="disable-q-{{ u.id }}" class="confirm-text">{{ i18n.t("common.question_open") }}{{ i18n.t("admin.disable") }} <q>{{ u.display_name }}</q>{{ i18n.t("common.question_mark") }}</span>
                         <span id="disable-d-{{ u.id }}" class="confirm-desc">{{ i18n.t("admin.disable_consequence") }}</span>
                         <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
                         <button type="submit" class="confirm-go" data-danger>{{ i18n.t("admin.disable") }}</button>

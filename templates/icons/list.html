@@ -67,7 +67,7 @@
                 <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
                 <button type="button" class="text-action text-action-danger" data-confirm-open aria-label="{{ i18n.t("common.delete") }} {{ card.icon.original_name }}">{{ i18n.t("common.delete") }}</button>
                 <div class="confirm" role="group" aria-label="{{ i18n.t("icons.confirm_delete") }}" aria-describedby="delete-q-{{ card.icon.id }}" data-confirm-box hidden>
-                    <span id="delete-q-{{ card.icon.id }}" class="confirm-text">{{ i18n.t("common.delete") }} <q>{{ card.icon.original_name }}</q>{{ i18n.t("common.question_mark") }}</span>
+                    <span id="delete-q-{{ card.icon.id }}" class="confirm-text">{{ i18n.t("common.question_open") }}{{ i18n.t("common.delete") }} <q>{{ card.icon.original_name }}</q>{{ i18n.t("common.question_mark") }}</span>
                     <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
                     <button type="submit" class="confirm-go" data-danger>{{ i18n.t("common.delete") }}</button>
                 </div>

@@ -84,7 +84,7 @@
             <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
             <button type="button" class="btn btn-danger" data-confirm-open>{{ i18n.t("common.delete") }}</button>
             <div class="confirm" role="group" aria-label="{{ i18n.t("services.confirm_delete") }}" aria-describedby="delete-q" data-confirm-box hidden>
-                <span id="delete-q" class="confirm-text">{{ i18n.t("common.delete") }} <q>{{ form.name }}</q>{{ i18n.t("common.question_mark") }}</span>
+                <span id="delete-q" class="confirm-text">{{ i18n.t("common.question_open") }}{{ i18n.t("common.delete") }} <q>{{ form.name }}</q>{{ i18n.t("common.question_mark") }}</span>
                 <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
                 <button type="submit" class="confirm-go" data-danger>{{ i18n.t("common.delete") }}</button>
             </div>

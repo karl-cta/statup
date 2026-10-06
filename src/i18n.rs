@@ -54,6 +54,20 @@ pub const LANGUAGES: &[Language] = &[
         plural: PluralRule::One,
         source: include_str!("../locales/en.json"),
     },
+    Language {
+        code: "de",
+        name: "Deutsch",
+        clock_24h: true,
+        plural: PluralRule::One,
+        source: include_str!("../locales/de.json"),
+    },
+    Language {
+        code: "es",
+        name: "Español",
+        clock_24h: true,
+        plural: PluralRule::One,
+        source: include_str!("../locales/es.json"),
+    },
 ];
 
 /// The language whose text stands in for a key another one lacks.
@@ -153,13 +167,18 @@ impl I18n {
         self.language.code
     }
 
-    /// The other supported locale, offered by the language switch.
-    pub fn other_locale(&self) -> &'static str {
-        if self.locale() == "fr" { "en" } else { "fr" }
+    /// The page's language name, in that language.
+    pub fn language_name(&self) -> &'static str {
+        self.language.name
+    }
+
+    /// Whether the page shows 19:02 rather than 7:02 PM.
+    pub fn clock_24h(&self) -> bool {
+        self.language.clock_24h
     }
 
     pub fn format_time(&self, dt: &DateTime<Utc>) -> String {
-        let pattern = if self.language.clock_24h {
+        let pattern = if self.clock_24h() {
             "%H:%M"
         } else {
             "%-I:%M %p"
@@ -420,7 +439,7 @@ mod tests {
 
     #[test]
     fn unsupported_locale_falls_back() {
-        assert_eq!(I18n::new("de").locale(), "fr");
+        assert_eq!(I18n::new("xx").locale(), "fr");
     }
 
     #[test]
@@ -509,6 +528,7 @@ mod tests {
         let dt = Utc.with_ymd_and_hms(2026, 9, 16, 8, 5, 0).unwrap();
         assert!(I18n::new("en").format_time(&dt).ends_with('M'));
         assert_eq!(I18n::new("fr").format_time(&dt).len(), 5);
+        assert_eq!(I18n::new("de").format_time(&dt).len(), 5);
     }
 
     #[test]
@@ -520,7 +540,7 @@ mod tests {
 
     #[test]
     fn accept_language_prefers_the_highest_weight() {
-        let map = headers("accept-language", "de;q=1.0, en;q=0.9, fr;q=0.8");
+        let map = headers("accept-language", "it;q=1.0, en;q=0.9, fr;q=0.8");
         assert_eq!(accept_language(&map).as_deref(), Some("en"));
     }
 
@@ -581,6 +601,22 @@ mod tests {
             })
             .collect();
         assert!(loose.is_empty(), "plain spaces before a mark: {loose:#?}");
+    }
+
+    /// Each language keeps its own quotation marks: „…“ in German, «…» in
+    /// Spanish.
+    #[test]
+    fn quotation_marks_belong_to_their_language() {
+        let foreign = [("de", ["«", "»"]), ("es", ["„", "‚"])];
+        for (code, marks) in foreign {
+            let source = language(code).map_or("", |l| l.source);
+            let texts: TranslationMap = serde_json::from_str(source).expect("locale parses");
+            let wrong: Vec<_> = texts
+                .iter()
+                .filter(|(_, text)| marks.iter().any(|mark| text.contains(mark)))
+                .collect();
+            assert!(wrong.is_empty(), "{code}: {wrong:#?}");
+        }
     }
 
     /// Every key named in a template or in Rust is translated: a missing one
