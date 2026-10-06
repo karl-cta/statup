@@ -1,6 +1,6 @@
 name: Idea or request
 description: Something Statup could do, or do better.
-labels: [enhancement]
+labels: [enhancement, needs-triage]
 body:
   - type: textarea
     id: need

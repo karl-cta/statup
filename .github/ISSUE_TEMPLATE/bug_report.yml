@@ -1,6 +1,6 @@
 name: Bug report
 description: Something does not work as it should.
-labels: [bug]
+labels: [bug, needs-triage]
 body:
   - type: textarea
     id: what-happened
@@ -21,7 +21,7 @@ body:
     attributes:
       label: Version
       description: Shown to administrators in Settings, or the tag of your Docker image.
-      placeholder: 0.1.2
+      placeholder: 0.2.0
     validations:
       required: true
   - type: dropdown
