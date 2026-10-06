@@ -116,7 +116,7 @@
   "banner.step_services_hint": "Aquello de lo que se depende a diario: un sitio web, el correo, las nóminas… Cada uno tendrá su estado en la página.",
   "banner.step_services_action": "Añadir un servicio",
   "banner.step_share": "Comparta la página",
-  "banner.step_share_address": "Su dirección:",
+  "banner.step_share_address": "Dirección de la página:",
   "banner.step_share_hint": "Quién puede leerla se define en Ajustes.",
   "banner.copy_address": "Copiar la dirección",
   "banner.address_copied": "Dirección copiada",
