@@ -402,6 +402,7 @@
   "admin.icons.other": "{n} icons",
   "admin.icons_manage": "Manage icons",
   "admin.section_dashboard": "Dashboard",
+  "admin.dashboard_help": "Order and size of the blocks",
   "admin.dashboard_arrange": "Arrange the blocks",
   "admin.version": "Version",
   "admin.version_newer": "Version {version} is available.",

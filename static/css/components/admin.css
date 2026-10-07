@@ -20,21 +20,12 @@
         min-width: 0;
     }
 
-    .set-row > .btn {
-        justify-self: end;
-    }
-
     .set-label {
         display: block;
         font-size: var(--text-md);
         font-weight: 600;
         line-height: 1.35;
         color: var(--ink);
-    }
-
-    .set-label .count {
-        margin-left: 8px;
-        white-space: nowrap;
     }
 
     .set-help {
@@ -113,13 +104,101 @@
         z-index: 1;
     }
 
+    /* What an administrator opens every week heads Settings: one strip of
+       cells, one per page it leads to, the whole cell the link. Two by two
+       until every cell fits on one row. Neighbouring cells drop the border
+       they share, so the strip reads as one card. */
+    .manage-tiles {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .manage-tiles > li:nth-child(even) .manage-tile {
+        border-left-width: 0;
+    }
+
+    .manage-tiles > li:nth-child(n + 3) .manage-tile {
+        border-top-width: 0;
+    }
+
+    .manage-tiles > li:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+
+    @media (min-width: 1024px) {
+        .manage-tiles {
+            grid-template-columns: none;
+            grid-auto-columns: minmax(0, 1fr);
+            grid-auto-flow: column;
+        }
+
+        .manage-tiles > li:nth-child(n) .manage-tile {
+            border-top-width: 1px;
+            border-left-width: 0;
+        }
+
+        .manage-tiles > li:first-child .manage-tile {
+            border-left-width: 1px;
+        }
+
+        .manage-tiles > li:last-child:nth-child(odd) {
+            grid-column: auto;
+        }
+    }
+
+    .manage-tiles > li {
+        display: flex;
+        min-width: 0;
+    }
+
+    .manage-tile {
+        position: relative;
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+        padding: 14px 16px 16px;
+        color: var(--ink);
+        transition: background-color 150ms ease;
+    }
+
+    a.manage-tile:hover {
+        background: var(--hover);
+    }
+
+    .manage-tile-name {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: var(--text-md);
+        font-weight: 600;
+        line-height: 1.35;
+    }
+
+    .manage-tile-meta {
+        font-size: var(--text-sm);
+        color: var(--muted);
+    }
+
+    .manage-tile .set-update {
+        margin-top: 0;
+    }
+
+    /* The chevron already says the card opens: the action is the link's
+       name for a screen reader only. */
+    .manage-tile-action {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
     @media (max-width: 720px) {
         .set-row {
             grid-template-columns: minmax(0, 1fr);
-        }
-
-        .set-row > .btn {
-            justify-self: start;
         }
     }
 

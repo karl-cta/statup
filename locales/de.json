@@ -402,6 +402,7 @@
   "admin.icons.other": "{n} Symbole",
   "admin.icons_manage": "Symbole verwalten",
   "admin.section_dashboard": "Übersicht",
+  "admin.dashboard_help": "Reihenfolge und Größe der Blöcke",
   "admin.dashboard_arrange": "Blöcke anordnen",
   "admin.version": "Version",
   "admin.version_newer": "Version {version} ist verfügbar.",
