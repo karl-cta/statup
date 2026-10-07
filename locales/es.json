@@ -402,6 +402,7 @@
   "admin.icons.other": "{n} iconos",
   "admin.icons_manage": "Gestionar los iconos",
   "admin.section_dashboard": "Panel",
+  "admin.dashboard_help": "Orden y tamaño de los bloques",
   "admin.dashboard_arrange": "Organizar los bloques",
   "admin.version": "Versión",
   "admin.version_newer": "La versión {version} está disponible.",

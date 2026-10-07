@@ -14,6 +14,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 - The Services block of the dashboard shows ninety days of history when it has a row of its own, and thirty in a narrower column.
 - The Services page shows each service's last ninety days under its row, with how many had an incident; a phone shows the last thirty.
 - On a phone, the event list keeps the search in view and folds the other filters behind a Filters button, which counts the filters set.
+- Settings opens on cards for the team, the icons, the dashboard and the version, side by side, so they show without scrolling; General follows below.
 
 ## 0.2.1, 2026-10-06
 

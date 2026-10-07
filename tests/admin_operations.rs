@@ -1103,7 +1103,9 @@ async fn administrators_see_the_version_and_a_newer_one() {
     let (_, page) = app.get("/admin/settings").await;
     let version = statup::services::CURRENT_VERSION;
     assert!(
-        page.contains(&format!(r#"<span class="count">{version}</span>"#)),
+        page.contains(&format!(
+            r#"<span class="manage-tile-meta">{version}</span>"#
+        )),
         "{page}"
     );
     assert!(!page.contains("releases/tag"), "nothing newer is known");
