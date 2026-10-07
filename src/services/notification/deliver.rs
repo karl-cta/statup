@@ -207,7 +207,7 @@ async fn settle(
     let code = failure.code();
     tracing::warn!(channel_id = channel.id, kind = ?channel.kind, failure = %code, "Notification not delivered");
     if failure == Failure::Gone {
-        NotificationRepository::fail(pool, delivery.id, &code).await?;
+        NotificationRepository::fail(pool, delivery.id, &code, now).await?;
         return Ok(());
     }
     let retry = if failure.is_permanent() {
@@ -218,7 +218,7 @@ async fn settle(
     match retry {
         Some(at) => NotificationRepository::retry_later(pool, delivery.id, &code, at).await?,
         None => {
-            NotificationRepository::fail_waiting(pool, channel.id, &code).await?;
+            NotificationRepository::fail_waiting(pool, channel.id, &code, now).await?;
         }
     }
     Ok(())

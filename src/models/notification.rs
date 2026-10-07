@@ -306,6 +306,7 @@ pub struct Delivery {
     pub service_id: Option<i64>,
     pub status: DeliveryStatus,
     pub attempts: i64,
+    /// When the next attempt is due; once given up, when that was.
     pub next_attempt_at: DateTime<Utc>,
     /// Why the last attempt failed, as a code the page words.
     pub failure: Option<String>,

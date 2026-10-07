@@ -181,12 +181,18 @@ impl NotificationRepository {
     }
 
     /// Gives up on one message, the others of its destination going on.
-    pub async fn fail(pool: &DbPool, id: i64, failure: &str) -> Result<(), sqlx::Error> {
+    pub async fn fail(
+        pool: &DbPool,
+        id: i64,
+        failure: &str,
+        now: DateTime<Utc>,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query(
             "UPDATE notification_deliveries SET status = 'failed', attempts = attempts + 1, \
-             failure = ? WHERE id = ? AND status = 'pending'",
+             failure = ?, next_attempt_at = ? WHERE id = ? AND status = 'pending'",
         )
         .bind(failure)
+        .bind(clock::db(now))
         .bind(id)
         .execute(pool)
         .await?;
@@ -200,12 +206,14 @@ impl NotificationRepository {
         pool: &DbPool,
         channel_id: i64,
         failure: &str,
+        now: DateTime<Utc>,
     ) -> Result<u64, sqlx::Error> {
         let result = sqlx::query(
-            "UPDATE notification_deliveries SET status = 'failed', failure = ? \
-             WHERE channel_id = ? AND status = 'pending'",
+            "UPDATE notification_deliveries SET status = 'failed', failure = ?, \
+             next_attempt_at = ? WHERE channel_id = ? AND status = 'pending'",
         )
         .bind(failure)
+        .bind(clock::db(now))
         .bind(channel_id)
         .execute(pool)
         .await?;
@@ -536,7 +544,7 @@ mod tests {
             .unwrap();
         }
 
-        let failed = NotificationRepository::fail_waiting(&pool, dead, "status_404")
+        let failed = NotificationRepository::fail_waiting(&pool, dead, "status_404", at(5))
             .await
             .unwrap();
 
@@ -548,6 +556,11 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(outcomes[&dead].failure.as_deref(), Some("status_404"));
+        assert_eq!(
+            outcomes[&dead].next_attempt_at,
+            at(5),
+            "when it was given up"
+        );
         assert!(!outcomes.contains_key(&alive));
     }
 
@@ -614,7 +627,7 @@ mod tests {
         }
         let head = NotificationRepository::due(&pool, at(1)).await.unwrap()[0].id;
 
-        NotificationRepository::fail(&pool, head, "gone")
+        NotificationRepository::fail(&pool, head, "gone", at(0))
             .await
             .unwrap();
 

@@ -406,7 +406,7 @@ fn last_send(
         return LastSend::Sent(i18n.tf("notifications.sent", &[("when", &when)]));
     }
     let reason = reason_of(delivery.failure.as_deref(), i18n);
-    let when = i18n.format_datetime(&delivery.created_at);
+    let when = i18n.format_datetime(&delivery.next_attempt_at);
     let text = i18n.tf(
         "notifications.failed",
         &[("when", &when), ("reason", &reason)],
