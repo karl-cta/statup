@@ -510,11 +510,12 @@ pub async fn create(
 
 /// The first destination keeps the address the admin uses, so the messages
 /// carry a link from the start; the foot of the list shows it and changes it.
+/// An address emptied on purpose stays empty.
 async fn remember_page_address(state: &AppState, headers: &HeaderMap) -> Result<(), AppError> {
-    if page_address(&state.pool, state.public_url.as_deref())
+    let never_set = SettingsRepository::get(&state.pool, PAGE_ADDRESS_SETTING)
         .await?
-        .is_none()
-    {
+        .is_none();
+    if state.public_url.is_none() && never_set {
         let address = origin(state, headers);
         SettingsRepository::set(&state.pool, PAGE_ADDRESS_SETTING, &address).await?;
     }

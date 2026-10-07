@@ -286,3 +286,31 @@ async fn the_page_address_is_saved_or_refused() {
         .expect("read");
     assert_eq!(address.as_deref(), Some("https://status.example.com"));
 }
+
+#[tokio::test]
+async fn an_emptied_page_address_stays_empty_when_a_destination_is_added() {
+    let app = TestApp::spawn().await;
+    app.as_admin().await;
+
+    let csrf = app.csrf_from("/admin/notifications").await;
+    let (status, _, _) = app
+        .post_form(
+            "/admin/notifications/page-address",
+            &csrf,
+            &[("page_address", "")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let fields = destination_fields("Team", "webhook", "https://example.com/hook");
+    let (status, _, _) = app.post_form("/admin/notifications", &csrf, &fields).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let address = SettingsRepository::get(&app.pool, "page_address")
+        .await
+        .expect("read");
+    assert_eq!(
+        address.as_deref(),
+        Some(""),
+        "the messages go without a link"
+    );
+}
