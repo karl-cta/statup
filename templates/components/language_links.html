@@ -1,0 +1,4 @@
+{# One link per language, each named in its own language. #}
+{% for language in crate::i18n::LANGUAGES %}
+<a class="lang-link" href="/i18n?locale={{ language.code }}" hreflang="{{ language.code }}" lang="{{ language.code }}"{% if language.code == i18n.locale() %} aria-current="true"{% endif %}><span class="lang-check" aria-hidden="true">{% if language.code == i18n.locale() %}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg>{% endif %}</span>{{ language.name }}</a>
+{% endfor %}

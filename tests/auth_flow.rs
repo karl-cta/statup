@@ -1208,7 +1208,7 @@ async fn language_switch_returns_to_a_page_of_this_site() {
     let (_, location, _, _) = switch_language(&app, "?locale=fr", None).await;
     assert_eq!(location.as_deref(), Some("/"));
 
-    let (status, _, cookie, body) = switch_language(&app, "?locale=de", None).await;
+    let (status, _, cookie, body) = switch_language(&app, "?locale=xx", None).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(cookie.is_none());
     assert!(body.contains("Langue non prise en charge"), "{body}");

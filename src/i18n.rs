@@ -16,30 +16,101 @@ use crate::models::Countdown;
 
 type TranslationMap = HashMap<String, String>;
 
-/// Supported locale codes.
-pub const LOCALES: &[&str] = &["fr", "en"];
+/// A language the interface is written in.
+#[derive(Debug)]
+pub struct Language {
+    pub code: &'static str,
+    /// Its own name, shown as is whatever the page's language.
+    pub name: &'static str,
+    clock_24h: bool,
+    plural: PluralRule,
+    source: &'static str,
+}
+
+/// Which counts take the singular form.
+#[derive(Debug)]
+enum PluralRule {
+    /// 0 and 1, as in French.
+    UpToOne,
+    /// 1 only, as in English.
+    One,
+}
+
+/// Every supported language. The first is the default when
+/// `DEFAULT_LOCALE` names none of them. Adding one takes its file in
+/// `locales/` and a line here.
+pub const LANGUAGES: &[Language] = &[
+    Language {
+        code: "fr",
+        name: "Français",
+        clock_24h: true,
+        plural: PluralRule::UpToOne,
+        source: include_str!("../locales/fr.json"),
+    },
+    Language {
+        code: "en",
+        name: "English",
+        clock_24h: false,
+        plural: PluralRule::One,
+        source: include_str!("../locales/en.json"),
+    },
+    Language {
+        code: "de",
+        name: "Deutsch",
+        clock_24h: true,
+        plural: PluralRule::One,
+        source: include_str!("../locales/de.json"),
+    },
+    Language {
+        code: "es",
+        name: "Español",
+        clock_24h: true,
+        plural: PluralRule::One,
+        source: include_str!("../locales/es.json"),
+    },
+];
+
+/// The language whose text stands in for a key another one lacks.
+const TEXT_FALLBACK: &str = "en";
 
 /// Largest number of `Accept-Language` entries considered.
 const MAX_ACCEPT_LANGUAGE_ENTRIES: usize = 16;
 
 static TRANSLATIONS: LazyLock<HashMap<&'static str, TranslationMap>> = LazyLock::new(|| {
-    HashMap::from([
-        ("fr", parse_locale(include_str!("../locales/fr.json"))),
-        ("en", parse_locale(include_str!("../locales/en.json"))),
-    ])
+    LANGUAGES
+        .iter()
+        .map(|language| (language.code, parse_locale(language.source)))
+        .collect()
 });
 
-/// `DEFAULT_LOCALE` when it names a supported locale, French otherwise.
-static DEFAULT_LOCALE: LazyLock<String> = LazyLock::new(|| {
+/// `DEFAULT_LOCALE` when it names a supported language, the first one
+/// otherwise.
+static DEFAULT_LANGUAGE: LazyLock<&'static Language> = LazyLock::new(|| {
     let requested = std::env::var("DEFAULT_LOCALE").unwrap_or_default();
-    if LOCALES.contains(&requested.as_str()) {
-        return requested;
+    if let Some(language) = language(&requested) {
+        return language;
     }
+    let fallback = &LANGUAGES[0];
     if !requested.is_empty() {
-        tracing::warn!(value = %requested, "DEFAULT_LOCALE is not fr or en, using fr");
+        let supported: Vec<&str> = LANGUAGES.iter().map(|l| l.code).collect();
+        tracing::warn!(
+            value = %requested,
+            supported = %supported.join(", "),
+            "DEFAULT_LOCALE is not a supported language, using {}",
+            fallback.code
+        );
     }
-    "fr".to_string()
+    fallback
 });
+
+/// The supported language with this code.
+pub fn language(code: &str) -> Option<&'static Language> {
+    LANGUAGES.iter().find(|language| language.code == code)
+}
+
+fn is_supported(code: &str) -> bool {
+    language(code).is_some()
+}
 
 /// A malformed file is caught by the tests below; at runtime it degrades to
 /// raw keys instead of taking the server down.
@@ -50,31 +121,27 @@ fn parse_locale(raw: &str) -> TranslationMap {
 /// Per-request translation context, handed to every template.
 #[derive(Clone, Debug)]
 pub struct I18n {
-    locale: &'static str,
+    language: &'static Language,
 }
 
 impl Default for I18n {
     fn default() -> Self {
-        Self::new(&DEFAULT_LOCALE)
+        Self {
+            language: *DEFAULT_LANGUAGE,
+        }
     }
 }
 
 impl I18n {
-    /// Falls back to the default locale when `locale` is not supported.
+    /// Falls back to the default language when `locale` is not supported.
     pub fn new(locale: &str) -> Self {
-        let locale = LOCALES
-            .iter()
-            .find(|l| **l == locale)
-            .or_else(|| LOCALES.iter().find(|l| **l == DEFAULT_LOCALE.as_str()))
-            .copied()
-            .unwrap_or("fr");
-        Self { locale }
+        language(locale).map_or_else(Self::default, |language| Self { language })
     }
 
-    /// The translation of `key`, then the default locale's, then the key.
+    /// The translation of `key`, then the English one, then the key.
     pub fn t<'a>(&self, key: &'a str) -> &'a str {
-        lookup(self.locale, key)
-            .or_else(|| lookup(&DEFAULT_LOCALE, key))
+        lookup(self.language.code, key)
+            .or_else(|| lookup(TEXT_FALLBACK, key))
             .unwrap_or(key)
     }
 
@@ -88,30 +155,34 @@ impl I18n {
 
     /// `tf` on `base.one` or `base.other`, with `{n}` set to `count`.
     pub fn plural(&self, base: &str, count: usize) -> String {
-        let singular = if self.locale == "fr" {
-            count <= 1
-        } else {
-            count == 1
+        let singular = match self.language.plural {
+            PluralRule::UpToOne => count <= 1,
+            PluralRule::One => count == 1,
         };
         let key = format!("{base}.{}", if singular { "one" } else { "other" });
         self.tf(&key, &[("n", &count.to_string())])
     }
 
     pub fn locale(&self) -> &'static str {
-        self.locale
+        self.language.code
     }
 
-    pub fn is_fr(&self) -> bool {
-        self.locale == "fr"
+    /// The page's language name, in that language.
+    pub fn language_name(&self) -> &'static str {
+        self.language.name
     }
 
-    /// The other supported locale, offered by the language switch.
-    pub fn other_locale(&self) -> &'static str {
-        if self.is_fr() { "en" } else { "fr" }
+    /// Whether the page shows 19:02 rather than 7:02 PM.
+    pub fn clock_24h(&self) -> bool {
+        self.language.clock_24h
     }
 
     pub fn format_time(&self, dt: &DateTime<Utc>) -> String {
-        let pattern = if self.is_fr() { "%H:%M" } else { "%-I:%M %p" };
+        let pattern = if self.clock_24h() {
+            "%H:%M"
+        } else {
+            "%-I:%M %p"
+        };
         clock::local(dt).format(pattern).to_string()
     }
 
@@ -303,7 +374,7 @@ where
     ) -> impl Future<Output = Result<Self, Self::Rejection>> + Send {
         let chosen = cookie_locale(&parts.headers).or_else(|| accept_language(&parts.headers));
         std::future::ready(Ok(Locale(I18n::new(
-            chosen.as_deref().unwrap_or(DEFAULT_LOCALE.as_str()),
+            chosen.as_deref().unwrap_or(DEFAULT_LANGUAGE.code),
         ))))
     }
 }
@@ -313,7 +384,7 @@ fn cookie_locale(headers: &axum::http::HeaderMap) -> Option<String> {
     cookies
         .split(';')
         .filter_map(|c| c.trim().strip_prefix("lang="))
-        .find(|lang| LOCALES.contains(lang))
+        .find(|lang| is_supported(lang))
         .map(ToOwned::to_owned)
 }
 
@@ -330,7 +401,7 @@ fn accept_language(headers: &axum::http::HeaderMap) -> Option<String> {
     langs
         .into_iter()
         .map(|(_, lang)| lang)
-        .find(|lang| LOCALES.contains(&lang.as_str()))
+        .find(|lang| is_supported(lang))
 }
 
 fn parse_language_range(part: &str) -> Option<(f32, String)> {
@@ -368,7 +439,7 @@ mod tests {
 
     #[test]
     fn unsupported_locale_falls_back() {
-        assert_eq!(I18n::new("de").locale(), "fr");
+        assert_eq!(I18n::new("xx").locale(), "fr");
     }
 
     #[test]
@@ -457,6 +528,7 @@ mod tests {
         let dt = Utc.with_ymd_and_hms(2026, 9, 16, 8, 5, 0).unwrap();
         assert!(I18n::new("en").format_time(&dt).ends_with('M'));
         assert_eq!(I18n::new("fr").format_time(&dt).len(), 5);
+        assert_eq!(I18n::new("de").format_time(&dt).len(), 5);
     }
 
     #[test]
@@ -468,7 +540,7 @@ mod tests {
 
     #[test]
     fn accept_language_prefers_the_highest_weight() {
-        let map = headers("accept-language", "de;q=1.0, en;q=0.9, fr;q=0.8");
+        let map = headers("accept-language", "it;q=1.0, en;q=0.9, fr;q=0.8");
         assert_eq!(accept_language(&map).as_deref(), Some("en"));
     }
 
@@ -478,16 +550,39 @@ mod tests {
         assert_eq!(accept_language(&map).as_deref(), Some("fr"));
     }
 
+    /// Every file parses and names the keys of `en.json`, in its order: the
+    /// files are read side by side, screen by screen.
     #[test]
-    fn locale_files_parse_and_share_their_keys() {
-        let fr: TranslationMap =
-            serde_json::from_str(include_str!("../locales/fr.json")).expect("fr.json parses");
-        let en: TranslationMap =
-            serde_json::from_str(include_str!("../locales/en.json")).expect("en.json parses");
-        let missing_in_en: Vec<_> = fr.keys().filter(|k| !en.contains_key(*k)).collect();
-        let missing_in_fr: Vec<_> = en.keys().filter(|k| !fr.contains_key(*k)).collect();
-        assert!(missing_in_en.is_empty(), "missing in en: {missing_in_en:?}");
-        assert!(missing_in_fr.is_empty(), "missing in fr: {missing_in_fr:?}");
+    fn locale_files_parse_and_share_their_keys_in_order() {
+        let reference = ordered_keys(include_str!("../locales/en.json"));
+        for language in LANGUAGES {
+            let parsed: TranslationMap = serde_json::from_str(language.source)
+                .unwrap_or_else(|e| panic!("{}.json parses: {e}", language.code));
+            let keys = ordered_keys(language.source);
+            assert_eq!(
+                keys.len(),
+                parsed.len(),
+                "{}: one key per line",
+                language.code
+            );
+            let missing: Vec<_> = reference.iter().filter(|k| !keys.contains(k)).collect();
+            let extra: Vec<_> = keys.iter().filter(|k| !reference.contains(k)).collect();
+            assert!(
+                missing.is_empty(),
+                "missing in {}: {missing:?}",
+                language.code
+            );
+            assert!(extra.is_empty(), "only in {}: {extra:?}", language.code);
+            assert_eq!(keys, reference, "{}: keys out of order", language.code);
+        }
+    }
+
+    fn ordered_keys(source: &str) -> Vec<&str> {
+        source
+            .lines()
+            .filter_map(|line| line.trim_start().strip_prefix('"')?.split_once("\":"))
+            .map(|(key, _)| key)
+            .collect()
     }
 
     /// French typography: a no-break space before a colon and inside
@@ -506,6 +601,22 @@ mod tests {
             })
             .collect();
         assert!(loose.is_empty(), "plain spaces before a mark: {loose:#?}");
+    }
+
+    /// Each language keeps its own quotation marks: „…“ in German, «…» in
+    /// Spanish.
+    #[test]
+    fn quotation_marks_belong_to_their_language() {
+        let foreign = [("de", ["«", "»"]), ("es", ["„", "‚"])];
+        for (code, marks) in foreign {
+            let source = language(code).map_or("", |l| l.source);
+            let texts: TranslationMap = serde_json::from_str(source).expect("locale parses");
+            let wrong: Vec<_> = texts
+                .iter()
+                .filter(|(_, text)| marks.iter().any(|mark| text.contains(mark)))
+                .collect();
+            assert!(wrong.is_empty(), "{code}: {wrong:#?}");
+        }
     }
 
     /// Every key named in a template or in Rust is translated: a missing one

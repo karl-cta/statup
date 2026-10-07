@@ -40,7 +40,7 @@ Every setting is optional. Write the ones you change in a `.env` file next to `d
 | `PUBLIC_MODE` | `false` | Starting public access. Once an administrator chooses in Settings, that choice is kept across restarts |
 | `UPDATE_CHECK` | `true` | Ask GitHub once a day whether a newer version is published, and tell administrators in Settings. The request carries no information about the instance. `false` for an instance that must not reach the internet |
 | `MONITORING` | `true` | Run the monitoring of the services that have it. `false` turns every check off; the addresses stay saved |
-| `DEFAULT_LOCALE` | `fr` | `fr` or `en`, for visitors whose browser asks for neither |
+| `DEFAULT_LOCALE` | `fr` | `fr`, `en`, `de` or `es`, for visitors whose browser asks for none of them |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | unset | Create an administrator at start when no account exists. Both are needed, and the password follows the rule above. Remove them afterwards |
 | `DATABASE_URL` | `./statup.db` | SQLite database file |
 | `UPLOAD_DIR` | `data/uploads` | Where uploaded icons and the logo are kept |

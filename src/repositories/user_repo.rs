@@ -324,6 +324,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn the_preferred_locale_takes_any_language_code() {
+        let pool = test_pool().await;
+        let user = UserRepository::create(&pool, "a@b.com", "hash", "Alice", Role::Reader)
+            .await
+            .unwrap();
+
+        UserRepository::update_preferred_locale(&pool, user.id, Some("de"))
+            .await
+            .unwrap();
+
+        let found = UserRepository::find_by_id(&pool, user.id).await.unwrap();
+        assert_eq!(
+            found.and_then(|u| u.preferred_locale).as_deref(),
+            Some("de")
+        );
+    }
+
+    #[tokio::test]
     async fn find_by_email_returns_none_for_unknown() {
         let pool = test_pool().await;
         let found = UserRepository::find_by_email(&pool, "nope@nope.com")

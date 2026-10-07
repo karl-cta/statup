@@ -12,6 +12,7 @@
     <link rel="preload" href="/static/fonts/hanken-grotesk-variable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="{{ crate::asset("css/style.css") }}">
     <script src="{{ crate::asset("js/theme.js") }}"></script>
+    <script src="{{ crate::asset("js/language.js") }}"></script>
     {% block head %}{% endblock %}
     {# Pages that talk to the server without reloading load htmx here,
        ahead of the scripts that use it. #}

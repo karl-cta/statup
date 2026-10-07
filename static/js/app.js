@@ -242,7 +242,7 @@
         const at = new Date(Date.now() + clockOffset() * 60000);
         const minutes = String(at.getUTCMinutes()).padStart(2, "0");
         const hours = at.getUTCHours();
-        const text = root.lang.startsWith("fr")
+        const text = document.querySelector("[data-clock-24h]")
             ? `${String(hours).padStart(2, "0")}:${minutes}`
             : `${hours % 12 || 12}:${minutes} ${hours < 12 ? "AM" : "PM"}`;
         shown.forEach((element) => {

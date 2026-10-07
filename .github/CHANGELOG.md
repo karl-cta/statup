@@ -2,6 +2,15 @@
 
 All notable changes to Statup are listed here. The project is pre-v1: until 1.0, a minor version may change the interface or the database, and the README asks you to back up before upgrading.
 
+## Unreleased
+
+- Statup speaks German and Spanish, next to French and English: the language button opens the list of languages, and a member's choice is kept for their next sign-in.
+- The time shows on 24 hours in French, German and Spanish, on 12 hours in English.
+- `DEFAULT_LOCALE` accepts `de` and `es`.
+- The database is upgraded on start so that a member's preferred language can be any of them.
+- Adding a language takes its file in `locales/` and one line in the code; the contributing guide explains how.
+- Switching language keeps your place on the page, and the current language is ticked in the list.
+
 ## 0.2.1, 2026-10-06
 
 - Fixed: in Safari with the dark theme, the page no longer darkens for a moment on each new page, and the toolbar keeps its colour.

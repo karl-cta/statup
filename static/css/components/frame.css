@@ -259,6 +259,51 @@
         height: 14px;
     }
 
+    /* The languages, under the masthead's language button. */
+    .lang-menu > summary {
+        cursor: pointer;
+    }
+
+    .lang-menu .lang-menu-list {
+        min-width: 160px;
+    }
+
+    .lang-menu-list > .lang-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        font-size: var(--text-sm);
+        color: var(--ink);
+        border-radius: 4px;
+    }
+
+    .lang-menu-list > .lang-link:hover {
+        background: var(--hover);
+    }
+
+    .lang-menu-list > [aria-current="true"] {
+        font-weight: 600;
+    }
+
+    /* The current language is ticked; the others keep its room so that
+       the names line up. */
+    .lang-check {
+        display: inline-flex;
+        flex: none;
+        width: 14px;
+        height: 14px;
+    }
+
+    .lang-check svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .menu-seg .lang-check {
+        display: none;
+    }
+
     .theme-now-dark,
     .dark .theme-now-light {
         display: none;
@@ -352,6 +397,23 @@
         min-height: 48px;
         font-size: var(--text-md);
         color: var(--ink);
+    }
+
+    /* More languages than fit beside their name: the choices go under it,
+       two to a row. */
+    .menu-pref-languages {
+        flex-wrap: wrap;
+        padding: 8px 0;
+    }
+
+    .menu-pref-languages .menu-seg {
+        display: grid;
+        flex: 1 1 100%;
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .menu-pref-languages .menu-seg > a {
+        justify-content: center;
     }
 
     .menu-seg {

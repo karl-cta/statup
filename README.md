@@ -46,7 +46,7 @@ It is a status page you host yourself. Whoever runs a service posts, once, what 
 - **Notices first**: every minute, Statup checks that a site or a server answers, and shows an outage after three failed checks.
 - **Quick to publish**: dated updates and reusable templates; an outage spotted by the checks is declared in one click.
 - **Easy to follow**: search and filters, a side panel to read without leaving the list, and an Atom feed for feed readers and chat tools.
-- **Your page, your way**: public or members only, your name and logo, blocks you arrange on the page; French and English, light and dark, accessible.
+- **Your page, your way**: public or members only, your name and logo, blocks you arrange on the page; French, English, German and Spanish, light and dark, accessible.
 
 **Light, private, safe by default.**
 

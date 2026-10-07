@@ -1,4 +1,4 @@
-//! Language switch: `GET /i18n?locale=fr|en` keeps the choice in a cookie,
+//! Language switch: `GET /i18n?locale=<code>` keeps the choice in a cookie,
 //! and on the account of a signed-in person, then sends the visitor back to
 //! the page they came from. A link needs no session and no CSRF token.
 
@@ -9,7 +9,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 
 use crate::error::AppError;
-use crate::i18n::LOCALES;
+use crate::i18n;
 use crate::middleware::OptionalUser;
 use crate::repositories::UserRepository;
 use crate::state::AppState;
@@ -29,7 +29,7 @@ pub async fn switch(
     headers: HeaderMap,
     Query(query): Query<SwitchQuery>,
 ) -> Result<Response, AppError> {
-    let Some(locale) = LOCALES.iter().copied().find(|l| *l == query.locale) else {
+    let Some(locale) = i18n::language(&query.locale).map(|language| language.code) else {
         return Err(AppError::validation("error.unsupported_locale"));
     };
     if let Some(user) = &user {

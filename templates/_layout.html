@@ -48,7 +48,7 @@
                 {% endif %}
                 <span class="mnav-spacer"></span>
                 <div class="mnav-tools">
-                    <p class="mast-clock" data-clock-offset="{{ frame.clock_offset }}">
+                    <p class="mast-clock" data-clock-offset="{{ frame.clock_offset }}"{% if i18n.clock_24h() %} data-clock-24h{% endif %}>
                         <span class="mast-clock-date"><strong>{{ frame.dateline }}</strong>&nbsp;<span aria-hidden="true">·</span> </span><strong data-clock-time>{{ frame.clock_time }}</strong> <span class="mast-clock-zone">{{ frame.zone }}</span>
                     </p>
                     {% include "components/mast_switches.html" %}
@@ -94,11 +94,10 @@
                 {% endif %}
             </nav>
             <div class="mast-menu-list mast-menu-prefs">
-                <div class="menu-pref" role="group" aria-labelledby="menu-language">
+                <div class="menu-pref menu-pref-languages" role="group" aria-labelledby="menu-language">
                     <span id="menu-language" class="menu-pref-name">{{ i18n.t("nav.language") }}</span>
                     <span class="menu-seg">
-                        <a href="/i18n?locale=fr" hreflang="fr" lang="fr"{% if i18n.locale() == "fr" %} aria-current="true"{% endif %}>Français</a>
-                        <a href="/i18n?locale=en" hreflang="en" lang="en"{% if i18n.locale() == "en" %} aria-current="true"{% endif %}>English</a>
+                        {% include "components/language_links.html" %}
                     </span>
                 </div>
                 <div class="menu-pref" role="group" aria-labelledby="menu-theme">
