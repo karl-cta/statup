@@ -4,6 +4,7 @@
 use askama::Template;
 use lettre::Message;
 use lettre::message::{Mailbox, MultiPart};
+use uuid::Uuid;
 
 use super::format::marked;
 use super::{Facts, Notice};
@@ -29,21 +30,29 @@ pub fn email(
     facts: &Facts,
     locale: &str,
 ) -> Result<Message, lettre::error::Error> {
+    // One subject for every message of an event, without the state's
+    // square: some clients split a conversation whose subject changes.
     let mut builder = Message::builder()
         .from(from.clone())
         .to(from.clone())
-        .subject(marked(notice, &notice.headline));
+        .subject(notice.headline.clone());
     for recipient in recipients {
         builder = builder.bcc(recipient.clone());
     }
-    // A message without an id of its own looks suspect to spam filters.
+    // An id of its own, at the sender's domain: spam filters distrust a
+    // message without one, and the server's name stays out of the headers.
+    let own_id = format!(
+        "<statup.{}@{}>",
+        Uuid::new_v4().simple(),
+        from.email.domain()
+    );
     builder = match facts.event.as_ref().map(|event| thread_id(event.id, from)) {
         Some(thread) if starts_a_thread(facts.happening) => builder.message_id(Some(thread)),
         Some(thread) => builder
-            .message_id(None)
+            .message_id(Some(own_id))
             .in_reply_to(thread.clone())
             .references(thread),
-        None => builder.message_id(None),
+        None => builder.message_id(Some(own_id)),
     };
     builder.multipart(MultiPart::alternative_plain_html(
         plain_text(notice),
@@ -182,10 +191,20 @@ mod tests {
         assert!(!test.contains("statup.event"));
         for email in [&update, &test] {
             assert!(
-                email.contains("Message-ID: <"),
-                "every email has an id: {email}"
+                email.contains("Message-ID: <statup.") && email.contains("@example.com>"),
+                "an id of its own at the sender's domain: {email}"
             );
         }
+    }
+
+    #[test]
+    fn the_subject_keeps_the_headline_without_the_square() {
+        let (message, _) = written("closed", Some(7));
+        let subject = message.headers().get::<lettre::message::header::Subject>();
+        assert_eq!(
+            subject.as_ref().map(AsRef::as_ref),
+            Some("Incident majeur\u{a0}· Coupure <réseau>")
+        );
     }
 
     #[test]
