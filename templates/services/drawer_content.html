@@ -21,9 +21,9 @@
     </dl>
 
     <section class="drawer-section" aria-labelledby="svc-days-title">
-        <h3 id="svc-days-title" class="label">{{ i18n.t("availability.legend") }}</h3>
-        <div class="svc-bars drawer-bars" role="img" aria-label="{{ row.availability_label }}">
-            {% for day in row.days %}<span class="{{ day.class() }}" data-day-date="{{ day.date }}" data-day-status="{{ day.status }}"></span>{% endfor %}
+        <h3 id="svc-days-title" class="label">{{ row.strip.legend }}</h3>
+        <div class="svc-bars drawer-bars" role="img" aria-label="{{ row.strip.label }}">
+            {% for day in row.strip.days %}<span class="{{ day.class() }}" data-day-date="{{ day.date }}" data-day-status="{{ day.status }}"></span>{% endfor %}
         </div>
     </section>
 

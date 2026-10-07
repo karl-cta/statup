@@ -19,7 +19,7 @@ use crate::models::{
     BUILTIN_ICONS, BuiltinIcon, EventFilters, EventSummary, Icon, Service, ServiceStatus, User,
     find_builtin_icon,
 };
-use crate::modules::services::{ServiceRow, service_history};
+use crate::modules::services::{LONG_DAYS, ServiceRow, Strip, service_history, strips};
 use crate::repositories::{EventRepository, ServiceRepository};
 use crate::services::{IconService, LastCheck, ServiceService};
 use crate::state::AppState;
@@ -39,6 +39,8 @@ struct ServiceListTemplate {
     saved_monitored: bool,
     /// What the last check of each monitored service found.
     pulses: HashMap<i64, Pulse>,
+    /// Each service's last ninety days, drawn small on its row.
+    histories: HashMap<i64, Strip>,
     deleted_name: Option<String>,
     error: Option<String>,
     i18n: I18n,
@@ -59,6 +61,11 @@ impl ServiceListTemplate {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     fn pulse_of(&self, id: &i64) -> Option<Pulse> {
         self.pulses.get(id).cloned()
+    }
+
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    fn history_of(&self, id: &i64) -> Option<&Strip> {
+        self.histories.get(id)
     }
 }
 
@@ -118,6 +125,7 @@ async fn render_list(
         .filter(|service| service.check_kind.is_some())
         .map(|service| (service.id, Pulse::new(state.checks.get(service.id), &i18n)))
         .collect();
+    let histories = strips(&state.pool, &services, LONG_DAYS, &i18n).await?;
     render(&ServiceListTemplate {
         frame: Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?,
         services,
@@ -127,6 +135,7 @@ async fn render_list(
         saved_name,
         saved_monitored,
         pulses,
+        histories,
         deleted_name: query.deleted,
         error,
         i18n,

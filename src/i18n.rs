@@ -278,6 +278,8 @@ impl I18n {
     /// Spoken summary of a 30 day availability strip, one label for the
     /// whole strip.
     pub fn format_availability(&self, ok: usize, incidents: usize, untracked: usize) -> String {
+        let days = (ok + incidents + untracked).to_string();
+        let legend = self.tf("availability.legend", &[("n", &days)]);
         let mut parts = vec![self.plural("availability.days_ok", ok)];
         if incidents > 0 {
             parts.push(self.plural("availability.days_incident", incidents));
@@ -287,10 +289,7 @@ impl I18n {
         }
         self.tf(
             "availability.summary",
-            &[
-                ("legend", self.t("availability.legend")),
-                ("parts", &parts.join(", ")),
-            ],
+            &[("legend", &legend), ("parts", &parts.join(", "))],
         )
     }
 }
@@ -520,6 +519,10 @@ mod tests {
         assert_eq!(
             en.format_availability(28, 2, 0),
             "Last 30 days: 28 days without an incident, 2 days with an incident"
+        );
+        assert!(
+            en.format_availability(88, 2, 0)
+                .starts_with("Last 90 days:")
         );
     }
 

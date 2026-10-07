@@ -9,6 +9,7 @@
 {% block scripts %}
 <script src="{{ crate::asset("js/custom-select.js") }}" defer></script>
 <script src="{{ crate::asset("js/status-publish.js") }}" defer></script>
+<script src="{{ crate::asset("js/uptime-tooltip.js") }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -62,6 +63,18 @@
                 {% include "components/status_selector.html" %}
             </div>
             <a href="/services/{{ service.id }}/edit" class="btn btn-ghost btn-icon svc-edit" title="{{ i18n.t("services.edit") }} {{ service.name }}" aria-label="{{ i18n.t("services.edit") }} {{ service.name }}">{% call ui::pencil_icon() %}{% endcall %}</a>
+            {% if let Some(history) = self.history_of(service.id) %}
+            {# Ninety days across the row; a phone keeps the last thirty. #}
+            <div class="svc-history">
+                <div class="svc-bars" aria-hidden="true">{% for day in history.days %}<span class="{{ day.class() }}{% if day.early %} bar-early{% endif %}" data-day-date="{{ day.date }}" data-day-status="{{ day.status }}"></span>{% endfor %}</div>
+                <p class="svc-history-caption">
+                    <span class="svc-history-end" aria-hidden="true">{{ history.since }}</span>
+                    <span class="svc-history-long">{{ history.summary }}</span>
+                    <span class="svc-history-short">{{ history.recent_summary }}</span>
+                    <span class="svc-history-end" aria-hidden="true">{{ i18n.t("date.today") }}</span>
+                </p>
+            </div>
+            {% endif %}
         </li>
         {% endfor %}
     </ul>
