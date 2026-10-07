@@ -186,14 +186,27 @@ impl Notifier {
     ) -> Result<(), Failure> {
         let mailer = self.mailer.as_ref().ok_or(Failure::NoMailServer)?;
         let recipients = recipients(&channel.target).ok_or(Failure::MailRefused(None))?;
-        let message = email(&mailer.from, &recipients, notice, facts, &channel.locale)
-            .map_err(|_| Failure::MailRefused(None))?;
-        mailer
-            .transport
-            .send(message)
-            .await
-            .map(drop)
-            .map_err(|e| classify_smtp(&e))
+        let mut first_failure = None;
+        let mut delivered = 0;
+        for recipient in &recipients {
+            match mailer.send(recipient, notice, facts, &channel.locale).await {
+                Ok(()) => delivered += 1,
+                Err(failure) => {
+                    first_failure.get_or_insert(failure);
+                }
+            }
+        }
+        // An address the server refuses, a colleague who left, keeps the
+        // message from no one else: it fails only when no copy went out.
+        match first_failure {
+            Some(failure) if delivered == 0 => Err(failure),
+            Some(failure) => {
+                let refused = recipients.len() - delivered;
+                tracing::warn!(channel_id = channel.id, refused, failure = %failure.code(), "Email not delivered to every address");
+                Ok(())
+            }
+            None => Ok(()),
+        }
     }
 
     async fn post_json(
@@ -228,6 +241,22 @@ impl Notifier {
 }
 
 impl Mailer {
+    async fn send(
+        &self,
+        to: &Mailbox,
+        notice: &Notice,
+        facts: &Facts,
+        locale: &str,
+    ) -> Result<(), Failure> {
+        let message =
+            email(&self.from, to, notice, facts, locale).map_err(|_| Failure::MailRefused(None))?;
+        self.transport
+            .send(message)
+            .await
+            .map(drop)
+            .map_err(|e| classify_smtp(&e))
+    }
+
     fn new(config: &SmtpConfig, timeout: Duration) -> anyhow::Result<Self> {
         let from = config
             .from
@@ -523,8 +552,10 @@ mod tests {
     }
 
     /// A mail server that accepts every command but `RCPT`, which it answers
-    /// with `rcpt_reply`, and keeps every line it reads.
-    async fn mail_server(rcpt_reply: &'static str) -> (SocketAddr, Arc<Mutex<Vec<String>>>) {
+    /// with what `rcpt_reply` says for that line, and keeps every line it reads.
+    async fn mail_server(
+        rcpt_reply: fn(&str) -> &'static str,
+    ) -> (SocketAddr, Arc<Mutex<Vec<String>>>) {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
         let lines = Arc::new(Mutex::new(Vec::new()));
@@ -537,7 +568,11 @@ mod tests {
         (addr, lines)
     }
 
-    async fn converse(stream: TcpStream, rcpt_reply: &'static str, log: Arc<Mutex<Vec<String>>>) {
+    async fn converse(
+        stream: TcpStream,
+        rcpt_reply: fn(&str) -> &'static str,
+        log: Arc<Mutex<Vec<String>>>,
+    ) {
         let (reader, mut writer) = stream.into_split();
         let mut reader = BufReader::new(reader);
         let _ = writer.write_all(b"220 mail.example.com ESMTP\r\n").await;
@@ -554,7 +589,7 @@ mod tests {
             } else if command.starts_with("EHLO") {
                 b"250-mail.example.com\r\n250 OK\r\n"
             } else if command.starts_with("RCPT") {
-                rcpt_reply.as_bytes()
+                rcpt_reply(&line).as_bytes()
             } else if command.starts_with("DATA") {
                 in_data = true;
                 b"354 go ahead\r\n"
@@ -584,24 +619,44 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn an_email_reaches_every_address_in_blind_copy() {
-        let (addr, lines) = mail_server("250 OK\r\n").await;
+    async fn each_address_receives_a_copy_of_its_own() {
+        let (addr, lines) = mail_server(|_| "250 OK\r\n").await;
 
         mail_to(addr, "it@example.com, board@example.com")
             .await
             .unwrap();
 
         let lines = lines.lock().unwrap_or_else(PoisonError::into_inner).clone();
-        assert!(lines.contains(&"MAIL FROM:<status@example.com>".to_string()));
-        assert!(lines.contains(&"RCPT TO:<it@example.com>".to_string()));
-        assert!(lines.contains(&"RCPT TO:<board@example.com>".to_string()));
-        assert!(lines.iter().any(|line| line.starts_with("Subject: ")));
-        assert!(!lines.iter().any(|line| line.starts_with("Bcc")));
+        let count = |wanted: &str| lines.iter().filter(|line| *line == wanted).count();
+        assert_eq!(count("MAIL FROM:<status@example.com>"), 2);
+        assert_eq!(count("RCPT TO:<it@example.com>"), 1);
+        assert_eq!(count("RCPT TO:<board@example.com>"), 1);
+        assert_eq!(count("To: it@example.com"), 1);
+        assert_eq!(count("To: board@example.com"), 1);
+    }
+
+    #[tokio::test]
+    async fn a_refused_address_keeps_the_message_from_no_one_else() {
+        let (addr, lines) = mail_server(|line| {
+            if line.contains("gone@") {
+                "550 5.1.1 unknown user\r\n"
+            } else {
+                "250 OK\r\n"
+            }
+        })
+        .await;
+
+        mail_to(addr, "gone@example.com, it@example.com")
+            .await
+            .unwrap();
+
+        let lines = lines.lock().unwrap_or_else(PoisonError::into_inner).clone();
+        assert!(lines.iter().any(|line| line == "To: it@example.com"));
     }
 
     #[tokio::test]
     async fn a_refused_recipient_is_a_permanent_failure() {
-        let (addr, _) = mail_server("550 5.1.1 unknown user\r\n").await;
+        let (addr, _) = mail_server(|_| "550 5.1.1 unknown user\r\n").await;
 
         let failure = mail_to(addr, "nobody@example.com").await.unwrap_err();
 
@@ -611,7 +666,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_busy_mail_server_is_tried_again() {
-        let (addr, _) = mail_server("451 4.7.1 try again later\r\n").await;
+        let (addr, _) = mail_server(|_| "451 4.7.1 try again later\r\n").await;
 
         let failure = mail_to(addr, "it@example.com").await.unwrap_err();
 

@@ -21,11 +21,11 @@ pub fn recipients(target: &str) -> Option<Vec<Mailbox>> {
         .collect()
 }
 
-/// The email of a notice. The recipients are in blind copy, so none of them
-/// sees the others; the sender stands in the `To` field.
+/// The email of a notice to one address: each recipient gets a copy of
+/// their own, so none sees the others and a refused address stops no one.
 pub fn email(
     from: &Mailbox,
-    recipients: &[Mailbox],
+    to: &Mailbox,
     notice: &Notice,
     facts: &Facts,
     locale: &str,
@@ -34,11 +34,8 @@ pub fn email(
     // square: some clients split a conversation whose subject changes.
     let mut builder = Message::builder()
         .from(from.clone())
-        .to(from.clone())
+        .to(to.clone())
         .subject(notice.headline.clone());
-    for recipient in recipients {
-        builder = builder.bcc(recipient.clone());
-    }
     // An id of its own, at the sender's domain: spam filters distrust a
     // message without one, and the server's name stays out of the headers.
     let own_id = format!(
@@ -150,8 +147,15 @@ mod tests {
     }
 
     fn written(happening: &'static str, event_id: Option<i64>) -> (Message, String) {
-        let to = recipients("it@example.com, Board@Example.com").unwrap();
-        let message = email(&sender(), &to, &notice(), &facts(happening, event_id), "fr").unwrap();
+        let to = recipients("Board@Example.com").unwrap();
+        let message = email(
+            &sender(),
+            &to[0],
+            &notice(),
+            &facts(happening, event_id),
+            "fr",
+        )
+        .unwrap();
         let text = String::from_utf8(message.formatted()).unwrap();
         (message, text)
     }
@@ -164,7 +168,7 @@ mod tests {
     }
 
     #[test]
-    fn the_recipients_are_hidden_from_each_other() {
+    fn each_address_gets_a_copy_of_its_own() {
         let (message, text) = written("opened", Some(7));
 
         let envelope: Vec<String> = message
@@ -173,10 +177,9 @@ mod tests {
             .iter()
             .map(ToString::to_string)
             .collect();
-        assert!(envelope.contains(&"it@example.com".to_string()));
-        assert!(envelope.contains(&"Board@Example.com".to_string()));
-        assert!(!text.contains("Bcc"));
-        assert!(text.contains("To: Statup <status@example.com>"));
+        assert_eq!(envelope, ["Board@Example.com"]);
+        assert!(text.contains("To: Board@Example.com"));
+        assert!(text.contains("From: Statup <status@example.com>"));
     }
 
     #[test]

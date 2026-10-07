@@ -74,7 +74,7 @@ Statup posts each incident, maintenance and announcement where people already re
 | Discord | In the channel settings: Integrations, Webhooks, New Webhook, Copy Webhook URL |
 | Mattermost | Integrations, Incoming Webhooks, Add |
 | ntfy | The topic address, such as `https://ntfy.sh/your-topic`, then subscribe to the topic in the ntfy app. A topic on ntfy.sh is readable by anyone who knows its name: choose one nobody guesses, or use your own ntfy server, with `?auth=` in the address for a protected topic |
-| Email | Addresses separated by commas, 50 at most, sent in blind copy. Needs a mail server, below |
+| Email | Addresses separated by commas, 50 at most. Each one receives a copy of its own, so an address the server refuses keeps the message from no one else. Needs a mail server, below |
 | Any other tool | An address that takes a JSON `POST`: Zapier, Make, n8n, Power Automate, Home Assistant. The body is described below |
 
 - Messages leave within seconds, in order for each destination. One that does not answer is tried again after 30 seconds, 2, 10 and 30 minutes. After that, or at once when the tool refuses the address (404, 401), its waiting messages are given up and the list of destinations says why.
