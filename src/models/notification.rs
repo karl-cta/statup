@@ -97,6 +97,22 @@ pub enum Happening {
     Test,
 }
 
+impl Happening {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Opened => "opened",
+            Self::Updated => "updated",
+            Self::Rescheduled => "rescheduled",
+            Self::Started => "started",
+            Self::Closed => "closed",
+            Self::Published => "published",
+            Self::ServiceDown => "service_down",
+            Self::ServiceUp => "service_up",
+            Self::Test => "test",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "TEXT", rename_all = "snake_case")]
 pub enum DeliveryStatus {
