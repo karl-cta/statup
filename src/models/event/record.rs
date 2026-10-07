@@ -13,7 +13,11 @@ use crate::models::Service;
 
 /// Hue of an event's current state: the severity while an incident is being
 /// worked on, calm once the service is back, blue for maintenance work.
-fn state_tone(kind: Kind, severity: Option<Severity>, lifecycle: Option<Lifecycle>) -> Tone {
+pub(crate) fn state_tone(
+    kind: Kind,
+    severity: Option<Severity>,
+    lifecycle: Option<Lifecycle>,
+) -> Tone {
     use Lifecycle as L;
     match (kind, lifecycle) {
         (Kind::Incident, Some(L::Investigating | L::InProgress)) => {
@@ -65,6 +69,21 @@ pub(crate) fn describe_kind(
     match qualifier_key(kind, severity, category) {
         Some(key) => format!("{label}{SEPARATOR}{}", i18n.t(key)),
         None => label.to_string(),
+    }
+}
+
+/// The word on the kind chip: an incident says its severity there, where
+/// its hue already shows it, and an announcement its category.
+pub(crate) fn chip_key(
+    kind: Kind,
+    severity: Option<Severity>,
+    category: Option<Category>,
+) -> &'static str {
+    match (kind, severity, category) {
+        (Kind::Incident, Some(Severity::Minor), _) => "kind.incident_minor",
+        (Kind::Incident, Some(Severity::Critical), _) => "kind.incident_critical",
+        (Kind::Publication, _, Some(category)) => category.i18n_key(),
+        (kind, _, _) => kind.i18n_key(),
     }
 }
 
@@ -334,16 +353,9 @@ impl EventSummary {
         describe_kind(self.kind, self.severity, self.category, i18n)
     }
 
-    /// The word on the kind chip: an incident says its severity there, where
-    /// its hue already shows it, and an announcement its category.
     pub fn chip_label(&self, i18n: &I18n) -> String {
-        let key = match (self.kind, self.severity, self.category) {
-            (Kind::Incident, Some(Severity::Minor), _) => "kind.incident_minor",
-            (Kind::Incident, Some(Severity::Critical), _) => "kind.incident_critical",
-            (Kind::Publication, _, Some(category)) => category.i18n_key(),
-            (kind, _, _) => kind.i18n_key(),
-        };
-        i18n.t(key).to_string()
+        i18n.t(chip_key(self.kind, self.severity, self.category))
+            .to_string()
     }
 
     pub fn countdown(&self) -> Option<Countdown> {
@@ -376,18 +388,20 @@ pub fn excerpt(text: &str, max_chars: usize) -> String {
 
 /// Text content of sanitized HTML: tags dropped, the entities ammonia
 /// writes decoded, whitespace collapsed.
-fn html_to_text(html: &str) -> String {
+pub(crate) fn html_to_text(html: &str) -> String {
     let mut text = String::with_capacity(html.len());
-    let mut in_tag = false;
+    let mut tag: Option<String> = None;
     for ch in html.chars() {
-        match ch {
-            '<' => in_tag = true,
-            '>' if in_tag => {
-                in_tag = false;
-                text.push(' ');
+        match tag.as_mut() {
+            Some(name) if ch == '>' => {
+                if ends_a_block(name) {
+                    text.push(' ');
+                }
+                tag = None;
             }
-            _ if !in_tag => text.push(ch),
-            _ => {}
+            Some(name) => name.push(ch),
+            None if ch == '<' => tag = Some(String::new()),
+            None => text.push(ch),
         }
     }
     let decoded = text
@@ -399,6 +413,20 @@ fn html_to_text(html: &str) -> String {
         .replace("&nbsp;", " ")
         .replace("&amp;", "&");
     decoded.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// A paragraph, a list item or a line break parts words; emphasis and
+/// links sit inside a sentence, against its punctuation.
+fn ends_a_block(tag: &str) -> bool {
+    let name = tag
+        .trim_start_matches('/')
+        .split(|c: char| c.is_whitespace() || c == '/')
+        .next()
+        .unwrap_or_default();
+    !matches!(
+        name.to_ascii_lowercase().as_str(),
+        "a" | "b" | "code" | "del" | "em" | "i" | "s" | "strong"
+    )
 }
 
 /// Time left before a planned start.

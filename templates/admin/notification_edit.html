@@ -1,0 +1,54 @@
+{% extends "_layout.html" %}
+{% import "components/macros.html" as ui %}
+
+{% block title %}{{ saved_name }} | {{ crate::brand_name() }}{% endblock %}
+{% block section %}admin{% endblock %}
+{% block htmx %}{% include "components/htmx.html" %}{% endblock %}
+
+{% block scripts %}
+<script src="{{ crate::asset("js/custom-select.js") }}" defer></script>
+<script src="{{ crate::asset("js/notifications.js") }}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <a href="/admin/notifications" class="back-link">{% call ui::arrow_left() %}{% endcall %}{{ i18n.t("notifications.title") }}</a>
+            <h1 class="page-title">{{ saved_name }}</h1>
+        </div>
+    </header>
+
+    <div class="destination-page">
+    <form method="post" action="/admin/notifications/{{ id }}" class="mt-6" data-destination-form>
+        <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+        <div class="card form-card stack">
+            {% include "admin/_notification_fields.html" %}
+        </div>
+
+        <div class="action-bar">
+            <div class="action-bar-buttons">
+                <a href="/admin/notifications" class="text-action">{{ i18n.t("common.cancel") }}</a>
+                <button type="submit" class="btn btn-primary">{{ i18n.t("common.save") }}</button>
+            </div>
+        </div>
+    </form>
+
+    <section class="card danger-zone" aria-labelledby="delete-title">
+        <div class="danger-zone-text">
+            <h2 id="delete-title" class="card-title">{{ i18n.t("notifications.delete_title") }}</h2>
+            <p class="field-hint">{{ i18n.t("notifications.delete_consequence") }}</p>
+        </div>
+        <form method="post" action="/admin/notifications/{{ id }}/delete" data-confirm>
+            <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+            <button type="button" class="btn btn-danger" data-confirm-open>{{ i18n.t("common.delete") }}</button>
+            <div class="confirm" role="group" aria-label="{{ i18n.t("notifications.confirm_delete") }}" aria-describedby="delete-q" data-confirm-box hidden>
+                <span id="delete-q" class="confirm-text">{{ i18n.t("common.question_open") }}{{ i18n.t("common.delete") }} <q>{{ saved_name }}</q>{{ i18n.t("common.question_mark") }}</span>
+                <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
+                <button type="submit" class="confirm-go" data-danger>{{ i18n.t("common.delete") }}</button>
+            </div>
+        </form>
+    </section>
+    </div>
+</div>
+{% endblock %}

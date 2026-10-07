@@ -1,0 +1,8 @@
+{% if let Some(tone) = tone %}
+<p class="consequence">
+    <span class="dot" data-tone="{{ tone }}" aria-hidden="true"></span>
+    <span>{{ message }}</span>
+</p>
+{% else %}
+<p class="field-error">{{ message }}</p>
+{% endif %}

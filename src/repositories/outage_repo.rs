@@ -42,6 +42,20 @@ impl OutageRepository {
         .await?;
         Ok(rows.into_iter().collect())
     }
+
+    /// When the latest outage of a service began, under way or ended.
+    pub async fn latest_start(
+        pool: &DbPool,
+        service_id: i64,
+    ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
+        sqlx::query_scalar(
+            "SELECT started_at FROM service_outages WHERE service_id = ? \
+             ORDER BY started_at DESC LIMIT 1",
+        )
+        .bind(service_id)
+        .fetch_optional(pool)
+        .await
+    }
 }
 
 /// One detected outage on one service, as the availability strip reads it.
@@ -150,5 +164,30 @@ mod tests {
             .unwrap();
         let spans = OutageRepository::since(&pool, at(0)).await.unwrap();
         assert_eq!(spans[&svc.id][0].end, Some(at(10)));
+    }
+
+    #[tokio::test]
+    async fn the_latest_start_is_the_newest_outage() {
+        let pool = test_pool().await;
+        let svc = ServiceRepository::create(&pool, "Mail", "mail", None, None, None)
+            .await
+            .unwrap();
+        assert_eq!(
+            OutageRepository::latest_start(&pool, svc.id).await.unwrap(),
+            None
+        );
+        for (start, end) in [(1, 2), (5, 6)] {
+            ServiceRepository::mark_detected_down(&pool, svc.id, at(start))
+                .await
+                .unwrap();
+            ServiceRepository::mark_detected_up(&pool, svc.id, at(end))
+                .await
+                .unwrap();
+        }
+
+        assert_eq!(
+            OutageRepository::latest_start(&pool, svc.id).await.unwrap(),
+            Some(at(5))
+        );
     }
 }

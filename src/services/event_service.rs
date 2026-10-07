@@ -6,14 +6,15 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use tokio::task::AbortHandle;
 
+use crate::clock;
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::{
-    CreateEventInput, Event, EventWithServices, Kind, Lifecycle, Role, Severity, UpdateEventInput,
-    User,
+    CreateEventInput, Event, EventWithServices, Happening, Kind, Lifecycle, Notification, Role,
+    Severity, UpdateEventInput, User,
 };
 use crate::repositories::EventRepository;
-use crate::services::ServiceService;
+use crate::services::{ServiceService, notify};
 
 /// How often announced maintenances are started and completed.
 const SCHEDULE_INTERVAL: Duration = Duration::from_secs(60);
@@ -45,6 +46,12 @@ impl EventService {
         if affects_services(event.kind) {
             ServiceService::recalculate_many(pool, &input.service_ids).await?;
         }
+        let happening = Happening::of_new(event.kind, event.lifecycle);
+        notify(
+            pool,
+            Notification::event(happening, event.kind, event.id, event.lifecycle),
+        )
+        .await;
         Ok(event)
     }
 
@@ -74,9 +81,15 @@ impl EventService {
         }
         input.follows_event_id =
             followed_maintenance(pool, event.kind, input.follows_event_id).await?;
+        let rescheduled = moves_its_window(&event, &input);
         let touched = EventRepository::update(pool, id, &input).await?;
         if affects_services(event.kind) {
             ServiceService::recalculate_many(pool, &touched).await?;
+        }
+        if rescheduled {
+            let notification =
+                Notification::event(Happening::Rescheduled, event.kind, id, event.lifecycle);
+            notify(pool, notification).await;
         }
         Ok(())
     }
@@ -95,9 +108,12 @@ impl EventService {
         if let Some(key) = update_error(&event, message, next) {
             return Err(AppError::validation(key));
         }
-        if !message.is_empty() {
-            EventRepository::add_update(pool, id, &sanitize_markdown(message), author.id).await?;
-        }
+        let update_id = if message.is_empty() {
+            None
+        } else {
+            let html = sanitize_markdown(message);
+            Some(EventRepository::add_update(pool, id, &html, author.id).await?)
+        };
         if let Some(next) = next {
             let current = event
                 .lifecycle
@@ -108,6 +124,7 @@ impl EventService {
             }
             recalculate_event_services(pool, id).await?;
         }
+        tell_update(pool, &event, next, update_id).await;
         Ok(())
     }
 
@@ -119,7 +136,14 @@ impl EventService {
             return Err(AppError::validation("validation.no_previous_lifecycle"));
         }
         EventRepository::revert_transition(pool, id).await?;
-        recalculate_event_services(pool, id).await
+        recalculate_event_services(pool, id).await?;
+        let restored = event.previous_lifecycle;
+        notify(
+            pool,
+            Notification::event(Happening::Updated, event.kind, id, restored),
+        )
+        .await;
+        Ok(())
     }
 
     pub async fn delete(pool: &DbPool, id: i64, role: Role) -> Result<(), AppError> {
@@ -173,12 +197,24 @@ impl EventService {
     /// then refreshes the services they touch. Returns how many changed.
     pub async fn apply_schedule(pool: &DbPool) -> Result<usize, AppError> {
         let now = Utc::now();
-        let mut changed = EventRepository::start_due_maintenance(pool, now).await?;
-        changed.extend(EventRepository::complete_due_maintenance(pool, now).await?);
+        let started = EventRepository::start_due_maintenance(pool, now).await?;
+        let completed = EventRepository::complete_due_maintenance(pool, now).await?;
+        let mut changed: Vec<i64> = started.iter().chain(&completed).copied().collect();
         changed.sort_unstable();
         changed.dedup();
         for id in &changed {
             recalculate_event_services(pool, *id).await?;
+        }
+        let moves = [
+            (started, Happening::Started, Lifecycle::InProgress),
+            (completed, Happening::Closed, Lifecycle::Completed),
+        ];
+        for (ids, happening, lifecycle) in moves {
+            for id in ids {
+                let notification =
+                    Notification::event(happening, Kind::Maintenance, id, Some(lifecycle));
+                notify(pool, notification).await;
+            }
         }
         Ok(changed.len())
     }
@@ -269,6 +305,32 @@ async fn followed_maintenance(
         Some(followed) if followed.kind == Kind::Maintenance => Ok(Some(id)),
         _ => Err(AppError::validation("error.invalid_data")),
     }
+}
+
+/// An announced maintenance that has not begun, given a new window: the one
+/// edit worth telling, since people may have planned around the old one.
+/// Compared as stored, to the second.
+fn moves_its_window(event: &Event, input: &UpdateEventInput) -> bool {
+    let stored = |at: Option<DateTime<Utc>>| at.map(clock::db);
+    event.lifecycle == Some(Lifecycle::Scheduled)
+        && (stored(event.planned_start), stored(event.planned_end))
+            != (stored(input.planned_start), stored(input.planned_end))
+}
+
+/// Tells the destinations about a message posted, a state changed, or both.
+async fn tell_update(
+    pool: &DbPool,
+    event: &Event,
+    next: Option<Lifecycle>,
+    update_id: Option<i64>,
+) {
+    let happening = next.map_or(Happening::Updated, |to| {
+        Happening::of_move(event.kind, event.lifecycle, to)
+    });
+    let lifecycle = next.or(event.lifecycle);
+    let notification =
+        Notification::event(happening, event.kind, event.id, lifecycle).with_update(update_id);
+    notify(pool, notification).await;
 }
 
 /// Announcements never change a service status.

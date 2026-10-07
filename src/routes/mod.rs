@@ -14,6 +14,7 @@ mod feed;
 mod health;
 mod icons;
 mod locale;
+mod notifications;
 mod page;
 mod password;
 mod profile;
@@ -126,6 +127,7 @@ fn page_routes() -> Router<AppState> {
     public_routes()
         .merge(publisher_routes())
         .merge(admin_routes())
+        .merge(notification_routes())
         .merge(account_routes())
 }
 
@@ -240,6 +242,28 @@ fn admin_routes() -> Router<AppState> {
         .route(
             "/admin/dashboard/layout/{module_id}/show",
             post(dashboard_layout::set_shown),
+        )
+}
+
+/// The notification destinations, in the settings, for admins.
+fn notification_routes() -> Router<AppState> {
+    Router::new()
+        .route(
+            "/admin/notifications",
+            get(notifications::list).post(notifications::create),
+        )
+        .route("/admin/notifications/test", post(notifications::test))
+        .route(
+            "/admin/notifications/page-address",
+            post(notifications::save_page_address),
+        )
+        .route(
+            "/admin/notifications/{id}",
+            get(notifications::edit).post(notifications::update),
+        )
+        .route(
+            "/admin/notifications/{id}/delete",
+            post(notifications::delete),
         )
 }
 

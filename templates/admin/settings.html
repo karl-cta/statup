@@ -47,6 +47,13 @@
                     </a>
                 </li>
                 <li>
+                    <a href="/admin/notifications" class="card manage-tile">
+                        <span class="manage-tile-name">{{ i18n.t("notifications.title") }}{% call ui::chevron_right() %}{% endcall %}</span>
+                        <span class="manage-tile-meta">{{ self.notifications_label() }}</span>
+                        <span class="manage-tile-action">{{ i18n.t("notifications.manage") }}</span>
+                    </a>
+                </li>
+                <li>
                     <a href="/icons" class="card manage-tile">
                         <span class="manage-tile-name">{{ i18n.t("admin.section_icons") }}{% call ui::chevron_right() %}{% endcall %}</span>
                         <span class="manage-tile-meta">{{ self.icons_label() }}</span>

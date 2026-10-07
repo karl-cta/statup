@@ -127,6 +127,7 @@
     }
 
     .manage-tile {
+        position: relative;
         display: flex;
         flex: 1;
         flex-direction: column;
@@ -176,8 +177,16 @@
             gap: 8px;
         }
 
+        /* Out of sight on a phone, still the link's name for a screen
+           reader. */
         .manage-tile-action {
-            display: none;
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            overflow: hidden;
+            clip-path: inset(50%);
+            white-space: nowrap;
         }
     }
 
@@ -498,6 +507,59 @@
         background: var(--card);
         border: 1px solid var(--line);
         border-radius: 6px;
+    }
+
+    /* A notification destination: its page keeps the width of a reading
+       column, the four boxes on one or two lines. */
+    .destination-page {
+        max-width: 720px;
+    }
+
+    .destination-boxes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 24px;
+    }
+
+    .destination-locale {
+        max-width: 240px;
+    }
+
+    .destination-test {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    /* How the last message of a destination went: a stamp when it went,
+       a dot and a sentence that wraps when it did not. */
+    .destination-last {
+        margin-top: 4px;
+        font-size: var(--text-xs);
+        color: var(--muted);
+    }
+
+    .destination-state {
+        display: flex;
+        align-items: flex-start;
+        margin-top: 4px;
+        white-space: normal;
+    }
+
+    .destination-state::before {
+        flex: none;
+        margin-top: 4px;
+    }
+
+    .page-address {
+        margin-top: 32px;
+    }
+
+    .page-address-value {
+        font-size: var(--text-sm);
+        color: var(--ink);
+        overflow-wrap: anywhere;
     }
 
     .temp-password {

@@ -9,14 +9,14 @@ use chrono::{DateTime, Utc};
 use tokio::sync::Semaphore;
 use tokio::task::{AbortHandle, JoinSet};
 
-use super::ServiceService;
 use super::monitoring::{
     Observation, Outcome, Transition, looks_like_own_failure, next_state, skip_round,
 };
 use super::probe::{CHECK_TIMEOUT, Prober, Probes, Report};
+use super::{ServiceService, notify};
 use crate::db::DbPool;
 use crate::error::AppError;
-use crate::models::CheckedService;
+use crate::models::{CheckedService, Happening, Notification};
 use crate::repositories::{EventRepository, ServiceRepository};
 
 const ROUND_INTERVAL: Duration = Duration::from_secs(60);
@@ -238,10 +238,26 @@ async fn apply(
         Transition::Down => {
             ServiceRepository::mark_detected_down(pool, service_id, since).await?;
             tracing::info!(service_id, "Service detected down");
+            // An incident being worked on already tells people.
+            if EventRepository::status_drivers(pool, service_id)
+                .await?
+                .is_empty()
+            {
+                notify(
+                    pool,
+                    Notification::service(Happening::ServiceDown, service_id),
+                )
+                .await;
+            }
         }
         Transition::Up => {
             ServiceRepository::mark_detected_up(pool, service_id, now).await?;
             tracing::info!(service_id, "Service detected back up");
+            notify(
+                pool,
+                Notification::service(Happening::ServiceUp, service_id),
+            )
+            .await;
         }
     }
     ServiceService::recalculate_status(pool, service_id).await
@@ -276,8 +292,11 @@ mod tests {
     use chrono::TimeZone;
 
     use super::*;
-    use crate::models::{CheckKind, CreateEventInput, Kind, Role, ServiceCheck, ServiceStatus};
-    use crate::repositories::{OutageRepository, UserRepository};
+    use crate::models::{
+        ChannelInput, ChannelKind, CheckKind, CreateEventInput, Kind, Role, ServiceCheck,
+        ServiceStatus, Severity,
+    };
+    use crate::repositories::{NotificationRepository, OutageRepository, UserRepository};
     use crate::services::Finding;
     use crate::test_helpers::test_pool;
 
@@ -551,5 +570,62 @@ mod tests {
         set_web_check(&pool, id).await;
         rounds(&pool, &mut state, Outcome::Failed, &[4]).await;
         assert_eq!(states(&pool, id).await.1, None);
+    }
+
+    #[tokio::test]
+    async fn an_outage_found_is_told_unless_an_incident_explains_it() {
+        let pool = test_pool().await;
+        let detected_only = ChannelInput {
+            name: "IT team".to_string(),
+            kind: ChannelKind::Teams,
+            target: "https://example.logic.azure.com/workflows/1".to_string(),
+            locale: "fr".to_string(),
+            on_incidents: false,
+            on_maintenances: false,
+            on_publications: false,
+            on_detected: true,
+        };
+        NotificationRepository::create_channel(&pool, &detected_only)
+            .await
+            .unwrap();
+        let alone = checked_service(&pool, "Mail").await;
+        let explained = checked_service(&pool, "Wiki").await;
+        let lead = UserRepository::create(&pool, "lead@example.com", "hash", "Lead", Role::Admin)
+            .await
+            .unwrap();
+        let incident = CreateEventInput {
+            kind: Kind::Incident,
+            severity: Some(Severity::Critical),
+            planned: false,
+            category: None,
+            title: "Wiki down".to_string(),
+            description: String::new(),
+            planned_start: None,
+            planned_end: None,
+            started_at: None,
+            opening_step: None,
+            keeps_services_up: false,
+            service_ids: vec![explained],
+            follows_event_id: None,
+            author_id: lead.id,
+        };
+        EventRepository::create(&pool, &incident).await.unwrap();
+        let mut state = MonitorState::default();
+
+        rounds(&pool, &mut state, Outcome::Failed, &[1, 2, 3]).await;
+        rounds(&pool, &mut state, Outcome::Answered, &[4]).await;
+
+        let queued: Vec<(Happening, i64)> =
+            sqlx::query_as("SELECT happening, service_id FROM notification_deliveries ORDER BY id")
+                .fetch_all(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            queued,
+            [
+                (Happening::ServiceDown, alone),
+                (Happening::ServiceUp, alone)
+            ]
+        );
     }
 }

@@ -1,0 +1,90 @@
+{% extends "_layout.html" %}
+{% import "components/macros.html" as ui %}
+
+{% block title %}{{ i18n.t("notifications.title") }} | {{ crate::brand_name() }}{% endblock %}
+{% block section %}admin{% endblock %}
+{% block htmx %}{% include "components/htmx.html" %}{% endblock %}
+
+{% block scripts %}
+<script src="{{ crate::asset("js/custom-select.js") }}" defer></script>
+<script src="{{ crate::asset("js/notifications.js") }}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <a href="/admin/settings" class="back-link">{% call ui::arrow_left() %}{% endcall %}{{ i18n.t("admin.back_to_settings") }}</a>
+            <h1 class="page-title">{{ i18n.t("notifications.title") }}</h1>
+        </div>
+    </header>
+
+    {% if let Some(n) = notice %}
+    <div class="form-notice mb-5" role="status">
+        <p>
+            {% match n %}
+            {% when ListNotice::Added with (name) %}{{ i18n.t("notifications.notice_added") }} <q>{{ name }}</q>.
+            {% when ListNotice::Saved with (name) %}{{ i18n.t("notifications.notice_saved") }} <q>{{ name }}</q>.
+            {% when ListNotice::Deleted %}{{ i18n.t("notifications.notice_deleted") }}
+            {% when ListNotice::AddressSaved %}{{ i18n.t("notifications.notice_address") }}
+            {% endmatch %}
+        </p>
+    </div>
+    {% endif %}
+
+    <details class="add-member"{% if add_open %} open{% endif %}>
+        <summary class="btn btn-primary">{% call ui::plus() %}{% endcall %}{{ i18n.t("notifications.add") }}</summary>
+        <form method="post" action="/admin/notifications" class="add-member-form stack" data-destination-form>
+            <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+            {% include "admin/_notification_fields.html" %}
+            <button type="submit" class="btn btn-primary">{{ i18n.t("notifications.add_submit") }}</button>
+        </form>
+    </details>
+
+    {% if rows.is_empty() %}
+    <p class="text-muted">{{ i18n.t("notifications.empty") }}</p>
+    {% else %}
+    <ul class="admin-list">
+        {% for row in rows %}
+        <li class="admin-row">
+            <div class="min-w-0">
+                <p class="admin-row-name"><a href="/admin/notifications/{{ row.id }}" class="row-link">{{ row.name }}</a></p>
+                <p class="admin-row-sub">{{ row.tool }}&nbsp;<span aria-hidden="true">·</span> {{ row.receives }}</p>
+                {% match row.last %}
+                {% when LastSend::Never %}<p class="destination-last">{{ i18n.t("notifications.never") }}</p>
+                {% when LastSend::Sent with (text) %}<p class="destination-last">{{ text }}</p>
+                {% when LastSend::Trouble with (tone, text) %}<p class="state destination-state" data-tone="{{ tone }}">{{ text }}</p>
+                {% endmatch %}
+            </div>
+            <a href="/admin/notifications/{{ row.id }}" class="btn btn-ghost btn-icon" title="{{ i18n.t("services.edit") }} {{ row.name }}" aria-label="{{ i18n.t("services.edit") }} {{ row.name }}">{% call ui::pencil_icon() %}{% endcall %}</a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <section class="card page-address" aria-labelledby="address-title">
+        <div class="set-row">
+            <div>
+                <label for="page-address" id="address-title" class="set-label">{{ i18n.t("notifications.page_address_label") }}</label>
+                <p class="set-help">{% if page.fixed %}{{ i18n.t("notifications.page_address_fixed") }}{% else %}{{ i18n.t("notifications.page_address_help") }}{% endif %}</p>
+            </div>
+            {% if page.fixed %}
+            <p id="page-address" class="page-address-value">{{ page.value }}</p>
+            {% else %}
+            <form method="post" action="/admin/notifications/page-address" class="set-inline-form">
+                <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                <div class="set-field">
+                    <input id="page-address" type="text" name="page_address" class="input" inputmode="url" maxlength="2000" autocomplete="off" spellcheck="false"
+                           value="{{ page.value }}" placeholder="https://status.example.com"
+                           {% if page.error.is_some() %}aria-invalid="true" aria-describedby="address-error" autofocus{% endif %}>
+                    {% if let Some(message) = page.error %}
+                    <p id="address-error" class="field-error" role="alert">{{ message }}</p>
+                    {% endif %}
+                </div>
+                <button type="submit" class="btn btn-primary">{{ i18n.t("common.save") }}</button>
+            </form>
+            {% endif %}
+        </div>
+    </section>
+</div>
+{% endblock %}
