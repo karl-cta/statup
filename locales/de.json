@@ -124,7 +124,6 @@
   "banner.disrupted.one": "{n} Dienst gestört",
   "banner.disrupted.other": "{n} Dienste gestört",
   "banner.maintenance": "Wartung läuft",
-  "banner.latest_update": "Letzte Meldung, {time}",
   "banner.next_maintenance": "Wartung geplant für {when}",
   "banner.refresh_lost": "Verbindung verloren, neuer Versuch läuft.",
   "banner.detected": "Automatisch erkannt",
