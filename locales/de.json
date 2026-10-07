@@ -661,5 +661,22 @@
   "icon.phone": "Telefonie",
   "icon.printer": "Drucken",
   "feed.title": "Updates der Statusseite",
-  "feed.services": "Betroffene Dienste:"
+  "feed.services": "Betroffene Dienste:",
+  "notice.scheduled": "Geplant {window}",
+  "notice.rescheduled": "Neuer Termin: {window}",
+  "notice.window_day": "am {day} von {start} bis {end} ({zone})",
+  "notice.window_days": "von {day}, {start} bis {end_day}, {end} ({zone})",
+  "notice.window_from": "am {day} um {start} ({zone})",
+  "notice.ends": "geplantes Ende am {day} um {time} ({zone})",
+  "notice.after": "{state} nach {duration}",
+  "notice.update": "Aktualisierung",
+  "notice.service_down": "{service} antwortet nicht mehr",
+  "notice.service_up": "{service} antwortet wieder",
+  "notice.detected": "Automatisch erkannt",
+  "notice.detected_since": "Automatisch erkannt, keine Antwort seit {time} ({zone})",
+  "notice.down_for": "Ausfall von {duration}",
+  "notice.test": "Testnachricht",
+  "notice.test_text": "Neuigkeiten von {instance} kommen hier an.",
+  "notice.see_details": "Details ansehen",
+  "notice.open_page": "Statusseite öffnen"
 }

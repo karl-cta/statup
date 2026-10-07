@@ -661,5 +661,22 @@
   "icon.phone": "Telefonía",
   "icon.printer": "Impresión",
   "feed.title": "Actualizaciones de la página de estado",
-  "feed.services": "Servicios afectados:"
+  "feed.services": "Servicios afectados:",
+  "notice.scheduled": "Programado {window}",
+  "notice.rescheduled": "Nueva fecha: {window}",
+  "notice.window_day": "el {day} de {start} a {end} ({zone})",
+  "notice.window_days": "del {day} a las {start} al {end_day} a las {end} ({zone})",
+  "notice.window_from": "el {day} a las {start} ({zone})",
+  "notice.ends": "fin prevista el {day} a las {time} ({zone})",
+  "notice.after": "{state} tras {duration}",
+  "notice.update": "Actualización",
+  "notice.service_down": "{service} no responde",
+  "notice.service_up": "{service} vuelve a responder",
+  "notice.detected": "Detectado automáticamente",
+  "notice.detected_since": "Detectado automáticamente, sin respuesta desde las {time} ({zone})",
+  "notice.down_for": "Caída de {duration}",
+  "notice.test": "Mensaje de prueba",
+  "notice.test_text": "Las novedades de {instance} llegarán aquí.",
+  "notice.see_details": "Ver el detalle",
+  "notice.open_page": "Abrir la página de estado"
 }

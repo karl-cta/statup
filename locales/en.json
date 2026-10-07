@@ -661,5 +661,22 @@
   "icon.phone": "Telephony",
   "icon.printer": "Printing",
   "feed.title": "Status page updates",
-  "feed.services": "Services affected:"
+  "feed.services": "Services affected:",
+  "notice.scheduled": "Scheduled for {window}",
+  "notice.rescheduled": "Moved to {window}",
+  "notice.window_day": "{day}, {start} to {end} ({zone})",
+  "notice.window_days": "{day}, {start} to {end_day}, {end} ({zone})",
+  "notice.window_from": "{day}, {start} ({zone})",
+  "notice.ends": "due to end {day}, {time} ({zone})",
+  "notice.after": "{state} after {duration}",
+  "notice.update": "Update",
+  "notice.service_down": "{service} is not answering",
+  "notice.service_up": "{service} is answering again",
+  "notice.detected": "Detected automatically",
+  "notice.detected_since": "Detected automatically, no answer since {time} ({zone})",
+  "notice.down_for": "Down for {duration}",
+  "notice.test": "Test message",
+  "notice.test_text": "News from {instance} will arrive here.",
+  "notice.see_details": "See the details",
+  "notice.open_page": "Open the status page"
 }
