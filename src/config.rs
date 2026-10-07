@@ -65,6 +65,53 @@ pub struct Config {
     pub update_check: bool,
     /// Check every minute that the services set up for it answer.
     pub monitoring: bool,
+    /// The mail server the email destinations send through, when set.
+    pub smtp: Option<SmtpConfig>,
+}
+
+/// How to reach the mail server. No `Debug`: it holds the password.
+pub struct SmtpConfig {
+    pub host: String,
+    pub port: u16,
+    pub security: SmtpSecurity,
+    /// User name and password, when the server asks for them.
+    pub credentials: Option<(String, String)>,
+    /// The sender of the messages, `Statup <status@example.com>`.
+    pub from: String,
+}
+
+/// How the connection to the mail server is protected.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SmtpSecurity {
+    /// Plain connection upgraded to TLS, port 587.
+    StartTls,
+    /// TLS from the first byte, port 465.
+    Tls,
+    /// No TLS, for a relay on the same network, port 25.
+    None,
+}
+
+impl SmtpSecurity {
+    fn default_port(self) -> u16 {
+        match self {
+            Self::StartTls => 587,
+            Self::Tls => 465,
+            Self::None => 25,
+        }
+    }
+}
+
+impl FromStr for SmtpSecurity {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "starttls" => Ok(Self::StartTls),
+            "tls" => Ok(Self::Tls),
+            "none" => Ok(Self::None),
+            _ => Err("must be starttls, tls or none".to_string()),
+        }
+    }
 }
 
 impl Config {
@@ -94,6 +141,7 @@ impl Config {
                 .map(|url| url.trim().trim_end_matches('/').to_string()),
             update_check: parse_env("UPDATE_CHECK", true)?,
             monitoring: parse_env("MONITORING", true)?,
+            smtp: smtp_from_env()?,
         };
         config.validate()?;
         Ok(config)
@@ -155,6 +203,38 @@ pub fn load_dotenv() -> Result<(), ConfigError> {
         Err(e) if !e.not_found() => Err(invalid(".env", &e.to_string())),
         _ => Ok(()),
     }
+}
+
+/// The mail server, set by `SMTP_HOST`; the other variables only count with
+/// it.
+fn smtp_from_env() -> Result<Option<SmtpConfig>, ConfigError> {
+    let Some(host) = non_empty_env("SMTP_HOST") else {
+        return Ok(None);
+    };
+    let security: SmtpSecurity = parse_env("SMTP_SECURITY", SmtpSecurity::StartTls)?;
+    let port = parse_env("SMTP_PORT", security.default_port())?;
+    let credentials = match (
+        non_empty_env("SMTP_USERNAME"),
+        non_empty_env("SMTP_PASSWORD"),
+    ) {
+        (Some(user), Some(password)) => Some((user, password)),
+        (None, None) => None,
+        _ => {
+            return Err(invalid(
+                "SMTP_USERNAME",
+                "SMTP_USERNAME and SMTP_PASSWORD go together",
+            ));
+        }
+    };
+    let from = non_empty_env("SMTP_FROM")
+        .ok_or_else(|| invalid("SMTP_FROM", "required with SMTP_HOST"))?;
+    Ok(Some(SmtpConfig {
+        host: host.trim().to_string(),
+        port,
+        security,
+        credentials,
+        from: from.trim().to_string(),
+    }))
 }
 
 fn invalid(key: &str, message: &str) -> ConfigError {
@@ -256,7 +336,17 @@ mod tests {
             public_url: None,
             update_check: true,
             monitoring: true,
+            smtp: None,
         }
+    }
+
+    #[test]
+    fn the_mail_security_names_its_port() {
+        let parsed = |value: &str| value.parse::<SmtpSecurity>();
+        assert_eq!(parsed("STARTTLS"), Ok(SmtpSecurity::StartTls));
+        assert_eq!(parsed("tls").map(SmtpSecurity::default_port), Ok(465));
+        assert_eq!(parsed("none").map(SmtpSecurity::default_port), Ok(25));
+        assert!(parsed("ssl").is_err());
     }
 
     fn rejected_key(config: &Config) -> Option<String> {

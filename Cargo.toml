@@ -27,8 +27,11 @@ tower-http = { version = "0.6", features = [
     "trace",
 ] }
 
-# Asks GitHub once a day whether a newer version is out
+# Outgoing HTTP: the update check, the monitoring and the notifications
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+
+# Email notifications, over the same TLS stack as reqwest
+lettre = { version = "0.11", default-features = false, features = ["builder", "hostname", "pool", "smtp-transport", "tokio1-rustls-tls"] }
 
 # Database
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono", "time"] }

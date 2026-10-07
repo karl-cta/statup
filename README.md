@@ -45,13 +45,14 @@ It is a status page you host yourself. Whoever runs a service posts, once, what 
 - **Runs on its own**: a service follows the incident that names it, and planned work starts and ends at the times announced.
 - **Notices first**: every minute, Statup checks that a site or a server answers, and shows an outage after three failed checks.
 - **Quick to publish**: dated updates and reusable templates; an outage spotted by the checks is declared in one click.
-- **Easy to follow**: search and filters, a side panel to read without leaving the list, and an Atom feed for feed readers and chat tools.
+- **Tells people where they are**: each incident, maintenance and announcement posted to Microsoft Teams, Slack, Google Chat, Discord or Mattermost, to phones through ntfy, by email, or to any tool through a webhook, in the language of each destination.
+- **Easy to follow**: search and filters, a side panel to read without leaving the list, and an Atom feed for feed readers.
 - **Your page, your way**: public or members only, your name and logo, blocks you arrange on the page; French, English, German and Spanish, light and dark, accessible.
 
 **Light, private, safe by default.**
 
-- **Light**: one Rust binary and one SQLite file, in a Docker image under 10 MB. No Redis, no Postgres.
-- **Private**: fonts and scripts come from your instance. The server only reaches the addresses you ask it to check, and GitHub once a day to look for a new version (`UPDATE_CHECK=false` turns that off).
+- **Light**: one Rust binary and one SQLite file, in a Docker image of about 11 MB. No Redis, no Postgres.
+- **Private**: fonts and scripts come from your instance. The server only reaches the addresses you ask it to check or to notify, and GitHub once a day to look for a new version (`UPDATE_CHECK=false` turns that off).
 - **Safe**: passwords hashed with Argon2id, a CSRF token on every form, a strict Content Security Policy on every page.
 
 ## How it works
@@ -90,7 +91,7 @@ Add them from the **Team** page: they open the same address. For HTTPS and a nam
 Planned, without dates:
 
 - **Incidents from your monitoring**: Zabbix, Grafana or any other tool opens and closes an incident by itself.
-- **Alerts where people are**: messages in Microsoft Teams and Slack, and email subscriptions.
+- **Email subscriptions**: visitors sign up with their own address to get each update by email.
 - **Groups and visibility**: gather colleagues into groups and choose which services and events each group sees.
 - **Recurring maintenance**: announce once a slot that comes back every week or month.
 - **Themes** and an accent colour.

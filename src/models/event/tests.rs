@@ -271,6 +271,18 @@ fn update_excerpt_is_plain_text() {
 }
 
 #[test]
+fn emphasis_stays_against_its_punctuation() {
+    let mut event = summary(Kind::Incident, None, None);
+    event.latest_update = Some(
+        "<p>Cable <em>replaced</em>.</p><ul><li>Back <strong>soon</strong>!</li></ul>".to_string(),
+    );
+    assert_eq!(
+        event.latest_update_excerpt(80).as_deref(),
+        Some("Cable replaced. Back soon!")
+    );
+}
+
+#[test]
 fn scheduled_maintenance_is_not_elapsed() {
     let event = Event {
         id: 1,

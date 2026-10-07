@@ -159,7 +159,7 @@ fn classify_status(status: u16) -> Finding {
     }
 }
 
-fn classify_http(error: &reqwest::Error) -> Finding {
+pub(crate) fn classify_http(error: &reqwest::Error) -> Finding {
     if error.is_timeout() {
         return Finding::TimedOut;
     }

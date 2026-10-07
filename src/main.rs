@@ -17,8 +17,8 @@ use statup::db::{self, DbPool};
 use statup::middleware::rate_limit::RateLimit;
 use statup::routes::create_router;
 use statup::services::{
-    AuthService, DashboardLayoutService, LoginRateLimiter, SettingsService,
-    spawn_maintenance_schedule, spawn_monitoring, spawn_update_check,
+    AuthService, DashboardLayoutService, LoginRateLimiter, Notifier, SEND_TIMEOUT, SettingsService,
+    spawn_maintenance_schedule, spawn_monitoring, spawn_notifications, spawn_update_check,
 };
 use statup::session;
 use statup::state::AppState;
@@ -45,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("cannot create the session store")?;
     let rate_limit = RateLimit::new(config.client_ip_source())?;
-    let mut tasks = spawn_background_tasks(&pool, &rate_limit);
+    let mut tasks = spawn_background_tasks(&pool, &rate_limit, &state);
     if config.update_check {
         tasks.push(spawn_update_check(Arc::clone(&state.update)));
     }
@@ -137,6 +137,9 @@ async fn build_state(config: &Config, pool: DbPool) -> anyhow::Result<AppState> 
         .context("cannot read the settings")?;
     tracing::info!(public_mode, "Public mode");
     tracing::info!(time_zone = statup::clock::zone().name(), "Time zone");
+    if let Some(smtp) = &config.smtp {
+        tracing::info!(host = %smtp.host, port = smtp.port, "Email notifications through this mail server");
+    }
 
     Ok(AppState {
         pool,
@@ -148,15 +151,28 @@ async fn build_state(config: &Config, pool: DbPool) -> anyhow::Result<AppState> 
         public_url: config.public_url.clone(),
         update: Arc::default(),
         checks: Arc::default(),
+        notifier: Arc::new(
+            Notifier::new(SEND_TIMEOUT, config.smtp.as_ref())
+                .context("cannot set up the notifications")?,
+        ),
     })
 }
 
 /// Periodic work beside the server, stopped on shutdown.
-fn spawn_background_tasks(pool: &DbPool, rate_limit: &RateLimit) -> Vec<AbortHandle> {
+fn spawn_background_tasks(
+    pool: &DbPool,
+    rate_limit: &RateLimit,
+    state: &AppState,
+) -> Vec<AbortHandle> {
     vec![
         session::spawn_cleanup_task(pool.clone()),
         rate_limit.spawn_cleanup_task(),
         spawn_maintenance_schedule(pool.clone()),
+        spawn_notifications(
+            pool.clone(),
+            Arc::clone(&state.notifier),
+            state.public_url.clone(),
+        ),
     ]
 }
 

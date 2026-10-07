@@ -525,7 +525,8 @@
         display: none;
     }
 
-    [data-check-result] .consequence {
+    [data-check-result] .consequence,
+    [data-test-result] .consequence {
         margin-top: 0;
     }
 
