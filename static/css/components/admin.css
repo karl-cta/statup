@@ -104,13 +104,25 @@
         z-index: 1;
     }
 
-    /* What an administrator opens every week heads Settings: one card per
-       page it leads to, the whole card the link, the action at its foot.
-       Two by two until every card fits on one row. */
+    /* What an administrator opens every week heads Settings: one strip of
+       cells, one per page it leads to, the whole cell the link. Two by two
+       until every cell fits on one row. Neighbouring cells drop the border
+       they share, so the strip reads as one card. */
     .manage-tiles {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
+    }
+
+    .manage-tiles > li:nth-child(even) .manage-tile {
+        border-left-width: 0;
+    }
+
+    .manage-tiles > li:nth-child(n + 3) .manage-tile {
+        border-top-width: 0;
+    }
+
+    .manage-tiles > li:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
     }
 
     @media (min-width: 1024px) {
@@ -118,6 +130,19 @@
             grid-template-columns: none;
             grid-auto-columns: minmax(0, 1fr);
             grid-auto-flow: column;
+        }
+
+        .manage-tiles > li:nth-child(n) .manage-tile {
+            border-top-width: 1px;
+            border-left-width: 0;
+        }
+
+        .manage-tiles > li:first-child .manage-tile {
+            border-left-width: 1px;
+        }
+
+        .manage-tiles > li:last-child:nth-child(odd) {
+            grid-column: auto;
         }
     }
 
@@ -160,33 +185,20 @@
         margin-top: 0;
     }
 
+    /* The chevron already says the card opens: the action is the link's
+       name for a screen reader only. */
     .manage-tile-action {
-        margin-top: auto;
-        padding-top: 8px;
-        font-size: var(--text-sm);
-        font-weight: 600;
-        color: var(--ink-soft);
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
     }
 
     @media (max-width: 720px) {
         .set-row {
             grid-template-columns: minmax(0, 1fr);
-        }
-
-        .manage-tiles {
-            gap: 8px;
-        }
-
-        /* Out of sight on a phone, still the link's name for a screen
-           reader. */
-        .manage-tile-action {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            overflow: hidden;
-            clip-path: inset(50%);
-            white-space: nowrap;
         }
     }
 

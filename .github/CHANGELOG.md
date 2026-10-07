@@ -22,7 +22,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 - The database is upgraded on start to keep the destinations and their messages.
 - Fixed: in the dark theme, the bar under a long form no longer shows as a darker band.
 - Fixed: in the banner, a word in bold or italics no longer comes apart from the punctuation after it.
-- Settings opens on cards for the team, the notifications, the icons, the dashboard and the version, side by side, so they show without scrolling; General follows below.
+- Settings opens on a strip of shortcuts to the team, the notifications, the icons, the dashboard and the version, so they show without scrolling; General follows below.
 
 ## 0.2.1, 2026-10-06
 
