@@ -17,8 +17,8 @@ use statup::db::{self, DbPool};
 use statup::middleware::rate_limit::RateLimit;
 use statup::routes::create_router;
 use statup::services::{
-    AuthService, DashboardLayoutService, LoginRateLimiter, SettingsService,
-    spawn_maintenance_schedule, spawn_monitoring, spawn_update_check,
+    AuthService, DashboardLayoutService, LoginRateLimiter, Notifier, SEND_TIMEOUT, SettingsService,
+    spawn_maintenance_schedule, spawn_monitoring, spawn_notifications, spawn_update_check,
 };
 use statup::session;
 use statup::state::AppState;
@@ -52,6 +52,11 @@ async fn main() -> anyhow::Result<()> {
     if config.monitoring {
         tasks.push(spawn_monitoring(pool.clone(), Arc::clone(&state.checks)));
     }
+    tasks.push(spawn_notifications(
+        pool.clone(),
+        Arc::clone(&state.notifier),
+        config.public_url.clone(),
+    ));
 
     let sessions = session::session_layer(
         session_store,
@@ -148,6 +153,9 @@ async fn build_state(config: &Config, pool: DbPool) -> anyhow::Result<AppState> 
         public_url: config.public_url.clone(),
         update: Arc::default(),
         checks: Arc::default(),
+        notifier: Arc::new(
+            Notifier::new(SEND_TIMEOUT).context("cannot build the notification client")?,
+        ),
     })
 }
 

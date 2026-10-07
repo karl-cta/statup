@@ -180,6 +180,19 @@ impl NotificationRepository {
         Ok(())
     }
 
+    /// Gives up on one message, the others of its destination going on.
+    pub async fn fail(pool: &DbPool, id: i64, failure: &str) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE notification_deliveries SET status = 'failed', attempts = attempts + 1, \
+             failure = ? WHERE id = ? AND status = 'pending'",
+        )
+        .bind(failure)
+        .bind(id)
+        .execute(pool)
+        .await?;
+        Ok(())
+    }
+
     /// Gives up on every waiting message of a destination, for the reason the
     /// first one failed: behind a dead address, each would wait out all its
     /// attempts in turn and arrive hours late.
@@ -539,5 +552,36 @@ mod tests {
         EventRepository::delete(&pool, event).await.unwrap();
 
         assert_eq!(queued(&pool).await, Vec::new());
+    }
+
+    #[tokio::test]
+    async fn failing_one_message_leaves_the_next_of_its_destination_waiting() {
+        let pool = test_pool().await;
+        let id = channel(&pool, "team", true, false).await;
+        let event = incident(&pool).await;
+        for minute in [0, 1] {
+            NotificationRepository::enqueue(
+                &pool,
+                &about_event(Happening::Updated, event),
+                at(minute),
+            )
+            .await
+            .unwrap();
+        }
+        let head = NotificationRepository::due(&pool, at(1)).await.unwrap()[0].id;
+
+        NotificationRepository::fail(&pool, head, "gone")
+            .await
+            .unwrap();
+
+        let next = NotificationRepository::due(&pool, at(1)).await.unwrap();
+        assert_eq!(next.len(), 1);
+        assert!(next[0].id > head);
+        let outcomes = NotificationRepository::latest_outcomes(&pool)
+            .await
+            .unwrap();
+        assert_eq!(outcomes[&id].status, DeliveryStatus::Failed);
+        assert_eq!(outcomes[&id].failure.as_deref(), Some("gone"));
+        assert_eq!(outcomes[&id].attempts, 1);
     }
 }

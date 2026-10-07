@@ -20,7 +20,8 @@ use statup::middleware::rate_limit::RateLimit;
 use statup::models::Role;
 use statup::routes::create_router;
 use statup::services::{
-    AuthService, DashboardLayoutService, LastChecks, LoginRateLimiter, NewAccount, UpdateStatus,
+    AuthService, DashboardLayoutService, LastChecks, LoginRateLimiter, NewAccount, Notifier,
+    UpdateStatus,
 };
 use statup::session;
 use statup::state::AppState;
@@ -89,6 +90,9 @@ impl TestApp {
             public_url: options.public_url.map(ToOwned::to_owned),
             update: update_status(options.latest_release),
             checks: Arc::default(),
+            notifier: Arc::new(
+                Notifier::new(Duration::from_secs(5)).expect("failed to build the notifier"),
+            ),
         };
         let checks = Arc::clone(&state.checks);
         // A small budget, so a test can exhaust it with a short burst.
