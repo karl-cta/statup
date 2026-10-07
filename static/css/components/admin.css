@@ -262,13 +262,23 @@
         min-width: 0;
     }
 
+    /* Beside the name on a phone, after the state menu above. */
+    .svc-edit {
+        grid-row: 1;
+        grid-column: 2;
+    }
+
     @media (min-width: 720px) {
         .svc-admin-row {
-            grid-template-columns: minmax(0, 1fr) 220px;
+            grid-template-columns: minmax(0, 1fr) 220px 34px;
         }
 
         .svc-admin-row .admin-row-cell {
             grid-column: auto;
+        }
+
+        .svc-edit {
+            grid-column: 3;
         }
 
         .member-row {

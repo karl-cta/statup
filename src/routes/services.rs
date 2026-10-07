@@ -542,6 +542,7 @@ struct ServiceDrawerTemplate {
     events: Vec<EventSummary>,
     /// The checks found the service down and no open event explains it.
     detected: bool,
+    can_edit: bool,
     i18n: I18n,
 }
 
@@ -582,6 +583,7 @@ pub async fn drawer_content(
         row,
         events,
         detected,
+        can_edit: user.is_some_and(|u| u.role.can_publish()),
         i18n,
     })
 }

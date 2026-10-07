@@ -594,7 +594,8 @@
         padding: 10px 12px 0;
     }
 
-    .drawer-close {
+    .drawer-close,
+    .drawer-tool {
         display: inline-flex;
         flex: none;
         align-items: center;
@@ -606,14 +607,24 @@
         transition: color 120ms ease, background-color 120ms ease;
     }
 
-    .drawer-close:hover {
+    .drawer-close:hover,
+    .drawer-tool:hover {
         color: var(--ink);
         background: var(--surface-subtle);
     }
 
-    .drawer-close svg {
+    .drawer-close svg,
+    .drawer-tool svg {
         width: 16px;
         height: 16px;
+    }
+
+    /* A tool of the loaded content, beside the close button: the head stays
+       outside the content so the panel can close while it loads. */
+    .drawer-tool {
+        position: absolute;
+        top: 10px;
+        right: 56px;
     }
 
     .drawer-body {

@@ -61,6 +61,7 @@
                 {% let csrf_token = frame.csrf_token.as_str() %}
                 {% include "components/status_selector.html" %}
             </div>
+            <a href="/services/{{ service.id }}/edit" class="btn btn-ghost btn-icon svc-edit" title="{{ i18n.t("services.edit") }} {{ service.name }}" aria-label="{{ i18n.t("services.edit") }} {{ service.name }}">{% call ui::pencil_icon() %}{% endcall %}</a>
         </li>
         {% endfor %}
     </ul>

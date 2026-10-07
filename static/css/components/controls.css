@@ -26,6 +26,12 @@
         flex: none;
     }
 
+    /* A button that is only its icon; its name is in its label. */
+    .btn-icon {
+        width: 34px;
+        padding: 0;
+    }
+
     .btn-primary {
         position: relative;
         isolation: isolate;

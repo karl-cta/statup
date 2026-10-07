@@ -1,5 +1,8 @@
 {% import "components/macros.html" as ui %}
 <div class="drawer-body">
+    {% if can_edit %}
+    <a href="/services/{{ row.service.id }}/edit" class="drawer-tool drawer-edit" title="{{ i18n.t("services.edit") }} {{ row.service.name }}" aria-label="{{ i18n.t("services.edit") }} {{ row.service.name }}">{% call ui::pencil_icon() %}{% endcall %}</a>
+    {% endif %}
     <h2 id="drawer-title" class="drawer-title drawer-title-svc">
         <span class="svc-icon">{% call ui::service_icon(row.service) %}{% endcall %}</span>
         <span>{{ row.service.name }}</span>
