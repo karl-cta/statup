@@ -22,7 +22,7 @@ use crate::models::{
 use crate::repositories::{NotificationRepository, SettingsRepository};
 use crate::services::{
     Facts, Failure, Finding, Notice, Origin, PAGE_ADDRESS_SETTING, Sender, Subject,
-    destination_allowed, destination_name_refusal, page_address,
+    destination_allowed, destination_name_refusal, email_addresses, page_address,
 };
 use crate::state::AppState;
 
@@ -85,30 +85,35 @@ impl DestinationForm {
         }
     }
 
-    /// The tool and its address, checked: all a test needs.
-    fn destination(&self) -> Result<(ChannelKind, String), (Field, &'static str)> {
+    /// The tool and its address, checked: all a test needs. Email needs a
+    /// mail server set on the instance.
+    fn destination(
+        &self,
+        email_ready: bool,
+    ) -> Result<(ChannelKind, String), (Field, &'static str)> {
         let kind = self
             .kind
             .parse::<ChannelKind>()
             .map_err(|()| (Field::Kind, "error.invalid_data"))?;
-        let target = self.target.trim().to_string();
-        destination_allowed(kind, &target).map_err(|key| {
-            let field = if kind == ChannelKind::Email {
-                Field::Kind
-            } else {
-                Field::Target
-            };
-            (field, key)
-        })?;
+        if kind == ChannelKind::Email && !email_ready {
+            return Err((Field::Kind, "notifications.email_unavailable"));
+        }
+        let target = self.target.trim();
+        destination_allowed(kind, target).map_err(|key| (Field::Target, key))?;
+        let target = if kind == ChannelKind::Email {
+            email_addresses(target).map_err(|key| (Field::Target, key))?
+        } else {
+            target.to_string()
+        };
         Ok((kind, target))
     }
 
     /// What to save, or the field to fix and why.
-    fn check(&self) -> Result<ChannelInput, (Field, &'static str)> {
+    fn check(&self, email_ready: bool) -> Result<ChannelInput, (Field, &'static str)> {
         if let Some(key) = destination_name_refusal(&self.name) {
             return Err((Field::Name, key));
         }
-        let (kind, target) = self.destination()?;
+        let (kind, target) = self.destination(email_ready)?;
         Ok(ChannelInput {
             name: self.name.trim().to_string(),
             kind,
@@ -318,7 +323,7 @@ async fn render_list(
         form: page.form,
         form_error: page.form_error,
         add_open,
-        email_ready: false,
+        email_ready: state.notifier.mail_ready(),
         page: address,
         i18n,
     })
@@ -416,28 +421,36 @@ fn reason_of(code: Option<&str>, i18n: &I18n) -> String {
     )
 }
 
-/// Why a message did not go out, in words an admin can act on.
+/// Why a message did not go out, in words an admin can act on, with the
+/// code the tool or the mail server answered when there is one.
 fn failure_text(failure: Failure, i18n: &I18n) -> String {
-    let key = match failure {
-        Failure::Status(404 | 410) => "notifications.failure_not_found",
-        Failure::Status(401 | 403) => "notifications.failure_forbidden",
-        Failure::Status(status) if status >= 500 => "notifications.failure_server",
-        Failure::Status(_) => "notifications.failure_rejected",
-        Failure::TooManyRequests(_) => "notifications.failure_too_many",
-        Failure::Redirected => "notifications.failure_redirected",
-        Failure::Transport(Finding::Refused) => "notifications.failure_refused",
-        Failure::Transport(Finding::TimedOut) => "notifications.failure_timeout",
-        Failure::Transport(Finding::NameNotFound) => "notifications.failure_name",
-        Failure::Transport(Finding::Certificate) => "notifications.failure_certificate",
-        Failure::Transport(_) => "notifications.failure_unreachable",
-        Failure::Unsupported => "notifications.failure_unsupported",
-        Failure::Gone => "notifications.failure_gone",
+    let (key, status) = match failure {
+        Failure::Status(status @ (404 | 410)) => ("notifications.failure_not_found", Some(status)),
+        Failure::Status(status @ (401 | 403)) => ("notifications.failure_forbidden", Some(status)),
+        Failure::Status(status) if status >= 500 => ("notifications.failure_server", Some(status)),
+        Failure::Status(status) => ("notifications.failure_rejected", Some(status)),
+        Failure::TooManyRequests(_) => ("notifications.failure_too_many", None),
+        Failure::Redirected => ("notifications.failure_redirected", None),
+        Failure::Transport(finding) => (transport_key(finding), None),
+        Failure::Unsupported => ("notifications.failure_unsupported", None),
+        Failure::Gone => ("notifications.failure_gone", None),
+        Failure::MailRefused(status) => ("notifications.failure_mail_refused", status),
+        Failure::MailBusy(status) => ("notifications.failure_mail_busy", status),
+        Failure::MailUnreachable => ("notifications.failure_mail_unreachable", None),
+        Failure::NoMailServer => ("notifications.failure_no_mail_server", None),
     };
-    let status = match failure {
-        Failure::Status(status) => status.to_string(),
-        _ => String::new(),
-    };
-    i18n.tf(key, &[("status", &status)])
+    let text = i18n.t(key);
+    status.map_or_else(|| text.to_string(), |status| format!("{text} ({status})"))
+}
+
+fn transport_key(finding: Finding) -> &'static str {
+    match finding {
+        Finding::Refused => "notifications.failure_refused",
+        Finding::TimedOut => "notifications.failure_timeout",
+        Finding::NameNotFound => "notifications.failure_name",
+        Finding::Certificate => "notifications.failure_certificate",
+        _ => "notifications.failure_unreachable",
+    }
 }
 
 /// The address the messages link to: the server's, or the stored one, or
@@ -478,7 +491,7 @@ pub async fn create(
     headers: HeaderMap,
     HtmlForm(form): HtmlForm<DestinationForm>,
 ) -> Result<Response, AppError> {
-    let input = match form.check() {
+    let input = match form.check(state.notifier.mail_ready()) {
         Ok(input) => input,
         Err(refusal) => {
             let page = ListPage {
@@ -542,7 +555,7 @@ async fn render_edit(
         saved_name: channel.name,
         form,
         form_error,
-        email_ready: false,
+        email_ready: state.notifier.mail_ready(),
         i18n,
     })
 }
@@ -556,7 +569,7 @@ pub async fn update(
     HtmlForm(form): HtmlForm<DestinationForm>,
 ) -> Result<Response, AppError> {
     let channel = find(&state, id).await?;
-    let input = match form.check() {
+    let input = match form.check(state.notifier.mail_ready()) {
         Ok(input) => input,
         Err(refusal) => {
             let error = Some(field_error(refusal, &i18n));
@@ -587,7 +600,7 @@ pub async fn test(
     headers: HeaderMap,
     HtmlForm(form): HtmlForm<DestinationForm>,
 ) -> Result<Response, AppError> {
-    let (kind, target) = match form.destination() {
+    let (kind, target) = match form.destination(state.notifier.mail_ready()) {
         Ok(destination) => destination,
         Err((_, key)) => {
             return render(&TestResultFragment {
@@ -713,7 +726,7 @@ mod tests {
     #[test]
     fn a_checked_form_is_trimmed_and_speaks_a_shipped_language() {
         let input = form("slack", "https://hooks.slack.com/services/a")
-            .check()
+            .check(false)
             .unwrap();
         assert_eq!(input.name, "Canal #informatique");
         assert_eq!(input.target, "https://hooks.slack.com/services/a");
@@ -726,23 +739,25 @@ mod tests {
         let mut nameless = form("slack", "https://hooks.slack.com/services/a");
         nameless.name.clear();
         assert_eq!(
-            nameless.check().err(),
+            nameless.check(false).err(),
             Some((Field::Name, "notifications.name_required"))
         );
         assert_eq!(
             form("discord", "http://discord.com/api/webhooks/1")
-                .check()
+                .check(false)
                 .err(),
             Some((Field::Target, "notifications.target_https"))
         );
         assert_eq!(
-            form("pager", "https://example.com").check().err(),
+            form("pager", "https://example.com").check(false).err(),
             Some((Field::Kind, "error.invalid_data"))
         );
         assert_eq!(
-            form("email", "it@example.com").check().err(),
+            form("email", "it@example.com").check(false).err(),
             Some((Field::Kind, "notifications.email_unavailable"))
         );
+        let ready = form("email", "IT@example.com, board@example.com").check(true);
+        assert_eq!(ready.unwrap().target, "it@example.com, board@example.com");
     }
 
     #[test]

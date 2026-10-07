@@ -20,6 +20,7 @@
             if (!option) return;
             if (label) label.textContent = option.dataset.label;
             target.placeholder = option.dataset.placeholder;
+            target.inputMode = option.dataset.inputmode;
             form.querySelectorAll("[data-hint-for]").forEach((hint) => {
                 hint.hidden = hint.dataset.hintFor !== kind.value;
             });

@@ -91,7 +91,7 @@ impl TestApp {
             update: update_status(options.latest_release),
             checks: Arc::default(),
             notifier: Arc::new(
-                Notifier::new(Duration::from_secs(5)).expect("failed to build the notifier"),
+                Notifier::new(Duration::from_secs(5), None).expect("failed to build the notifier"),
             ),
         };
         let checks = Arc::clone(&state.checks);

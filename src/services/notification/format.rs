@@ -141,7 +141,7 @@ fn mark_name(mark: Mark) -> &'static str {
 }
 
 /// `headline` behind the mark's square, with no gap left when there is none.
-fn marked(notice: &Notice, headline: &str) -> String {
+pub(super) fn marked(notice: &Notice, headline: &str) -> String {
     match mark_emoji(notice.mark) {
         Some(emoji) => format!("{emoji} {headline}"),
         None => headline.to_string(),

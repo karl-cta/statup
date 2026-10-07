@@ -1,11 +1,15 @@
 //! What a destination may be: its name and the address it posts to.
 
 use crate::models::ChannelKind;
+use crate::services::AuthService;
 
 /// Long enough for a channel and its team, short enough for one line of the
 /// list.
 const MAX_NAME_CHARS: usize = 60;
 const MAX_TARGET_CHARS: usize = 2000;
+/// A few people, or one mailing list: a longer list belongs to the mail
+/// server.
+const MAX_ADDRESSES: usize = 50;
 
 /// Why a name is refused, as a message key.
 pub fn destination_name_refusal(name: &str) -> Option<&'static str> {
@@ -21,7 +25,7 @@ pub fn destination_name_refusal(name: &str) -> Option<&'static str> {
 /// addresses, and the sending stays as it is.
 pub fn destination_allowed(kind: ChannelKind, target: &str) -> Result<(), &'static str> {
     if kind == ChannelKind::Email {
-        return Err("notifications.email_unavailable");
+        return email_addresses(target).map(drop);
     }
     if target.is_empty() {
         return Err("notifications.target_required");
@@ -45,6 +49,25 @@ pub fn destination_allowed(kind: ChannelKind, target: &str) -> Result<(), &'stat
         return Err("notifications.target_topic");
     }
     Ok(())
+}
+
+/// The addresses of an email destination, checked and as stored: in lower
+/// case, separated by commas.
+pub fn email_addresses(target: &str) -> Result<String, &'static str> {
+    let addresses = target
+        .split(|c: char| c == ',' || c == ';' || c.is_whitespace())
+        .filter(|address| !address.is_empty())
+        .map(|address| {
+            AuthService::normalize_email(address).map_err(|_| "notifications.address_invalid")
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if addresses.is_empty() {
+        return Err("notifications.addresses_required");
+    }
+    if addresses.len() > MAX_ADDRESSES {
+        return Err("notifications.addresses_too_many");
+    }
+    Ok(addresses.join(", "))
 }
 
 /// An ntfy address ends with the topic: `https://ntfy.sh/statup-acme`.
@@ -123,10 +146,23 @@ mod tests {
     }
 
     #[test]
-    fn email_waits_for_a_mail_server() {
+    fn email_addresses_are_checked_and_kept_in_lower_case() {
         assert_eq!(
-            destination_allowed(ChannelKind::Email, "it@example.com"),
-            Err("notifications.email_unavailable")
+            email_addresses(" IT@example.com;board@example.com\nops@example.com "),
+            Ok("it@example.com, board@example.com, ops@example.com".to_string())
+        );
+        assert_eq!(
+            destination_allowed(ChannelKind::Email, "it@example.com, nobody"),
+            Err("notifications.address_invalid")
+        );
+        assert_eq!(
+            destination_allowed(ChannelKind::Email, " , "),
+            Err("notifications.addresses_required")
+        );
+        let many: Vec<String> = (0..51).map(|n| format!("p{n}@example.com")).collect();
+        assert_eq!(
+            destination_allowed(ChannelKind::Email, &many.join(",")),
+            Err("notifications.addresses_too_many")
         );
     }
 }

@@ -142,6 +142,9 @@ async fn build_state(config: &Config, pool: DbPool) -> anyhow::Result<AppState> 
         .context("cannot read the settings")?;
     tracing::info!(public_mode, "Public mode");
     tracing::info!(time_zone = statup::clock::zone().name(), "Time zone");
+    if let Some(smtp) = &config.smtp {
+        tracing::info!(host = %smtp.host, port = smtp.port, "Email notifications through this mail server");
+    }
 
     Ok(AppState {
         pool,
@@ -154,7 +157,8 @@ async fn build_state(config: &Config, pool: DbPool) -> anyhow::Result<AppState> 
         update: Arc::default(),
         checks: Arc::default(),
         notifier: Arc::new(
-            Notifier::new(SEND_TIMEOUT).context("cannot build the notification client")?,
+            Notifier::new(SEND_TIMEOUT, config.smtp.as_ref())
+                .context("cannot set up the notifications")?,
         ),
     })
 }

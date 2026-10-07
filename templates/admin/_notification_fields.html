@@ -10,7 +10,7 @@
                 {% if self.error_for(Field::Kind).is_some() %}aria-invalid="true" aria-describedby="kind-error"{% endif %}>
             {% for kind in self.kinds() %}
             {% let unavailable = kind.as_str() == "email" && !email_ready %}
-            <option value="{{ kind.as_str() }}" data-label="{{ i18n.t(kind.target_label_key()) }}" data-placeholder="{{ kind.placeholder() }}"{% if form.kind == kind.as_str() %} selected{% endif %}{% if unavailable %} disabled{% endif %}>{{ i18n.t(kind.label_key()) }}{% if unavailable %} ({{ i18n.t("notifications.email_needs_server") }}){% endif %}</option>
+            <option value="{{ kind.as_str() }}" data-label="{{ i18n.t(kind.target_label_key()) }}" data-placeholder="{{ kind.placeholder() }}" data-inputmode="{% if kind.as_str() == "email" %}email{% else %}url{% endif %}"{% if form.kind == kind.as_str() %} selected{% endif %}{% if unavailable %} disabled{% endif %}>{{ i18n.t(kind.label_key()) }}{% if unavailable %} ({{ i18n.t("notifications.email_needs_server") }}){% endif %}</option>
             {% endfor %}
         </select>
         {% if let Some(message) = self.error_for(Field::Kind) %}
@@ -30,7 +30,7 @@
 
 <div class="field">
     <label for="destination-target" class="field-label" data-target-label>{{ i18n.t(self.chosen().target_label_key()) }}</label>
-    <input id="destination-target" name="target" type="text" class="input" inputmode="url" maxlength="2000" required autocomplete="off" spellcheck="false"
+    <input id="destination-target" name="target" type="text" class="input" inputmode="{% if self.chosen().as_str() == "email" %}email{% else %}url{% endif %}" maxlength="2000" required autocomplete="off" spellcheck="false"
            value="{{ form.target }}" placeholder="{{ self.chosen().placeholder() }}"
            aria-describedby="hint-{{ self.chosen().as_str() }}{% if self.error_for(Field::Target).is_some() %} target-error{% endif %}"
            {% if self.error_for(Field::Target).is_some() %}aria-invalid="true" autofocus{% endif %}>

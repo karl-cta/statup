@@ -92,7 +92,7 @@ impl ChannelKind {
             Self::Discord => "https://discord.com/api/webhooks/…",
             Self::Mattermost => "https://chat.example.com/hooks/…",
             Self::Ntfy => "https://ntfy.sh/statup-example",
-            Self::Email => "it@example.com",
+            Self::Email => "it@example.com, board@example.com",
             Self::Webhook => "https://…",
         }
     }
