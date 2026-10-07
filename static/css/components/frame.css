@@ -1005,6 +1005,14 @@
         color: var(--muted);
     }
 
+    /* Centered on the lowercase letters rather than the capitals: the name
+       beside them is mostly lowercase, and reads as sitting lower. */
+    .foot-mark,
+    .foot-brand > span[aria-hidden] {
+        position: relative;
+        top: 0.1em;
+    }
+
     .foot a {
         text-decoration: underline;
         text-decoration-color: transparent;
