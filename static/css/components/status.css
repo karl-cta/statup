@@ -616,6 +616,28 @@
         height: 20px;
     }
 
+    /* The card draws ninety days and a column shows the last thirty; one
+       wide enough for ninety bars, a row of its own, shows them all. The
+       sentence a screen reader hears follows. */
+    .svc-bars > .bar-early,
+    .svc-strip-long {
+        display: none;
+    }
+
+    @container (min-width: 800px) {
+        .svc-bars > .bar-early {
+            display: block;
+        }
+
+        .svc-strip-long {
+            display: block;
+        }
+
+        .svc-strip-short {
+            display: none;
+        }
+    }
+
     .bar {
         flex: 1 1 0;
         min-width: 0;

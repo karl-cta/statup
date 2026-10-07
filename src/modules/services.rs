@@ -1,6 +1,7 @@
 //! Services card: the services an administrator did not leave out, with
-//! their current status and thirty days of incident history. A service left
-//! out comes back as soon as something is wrong with it.
+//! their current status and their incident history, ninety days where the
+//! column has room for them and thirty otherwise. A service left out comes
+//! back as soon as something is wrong with it.
 
 use std::collections::HashMap;
 
@@ -19,7 +20,9 @@ use crate::repositories::{
 
 use super::{ColumnWidth, Module, ModuleOption, ModuleRenderContext, render_template};
 
-const DAYS: i64 = 30;
+/// The days every strip shows; a column wide enough adds the older ones.
+pub const SHORT_DAYS: i64 = 30;
+pub const LONG_DAYS: i64 = 90;
 
 /// A shorter detected outage does not colour a whole day of the strip.
 const MIN_DETECTED_OUTAGE: Duration = Duration::minutes(15);
@@ -32,6 +35,8 @@ pub struct DayCell {
     pub level: Option<u8>,
     pub date: String,
     pub status: String,
+    /// Older than the short strip: shown only where there is room.
+    pub early: bool,
 }
 
 impl DayCell {
@@ -45,10 +50,26 @@ impl DayCell {
     }
 }
 
+/// A service's days, oldest first, and what a screen reader hears of them.
+pub struct Strip {
+    pub days: Vec<DayCell>,
+    /// The whole strip: "90 derniers jours : …".
+    pub label: String,
+    /// Its last thirty days only, for a column too narrow for the rest.
+    pub recent_label: String,
+    /// "90 derniers jours".
+    pub legend: String,
+    /// The line under a strip: "3 jours avec incident en 90 jours".
+    pub summary: String,
+    /// The same for its last thirty days.
+    pub recent_summary: String,
+    /// Where the strip starts: "Il y a 90 jours".
+    pub since: String,
+}
+
 pub struct ServiceRow {
     pub service: Service,
-    pub days: Vec<DayCell>,
-    pub availability_label: String,
+    pub strip: Strip,
 }
 
 #[derive(Template)]
@@ -78,18 +99,20 @@ impl Module for ServicesModule {
     }
 
     async fn render(&self, ctx: &ModuleRenderContext<'_>) -> Result<String, AppError> {
-        let today = clock::today();
-        let first_day = today - Duration::days(DAYS - 1);
-        let since = clock::day_start(first_day).unwrap_or_default();
-        let services = ServiceRepository::list_all(ctx.pool).await?;
-        let spans = EventRepository::incident_spans(ctx.pool, since).await?;
-        let outages = OutageRepository::since(ctx.pool, since).await?;
-        let rows = services
+        let services: Vec<Service> = ServiceRepository::list_all(ctx.pool)
+            .await?
             .into_iter()
             .filter(|service| {
                 service.status != ServiceStatus::Operational || !is_left_out(service, ctx.hidden)
             })
-            .map(|service| service_row(service, &spans, &outages, today, ctx.i18n))
+            .collect();
+        let mut by_service = strips(ctx.pool, &services, LONG_DAYS, ctx.i18n).await?;
+        let rows = services
+            .into_iter()
+            .filter_map(|service| {
+                let strip = by_service.remove(&service.id)?;
+                Some(ServiceRow { service, strip })
+            })
             .collect();
         let template = ServicesTemplate {
             rows,
@@ -132,40 +155,108 @@ pub async fn service_history(
     service: Service,
     i18n: &I18n,
 ) -> Result<ServiceRow, AppError> {
-    let today = clock::today();
-    let since = clock::day_start(today - Duration::days(DAYS - 1)).unwrap_or_default();
-    let spans = EventRepository::incident_spans(pool, since).await?;
-    let outages = OutageRepository::since(pool, since).await?;
-    Ok(service_row(service, &spans, &outages, today, i18n))
+    let window = Window::ending_now(SHORT_DAYS);
+    let history = History::load(pool, &window).await?;
+    let strip = strip_of(&service, &history, &window, i18n);
+    Ok(ServiceRow { service, strip })
 }
 
-fn service_row(
-    service: Service,
-    spans: &HashMap<i64, Vec<IncidentSpan>>,
-    outages: &HashMap<i64, Vec<OutageSpan>>,
-    today: NaiveDate,
+/// The last `days` days of each service, read in two queries for all.
+pub async fn strips(
+    pool: &DbPool,
+    services: &[Service],
+    days: i64,
     i18n: &I18n,
-) -> ServiceRow {
-    let strip = day_levels(
-        spans.get(&service.id).map_or(&[], Vec::as_slice),
-        outages.get(&service.id).map_or(&[], Vec::as_slice),
-        clock::local_date(&service.created_at),
-        today,
-        Utc::now(),
-    );
-    let days = strip
+) -> Result<HashMap<i64, Strip>, AppError> {
+    let window = Window::ending_now(days);
+    let history = History::load(pool, &window).await?;
+    Ok(services
         .iter()
-        .map(|day| DayCell {
-            level: day.level,
-            date: i18n.format_date_short(&day.date),
-            status: day_status(day, i18n),
-        })
-        .collect();
-    ServiceRow {
-        service,
-        days,
-        availability_label: availability_label(&strip, i18n),
+        .map(|service| (service.id, strip_of(service, &history, &window, i18n)))
+        .collect())
+}
+
+/// The days a strip covers, up to today. `now` bounds the outages under way.
+struct Window {
+    today: NaiveDate,
+    now: DateTime<Utc>,
+    days: i64,
+}
+
+impl Window {
+    fn ending_now(days: i64) -> Self {
+        Self {
+            today: clock::today(),
+            now: Utc::now(),
+            days,
+        }
     }
+
+    fn first_day(&self) -> NaiveDate {
+        self.today - Duration::days(self.days - 1)
+    }
+
+    /// Older than the short strip.
+    fn is_early(&self, date: NaiveDate) -> bool {
+        date <= self.today - Duration::days(SHORT_DAYS)
+    }
+}
+
+/// The incidents and detected outages of every service within a window.
+struct History {
+    spans: HashMap<i64, Vec<IncidentSpan>>,
+    outages: HashMap<i64, Vec<OutageSpan>>,
+}
+
+impl History {
+    async fn load(pool: &DbPool, window: &Window) -> Result<Self, AppError> {
+        let since = clock::day_start(window.first_day()).unwrap_or_default();
+        Ok(Self {
+            spans: EventRepository::incident_spans(pool, since).await?,
+            outages: OutageRepository::since(pool, since).await?,
+        })
+    }
+}
+
+fn strip_of(service: &Service, history: &History, window: &Window, i18n: &I18n) -> Strip {
+    let days = day_levels(
+        history.spans.get(&service.id).map_or(&[], Vec::as_slice),
+        history.outages.get(&service.id).map_or(&[], Vec::as_slice),
+        clock::local_date(&service.created_at),
+        window,
+    );
+    let early = days
+        .iter()
+        .take_while(|day| window.is_early(day.date))
+        .count();
+    Strip {
+        days: days
+            .iter()
+            .map(|day| DayCell {
+                level: day.level,
+                date: i18n.format_date_short(&day.date),
+                status: day_status(day, i18n),
+                early: window.is_early(day.date),
+            })
+            .collect(),
+        label: availability_label(&days, i18n),
+        recent_label: availability_label(&days[early..], i18n),
+        legend: i18n.tf("availability.legend", &[("n", &days.len().to_string())]),
+        summary: incident_summary(&days, i18n),
+        recent_summary: incident_summary(&days[early..], i18n),
+        since: i18n.tf("availability.days_ago", &[("n", &days.len().to_string())]),
+    }
+}
+
+/// How many of these days had an incident, said over their number.
+fn incident_summary(days: &[Day], i18n: &I18n) -> String {
+    let total = days.len().to_string();
+    let bad = days.iter().filter(|day| day.level.unwrap_or(0) > 0).count();
+    if bad == 0 {
+        return i18n.tf("availability.none_over", &[("n", &total)]);
+    }
+    let what = i18n.plural("availability.days_incident", bad);
+    i18n.tf("availability.over", &[("what", &what), ("n", &total)])
 }
 
 /// What one day of the strip shows.
@@ -177,18 +268,17 @@ struct Day {
     detected_minutes: Option<i64>,
 }
 
-/// The last thirty days, oldest first. `now` bounds the outages under way.
+/// The days of the window, oldest first.
 fn day_levels(
     spans: &[IncidentSpan],
     outages: &[OutageSpan],
     created: NaiveDate,
-    today: NaiveDate,
-    now: DateTime<Utc>,
+    window: &Window,
 ) -> Vec<Day> {
-    (0..DAYS)
+    (0..window.days)
         .rev()
         .map(|offset| {
-            let date = today - Duration::days(offset);
+            let date = window.today - Duration::days(offset);
             if date < created {
                 return Day {
                     date,
@@ -196,7 +286,7 @@ fn day_levels(
                     detected_minutes: None,
                 };
             }
-            tracked_day(spans, outages, date, today, now)
+            tracked_day(spans, outages, date, window.today, window.now)
         })
         .collect()
 }
@@ -319,6 +409,14 @@ mod tests {
         OutageSpan { start, end }
     }
 
+    fn window(days: i64, now: DateTime<Utc>) -> Window {
+        Window {
+            today: clock::today(),
+            now,
+            days,
+        }
+    }
+
     /// The strip with the service created long ago, at noon of `today`.
     fn strip(spans: &[IncidentSpan], outages: &[OutageSpan]) -> Vec<Day> {
         let today = clock::today();
@@ -326,18 +424,36 @@ mod tests {
             spans,
             outages,
             today - Duration::days(40),
-            today,
-            at(today, 12 * 60),
+            &window(SHORT_DAYS, at(today, 12 * 60)),
         )
     }
 
     #[test]
     fn days_before_creation_are_untracked() {
         let today = clock::today();
-        let days = day_levels(&[], &[], today - Duration::days(1), today, Utc::now());
+        let days = day_levels(
+            &[],
+            &[],
+            today - Duration::days(1),
+            &window(SHORT_DAYS, Utc::now()),
+        );
         assert_eq!(days.len(), 30);
         assert_eq!(days.iter().filter(|d| d.level.is_none()).count(), 28);
         assert_eq!(days.last().map(|d| d.date), Some(today));
+    }
+
+    #[test]
+    fn a_long_strip_reaches_back_ninety_days_and_marks_the_older_sixty() {
+        let today = clock::today();
+        let long = window(LONG_DAYS, Utc::now());
+        let days = day_levels(&[], &[], today - Duration::days(200), &long);
+        assert_eq!(days.len(), 90);
+        assert_eq!(
+            days.first().map(|d| d.date),
+            Some(today - Duration::days(89))
+        );
+        let early = days.iter().filter(|d| long.is_early(d.date)).count();
+        assert_eq!(early, 60, "the short strip keeps the last thirty");
     }
 
     #[test]

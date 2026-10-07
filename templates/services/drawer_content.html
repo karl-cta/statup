@@ -1,5 +1,8 @@
 {% import "components/macros.html" as ui %}
 <div class="drawer-body">
+    {% if can_edit %}
+    <a href="/services/{{ row.service.id }}/edit" class="drawer-tool drawer-edit" title="{{ i18n.t("services.edit") }} {{ row.service.name }}" aria-label="{{ i18n.t("services.edit") }} {{ row.service.name }}">{% call ui::pencil_icon() %}{% endcall %}</a>
+    {% endif %}
     <h2 id="drawer-title" class="drawer-title drawer-title-svc">
         <span class="svc-icon">{% call ui::service_icon(row.service) %}{% endcall %}</span>
         <span>{{ row.service.name }}</span>
@@ -18,9 +21,9 @@
     </dl>
 
     <section class="drawer-section" aria-labelledby="svc-days-title">
-        <h3 id="svc-days-title" class="label">{{ i18n.t("availability.legend") }}</h3>
-        <div class="svc-bars drawer-bars" role="img" aria-label="{{ row.availability_label }}">
-            {% for day in row.days %}<span class="{{ day.class() }}" data-day-date="{{ day.date }}" data-day-status="{{ day.status }}"></span>{% endfor %}
+        <h3 id="svc-days-title" class="label">{{ row.strip.legend }}</h3>
+        <div class="svc-bars drawer-bars" role="img" aria-label="{{ row.strip.label }}">
+            {% for day in row.strip.days %}<span class="{{ day.class() }}" data-day-date="{{ day.date }}" data-day-status="{{ day.status }}"></span>{% endfor %}
         </div>
     </section>
 

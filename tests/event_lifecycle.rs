@@ -1602,6 +1602,60 @@ async fn a_service_panel_tells_its_story() {
     assert!(!body.contains("Printers jammed"), "only its own events");
 }
 
+#[tokio::test]
+async fn editors_reach_a_service_settings_from_its_row_and_its_panel() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let id = app.create_service("Payroll").await;
+    let edit = format!(r#"href="/services/{id}/edit""#);
+
+    let (_, page) = app.get("/services").await;
+    assert!(page.contains(&edit) && page.contains(r#"aria-label="Modifier Payroll""#));
+
+    let (_, panel) = app.get(&format!("/services/{id}/drawer")).await;
+    assert!(panel.contains(&edit), "the panel offers the pencil");
+}
+
+#[tokio::test]
+async fn service_history_spans_ninety_days_where_there_is_room() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let id = app.create_service("Payroll").await;
+
+    let (_, home) = app.get("/").await;
+    assert_eq!(home.matches("data-day-date=").count(), 90);
+    assert_eq!(
+        home.matches("bar-early").count(),
+        60,
+        "a narrow column hides them"
+    );
+    assert!(home.contains("30 derniers jours\u{a0}:") && home.contains("90 derniers jours\u{a0}:"));
+
+    let (_, page) = app.get("/services").await;
+    assert!(page.contains("svc-history") && page.contains("en 90 jours"));
+    assert!(
+        page.contains("en 30 jours"),
+        "a phone keeps the last thirty"
+    );
+
+    let (_, panel) = app.get(&format!("/services/{id}/drawer")).await;
+    assert_eq!(panel.matches("data-day-date=").count(), 30);
+    assert!(
+        panel.contains(">30 derniers jours<"),
+        "the panel keeps its month"
+    );
+}
+
+#[tokio::test]
+async fn visitors_get_no_pencil_in_a_service_panel() {
+    let app = TestApp::spawn_public().await;
+    let id = app.create_service("Payroll").await;
+
+    let (status, panel) = app.get(&format!("/services/{id}/drawer")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(!panel.contains(&format!("/services/{id}/edit")));
+}
+
 async fn lifecycle_of(app: &TestApp, event_id: i64) -> Option<Lifecycle> {
     EventRepository::find_by_id(&app.pool, event_id)
         .await

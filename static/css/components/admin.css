@@ -262,13 +262,65 @@
         min-width: 0;
     }
 
+    /* Beside the name on a phone, after the state menu above. */
+    .svc-edit {
+        grid-row: 1;
+        grid-column: 2;
+    }
+
+    /* Ninety days under the row, across its width, in the bars of the
+       dashboard; a phone keeps the last thirty. */
+    .svc-history {
+        grid-column: 1 / -1;
+        margin-top: 4px;
+    }
+
+    .svc-history .svc-bars {
+        height: 10px;
+        gap: 2px;
+    }
+
+    .svc-history-caption {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 6px;
+        font-size: var(--text-xs);
+        font-variant-numeric: tabular-nums;
+        color: var(--muted);
+    }
+
+    .svc-history-long,
+    .svc-history-short {
+        color: var(--ink-soft);
+    }
+
+    .svc-history-end,
+    .svc-history-long {
+        display: none;
+    }
+
     @media (min-width: 720px) {
         .svc-admin-row {
-            grid-template-columns: minmax(0, 1fr) 220px;
+            grid-template-columns: minmax(0, 1fr) 220px 34px;
         }
 
         .svc-admin-row .admin-row-cell {
             grid-column: auto;
+        }
+
+        .svc-edit {
+            grid-column: 3;
+        }
+
+        .svc-history .svc-bars > .bar-early,
+        .svc-history-end,
+        .svc-history-long {
+            display: block;
+        }
+
+        .svc-history-short {
+            display: none;
         }
 
         .member-row {
