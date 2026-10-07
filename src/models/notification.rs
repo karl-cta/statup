@@ -98,6 +98,31 @@ pub enum Happening {
 }
 
 impl Happening {
+    /// What a new event tells: an incident opens, a maintenance is announced
+    /// or begins at once, an announcement is published.
+    pub fn of_new(kind: Kind, lifecycle: Option<Lifecycle>) -> Self {
+        match (kind, lifecycle) {
+            (Kind::Publication, _) => Self::Published,
+            (Kind::Maintenance, Some(Lifecycle::InProgress)) => Self::Started,
+            _ => Self::Opened,
+        }
+    }
+
+    /// What a change of state tells: the end of the work, a maintenance that
+    /// begins, or news.
+    pub fn of_move(kind: Kind, from: Option<Lifecycle>, to: Lifecycle) -> Self {
+        if to.is_terminal() {
+            Self::Closed
+        } else if kind == Kind::Maintenance
+            && from == Some(Lifecycle::Scheduled)
+            && to == Lifecycle::InProgress
+        {
+            Self::Started
+        } else {
+            Self::Updated
+        }
+    }
+
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Opened => "opened",
@@ -133,6 +158,43 @@ pub struct Notification {
     pub service_id: Option<i64>,
 }
 
+impl Notification {
+    /// About an event, in the state it is in once the change is made.
+    pub fn event(
+        happening: Happening,
+        kind: Kind,
+        event_id: i64,
+        lifecycle: Option<Lifecycle>,
+    ) -> Self {
+        Self {
+            happening,
+            audience: Audience::of(kind),
+            event_id: Some(event_id),
+            update_id: None,
+            lifecycle,
+            service_id: None,
+        }
+    }
+
+    /// With the update posted along with the change.
+    #[must_use]
+    pub fn with_update(self, update_id: Option<i64>) -> Self {
+        Self { update_id, ..self }
+    }
+
+    /// About a service the checks found down, or back.
+    pub fn service(happening: Happening, service_id: i64) -> Self {
+        Self {
+            happening,
+            audience: Audience::DetectedOutages,
+            event_id: None,
+            update_id: None,
+            lifecycle: None,
+            service_id: Some(service_id),
+        }
+    }
+}
+
 /// One message for one destination.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct Delivery {
@@ -150,4 +212,60 @@ pub struct Delivery {
     pub failure: Option<String>,
     pub created_at: DateTime<Utc>,
     pub sent_at: Option<DateTime<Utc>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_new_event_opens_begins_or_is_published() {
+        let investigating = Some(Lifecycle::Investigating);
+        assert_eq!(
+            Happening::of_new(Kind::Incident, investigating),
+            Happening::Opened
+        );
+        assert_eq!(
+            Happening::of_new(Kind::Maintenance, Some(Lifecycle::Scheduled)),
+            Happening::Opened
+        );
+        assert_eq!(
+            Happening::of_new(Kind::Maintenance, Some(Lifecycle::InProgress)),
+            Happening::Started
+        );
+        assert_eq!(
+            Happening::of_new(Kind::Publication, None),
+            Happening::Published
+        );
+    }
+
+    #[test]
+    fn a_move_closes_begins_a_maintenance_or_brings_news() {
+        let incident = |from, to| Happening::of_move(Kind::Incident, Some(from), to);
+        assert_eq!(
+            incident(Lifecycle::Investigating, Lifecycle::InProgress),
+            Happening::Updated
+        );
+        assert_eq!(
+            incident(Lifecycle::Monitoring, Lifecycle::Resolved),
+            Happening::Closed
+        );
+        assert_eq!(
+            incident(Lifecycle::Investigating, Lifecycle::Cancelled),
+            Happening::Closed
+        );
+        let maintenance = |from, to| Happening::of_move(Kind::Maintenance, Some(from), to);
+        assert_eq!(
+            maintenance(Lifecycle::Scheduled, Lifecycle::InProgress),
+            Happening::Started
+        );
+        assert_eq!(
+            maintenance(Lifecycle::InProgress, Lifecycle::Completed),
+            Happening::Closed
+        );
+        assert_eq!(
+            maintenance(Lifecycle::Scheduled, Lifecycle::Cancelled),
+            Happening::Closed
+        );
+    }
 }

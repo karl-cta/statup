@@ -2,6 +2,8 @@
 
 mod format;
 mod notice;
+mod queue;
 
 pub use format::*;
 pub use notice::*;
+pub use queue::notify;

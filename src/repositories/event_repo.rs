@@ -417,19 +417,22 @@ impl EventRepository {
         Ok(service_ids)
     }
 
+    /// Returns the id of the update.
     pub async fn add_update(
         pool: &DbPool,
         event_id: i64,
         html: &str,
         author_id: i64,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query("INSERT INTO event_updates (event_id, message, author_id) VALUES (?, ?, ?)")
-            .bind(event_id)
-            .bind(html)
-            .bind(author_id)
-            .execute(pool)
-            .await?;
-        Ok(())
+    ) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar(
+            "INSERT INTO event_updates (event_id, message, author_id) VALUES (?, ?, ?) \
+             RETURNING id",
+        )
+        .bind(event_id)
+        .bind(html)
+        .bind(author_id)
+        .fetch_one(pool)
+        .await
     }
 
     pub async fn find_update(
