@@ -14,6 +14,14 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 - The Services block of the dashboard shows ninety days of history when it has a row of its own, and thirty in a narrower column.
 - The Services page shows each service's last ninety days under its row, with how many had an incident; a phone shows the last thirty.
 - On a phone, the event list keeps the search in view and folds the other filters behind a Filters button, which counts the filters set.
+- Statup posts each incident, maintenance and announcement where people already read: Microsoft Teams, Slack, Google Chat, Discord, Mattermost, a phone through ntfy, email, or any tool through a webhook. Administrators add the destinations under Settings, Notifications, choose what each one receives and in which language, and send a test before saving.
+- A destination can also receive the outages the checks detect, and their end, for the team that runs the services.
+- A destination that does not answer is tried again for about forty minutes, its messages in order; the Notifications page shows the last message each destination received, or why it failed.
+- Email goes through your mail server, set with `SMTP_HOST`, `SMTP_SECURITY`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` and `SMTP_FROM`; the messages of one event stay in one conversation.
+- Any other tool receives a versioned JSON body, described in the self-hosting guide.
+- The database is upgraded on start to keep the destinations and their messages.
+- Fixed: in the dark theme, the bar under a long form no longer shows as a darker band.
+- Fixed: in the banner, a word in bold or italics no longer comes apart from the punctuation after it.
 
 ## 0.2.1, 2026-10-06
 

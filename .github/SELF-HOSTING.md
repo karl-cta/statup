@@ -34,12 +34,13 @@ Every setting is optional. Write the ones you change in a `.env` file next to `d
 | Variable | Default | Description |
 |---|---|---|
 | `TZ` | `UTC` | Time zone used until one is chosen, e.g. `Europe/Paris`. The zone set in Settings, or taken from the first account's browser, takes precedence. Dates are shown in it, with the UTC offset where it matters, and maintenance times are typed in it |
-| `PUBLIC_URL` | request host | Address visitors use, e.g. `https://status.example.com`. Feed links use it; an `https://` address marks the session cookie `Secure` and sends HSTS |
+| `PUBLIC_URL` | request host | Address visitors use, e.g. `https://status.example.com`. Feed and notification links use it; an `https://` address marks the session cookie `Secure` and sends HSTS |
 | `TRUST_PROXY_HEADERS` | `false` | Read the client address from `CLIENT_IP_HEADER` and the scheme from `X-Forwarded-Proto`. Only behind a reverse proxy that sets them |
 | `CLIENT_IP_HEADER` | `X-Forwarded-For` | The header your proxy writes the client address in, such as `X-Real-IP`, `Forwarded` or `CF-Connecting-IP`. Only its last entry counts, and no other header is read |
 | `PUBLIC_MODE` | `false` | Starting public access. Once an administrator chooses in Settings, that choice is kept across restarts |
 | `UPDATE_CHECK` | `true` | Ask GitHub once a day whether a newer version is published, and tell administrators in Settings. The request carries no information about the instance. `false` for an instance that must not reach the internet |
 | `MONITORING` | `true` | Run the monitoring of the services that have it. `false` turns every check off; the addresses stay saved |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURITY`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | unset | The mail server of the email notifications, see [Notifications](#notifications) |
 | `DEFAULT_LOCALE` | `fr` | `fr`, `en`, `de` or `es`, for visitors whose browser asks for none of them |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | unset | Create an administrator at start when no account exists. Both are needed, and the password follows the rule above. Remove them afterwards |
 | `DATABASE_URL` | `./statup.db` | SQLite database file |
@@ -60,6 +61,77 @@ A service is monitored from its form, under **Monitoring**: **Web** for an addre
 - Nothing is declared during a maintenance that takes the service down, nor when every checked service fails at once, which points at Statup's own connection rather than at the services. If that lasts five minutes, the checks count again.
 - A detected outage of fifteen minutes or more counts in the service's thirty days. Choosing **None** or changing the address of a service in a false outage clears it, from its state and from the thirty days.
 - The checks only reach the addresses you set, never read a page's content, and keep no credentials: an address with a user name or a password is refused.
+
+## Notifications
+
+Statup posts each incident, maintenance and announcement where people already read. An administrator adds the destinations in **Settings, Notifications**: the tool, its address, the language of the messages, and what it receives: incidents, maintenance, announcements, and the outages the checks detect. **Send a test** posts a message at once and says why it fails.
+
+| Tool | The address to paste |
+|---|---|
+| Microsoft Teams | In the channel: ⋯, Workflows, then the template that posts a webhook request to the channel. The former incoming webhooks (Office 365 connectors) stopped in May 2026 |
+| Slack | On api.slack.com/apps, create an app, turn on Incoming Webhooks and add it to the channel. Rocket.Chat takes the same format: choose Slack |
+| Google Chat | In the space: Apps & integrations, Webhooks, Add |
+| Discord | In the channel settings: Integrations, Webhooks, New Webhook, Copy Webhook URL |
+| Mattermost | Integrations, Incoming Webhooks, Add |
+| ntfy | The topic address, such as `https://ntfy.sh/your-topic`, then subscribe to the topic in the ntfy app. A topic on ntfy.sh is readable by anyone who knows its name: choose one nobody guesses, or use your own ntfy server, with `?auth=` in the address for a protected topic |
+| Email | Addresses separated by commas, 50 at most, sent in blind copy. Needs a mail server, below |
+| Any other tool | An address that takes a JSON `POST`: Zapier, Make, n8n, Power Automate, Home Assistant. The body is described below |
+
+- Messages leave within seconds, in order for each destination. One that does not answer is tried again after 30 seconds, 2, 10 and 30 minutes. After that, or at once when the tool refuses the address (404, 401), its waiting messages are given up and the list of destinations says why.
+- Links in the messages lead to `PUBLIC_URL`, or else to the address at the foot of the Notifications page: the one the first destination was added from, which you can change.
+- Anyone who knows a webhook address can post in its channel. It is kept in the database, shown only to administrators and never written to the logs; your backups contain it.
+
+### Email
+
+Set your mail server in `.env`. Email destinations are offered only when `SMTP_HOST` is set.
+
+| Variable | Default | Description |
+|---|---|---|
+| `SMTP_HOST` | unset | The mail server, e.g. `smtp.example.com` |
+| `SMTP_SECURITY` | `starttls` | `starttls`, `tls`, or `none` for a relay on your own network |
+| `SMTP_PORT` | by security | 587 for `starttls`, 465 for `tls`, 25 for `none` |
+| `SMTP_USERNAME`, `SMTP_PASSWORD` | unset | Both or neither, when the server asks for them |
+| `SMTP_FROM` | required | The sender, e.g. `Statup <status@example.com>` |
+
+Every message of an event has the same subject and joins one conversation in the mail client.
+
+### The body sent to any other tool
+
+A `POST` with a JSON body, version 1:
+
+```json
+{
+  "version": 1,
+  "happening": "opened",
+  "occurred_at": "2026-10-07T09:00:00Z",
+  "instance": "Example",
+  "event": {
+    "id": 7,
+    "kind": "incident",
+    "severity": "critical",
+    "category": null,
+    "state": "investigating",
+    "title": "Network down at the head office",
+    "services": ["Network", "VPN"],
+    "planned_start": null,
+    "planned_end": null,
+    "url": "https://status.example.com/events/7"
+  },
+  "service": null,
+  "message": {
+    "mark": "outage",
+    "headline": "Major incident · Network down at the head office",
+    "summary": "Investigating · Network, VPN",
+    "text": "The provider is on site.",
+    "url": "https://status.example.com/events/7"
+  }
+}
+```
+
+- `happening`: `opened`, `updated`, `rescheduled`, `started`, `closed`, `published`, `service_down`, `service_up` or `test`.
+- `event`: `kind` is `incident`, `maintenance` or `publication`; `severity` is `minor` or `critical`; `category` is `changelog` or `info`; `state` is the state the event moved to. It is `null` for an outage the checks found, which fills `service` instead: `{"name": "Mail", "down_since": "2026-10-07T08:57:00Z"}`.
+- `message`: the text the chat tools receive, in the language of the destination; `mark` is `outage`, `degraded`, `maintenance`, `restored` or `plain`.
+- Dates are in UTC. A later version adds fields without changing these.
 
 ## Running behind a reverse proxy
 
