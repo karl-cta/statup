@@ -1,13 +1,41 @@
 @layer components {
     /* Events list: filters above the results. */
+    /* A phone shows the search and a button that unfolds the other
+       filters; without the script they all show. */
     .filters {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: minmax(0, 1fr) auto;
         gap: 12px;
         margin-bottom: 20px;
     }
 
-    .filters-search,
+    .filters-toggle {
+        align-self: end;
+    }
+
+    /* The example in the search ends on an ellipsis when the button beside
+       it grows with its count. */
+    .filters-search .input {
+        text-overflow: ellipsis;
+    }
+
+    .filters-count[hidden] {
+        display: none;
+    }
+
+    .filters-more {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .js .filters-more:not(.is-open),
+    html:not(.js) .filters-toggle {
+        display: none;
+    }
+
+    html:not(.js) .filters-search,
     .filters-service {
         grid-column: 1 / -1;
     }
@@ -17,6 +45,19 @@
         .filters {
             grid-template-columns: repeat(3, minmax(0, 1fr));
             align-items: end;
+        }
+
+        .filters-search {
+            grid-column: 1 / -1;
+        }
+
+        .filters .filters-toggle {
+            display: none;
+        }
+
+        .filters-more,
+        .js .filters-more:not(.is-open) {
+            display: contents;
         }
 
         .filters-service {
@@ -29,7 +70,8 @@
             grid-template-columns: minmax(200px, 2fr) repeat(3, minmax(0, 1fr)) repeat(2, minmax(0, 150px));
         }
 
-        .filters-search {
+        .filters-search,
+        html:not(.js) .filters-search {
             grid-column: auto;
         }
     }

@@ -1647,6 +1647,29 @@ async fn service_history_spans_ninety_days_where_there_is_room() {
 }
 
 #[tokio::test]
+async fn a_phone_folds_the_filters_unless_one_is_set() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let id = app.create_service("Payroll").await;
+    app.create_incident("Payroll slow", "", "minor", &[id])
+        .await;
+
+    let (_, plain) = app.get("/events").await;
+    assert!(plain.contains(r#"class="filters-more""#), "folded");
+    assert!(plain.contains(r#"aria-expanded="false""#));
+
+    let (_, filtered) = app.get(&format!("/events?service_id={id}&q=slow")).await;
+    assert!(
+        filtered.contains(r#"class="filters-more is-open""#),
+        "opened"
+    );
+    assert!(
+        filtered.contains(r#"data-filters-count>1<"#),
+        "the search is not counted"
+    );
+}
+
+#[tokio::test]
 async fn visitors_get_no_pencil_in_a_service_panel() {
     let app = TestApp::spawn_public().await;
     let id = app.create_service("Payroll").await;
