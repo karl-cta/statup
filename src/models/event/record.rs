@@ -378,16 +378,18 @@ pub fn excerpt(text: &str, max_chars: usize) -> String {
 /// writes decoded, whitespace collapsed.
 fn html_to_text(html: &str) -> String {
     let mut text = String::with_capacity(html.len());
-    let mut in_tag = false;
+    let mut tag: Option<String> = None;
     for ch in html.chars() {
-        match ch {
-            '<' => in_tag = true,
-            '>' if in_tag => {
-                in_tag = false;
-                text.push(' ');
+        match tag.as_mut() {
+            Some(name) if ch == '>' => {
+                if ends_a_block(name) {
+                    text.push(' ');
+                }
+                tag = None;
             }
-            _ if !in_tag => text.push(ch),
-            _ => {}
+            Some(name) => name.push(ch),
+            None if ch == '<' => tag = Some(String::new()),
+            None => text.push(ch),
         }
     }
     let decoded = text
@@ -399,6 +401,20 @@ fn html_to_text(html: &str) -> String {
         .replace("&nbsp;", " ")
         .replace("&amp;", "&");
     decoded.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// A paragraph, a list item or a line break parts words; emphasis and
+/// links sit inside a sentence, against its punctuation.
+fn ends_a_block(tag: &str) -> bool {
+    let name = tag
+        .trim_start_matches('/')
+        .split(|c: char| c.is_whitespace() || c == '/')
+        .next()
+        .unwrap_or_default();
+    !matches!(
+        name.to_ascii_lowercase().as_str(),
+        "a" | "b" | "code" | "del" | "em" | "i" | "s" | "strong"
+    )
 }
 
 /// Time left before a planned start.
