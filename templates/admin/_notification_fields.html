@@ -1,0 +1,69 @@
+{# The fields of a destination, on the list to add one and on its own page:
+   the template gives `form`, `email_ready`, `i18n` and the helpers of
+   `DestinationFields`. The address row says what to paste for the chosen
+   tool (notifications.js); without script it keeps the hint of the tool
+   shown first. #}
+<div class="form-grid form-grid-2">
+    <div class="field">
+        <label for="destination-kind" class="field-label">{{ i18n.t("notifications.kind") }}</label>
+        <select id="destination-kind" name="kind" class="input" data-custom-select data-destination-kind
+                {% if self.error_for(Field::Kind).is_some() %}aria-invalid="true" aria-describedby="kind-error"{% endif %}>
+            {% for kind in self.kinds() %}
+            {% let unavailable = kind.as_str() == "email" && !email_ready %}
+            <option value="{{ kind.as_str() }}" data-label="{{ i18n.t(kind.target_label_key()) }}" data-placeholder="{{ kind.placeholder() }}"{% if form.kind == kind.as_str() %} selected{% endif %}{% if unavailable %} disabled{% endif %}>{{ i18n.t(kind.label_key()) }}{% if unavailable %} ({{ i18n.t("notifications.email_needs_server") }}){% endif %}</option>
+            {% endfor %}
+        </select>
+        {% if let Some(message) = self.error_for(Field::Kind) %}
+        <p id="kind-error" class="field-error" role="alert">{{ message }}</p>
+        {% endif %}
+    </div>
+    <div class="field">
+        <label for="destination-name" class="field-label">{{ i18n.t("notifications.name") }}</label>
+        <input id="destination-name" name="name" type="text" class="input" maxlength="60" required autocomplete="off"
+               value="{{ form.name }}" placeholder="{{ i18n.t("notifications.name_placeholder") }}"
+               {% if self.error_for(Field::Name).is_some() %}aria-invalid="true" aria-describedby="name-error" autofocus{% endif %}>
+        {% if let Some(message) = self.error_for(Field::Name) %}
+        <p id="name-error" class="field-error" role="alert">{{ message }}</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="field">
+    <label for="destination-target" class="field-label" data-target-label>{{ i18n.t(self.chosen().target_label_key()) }}</label>
+    <input id="destination-target" name="target" type="text" class="input" inputmode="url" maxlength="2000" required autocomplete="off" spellcheck="false"
+           value="{{ form.target }}" placeholder="{{ self.chosen().placeholder() }}"
+           aria-describedby="hint-{{ self.chosen().as_str() }}{% if self.error_for(Field::Target).is_some() %} target-error{% endif %}"
+           {% if self.error_for(Field::Target).is_some() %}aria-invalid="true" autofocus{% endif %}>
+    {% for kind in self.kinds() %}
+    <p id="hint-{{ kind.as_str() }}" class="field-hint" data-hint-for="{{ kind.as_str() }}"{% if form.kind != kind.as_str() %} hidden{% endif %}>{{ i18n.t(kind.hint_key()) }}</p>
+    {% endfor %}
+    {% if let Some(message) = self.error_for(Field::Target) %}
+    <p id="target-error" class="field-error" role="alert">{{ message }}</p>
+    {% endif %}
+</div>
+
+<div class="field destination-locale">
+    <label for="destination-locale" class="field-label">{{ i18n.t("notifications.locale") }}</label>
+    <select id="destination-locale" name="locale" class="input" data-custom-select>
+        {% for language in self.languages() %}
+        <option value="{{ language.code }}"{% if form.locale == language.code %} selected{% endif %}>{{ language.name }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+<fieldset class="choice-group">
+    <legend class="field-label">{{ i18n.t("notifications.receives") }}</legend>
+    <div class="destination-boxes">
+        <label class="check-row"><input type="checkbox" name="on_incidents" value="on" class="checkbox"{% if form.on_incidents.is_some() %} checked{% endif %}><span>{{ i18n.t("notifications.box_incidents") }}</span></label>
+        <label class="check-row"><input type="checkbox" name="on_maintenances" value="on" class="checkbox"{% if form.on_maintenances.is_some() %} checked{% endif %}><span>{{ i18n.t("notifications.box_maintenances") }}</span></label>
+        <label class="check-row"><input type="checkbox" name="on_publications" value="on" class="checkbox"{% if form.on_publications.is_some() %} checked{% endif %}><span>{{ i18n.t("notifications.box_publications") }}</span></label>
+        <label class="check-row"><input type="checkbox" name="on_detected" value="on" class="checkbox"{% if form.on_detected.is_some() %} checked{% endif %}><span>{{ i18n.t("notifications.box_detected") }}</span></label>
+    </div>
+</fieldset>
+
+{# hx-sync drops a second click while a test runs, as on the monitoring
+   fields. #}
+<div class="destination-test">
+    <button type="button" class="btn btn-ghost check-test" hx-post="/admin/notifications/test" hx-target="next [data-test-result]" hx-swap="innerHTML" hx-sync="this:drop"><span class="check-test-idle">{{ i18n.t("notifications.test") }}</span><span class="check-test-busy">{{ i18n.t("notifications.testing") }}</span></button>
+    <div aria-live="polite" data-test-result></div>
+</div>

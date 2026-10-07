@@ -1,5 +1,7 @@
 //! Notification destinations and the messages queued for them.
 
+use std::str::FromStr;
+
 use chrono::{DateTime, Utc};
 
 use super::{Kind, Lifecycle};
@@ -17,6 +19,103 @@ pub enum ChannelKind {
     Email,
     /// Any other tool that takes a JSON webhook.
     Webhook,
+}
+
+impl ChannelKind {
+    /// Every tool, in the order the menu lists them.
+    pub const ALL: [Self; 8] = [
+        Self::Teams,
+        Self::Slack,
+        Self::GoogleChat,
+        Self::Discord,
+        Self::Mattermost,
+        Self::Ntfy,
+        Self::Email,
+        Self::Webhook,
+    ];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Teams => "teams",
+            Self::Slack => "slack",
+            Self::GoogleChat => "google_chat",
+            Self::Discord => "discord",
+            Self::Mattermost => "mattermost",
+            Self::Ntfy => "ntfy",
+            Self::Email => "email",
+            Self::Webhook => "webhook",
+        }
+    }
+
+    pub fn label_key(self) -> &'static str {
+        match self {
+            Self::Teams => "notifications.kind_teams",
+            Self::Slack => "notifications.kind_slack",
+            Self::GoogleChat => "notifications.kind_google_chat",
+            Self::Discord => "notifications.kind_discord",
+            Self::Mattermost => "notifications.kind_mattermost",
+            Self::Ntfy => "notifications.kind_ntfy",
+            Self::Email => "notifications.kind_email",
+            Self::Webhook => "notifications.kind_webhook",
+        }
+    }
+
+    /// Where to find the address to paste, under the field.
+    pub fn hint_key(self) -> &'static str {
+        match self {
+            Self::Teams => "notifications.hint_teams",
+            Self::Slack => "notifications.hint_slack",
+            Self::GoogleChat => "notifications.hint_google_chat",
+            Self::Discord => "notifications.hint_discord",
+            Self::Mattermost => "notifications.hint_mattermost",
+            Self::Ntfy => "notifications.hint_ntfy",
+            Self::Email => "notifications.hint_email",
+            Self::Webhook => "notifications.hint_webhook",
+        }
+    }
+
+    /// What the address field asks for.
+    pub fn target_label_key(self) -> &'static str {
+        match self {
+            Self::Ntfy => "notifications.target_topic_label",
+            Self::Email => "notifications.target_addresses_label",
+            _ => "notifications.target_label",
+        }
+    }
+
+    /// The shape of the address each tool gives, so a wrong paste stands out.
+    pub fn placeholder(self) -> &'static str {
+        match self {
+            Self::Teams => "https://….logic.azure.com/workflows/…",
+            Self::Slack => "https://hooks.slack.com/services/…",
+            Self::GoogleChat => "https://chat.googleapis.com/v1/spaces/…",
+            Self::Discord => "https://discord.com/api/webhooks/…",
+            Self::Mattermost => "https://chat.example.com/hooks/…",
+            Self::Ntfy => "https://ntfy.sh/statup-example",
+            Self::Email => "it@example.com",
+            Self::Webhook => "https://…",
+        }
+    }
+
+    /// The hosted tools only give `https` addresses; the ones a team may run
+    /// on its own network can be reached in plain `http`.
+    pub fn needs_https(self) -> bool {
+        matches!(
+            self,
+            Self::Teams | Self::Slack | Self::GoogleChat | Self::Discord
+        )
+    }
+}
+
+impl FromStr for ChannelKind {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::ALL
+            .into_iter()
+            .find(|kind| kind.as_str() == s)
+            .ok_or(())
+    }
 }
 
 /// The part of the page a message belongs to, and so the box a destination

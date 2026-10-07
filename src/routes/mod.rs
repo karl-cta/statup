@@ -14,6 +14,7 @@ mod feed;
 mod health;
 mod icons;
 mod locale;
+mod notifications;
 mod page;
 mod password;
 mod profile;
@@ -217,6 +218,23 @@ fn admin_routes() -> Router<AppState> {
         )
         .route("/admin/settings/time-zone", post(admin::update_time_zone))
         .route("/admin/settings/logo/remove", post(admin::remove_logo))
+        .route(
+            "/admin/notifications",
+            get(notifications::list).post(notifications::create),
+        )
+        .route("/admin/notifications/test", post(notifications::test))
+        .route(
+            "/admin/notifications/page-address",
+            post(notifications::save_page_address),
+        )
+        .route(
+            "/admin/notifications/{id}",
+            get(notifications::edit).post(notifications::update),
+        )
+        .route(
+            "/admin/notifications/{id}/delete",
+            post(notifications::delete),
+        )
         .route("/admin/users", get(admin::users_list))
         .route("/admin/users/new", post(admin::add_member))
         .route("/admin/users/{id}/role", post(admin::update_role))

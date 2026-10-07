@@ -212,6 +212,25 @@ impl NotificationRepository {
         Ok(result.rows_affected())
     }
 
+    pub async fn count_channels(pool: &DbPool) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar("SELECT COUNT(*) FROM notification_channels")
+            .fetch_one(pool)
+            .await
+    }
+
+    /// The message each destination is trying again, after a failure.
+    pub async fn retrying(pool: &DbPool) -> Result<HashMap<i64, Delivery>, sqlx::Error> {
+        let rows = sqlx::query_as::<_, Delivery>(&format!(
+            "SELECT {DELIVERY_COLUMNS} FROM notification_deliveries d \
+             WHERE d.status = 'pending' AND d.attempts > 0 \
+               AND d.id = (SELECT MIN(p.id) FROM notification_deliveries p \
+                           WHERE p.channel_id = d.channel_id AND p.status = 'pending')"
+        ))
+        .fetch_all(pool)
+        .await?;
+        Ok(rows.into_iter().map(|d| (d.channel_id, d)).collect())
+    }
+
     /// The last message each destination sent or gave up on.
     pub async fn latest_outcomes(pool: &DbPool) -> Result<HashMap<i64, Delivery>, sqlx::Error> {
         let rows = sqlx::query_as::<_, Delivery>(&format!(
@@ -474,6 +493,31 @@ mod tests {
         assert_eq!(again.id, heads[1].id);
         assert_eq!(again.attempts, 1);
         assert_eq!(again.failure.as_deref(), Some("timed_out"));
+    }
+
+    #[tokio::test]
+    async fn a_destination_trying_again_shows_its_failure() {
+        let pool = test_pool().await;
+        let failing = channel(&pool, "failing", true, false).await;
+        let fine = channel(&pool, "fine", true, false).await;
+        let event = incident(&pool).await;
+        NotificationRepository::enqueue(&pool, &about_event(Happening::Opened, event), at(0))
+            .await
+            .unwrap();
+        let heads = NotificationRepository::due(&pool, at(0)).await.unwrap();
+        let head = heads.iter().find(|d| d.channel_id == failing).unwrap();
+        NotificationRepository::retry_later(&pool, head.id, "status_503", at(1))
+            .await
+            .unwrap();
+
+        let retrying = NotificationRepository::retrying(&pool).await.unwrap();
+
+        assert_eq!(retrying[&failing].failure.as_deref(), Some("status_503"));
+        assert!(!retrying.contains_key(&fine));
+        assert_eq!(
+            NotificationRepository::count_channels(&pool).await.unwrap(),
+            2
+        );
     }
 
     #[tokio::test]

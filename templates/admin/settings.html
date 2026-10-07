@@ -125,6 +125,12 @@
             </div>
             <div class="set-row">
                 <div>
+                    <p class="set-label">{{ i18n.t("notifications.title") }}<span class="count">{{ self.notifications_label() }}</span></p>
+                </div>
+                <a href="/admin/notifications" class="btn btn-ghost">{{ i18n.t("notifications.manage") }}</a>
+            </div>
+            <div class="set-row">
+                <div>
                     <p class="set-label">{{ i18n.t("admin.section_icons") }}<span class="count">{{ self.icons_label() }}</span></p>
                 </div>
                 <a href="/icons" class="btn btn-ghost">{{ i18n.t("admin.icons_manage") }}</a>
