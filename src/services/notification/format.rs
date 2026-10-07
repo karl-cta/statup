@@ -5,7 +5,7 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 use super::{Mark, Notice, Origin, Subject};
-use crate::models::{Category, ChannelKind, Happening, Lifecycle, Severity, excerpt};
+use crate::models::{Category, ChannelKind, Event, Happening, Lifecycle, Severity, excerpt};
 
 /// Longest title of a Discord embed, in characters.
 const DISCORD_TITLE_CHARS: usize = 250;
@@ -64,43 +64,55 @@ impl Facts {
         origin: &Origin,
         at: DateTime<Utc>,
     ) -> Self {
-        let mut facts = Self {
+        let (event, service) = match subject {
+            Subject::Event {
+                event, services, ..
+            } => (
+                Some(EventFacts::of(event, services, lifecycle, origin)),
+                None,
+            ),
+            Subject::Service { name, down_since } => {
+                let service = ServiceFacts {
+                    name: name.clone(),
+                    down_since: down_since.map(rfc3339),
+                };
+                (None, Some(service))
+            }
+            Subject::Test => (None, None),
+        };
+        Self {
             version: 1,
             happening: happening.as_str(),
             occurred_at: rfc3339(at),
             instance: origin.instance.clone(),
-            event: None,
-            service: None,
-        };
-        match subject {
-            Subject::Event {
-                event, services, ..
-            } => {
-                facts.event = Some(EventFacts {
-                    id: event.id,
-                    kind: event.kind.as_str(),
-                    severity: event.severity.map(Severity::as_str),
-                    category: event.category.map(Category::as_str),
-                    state: lifecycle.or(event.lifecycle).map(Lifecycle::as_str),
-                    title: event.title.clone(),
-                    services: services.clone(),
-                    planned_start: event.planned_start.map(rfc3339),
-                    planned_end: event.planned_end.map(rfc3339),
-                    url: origin
-                        .page
-                        .as_ref()
-                        .map(|page| format!("{page}/events/{}", event.id)),
-                });
-            }
-            Subject::Service { name, down_since } => {
-                facts.service = Some(ServiceFacts {
-                    name: name.clone(),
-                    down_since: down_since.map(rfc3339),
-                });
-            }
-            Subject::Test => {}
+            event,
+            service,
         }
-        facts
+    }
+}
+
+impl EventFacts {
+    fn of(
+        event: &Event,
+        services: &[String],
+        lifecycle: Option<Lifecycle>,
+        origin: &Origin,
+    ) -> Self {
+        Self {
+            id: event.id,
+            kind: event.kind.as_str(),
+            severity: event.severity.map(Severity::as_str),
+            category: event.category.map(Category::as_str),
+            state: lifecycle.or(event.lifecycle).map(Lifecycle::as_str),
+            title: event.title.clone(),
+            services: services.to_vec(),
+            planned_start: event.planned_start.map(rfc3339),
+            planned_end: event.planned_end.map(rfc3339),
+            url: origin
+                .page
+                .as_ref()
+                .map(|page| format!("{page}/events/{}", event.id)),
+        }
     }
 }
 

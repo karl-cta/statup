@@ -99,13 +99,12 @@ impl DestinationForm {
             return Err((Field::Kind, "notifications.email_unavailable"));
         }
         let target = self.target.trim();
-        destination_allowed(kind, target).map_err(|key| (Field::Target, key))?;
         let target = if kind == ChannelKind::Email {
-            email_addresses(target).map_err(|key| (Field::Target, key))?
+            email_addresses(target)
         } else {
-            target.to_string()
+            destination_allowed(kind, target).map(|()| target.to_string())
         };
-        Ok((kind, target))
+        Ok((kind, target.map_err(|key| (Field::Target, key))?))
     }
 
     /// What to save, or the field to fix and why.
@@ -614,6 +613,24 @@ pub async fn test(
     let page = page_address(&state.pool, state.public_url.as_deref())
         .await?
         .unwrap_or_else(|| origin(&state, &headers));
+    let (notice, facts) = test_message(&channel, page);
+    let result = state.notifier.send(&channel, &notice, &facts).await;
+    let (tone, message) = match result {
+        Ok(()) => ("ok", i18n.t("notifications.test_sent").to_string()),
+        Err(failure) => {
+            let reason = failure_text(failure, &i18n);
+            let text = i18n.tf("notifications.test_failed", &[("reason", &reason)]);
+            ("crit", text)
+        }
+    };
+    render(&TestResultFragment {
+        tone: Some(tone),
+        message,
+    })
+}
+
+/// The test message, in the language of the destination tried.
+fn test_message(channel: &Channel, page: String) -> (Notice, Facts) {
     let origin = Origin {
         instance: crate::brand_name(),
         page: Some(page),
@@ -629,20 +646,7 @@ pub async fn test(
         now,
     );
     let facts = Facts::of(Happening::Test, None, &Subject::Test, &origin, now);
-    let (tone, message) = match state.notifier.send(&channel, &notice, &facts).await {
-        Ok(()) => ("ok", i18n.t("notifications.test_sent").to_string()),
-        Err(failure) => {
-            let reason = failure_text(failure, &i18n);
-            (
-                "crit",
-                i18n.tf("notifications.test_failed", &[("reason", &reason)]),
-            )
-        }
-    };
-    render(&TestResultFragment {
-        tone: Some(tone),
-        message,
-    })
+    (notice, facts)
 }
 
 /// The destination of a test, never saved.
@@ -693,19 +697,10 @@ pub async fn save_page_address(
     Ok(Redirect::to("/admin/notifications?address=1").into_response())
 }
 
-/// A web address with a host and no credentials, or nothing.
+/// A web address as a destination takes one, without a query, or nothing.
 fn page_address_refusal(address: &str) -> Option<&'static str> {
-    if address.is_empty() {
-        return None;
-    }
-    let Ok(url) = reqwest::Url::parse(address) else {
-        return Some("notifications.page_address_invalid");
-    };
-    let valid = matches!(url.scheme(), "http" | "https")
-        && url.host_str().is_some()
-        && url.username().is_empty()
-        && url.password().is_none()
-        && url.query().is_none();
+    let valid = address.is_empty()
+        || (destination_allowed(ChannelKind::Webhook, address).is_ok() && !address.contains('?'));
     (!valid).then_some("notifications.page_address_invalid")
 }
 

@@ -45,18 +45,13 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("cannot create the session store")?;
     let rate_limit = RateLimit::new(config.client_ip_source())?;
-    let mut tasks = spawn_background_tasks(&pool, &rate_limit);
+    let mut tasks = spawn_background_tasks(&pool, &rate_limit, &state);
     if config.update_check {
         tasks.push(spawn_update_check(Arc::clone(&state.update)));
     }
     if config.monitoring {
         tasks.push(spawn_monitoring(pool.clone(), Arc::clone(&state.checks)));
     }
-    tasks.push(spawn_notifications(
-        pool.clone(),
-        Arc::clone(&state.notifier),
-        config.public_url.clone(),
-    ));
 
     let sessions = session::session_layer(
         session_store,
@@ -164,11 +159,20 @@ async fn build_state(config: &Config, pool: DbPool) -> anyhow::Result<AppState> 
 }
 
 /// Periodic work beside the server, stopped on shutdown.
-fn spawn_background_tasks(pool: &DbPool, rate_limit: &RateLimit) -> Vec<AbortHandle> {
+fn spawn_background_tasks(
+    pool: &DbPool,
+    rate_limit: &RateLimit,
+    state: &AppState,
+) -> Vec<AbortHandle> {
     vec![
         session::spawn_cleanup_task(pool.clone()),
         rate_limit.spawn_cleanup_task(),
         spawn_maintenance_schedule(pool.clone()),
+        spawn_notifications(
+            pool.clone(),
+            Arc::clone(&state.notifier),
+            state.public_url.clone(),
+        ),
     ]
 }
 
