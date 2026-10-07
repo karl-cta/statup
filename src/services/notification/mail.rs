@@ -36,14 +36,15 @@ pub fn email(
     for recipient in recipients {
         builder = builder.bcc(recipient.clone());
     }
-    if let Some(event) = &facts.event {
-        let thread = thread_id(event.id, from);
-        builder = if starts_a_thread(facts.happening) {
-            builder.message_id(Some(thread))
-        } else {
-            builder.in_reply_to(thread.clone()).references(thread)
-        };
-    }
+    // A message without an id of its own looks suspect to spam filters.
+    builder = match facts.event.as_ref().map(|event| thread_id(event.id, from)) {
+        Some(thread) if starts_a_thread(facts.happening) => builder.message_id(Some(thread)),
+        Some(thread) => builder
+            .message_id(None)
+            .in_reply_to(thread.clone())
+            .references(thread),
+        None => builder.message_id(None),
+    };
     builder.multipart(MultiPart::alternative_plain_html(
         plain_text(notice),
         html(notice, locale),
@@ -179,6 +180,12 @@ mod tests {
         assert!(update.contains("In-Reply-To: <statup.event.7@example.com>"));
         assert!(update.contains("References: <statup.event.7@example.com>"));
         assert!(!test.contains("statup.event"));
+        for email in [&update, &test] {
+            assert!(
+                email.contains("Message-ID: <"),
+                "every email has an id: {email}"
+            );
+        }
     }
 
     #[test]
