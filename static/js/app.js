@@ -489,6 +489,29 @@
         return true;
     }
 
+    // The filters a phone folds behind a button, under the search.
+    function onFiltersToggle(target) {
+        const button = target.closest("[data-filters-toggle]");
+        if (!button) return false;
+        const more = document.getElementById(button.getAttribute("aria-controls"));
+        if (!more) return true;
+        const open = !more.classList.contains("is-open");
+        more.classList.toggle("is-open", open);
+        button.setAttribute("aria-expanded", String(open));
+        return true;
+    }
+
+    // The count on that button follows the filters set besides the search;
+    // the form itself is not redrawn when the results are.
+    function countFilters(form) {
+        const count = form.querySelector("[data-filters-count]");
+        const more = form.querySelector(".filters-more");
+        if (!count || !more) return;
+        const set = [...more.querySelectorAll("select, input")].filter((field) => field.value !== "").length;
+        count.textContent = String(set);
+        count.hidden = set === 0;
+    }
+
     // The composer opens by its anchor; the cursor goes straight to it.
     function onComposerOpen(target) {
         if (!target.closest("[data-composer-open]")) return false;
@@ -545,7 +568,7 @@
             return;
         }
         closeMoreActions(target.closest("details[data-more-actions]"));
-        if (onMenuClick(target) || onComposerOpen(target) || onComposerToggle(target)) return;
+        if (onMenuClick(target) || onComposerOpen(target) || onComposerToggle(target) || onFiltersToggle(target)) return;
         if (target.closest("[data-toast-close]")) {
             clearToast();
             return;
@@ -621,7 +644,10 @@
         const upload = target.closest("form[data-submit-on-change]");
         if (upload && target.matches('input[type="file"]') && target.files.length > 0) {
             upload.requestSubmit();
+            return;
         }
+        const filters = target.closest("form.filters");
+        if (filters) countFilters(filters);
     });
 
     document.addEventListener("focusin", (event) => {

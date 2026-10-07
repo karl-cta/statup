@@ -1,6 +1,7 @@
 // On a phone, the masthead's menu opens over the page without moving it and
-// lists full-width rows, and the masthead tucks away while the reader goes
-// down a long page and comes back when they go up.
+// lists full-width rows, the masthead tucks away while the reader goes down a
+// long page and comes back when they go up, and the event filters fold behind
+// one button beside the search.
 import { expect, test } from "../fixtures.js";
 
 test.skip(({ isMobile }) => !isMobile, "phone only");
@@ -48,4 +49,23 @@ test("the masthead tucks away going down and comes back going up", async ({ page
     await scrollTo(maxScroll - 100);
     await expect(masthead).not.toHaveClass(/is-tucked/);
     await expect.poll(async () => (await masthead.boundingBox()).y).toBeGreaterThanOrEqual(0);
+});
+
+test("the event filters fold behind one button beside the search", async ({ page }) => {
+    // A search shows the filters even on an instance without events.
+    await page.goto("/events?q=zzz");
+    const button = page.getByRole("button", { name: "Filtres" });
+    const kind = page.locator("#filters-more").getByText("Type", { exact: true });
+    await expect(button).toHaveAttribute("aria-expanded", "false");
+    await expect(kind).toBeHidden();
+    const search = await page.getByRole("searchbox").boundingBox();
+    const box = await button.boundingBox();
+    expect(Math.abs(box.y + box.height - (search.y + search.height))).toBeLessThan(2);
+
+    await button.click();
+    await expect(button).toHaveAttribute("aria-expanded", "true");
+    await expect(kind).toBeVisible();
+
+    await button.click();
+    await expect(kind).toBeHidden();
 });

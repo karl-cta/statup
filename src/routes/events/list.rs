@@ -76,12 +76,21 @@ impl ListQuery {
     }
 
     fn has_filters(&self) -> bool {
-        self.kind.is_some()
-            || self.service_id.is_some()
-            || self.group().is_some()
-            || self.query().is_some()
-            || self.from.is_some()
-            || self.to.is_some()
+        self.query().is_some() || self.refinements() > 0
+    }
+
+    /// The filters set besides the search: what a phone folds away.
+    fn refinements(&self) -> usize {
+        [
+            self.kind.is_some(),
+            self.group().is_some(),
+            self.service_id.is_some(),
+            self.from.is_some(),
+            self.to.is_some(),
+        ]
+        .into_iter()
+        .filter(|set| *set)
+        .count()
     }
 
     /// Query string of the current filters, ready for a `page=` parameter.
@@ -150,6 +159,10 @@ impl EventListTemplate {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     fn service_is(&self, id: &i64) -> bool {
         self.query.service_id == Some(*id)
+    }
+
+    fn refinements(&self) -> usize {
+        self.query.refinements()
     }
 }
 
@@ -224,6 +237,15 @@ mod tests {
         let q = query("kind=&service_id=&q=%20%20&lifecycle=");
         assert!(!q.has_filters());
         assert_eq!(q.page_link_base(), "/events?");
+    }
+
+    #[test]
+    fn the_search_is_not_a_refinement() {
+        assert_eq!(query("q=vpn").refinements(), 0);
+        assert_eq!(
+            query("q=vpn&kind=incident&from=2026-09-01").refinements(),
+            2
+        );
     }
 
     #[test]

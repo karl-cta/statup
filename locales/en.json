@@ -159,6 +159,7 @@
   "events.new": "New event",
   "events.search": "Search",
   "events.search_placeholder": "A word from the title or description",
+  "events.filters": "Filters",
   "events.kind": "Type",
   "events.state": "Progress",
   "events.state_active": "Open or upcoming",

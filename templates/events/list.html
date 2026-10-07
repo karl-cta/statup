@@ -34,6 +34,13 @@
                    value="{{ query.query().unwrap_or_default() }}"
                    placeholder="{{ i18n.t("events.search_placeholder") }}">
         </div>
+        {# A phone keeps the search and folds the other filters behind this
+           button; a filter already set opens them. #}
+        <button type="button" class="btn btn-ghost filters-toggle" data-filters-toggle aria-expanded="{{ self.refinements() > 0 }}" aria-controls="filters-more">
+            {{ i18n.t("events.filters") }}
+            <span class="unread filters-count" data-filters-count{% if self.refinements() == 0 %} hidden{% endif %}>{{ self.refinements() }}</span>
+        </button>
+        <div id="filters-more" class="filters-more{% if self.refinements() > 0 %} is-open{% endif %}">
         <div class="field">
             <label for="kind" class="field-label">{{ i18n.t("events.kind") }}</label>
             <select id="kind" name="kind" class="input" data-custom-select>
@@ -67,6 +74,7 @@
         <div class="field">
             <label for="to" class="field-label">{{ i18n.t("events.to") }}</label>
             <input id="to" name="to" type="date" class="input" value="{{ query.to.as_deref().unwrap_or_default() }}">
+        </div>
         </div>
         <noscript><button type="submit" class="btn btn-ghost">{{ i18n.t("common.filter") }}</button></noscript>
     </form>
