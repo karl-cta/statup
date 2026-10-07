@@ -51,7 +51,7 @@ It is a status page you host yourself. Whoever runs a service posts, once, what 
 
 **Light, private, safe by default.**
 
-- **Light**: one Rust binary and one SQLite file, in a Docker image under 10 MB. No Redis, no Postgres.
+- **Light**: one Rust binary and one SQLite file, in a Docker image of about 11 MB. No Redis, no Postgres.
 - **Private**: fonts and scripts come from your instance. The server only reaches the addresses you ask it to check or to notify, and GitHub once a day to look for a new version (`UPDATE_CHECK=false` turns that off).
 - **Safe**: passwords hashed with Argon2id, a CSRF token on every form, a strict Content Security Policy on every page.
 
