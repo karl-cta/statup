@@ -7,13 +7,11 @@
 
 ### Every team in the loop, before anyone asks.
 
-Statup is a self-hosted internal status page. IT, or whoever runs a service, posts outages, maintenance and news once; colleagues read them in plain words.
-
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
 [![Status: pre-v1](https://img.shields.io/badge/status-pre--v1-yellow.svg)](#status)
 
-[Live demo](https://demo.statup.dev) · [Website](https://statup.dev) · [Features](#features) · [How it works](#how-it-works) · [Quick start](#quick-start) · [Roadmap](#roadmap) · [Self-hosting guide](.github/SELF-HOSTING.md)
+[Live demo](https://demo.statup.dev) · [Website](https://statup.dev) · [Quick start](#quick-start) · [Self-hosting guide](.github/SELF-HOSTING.md)
 
 </div>
 
@@ -24,58 +22,37 @@ Statup is a self-hosted internal status page. IT, or whoever runs a service, pos
   <img src=".github/assets/status-page.png" alt="The status page: a banner saying one service is disrupted, with the incident and its latest update, then the services with thirty days of availability, the recent activity and the maintenance schedule" width="1280">
 </picture>
 
-**Monitoring tools are made for the people who fix things. Statup is made for everyone else.**
+## What is Statup?
 
-> *"Is the internet down?"* *"Is it just me, or is Outlook broken?"*<br>
-> Every outage starts with the same questions, by phone, by chat and at the IT office door.
+> *"Is the internet down?"* *"Is it just me, or is Outlook broken?"*
 
-With Statup, the answer is already there: what is broken, what is being fixed, what is planned. And what changed, too: the new version of the payroll software, the printer that moved to the second floor, the VPN client everyone must install. Accounting, HR and everyone else read it from a desk or a phone.
+Every outage starts with the same questions, by phone, by chat and at the IT office door. Statup answers them before anyone asks.
 
-> [!TIP]
-> **See it live** at [demo.statup.dev](https://demo.statup.dev): the page is open to everyone. Sign in with `demo@statup.dev` and `StatupDemo#1` to publish incidents, maintenance and news as an editor would. Visitors share this account, and the demo starts over every hour.
+It is a status page you host yourself. Whoever runs a service posts, once, what is broken, what is planned and what has changed. Everyone else reads it in plain words, from a desk or a phone, without an account. Monitoring tools are made for the people who fix things; Statup is made for everyone else.
+
+**What it is for**
+
+- **An outage**: the VPN is down. The whole company sees it, sees that IT is on it, and sees when it is back.
+- **Planned work**: the accounting software upgrade is announced a week ahead, then starts and ends on its own on Saturday.
+- **News**: a new version of the payroll software, the printer that moved to the second floor, the VPN client everyone must install.
+- **Beyond IT**: a small business keeping its clients informed when its service is down.
+
+**[Try the live demo](https://demo.statup.dev)**, and sign in with `demo@statup.dev` / `StatupDemo#1` to publish as an editor. It starts over every hour.
 
 ## Features
 
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <strong>A page that answers first</strong><br>
-      A banner says whether something is wrong, what is affected and since when, above every service and its last 30 days. It refreshes itself every minute.
-    </td>
-    <td width="50%" valign="top">
-      <strong>Incidents, start to finish</strong><br>
-      From investigation to resolution, with dated updates and reusable templates. The services concerned change state on their own, and come back when it is over.
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <strong>Maintenance that runs itself</strong><br>
-      Announced ahead, it starts and ends at the planned times, and says so when the services stay usable.
-    </td>
-    <td valign="top">
-      <strong>What's new</strong><br>
-      Announcements for what changed: a software update, a new tool, an office move. Read as a short article, linked to the maintenance it follows.
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <strong>Everyone in the loop</strong><br>
-      An events list with search and filters, a side panel to read without leaving it, and an Atom feed for feed readers and chat tools.
-    </td>
-    <td valign="top">
-      <strong>Your page, your way</strong><br>
-      Open to everyone or to members only, with your name and logo, and blocks you arrange on the page itself. French and English, light and dark, accessible.
-    </td>
-  </tr>
-  <tr>
-    <td colspan="2" valign="top">
-      <strong>Statup notices first</strong><br>
-      Every minute, it checks that a website answers, or that a server, a router or a firewall accepts a connection. After three failed checks in a row, the service shows an outage on its own, marked "detected automatically", and comes back as soon as it answers. Your team declares the incident in one click, already filled in, and a Test button says why an address does not answer before you save it.
-    </td>
-  </tr>
-</table>
+- **The answer first**: a banner says what is wrong, what is affected and since when, above every service and its last 30 days.
+- **Runs on its own**: a service follows the incident that names it, and planned work starts and ends at the times announced.
+- **Notices first**: every minute, Statup checks that a site or a server answers, and shows an outage after three failed checks.
+- **Quick to publish**: dated updates and reusable templates; an outage spotted by the checks is declared in one click.
+- **Easy to follow**: search and filters, a side panel to read without leaving the list, and an Atom feed for feed readers and chat tools.
+- **Your page, your way**: public or members only, your name and logo, blocks you arrange on the page; French and English, light and dark, accessible.
 
-**Light, private, safe by default.** One Rust binary and one SQLite file: no Redis, no Postgres, a Docker image under 10 MB to download. Fonts and scripts come from your instance, so no visitor's browser calls a third party; the server itself only reaches the addresses you ask it to check, and GitHub once a day to see whether a newer version is out, which `UPDATE_CHECK=false` turns off. Passwords are hashed with Argon2id, every form carries a CSRF token, and a strict Content Security Policy guards every page.
+**Light, private, safe by default.**
+
+- **Light**: one Rust binary and one SQLite file, in a Docker image under 10 MB. No Redis, no Postgres.
+- **Private**: fonts and scripts come from your instance. The server only reaches the addresses you ask it to check, and GitHub once a day to look for a new version (`UPDATE_CHECK=false` turns that off).
+- **Safe**: passwords hashed with Argon2id, a CSRF token on every form, a strict Content Security Policy on every page.
 
 ## How it works
 
