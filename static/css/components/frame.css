@@ -261,12 +261,7 @@
 
     /* The languages, under the masthead's language button. */
     .lang-menu > summary {
-        list-style: none;
         cursor: pointer;
-    }
-
-    .lang-menu > summary::-webkit-details-marker {
-        display: none;
     }
 
     .lang-menu .lang-menu-list {
