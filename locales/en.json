@@ -658,6 +658,7 @@
   "validation.file_empty": "This file is empty.",
   "validation.invalid_credentials": "Wrong email address or password.",
   "validation.temporary_password_expired": "This temporary password has expired. Ask an administrator for a new one.",
+  "validation.reset_link_invalid": "This link no longer works: it has expired, was already used, or a newer one replaced it. Ask for a new one.",
   "validation.invalid_transition": "This progress state is not possible from the current one.",
   "validation.event_has_no_lifecycle": "An announcement has no progress state.",
   "validation.no_previous_lifecycle": "There is no previous state to restore.",

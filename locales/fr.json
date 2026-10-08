@@ -658,6 +658,7 @@
   "validation.file_empty": "Ce fichier est vide.",
   "validation.invalid_credentials": "Adresse e-mail ou mot de passe incorrect.",
   "validation.temporary_password_expired": "Ce mot de passe provisoire a expiré. Demandez-en un nouveau à un administrateur.",
+  "validation.reset_link_invalid": "Ce lien ne fonctionne plus : il a expiré, a déjà servi ou a été remplacé par un plus récent. Demandez-en un nouveau.",
   "validation.invalid_transition": "Cet avancement n'est pas possible depuis l'état actuel.",
   "validation.event_has_no_lifecycle": "Une annonce n'a pas d'avancement.",
   "validation.no_previous_lifecycle": "Il n'y a pas d'état précédent à rétablir.",

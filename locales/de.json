@@ -658,6 +658,7 @@
   "validation.file_empty": "Diese Datei ist leer.",
   "validation.invalid_credentials": "E-Mail-Adresse oder Passwort falsch.",
   "validation.temporary_password_expired": "Dieses vorläufige Passwort ist abgelaufen. Bitten Sie einen Administrator um ein neues.",
+  "validation.reset_link_invalid": "Dieser Link funktioniert nicht mehr: Er ist abgelaufen, wurde bereits verwendet oder durch einen neueren ersetzt. Fordern Sie einen neuen an.",
   "validation.invalid_transition": "Dieser Fortschritt ist vom aktuellen Stand aus nicht möglich.",
   "validation.event_has_no_lifecycle": "Eine Ankündigung hat keinen Fortschritt.",
   "validation.no_previous_lifecycle": "Es gibt keinen früheren Status, der wiederhergestellt werden könnte.",

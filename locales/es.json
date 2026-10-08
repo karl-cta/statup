@@ -658,6 +658,7 @@
   "validation.file_empty": "Este archivo está vacío.",
   "validation.invalid_credentials": "Correo electrónico o contraseña incorrectos.",
   "validation.temporary_password_expired": "Esta contraseña provisional ha caducado. Pida una nueva a un administrador.",
+  "validation.reset_link_invalid": "Este enlace ya no funciona: ha caducado, ya se usó o lo sustituyó uno más reciente. Pida uno nuevo.",
   "validation.invalid_transition": "Este avance no es posible desde el estado actual.",
   "validation.event_has_no_lifecycle": "Un anuncio no tiene avance.",
   "validation.no_previous_lifecycle": "No hay un estado anterior que restaurar.",
