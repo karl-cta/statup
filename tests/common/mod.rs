@@ -14,6 +14,7 @@ use reqwest::StatusCode;
 use reqwest::cookie::{CookieStore, Jar};
 use reqwest::redirect::Policy;
 
+use statup::config::{SmtpConfig, SmtpSecurity};
 use statup::db;
 use statup::middleware::client_ip::{ClientIpSource, X_FORWARDED_FOR};
 use statup::middleware::rate_limit::RateLimit;
@@ -35,6 +36,8 @@ pub struct Options {
     /// The tag the daily update check found, as if it had run. The check
     /// itself never runs in tests.
     pub latest_release: Option<&'static str>,
+    /// The port of a mail server on this machine, as if `SMTP_*` was set.
+    pub mail_port: Option<u16>,
 }
 
 pub struct TestApp {
@@ -80,6 +83,7 @@ impl TestApp {
         let upload_dir = std::env::temp_dir().join(format!("statup-test-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(upload_dir.join("icons")).expect("failed to create upload dir");
 
+        let smtp = options.mail_port.map(local_mail_server);
         let state = AppState {
             pool: pool.clone(),
             login_limiter: Arc::new(LoginRateLimiter::default()),
@@ -91,7 +95,8 @@ impl TestApp {
             update: update_status(options.latest_release),
             checks: Arc::default(),
             notifier: Arc::new(
-                Notifier::new(Duration::from_secs(5), None).expect("failed to build the notifier"),
+                Notifier::new(Duration::from_secs(5), smtp.as_ref())
+                    .expect("failed to build the notifier"),
             ),
         };
         let checks = Arc::clone(&state.checks);
@@ -226,6 +231,16 @@ impl TestApp {
 impl Drop for TestApp {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.upload_dir);
+    }
+}
+
+fn local_mail_server(port: u16) -> SmtpConfig {
+    SmtpConfig {
+        host: "127.0.0.1".into(),
+        port,
+        security: SmtpSecurity::None,
+        credentials: None,
+        from: "Statup <status@example.com>".into(),
     }
 }
 

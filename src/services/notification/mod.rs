@@ -6,6 +6,7 @@ mod format;
 mod mail;
 mod notice;
 mod queue;
+mod reset_mail;
 mod sender;
 
 pub(crate) use deliver::PAGE_ADDRESS_SETTING;
@@ -14,4 +15,5 @@ pub use destinations::{destination_allowed, destination_name_refusal, email_addr
 pub use format::*;
 pub use notice::*;
 pub use queue::notify;
+pub use reset_mail::ResetEmail;
 pub use sender::{Failure, Notifier, SEND_TIMEOUT, Sender};

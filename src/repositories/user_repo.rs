@@ -209,7 +209,7 @@ impl UserRepository {
     /// Update a user's password hash. A password the person chose clears any
     /// pending request to replace it.
     pub async fn update_password(
-        pool: &DbPool,
+        executor: impl sqlx::SqliteExecutor<'_>,
         user_id: i64,
         password_hash: &str,
     ) -> Result<(), sqlx::Error> {
@@ -220,7 +220,7 @@ impl UserRepository {
         )
         .bind(password_hash)
         .bind(user_id)
-        .execute(pool)
+        .execute(executor)
         .await?;
         Ok(())
     }

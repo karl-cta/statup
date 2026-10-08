@@ -178,10 +178,7 @@ pub async fn login(
     Locale(i18n): Locale,
     HtmlForm(input): HtmlForm<LoginInput>,
 ) -> Result<Response, AppError> {
-    let peer = connect_info.map(|Extension(ConnectInfo(addr))| addr.ip());
-    let ip = client_ip(&headers, peer, &state.client_ip_source)
-        .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
-
+    let ip = request_ip(&state, &headers, connect_info);
     let refusal = missing_credentials(&input).or_else(|| blocked(&state, &ip, &input.email));
     if let Some(key) = refusal {
         let message = Some(i18n.t(key).to_string());
@@ -201,6 +198,16 @@ pub async fn login(
         }
         Err(e) => Err(e),
     }
+}
+
+/// The address the sign-in limits count against.
+pub(super) fn request_ip(
+    state: &AppState,
+    headers: &HeaderMap,
+    connect_info: Option<Extension<ConnectInfo<SocketAddr>>>,
+) -> IpAddr {
+    let peer = connect_info.map(|Extension(ConnectInfo(addr))| addr.ip());
+    client_ip(headers, peer, &state.client_ip_source).unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED))
 }
 
 fn blocked(state: &AppState, ip: &IpAddr, email: &str) -> Option<&'static str> {
@@ -223,7 +230,11 @@ fn missing_credentials(input: &LoginInput) -> Option<&'static str> {
 
 /// Signs the person in on a new session id, with a new form token, for 30
 /// days of inactivity when they asked to stay signed in, 24 hours otherwise.
-async fn open_session(session: &Session, user: &User, remember: bool) -> Result<(), AppError> {
+pub(super) async fn open_session(
+    session: &Session,
+    user: &User,
+    remember: bool,
+) -> Result<(), AppError> {
     rotate_id(session).await?;
     write_value(session, USER_ID_KEY, user.id).await?;
     stamp_credential(session, &user.password_hash).await?;
@@ -234,7 +245,7 @@ async fn open_session(session: &Session, user: &User, remember: bool) -> Result<
 
 /// Home, or the page that replaces a temporary password, with the saved
 /// language so the first page is already in it.
-fn signed_in_redirect(user: &User, secure: bool) -> Response {
+pub(super) fn signed_in_redirect(user: &User, secure: bool) -> Response {
     let target = if user.must_change_password {
         "/password/new"
     } else {

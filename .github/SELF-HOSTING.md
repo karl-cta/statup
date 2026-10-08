@@ -83,7 +83,7 @@ Statup posts each incident, maintenance and announcement where people already re
 
 ### Email
 
-Set your mail server in `.env`. Email destinations are offered only when `SMTP_HOST` is set.
+Set your mail server in `.env`. Email destinations are offered only when `SMTP_HOST` is set. The same server sends the links of [forgotten passwords](#forgotten-password).
 
 | Variable | Default | Description |
 |---|---|---|
@@ -191,7 +191,9 @@ Database migrations are compiled into the binary and run at start. Back up first
 
 ## Forgotten password
 
-Give the account a temporary password from the server:
+With a mail server set (`SMTP_HOST` and the others, see [Email](#email)) and the address of the page known (`PUBLIC_URL`, or the one at the foot of the Notifications page), members reset their own password: "Forgot your password?" on the sign-in page emails them a link that works once, for one hour. Choosing a new password signs them in and signs out every other session of the account. The page answers the same whether the address has an account or not, and an account receives at most three links an hour.
+
+Without a mail server, that page asks the member to see an administrator, who gives a temporary password from the Team page. As the host, you can also give one from the server:
 
 ```bash
 docker compose exec statup /app/statup reset-password you@example.com

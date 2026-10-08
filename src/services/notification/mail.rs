@@ -36,13 +36,7 @@ pub fn email(
         .from(from.clone())
         .to(to.clone())
         .subject(notice.headline.clone());
-    // An id of its own, at the sender's domain: spam filters distrust a
-    // message without one, and the server's name stays out of the headers.
-    let own_id = format!(
-        "<statup.{}@{}>",
-        Uuid::new_v4().simple(),
-        from.email.domain()
-    );
+    let own_id = own_message_id(from);
     builder = match facts.event.as_ref().map(|event| thread_id(event.id, from)) {
         Some(thread) if starts_a_thread(facts.happening) => builder.message_id(Some(thread)),
         Some(thread) => builder
@@ -55,6 +49,16 @@ pub fn email(
         plain_text(notice),
         html(notice, locale),
     ))
+}
+
+/// An id of its own, at the sender's domain: spam filters distrust a
+/// message without one, and the server's name stays out of the headers.
+pub(super) fn own_message_id(from: &Mailbox) -> String {
+    format!(
+        "<statup.{}@{}>",
+        Uuid::new_v4().simple(),
+        from.email.domain()
+    )
 }
 
 /// The first message of an event names the conversation the next ones join.

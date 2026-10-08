@@ -20,14 +20,14 @@ use crate::session::{rotate_id, stamp_credential};
 use crate::state::AppState;
 
 #[derive(Default)]
-struct NewPasswordErrors {
-    password: Option<String>,
-    confirm: Option<String>,
+pub(super) struct NewPasswordErrors {
+    pub(super) password: Option<String>,
+    pub(super) confirm: Option<String>,
 }
 
 impl NewPasswordErrors {
     /// The message under the field it is about.
-    fn from_key(key: &str, i18n: &I18n) -> Self {
+    pub(super) fn from_key(key: &str, i18n: &I18n) -> Self {
         let message = Some(i18n.t(key).to_string());
         if key == "validation.passwords_mismatch" {
             Self {

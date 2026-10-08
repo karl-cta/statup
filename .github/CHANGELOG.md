@@ -5,6 +5,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 ## Unreleased
 
 - Editors choose the order of services: Change order, on the Services page, gives each row an up and a down arrow, and the order applies wherever services are listed. Existing services keep their alphabetical order, and a new service goes last; the database is upgraded on start to keep it.
+- "Forgot your password?" on the sign-in page: with a mail server set, a member receives a link that works once, for one hour, and is signed in once they choose a new password; without one, the page says to ask an administrator. The answer never tells whether an address has an account. The database is upgraded on start.
 
 ## 0.3.1, 2026-10-08
 

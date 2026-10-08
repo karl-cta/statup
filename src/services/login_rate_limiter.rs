@@ -4,6 +4,9 @@
 //! A ceiling per address alone slows a walk through many accounts.
 //! Checks of the current password from a signed-in session are counted per
 //! account alone: only whoever holds that session can make them.
+//! Requests for a password reset link are counted per address, apart from
+//! sign-in failures, so asking for links in someone's name never locks them
+//! out.
 
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -16,6 +19,8 @@ use crate::middleware::client_ip::limit_key;
 const MAX_ATTEMPTS: u32 = 5;
 /// Failures allowed per address, all accounts together.
 const MAX_ATTEMPTS_PER_ADDRESS: u32 = 30;
+/// Password reset link requests allowed per address, all accounts together.
+const MAX_RESET_REQUESTS_PER_ADDRESS: u32 = 10;
 /// Window duration for rate limiting.
 const WINDOW: Duration = Duration::from_secs(15 * 60);
 
@@ -46,11 +51,13 @@ impl Entry {
 }
 
 /// In-memory failed sign-in counter, keyed by client address and account,
-/// and failed current password checks, keyed by account.
+/// failed current password checks, keyed by account, and reset link
+/// requests, keyed by client address.
 #[derive(Default)]
 pub struct LoginRateLimiter {
     attempts: Mutex<HashMap<Key, Entry>>,
     password_checks: Mutex<HashMap<i64, Entry>>,
+    reset_requests: Mutex<HashMap<IpAddr, Entry>>,
 }
 
 /// A panic while a map was held leaves plain counters behind, still usable,
@@ -62,6 +69,22 @@ fn lock<K>(map: &Mutex<HashMap<K, Entry>>) -> MutexGuard<'_, HashMap<K, Entry>> 
 impl LoginRateLimiter {
     fn attempts(&self) -> MutexGuard<'_, HashMap<Key, Entry>> {
         lock(&self.attempts)
+    }
+
+    /// Counts a password reset link request from this address, and tells
+    /// whether it may go ahead.
+    pub fn allow_reset_request(&self, ip: &IpAddr) -> bool {
+        let mut map = lock(&self.reset_requests);
+        map.retain(|_, entry| !entry.expired());
+        let entry = map.entry(limit_key(*ip)).or_insert(Entry {
+            count: 0,
+            first_attempt: Instant::now(),
+        });
+        if entry.count >= MAX_RESET_REQUESTS_PER_ADDRESS {
+            return false;
+        }
+        entry.count += 1;
+        true
     }
 
     /// Whether this account has had too many wrong current passwords.
@@ -145,6 +168,17 @@ mod tests {
 
     const ALICE: &str = "alice@example.org";
     const BOB: &str = "bob@example.org";
+
+    #[test]
+    fn reset_requests_stop_at_the_address_ceiling_and_lock_no_one_out() {
+        let limiter = LoginRateLimiter::default();
+        for _ in 0..MAX_RESET_REQUESTS_PER_ADDRESS {
+            assert!(limiter.allow_reset_request(&ip("127.0.0.1")));
+        }
+        assert!(!limiter.allow_reset_request(&ip("127.0.0.1")));
+        assert!(limiter.allow_reset_request(&ip("192.0.2.1")));
+        assert!(!limiter.is_blocked(&ip("127.0.0.1"), ALICE));
+    }
 
     #[test]
     fn not_blocked_initially() {
