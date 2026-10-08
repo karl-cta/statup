@@ -35,8 +35,10 @@
             </button>
         </div>
         {% if !module.options.is_empty() %}
-        <fieldset id="options-{{ module.module_id }}" class="cell-options" data-options hidden>
-            <legend class="label">{{ i18n.t("dashboard.block_show") }}</legend>
+        {# A group named by a plain title: Safari draws a legend on the
+           border of a grid fieldset, whatever its float. #}
+        <div id="options-{{ module.module_id }}" class="cell-options" role="group" aria-labelledby="options-title-{{ module.module_id }}" data-options hidden>
+            <p id="options-title-{{ module.module_id }}" class="label">{{ i18n.t("dashboard.block_show") }}</p>
             {% for option in module.options %}
             <label class="check-row">
                 <input type="checkbox" class="checkbox" value="{{ option.value }}"{% if option.shown %} checked{% endif %}>
@@ -46,7 +48,7 @@
             {% if let Some(note) = module.options_note %}
             <p class="field-hint">{{ note }}</p>
             {% endif %}
-        </fieldset>
+        </div>
         {% endif %}
         {% endif %}
         {{ module.html|safe }}
