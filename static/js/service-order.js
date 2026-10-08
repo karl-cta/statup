@@ -12,25 +12,31 @@
 
     const { announce, csrfToken } = window.statup;
     let saveTimer = null;
+    let sending = Promise.resolve();
 
     const rows = () => Array.from(list.querySelectorAll("[data-service-id]"));
     const ordering = () => list.classList.contains("is-ordering");
 
-    function save() {
-        saveTimer = null;
-        const fields = rows().map((row) => ["order", row.dataset.serviceId]);
-        fetch("/services/order", {
+    function send(fields) {
+        return fetch("/services/order", {
             method: "POST",
             body: new URLSearchParams(fields),
             credentials: "same-origin",
             headers: { "X-CSRF-Token": csrfToken() },
             keepalive: true,
-        })
-            .then((response) => {
-                if (!response.ok) throw new Error(`not saved: ${response.status}`);
-                announce(list.dataset.saved);
-            })
-            .catch(() => window.location.reload());
+        }).then((response) => {
+            if (!response.ok) throw new Error(`not saved: ${response.status}`);
+            announce(list.dataset.saved);
+        });
+    }
+
+    // One save at a time, so an older order never lands after a newer one;
+    // a page being left cannot wait for its turn.
+    function save(leaving) {
+        saveTimer = null;
+        const fields = rows().map((row) => ["order", row.dataset.serviceId]);
+        const next = leaving ? send(fields) : sending.then(() => send(fields));
+        sending = next.catch(() => window.location.reload());
     }
 
     function saveSoon() {
@@ -38,10 +44,10 @@
         saveTimer = window.setTimeout(save, SAVE_DELAY);
     }
 
-    function flush() {
+    function flush(leaving) {
         if (saveTimer === null) return;
         window.clearTimeout(saveTimer);
-        save();
+        save(leaving);
     }
 
     function syncEnds() {
@@ -56,7 +62,7 @@
         const all = rows();
         announce(
             (list.dataset.moved || "")
-                .replace("{name}", row.dataset.serviceName)
+                .replace("{name}", () => row.dataset.serviceName)
                 .replace("{index}", String(all.indexOf(row) + 1))
                 .replace("{total}", String(all.length)),
         );
@@ -80,7 +86,7 @@
     function setMode(on) {
         list.classList.toggle("is-ordering", on);
         toggle.setAttribute("aria-pressed", String(on));
-        if (!on) flush();
+        if (!on) flush(false);
     }
 
     toggle.addEventListener("click", () => setMode(!ordering()));
@@ -88,13 +94,15 @@
         const button = event.target.closest("[data-move]");
         if (button && ordering()) move(button);
     });
+    // Escape closes the mode from its own controls only, not from a menu
+    // opened meanwhile.
     document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && ordering()) {
-            setMode(false);
-            toggle.focus();
-        }
+        const own = list.contains(document.activeElement) || document.activeElement === toggle;
+        if (event.key !== "Escape" || event.defaultPrevented || !ordering() || !own) return;
+        setMode(false);
+        toggle.focus();
     });
-    window.addEventListener("pagehide", flush);
+    window.addEventListener("pagehide", () => flush(true));
 
     syncEnds();
     toggle.hidden = false;

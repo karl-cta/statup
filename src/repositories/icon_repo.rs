@@ -2,6 +2,7 @@
 
 use crate::db::DbPool;
 use crate::models::Icon;
+use crate::repositories::service_repo::CHOSEN_ORDER;
 
 pub struct IconRepository;
 
@@ -52,9 +53,12 @@ impl IconRepository {
     /// Every (icon id, service name) pair, so the library can say which
     /// service wears which icon.
     pub async fn service_names_by_icon(pool: &DbPool) -> Result<Vec<(i64, String)>, sqlx::Error> {
-        sqlx::query_as("SELECT icon_id, name FROM services WHERE icon_id IS NOT NULL ORDER BY name")
-            .fetch_all(pool)
-            .await
+        sqlx::query_as(&format!(
+            "SELECT s.icon_id, s.name FROM services s WHERE s.icon_id IS NOT NULL \
+             ORDER BY {CHOSEN_ORDER}"
+        ))
+        .fetch_all(pool)
+        .await
     }
 
     /// Uses outside services (events and templates), counted per icon.
