@@ -17,6 +17,7 @@ mod locale;
 mod notifications;
 mod page;
 mod password;
+mod password_reset;
 mod profile;
 mod services;
 mod setup;
@@ -137,6 +138,14 @@ fn public_routes() -> Router<AppState> {
         .route("/login", get(auth::login_form).post(auth::login))
         .route("/register", get(auth::register_form).post(auth::register))
         .route("/logout", post(auth::logout))
+        .route(
+            "/password/forgot",
+            get(password_reset::forgot_form).post(password_reset::forgot),
+        )
+        .route(
+            "/password/reset",
+            get(password_reset::reset_form).post(password_reset::reset),
+        )
         .route("/i18n", get(locale::switch))
         .route("/", get(dashboard::index))
         .route("/events", get(events::list))
