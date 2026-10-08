@@ -973,6 +973,7 @@ async fn switching_language_after_any_form_lands_on_a_page() {
         "/events/templates/4/delete".to_string(),
         "/icons/3/delete".to_string(),
         "/services/2/status".to_string(),
+        "/services/order".to_string(),
         "/profile/password".to_string(),
     ] {
         let resp = app
@@ -1121,4 +1122,71 @@ async fn administrators_see_the_version_and_a_newer_one() {
     let (_, page) = app.get("/admin/settings").await;
     assert!(page.contains("La version 99.0.0 est disponible."), "{page}");
     assert!(page.contains(r#"href="https://github.com/karl-cta/statup/releases/tag/v99.0.0""#));
+}
+
+async fn service_names(app: &TestApp) -> Vec<String> {
+    ServiceRepository::list_all(&app.pool)
+        .await
+        .expect("db error")
+        .into_iter()
+        .map(|s| s.name)
+        .collect()
+}
+
+#[tokio::test]
+async fn a_publisher_sets_the_order_of_services() {
+    let app = TestApp::spawn().await;
+    app.create_user(
+        "pub@test.com",
+        "publisher_pass_12",
+        "Publisher",
+        Role::Publisher,
+    )
+    .await;
+    app.login("pub@test.com", "publisher_pass_12").await;
+    let mut ids = Vec::new();
+    for (name, slug) in [("Mail", "mail"), ("VPN", "vpn"), ("Wiki", "wiki")] {
+        let service = ServiceRepository::create(&app.pool, name, slug, None, None, None)
+            .await
+            .expect("db error");
+        ids.push(service.id.to_string());
+    }
+    let csrf = app.csrf_from("/services").await;
+
+    let order = [
+        ("order", &*ids[2]),
+        ("order", &*ids[0]),
+        ("order", &*ids[1]),
+    ];
+    let (status, _, _) = app.post_form("/services/order", &csrf, &order).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(service_names(&app).await, ["Wiki", "Mail", "VPN"]);
+
+    let stale = [("order", &*ids[1]), ("order", &*ids[0])];
+    let (status, _, _) = app.post_form("/services/order", &csrf, &stale).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "a list missing a service");
+    assert_eq!(service_names(&app).await, ["Wiki", "Mail", "VPN"]);
+}
+
+#[tokio::test]
+async fn reader_cannot_set_the_order_of_services() {
+    let app = TestApp::spawn().await;
+    app.reader("reader@test.com", "Reader").await;
+    app.login("reader@test.com", "reader_password_12").await;
+    let mail = ServiceRepository::create(&app.pool, "Mail", "mail", None, None, None)
+        .await
+        .expect("db error");
+    let vpn = ServiceRepository::create(&app.pool, "VPN", "vpn", None, None, None)
+        .await
+        .expect("db error");
+
+    let csrf = app.csrf_from("/").await;
+    let order = [
+        ("order", vpn.id.to_string()),
+        ("order", mail.id.to_string()),
+    ];
+    let order: Vec<(&str, &str)> = order.iter().map(|(k, v)| (*k, v.as_str())).collect();
+    let (status, _, _) = app.post_form("/services/order", &csrf, &order).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(service_names(&app).await, ["Mail", "VPN"]);
 }

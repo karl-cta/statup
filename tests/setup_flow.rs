@@ -94,8 +94,8 @@ async fn the_first_launch_sets_up_the_page_and_its_services() {
     let names: Vec<&str> = services.iter().map(|s| s.name.as_str()).collect();
     assert_eq!(
         names,
-        ["Messagerie", "Sage paie", "VPN"],
-        "each service once"
+        ["Messagerie", "VPN", "Sage paie"],
+        "each service once, in the order picked"
     );
     let mail = services
         .iter()

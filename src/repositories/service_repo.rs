@@ -12,6 +12,10 @@ const WITH_ICON: &str = "SELECT s.*, i.filename AS icon_filename, \
      EXISTS(SELECT 1 FROM event_services es WHERE es.service_id = s.id) AS has_history \
      FROM services s LEFT JOIN icons i ON i.id = s.icon_id";
 
+/// The order chosen on the Services page; services at the same position,
+/// as written by a seed that leaves it out, fall back to their name.
+pub(crate) const CHOSEN_ORDER: &str = "s.position, s.name COLLATE NOCASE, s.id";
+
 impl ServiceRepository {
     pub async fn create(
         pool: &DbPool,
@@ -22,8 +26,9 @@ impl ServiceRepository {
         icon_name: Option<&str>,
     ) -> Result<Service, sqlx::Error> {
         sqlx::query_as::<_, Service>(
-            "INSERT INTO services (name, slug, description, icon_id, icon_name) \
-             VALUES (?, ?, ?, ?, ?) RETURNING *",
+            "INSERT INTO services (name, slug, description, icon_id, icon_name, position) \
+             VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM services)) \
+             RETURNING *",
         )
         .bind(name)
         .bind(slug)
@@ -55,11 +60,36 @@ impl ServiceRepository {
             .await
     }
 
-    /// Every service with its uploaded icon, by name.
+    /// Every service with its uploaded icon, in the chosen order.
     pub async fn list_all(pool: &DbPool) -> Result<Vec<Service>, sqlx::Error> {
-        sqlx::query_as::<_, Service>(&format!("{WITH_ICON} ORDER BY s.name COLLATE NOCASE ASC"))
+        sqlx::query_as::<_, Service>(&format!("{WITH_ICON} ORDER BY {CHOSEN_ORDER}"))
             .fetch_all(pool)
             .await
+    }
+
+    /// Saves the order of every service, first to last. Returns false, and
+    /// changes nothing, when `ids` is not exactly the set of services: the
+    /// page that sent it no longer shows what is there.
+    pub async fn reorder(pool: &DbPool, ids: &[i64]) -> Result<bool, sqlx::Error> {
+        let mut tx = pool.begin().await?;
+        let mut existing: Vec<i64> = sqlx::query_scalar("SELECT id FROM services")
+            .fetch_all(&mut *tx)
+            .await?;
+        let mut sent = ids.to_vec();
+        existing.sort_unstable();
+        sent.sort_unstable();
+        if existing != sent {
+            return Ok(false);
+        }
+        for (position, id) in (1_i64..).zip(ids) {
+            sqlx::query("UPDATE services SET position = ? WHERE id = ?")
+                .bind(position)
+                .bind(id)
+                .execute(&mut *tx)
+                .await?;
+        }
+        tx.commit().await?;
+        Ok(true)
     }
 
     pub async fn update(
@@ -278,19 +308,76 @@ mod tests {
         assert!(!ServiceRepository::slug_exists(&pool, "nope").await.unwrap());
     }
 
-    #[tokio::test]
-    async fn list_all_ignores_case() {
-        let pool = test_pool().await;
-        create(&pool, "zzz", "zzz").await;
-        create(&pool, "Aaa", "aaa").await;
-        create(&pool, "Mmm", "mmm").await;
-        let names: Vec<String> = ServiceRepository::list_all(&pool)
+    async fn names(pool: &DbPool) -> Vec<String> {
+        ServiceRepository::list_all(pool)
             .await
             .unwrap()
             .into_iter()
             .map(|s| s.name)
-            .collect();
-        assert_eq!(names, vec!["Aaa", "Mmm", "zzz"]);
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn a_new_service_goes_last() {
+        let pool = test_pool().await;
+        create(&pool, "zzz", "zzz").await;
+        create(&pool, "Aaa", "aaa").await;
+        assert_eq!(names(&pool).await, vec!["zzz", "Aaa"]);
+    }
+
+    #[tokio::test]
+    async fn services_without_a_position_sort_by_name_ignoring_case() {
+        let pool = test_pool().await;
+        for (name, slug) in [("zzz", "zzz"), ("Aaa", "aaa"), ("Mmm", "mmm")] {
+            sqlx::query("INSERT INTO services (name, slug) VALUES (?, ?)")
+                .bind(name)
+                .bind(slug)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+        assert_eq!(names(&pool).await, vec!["Aaa", "Mmm", "zzz"]);
+    }
+
+    #[tokio::test]
+    async fn reorder_saves_the_order_without_touching_the_update_time() {
+        let pool = test_pool().await;
+        let a = create(&pool, "A", "a").await;
+        let b = create(&pool, "B", "b").await;
+        let c = create(&pool, "C", "c").await;
+        // Moving them too keeps the update trigger from stamping the time.
+        sqlx::query(
+            "UPDATE services SET updated_at = '2026-01-01 00:00:00', position = position + 10",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        assert!(
+            ServiceRepository::reorder(&pool, &[c.id, a.id, b.id])
+                .await
+                .unwrap()
+        );
+        assert_eq!(names(&pool).await, vec!["C", "A", "B"]);
+        let moved = ServiceRepository::find_by_id(&pool, c.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            moved.updated_at,
+            Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn reorder_refuses_a_list_that_is_not_every_service() {
+        let pool = test_pool().await;
+        let a = create(&pool, "A", "a").await;
+        let b = create(&pool, "B", "b").await;
+        for ids in [vec![b.id], vec![b.id, a.id, 999], vec![b.id, b.id]] {
+            assert!(!ServiceRepository::reorder(&pool, &ids).await.unwrap());
+        }
+        assert_eq!(names(&pool).await, vec!["A", "B"]);
     }
 
     #[tokio::test]
