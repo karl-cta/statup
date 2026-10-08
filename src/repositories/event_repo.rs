@@ -14,15 +14,16 @@ use crate::models::{
     ActivityKind, CreateEventInput, Event, EventFilters, EventSummary, EventUpdateWithAuthor,
     EventWithServices, Kind, Lifecycle, Service, Severity, UpdateEventInput,
 };
+use crate::repositories::service_repo::CHOSEN_ORDER;
 
 const SUMMARY_COLUMNS: &str = "e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
      e.title, e.description, e.planned_start, e.planned_end, e.started_at, e.ended_at, \
      e.keeps_services_up, e.created_at, e.updated_at, e.author_id, \
-     COALESCE((SELECT GROUP_CONCAT(s.name, char(31) ORDER BY s.name) \
+     COALESCE((SELECT GROUP_CONCAT(s.name, char(31) ORDER BY s.position, s.name COLLATE NOCASE, s.id) \
                FROM event_services es JOIN services s ON s.id = es.service_id \
                WHERE es.event_id = e.id), '') AS service_names, \
      COALESCE((SELECT GROUP_CONCAT(COALESCE(s.icon_name, '') || char(30) || COALESCE(i.filename, ''), \
-                                   char(31) ORDER BY s.name) \
+                                   char(31) ORDER BY s.position, s.name COLLATE NOCASE, s.id) \
                FROM event_services es JOIN services s ON s.id = es.service_id \
                LEFT JOIN icons i ON i.id = s.icon_id \
                WHERE es.event_id = e.id), '') AS service_icons";
@@ -137,11 +138,11 @@ impl EventRepository {
         let Some(event) = Self::find_by_id(pool, id).await? else {
             return Ok(None);
         };
-        let services = sqlx::query_as::<_, Service>(
+        let services = sqlx::query_as::<_, Service>(&format!(
             "SELECT s.* FROM services s \
              INNER JOIN event_services es ON es.service_id = s.id \
-             WHERE es.event_id = ? ORDER BY s.name ASC",
-        )
+             WHERE es.event_id = ? ORDER BY {CHOSEN_ORDER}"
+        ))
         .bind(id)
         .fetch_all(pool)
         .await?;
