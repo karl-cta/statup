@@ -1,5 +1,6 @@
 //! The links sent to a member who forgot their password.
 
+use super::UserRepository;
 use crate::db::DbPool;
 
 /// How long a link opens the account, as an `SQLite` date modifier.
@@ -17,20 +18,29 @@ pub struct PasswordReset {
 pub struct PasswordResetRepository;
 
 impl PasswordResetRepository {
-    /// Store a new link for an account and return its id.
-    pub async fn insert(
+    /// Store a new link for an account and return its id, unless the
+    /// account had `per_hour` links in the last hour. Counting and storing
+    /// are one statement, so requests at the same moment cannot pass the
+    /// limit together.
+    pub async fn insert_within_limit(
         pool: &DbPool,
         user_id: i64,
         secret_hash: &str,
-    ) -> Result<i64, sqlx::Error> {
+        per_hour: i64,
+    ) -> Result<Option<i64>, sqlx::Error> {
         sqlx::query_scalar(
             "INSERT INTO password_resets (user_id, secret_hash, expires_at) \
-             VALUES (?, ?, datetime('now', ?)) RETURNING id",
+             SELECT ?, ?, datetime('now', ?) \
+             WHERE (SELECT COUNT(*) FROM password_resets \
+                    WHERE user_id = ? AND created_at > datetime('now', '-1 hour')) < ? \
+             RETURNING id",
         )
         .bind(user_id)
         .bind(secret_hash)
         .bind(LINK_LIFETIME)
-        .fetch_one(pool)
+        .bind(user_id)
+        .bind(per_hour)
+        .fetch_optional(pool)
         .await
     }
 
@@ -48,26 +58,26 @@ impl PasswordResetRepository {
         .await
     }
 
-    /// How many links the account was sent in the last hour.
-    pub async fn sent_in_last_hour(pool: &DbPool, user_id: i64) -> Result<i64, sqlx::Error> {
-        sqlx::query_scalar(
-            "SELECT COUNT(*) FROM password_resets \
-             WHERE user_id = ? AND created_at > datetime('now', '-1 hour')",
-        )
-        .bind(user_id)
-        .fetch_one(pool)
-        .await
-    }
-
-    /// Forget every link of an account, as one of them is used. Returns
-    /// whether there was any: of two uses of one link at the same moment,
-    /// only the first finds it.
-    pub async fn delete_for_user(pool: &DbPool, user_id: i64) -> Result<bool, sqlx::Error> {
-        let result = sqlx::query("DELETE FROM password_resets WHERE user_id = ?")
+    /// Uses up every link of the account and sets its new password, both or
+    /// neither. Returns false, and changes nothing, when the account has no
+    /// link left: of two uses of one link at the same moment, only the
+    /// first finds it.
+    pub async fn use_up(
+        pool: &DbPool,
+        user_id: i64,
+        password_hash: &str,
+    ) -> Result<bool, sqlx::Error> {
+        let mut tx = pool.begin().await?;
+        let deleted = sqlx::query("DELETE FROM password_resets WHERE user_id = ?")
             .bind(user_id)
-            .execute(pool)
+            .execute(&mut *tx)
             .await?;
-        Ok(result.rows_affected() > 0)
+        if deleted.rows_affected() == 0 {
+            return Ok(false);
+        }
+        UserRepository::update_password(&mut *tx, user_id, password_hash).await?;
+        tx.commit().await?;
+        Ok(true)
     }
 
     /// Forget the links older than a day: past their hour, and no longer
@@ -84,14 +94,22 @@ impl PasswordResetRepository {
 mod tests {
     use super::*;
     use crate::models::Role;
-    use crate::repositories::UserRepository;
     use crate::test_helpers::test_pool;
+
+    const NO_LIMIT: i64 = 100;
 
     async fn member(pool: &DbPool, email: &str) -> i64 {
         UserRepository::create(pool, email, "hash", "Someone", Role::Reader)
             .await
             .unwrap()
             .id
+    }
+
+    async fn insert(pool: &DbPool, user_id: i64, secret_hash: &str) -> i64 {
+        PasswordResetRepository::insert_within_limit(pool, user_id, secret_hash, NO_LIMIT)
+            .await
+            .unwrap()
+            .unwrap()
     }
 
     async fn age(pool: &DbPool, id: i64, created: &str, expires: &str) {
@@ -107,14 +125,19 @@ mod tests {
         .unwrap();
     }
 
+    async fn links(pool: &DbPool) -> Vec<i64> {
+        sqlx::query_scalar("SELECT id FROM password_resets ORDER BY id")
+            .fetch_all(pool)
+            .await
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn a_new_link_opens_its_account() {
         let pool = test_pool().await;
         let user_id = member(&pool, "ana@example.com").await;
 
-        let id = PasswordResetRepository::insert(&pool, user_id, "secret-hash")
-            .await
-            .unwrap();
+        let id = insert(&pool, user_id, "secret-hash").await;
         let link = PasswordResetRepository::find_live(&pool, id)
             .await
             .unwrap()
@@ -128,9 +151,7 @@ mod tests {
     async fn an_expired_link_no_longer_opens() {
         let pool = test_pool().await;
         let user_id = member(&pool, "ana@example.com").await;
-        let id = PasswordResetRepository::insert(&pool, user_id, "h")
-            .await
-            .unwrap();
+        let id = insert(&pool, user_id, "h").await;
 
         age(&pool, id, "-61 minutes", "-1 minute").await;
 
@@ -147,15 +168,9 @@ mod tests {
         let pool = test_pool().await;
         let ana = member(&pool, "ana@example.com").await;
         let ben = member(&pool, "ben@example.com").await;
-        let first = PasswordResetRepository::insert(&pool, ana, "h1")
-            .await
-            .unwrap();
-        let other = PasswordResetRepository::insert(&pool, ben, "h2")
-            .await
-            .unwrap();
-        let second = PasswordResetRepository::insert(&pool, ana, "h3")
-            .await
-            .unwrap();
+        let first = insert(&pool, ana, "h1").await;
+        let other = insert(&pool, ben, "h2").await;
+        let second = insert(&pool, ana, "h3").await;
 
         let live = |id| PasswordResetRepository::find_live(&pool, id);
         assert!(live(first).await.unwrap().is_none());
@@ -167,61 +182,77 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn only_the_last_hour_is_counted() {
-        let pool = test_pool().await;
-        let user_id = member(&pool, "ana@example.com").await;
-        let old = PasswordResetRepository::insert(&pool, user_id, "h")
-            .await
-            .unwrap();
-        age(&pool, old, "-2 hours", "-1 hour").await;
-        PasswordResetRepository::insert(&pool, user_id, "h")
-            .await
-            .unwrap();
-        PasswordResetRepository::insert(&pool, user_id, "h")
-            .await
-            .unwrap();
-
-        let sent = PasswordResetRepository::sent_in_last_hour(&pool, user_id)
-            .await
-            .unwrap();
-        assert_eq!(sent, 2);
-    }
-
-    #[tokio::test]
-    async fn links_are_forgotten_once_used_or_a_day_old() {
+    async fn the_limit_counts_the_last_hour_of_one_account() {
         let pool = test_pool().await;
         let ana = member(&pool, "ana@example.com").await;
         let ben = member(&pool, "ben@example.com").await;
-        let stale = PasswordResetRepository::insert(&pool, ben, "h")
-            .await
-            .unwrap();
-        age(&pool, stale, "-25 hours", "-24 hours").await;
-        let recent = PasswordResetRepository::insert(&pool, ben, "h")
-            .await
-            .unwrap();
-        PasswordResetRepository::insert(&pool, ana, "h")
-            .await
-            .unwrap();
+        let old = insert(&pool, ana, "h").await;
+        age(&pool, old, "-2 hours", "-1 hour").await;
+        insert(&pool, ben, "h").await;
+        let within = |user_id| PasswordResetRepository::insert_within_limit(&pool, user_id, "h", 2);
 
-        let used = |id| PasswordResetRepository::delete_for_user(&pool, id);
+        assert!(within(ana).await.unwrap().is_some());
+        assert!(within(ana).await.unwrap().is_some());
+        assert!(within(ana).await.unwrap().is_none());
+        assert!(within(ben).await.unwrap().is_some());
+    }
+
+    #[tokio::test]
+    async fn a_link_is_used_up_once_with_the_new_password() {
+        let pool = test_pool().await;
+        let ana = member(&pool, "ana@example.com").await;
+        let ben = member(&pool, "ben@example.com").await;
+        insert(&pool, ana, "h").await;
+        insert(&pool, ana, "h").await;
+        let bens = insert(&pool, ben, "h").await;
+
+        let used = |id| PasswordResetRepository::use_up(&pool, id, "new-hash");
         assert!(used(ana).await.unwrap());
         assert!(!used(ana).await.unwrap(), "a link is used up once");
-        PasswordResetRepository::delete_stale(&pool).await.unwrap();
 
-        let left: Vec<i64> = sqlx::query_scalar("SELECT id FROM password_resets")
-            .fetch_all(&pool)
+        let stored = UserRepository::find_by_id(&pool, ana)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(stored.password_hash, "new-hash");
+        assert_eq!(links(&pool).await, [bens]);
+    }
+
+    #[tokio::test]
+    async fn without_a_link_the_password_stays() {
+        let pool = test_pool().await;
+        let ana = member(&pool, "ana@example.com").await;
+
+        let used = PasswordResetRepository::use_up(&pool, ana, "new-hash")
             .await
             .unwrap();
-        assert_eq!(left, [recent]);
+
+        assert!(!used);
+        let stored = UserRepository::find_by_id(&pool, ana)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(stored.password_hash, "hash");
+    }
+
+    #[tokio::test]
+    async fn links_a_day_old_are_forgotten() {
+        let pool = test_pool().await;
+        let ben = member(&pool, "ben@example.com").await;
+        let stale = insert(&pool, ben, "h").await;
+        age(&pool, stale, "-25 hours", "-24 hours").await;
+        let recent = insert(&pool, ben, "h").await;
+
+        PasswordResetRepository::delete_stale(&pool).await.unwrap();
+
+        assert_eq!(links(&pool).await, [recent]);
     }
 
     #[tokio::test]
     async fn deleting_an_account_deletes_its_links() {
         let pool = test_pool().await;
         let user_id = member(&pool, "ana@example.com").await;
-        PasswordResetRepository::insert(&pool, user_id, "h")
-            .await
-            .unwrap();
+        insert(&pool, user_id, "h").await;
 
         sqlx::query("DELETE FROM users WHERE id = ?")
             .bind(user_id)
@@ -229,10 +260,6 @@ mod tests {
             .await
             .unwrap();
 
-        let left: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM password_resets")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-        assert_eq!(left, 0);
+        assert_eq!(links(&pool).await, Vec::<i64>::new());
     }
 }

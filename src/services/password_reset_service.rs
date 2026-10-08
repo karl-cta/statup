@@ -35,13 +35,18 @@ impl PasswordResetService {
         let Some(user) = UserRepository::find_by_email(pool, email.trim()).await? else {
             return Ok(None);
         };
-        if PasswordResetRepository::sent_in_last_hour(pool, user.id).await? >= LINKS_PER_HOUR {
-            tracing::warn!(user_id = user.id, "Password reset link limit reached");
-            return Ok(None);
-        }
         let secret = new_secret();
         let secret_hash = AuthService::hash_password(&secret).await?;
-        let id = PasswordResetRepository::insert(pool, user.id, &secret_hash).await?;
+        let stored = PasswordResetRepository::insert_within_limit(
+            pool,
+            user.id,
+            &secret_hash,
+            LINKS_PER_HOUR,
+        );
+        let Some(id) = stored.await? else {
+            tracing::warn!(user_id = user.id, "Password reset link limit reached");
+            return Ok(None);
+        };
         tracing::info!(user_id = user.id, "Password reset link issued");
         Ok(Some(ResetLink {
             user,
@@ -65,8 +70,8 @@ impl PasswordResetService {
     }
 
     /// Sets the password chosen through the link. A refused password keeps
-    /// the link; an accepted one uses up every link of the account before
-    /// the password changes. Returns the account as stored now, its new
+    /// the link; an accepted one uses up every link of the account in the
+    /// same transaction as the new password. Returns the account as stored now, its new
     /// password hash included, which the session is tied to next.
     pub async fn redeem(
         pool: &DbPool,
@@ -77,11 +82,10 @@ impl PasswordResetService {
         let invalid = || AppError::validation("validation.reset_link_invalid");
         let user = Self::account_for(pool, token).await?.ok_or_else(invalid)?;
         AuthService::check_new_password(password, confirmation)?;
-        if !PasswordResetRepository::delete_for_user(pool, user.id).await? {
+        let hash = AuthService::hash_password(password).await?;
+        if !PasswordResetRepository::use_up(pool, user.id, &hash).await? {
             return Err(invalid());
         }
-        let hash = AuthService::hash_password(password).await?;
-        UserRepository::update_password(pool, user.id, &hash).await?;
         tracing::info!(user_id = user.id, "Password reset through an emailed link");
         UserRepository::find_by_id(pool, user.id)
             .await?
