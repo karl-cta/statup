@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use askama::Template;
 use axum::extract::{Path, Query, State};
-use axum::http::HeaderMap;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 
@@ -480,6 +480,26 @@ pub async fn delete(
         }
         Err(e) => Err(e),
     }
+}
+
+#[derive(Deserialize)]
+pub struct OrderForm {
+    #[serde(default)]
+    order: Vec<i64>,
+}
+
+/// Saves the order set by the page's script, which reloads the page on a
+/// refusal: another tab or member changed the list meanwhile.
+pub async fn save_order(
+    RequirePublisher(user): RequirePublisher,
+    State(state): State<AppState>,
+    HtmlForm(form): HtmlForm<OrderForm>,
+) -> Result<Response, AppError> {
+    if !ServiceRepository::reorder(&state.pool, &form.order).await? {
+        return Err(AppError::validation("error.invalid_data"));
+    }
+    tracing::info!(user_id = user.id, "Service order saved");
+    Ok(StatusCode::NO_CONTENT.into_response())
 }
 
 #[derive(Deserialize)]
