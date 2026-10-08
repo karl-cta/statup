@@ -395,3 +395,17 @@ async fn a_malformed_or_unknown_token_shows_the_expired_link_page() {
         assert!(body.contains("/password/forgot"), "{token:?}");
     }
 }
+
+#[tokio::test]
+async fn asking_for_links_in_someone_s_name_never_locks_them_out() {
+    let (app, _sink) = app_with_mail().await;
+    let stranger = Visitor::new(&app);
+
+    for _ in 0..6 {
+        stranger.ask_for_link(EMAIL).await;
+    }
+
+    let (status, location) = Visitor::new(&app).sign_in(EMAIL, OLD_PASSWORD).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/"));
+}

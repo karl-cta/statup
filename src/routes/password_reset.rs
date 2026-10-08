@@ -117,8 +117,8 @@ pub async fn forgot_form(
     render_forgot(csrf_token, i18n, mail_ready, false)
 }
 
-/// The same page whatever the address: a request past the limits of this
-/// address and account is dropped without a word.
+/// The same page whatever the address: a request past the limit of this
+/// address, or of the account, is dropped without a word.
 pub async fn forgot(
     State(state): State<AppState>,
     FormCsrfToken(csrf_token): FormCsrfToken,
@@ -135,11 +135,10 @@ pub async fn forgot(
         return render_forgot(csrf_token, i18n, true, false);
     }
     let ip = request_ip(&state, &headers, connect_info);
-    if state.login_limiter.is_blocked(&ip, email) {
-        tracing::warn!(ip = %ip, "Password reset request blocked by rate limiter");
-    } else {
-        state.login_limiter.record_failure(&ip, email);
+    if state.login_limiter.allow_reset_request(&ip) {
         send_link_later(&state, email.to_string(), base, i18n.locale());
+    } else {
+        tracing::warn!(ip = %ip, "Password reset request blocked by rate limiter");
     }
     render_forgot(csrf_token, i18n, true, true)
 }
