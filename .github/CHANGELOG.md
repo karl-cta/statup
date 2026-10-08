@@ -2,7 +2,7 @@
 
 All notable changes to Statup are listed here. The project is pre-v1: until 1.0, a minor version may change the interface or the database, and the README asks you to back up before upgrading.
 
-## Unreleased
+## 0.3.1, 2026-10-08
 
 - The browser tab icon sits on a white rounded tile, so it stays readable on a dark tab bar.
 - A long service name in the Services block wraps onto a second line instead of being cut short, and the state moves below it when the column is narrow.
