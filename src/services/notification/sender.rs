@@ -5,12 +5,13 @@ use std::time::Duration;
 use anyhow::Context;
 use lettre::message::Mailbox;
 use lettre::transport::smtp::authentication::Credentials;
-use lettre::{AsyncSmtpTransport, AsyncTransport, Tokio1Executor};
+use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 use reqwest::StatusCode;
 use reqwest::header::{CONTENT_TYPE, RETRY_AFTER};
 
 use super::mail::{email, recipients};
-use super::{Facts, Notice, post};
+use super::reset_mail::reset_email;
+use super::{Facts, Notice, ResetEmail, post};
 use crate::config::{SmtpConfig, SmtpSecurity};
 use crate::models::{Channel, ChannelKind};
 use crate::services::Finding;
@@ -178,6 +179,13 @@ impl Notifier {
         self.mailer.is_some()
     }
 
+    /// Sends a password reset link to the member who asked for it.
+    pub async fn send_password_reset(&self, mail: &ResetEmail<'_>) -> Result<(), Failure> {
+        let mailer = self.mailer.as_ref().ok_or(Failure::NoMailServer)?;
+        let message = reset_email(&mailer.from, mail).ok_or(Failure::MailRefused(None))?;
+        mailer.deliver(message).await
+    }
+
     async fn send_mail(
         &self,
         channel: &Channel,
@@ -250,6 +258,10 @@ impl Mailer {
     ) -> Result<(), Failure> {
         let message =
             email(&self.from, to, notice, facts, locale).map_err(|_| Failure::MailRefused(None))?;
+        self.deliver(message).await
+    }
+
+    async fn deliver(&self, message: Message) -> Result<(), Failure> {
         self.transport
             .send(message)
             .await
