@@ -4,7 +4,7 @@
 //! The answer to a request never tells whether the address has an account:
 //! the account is looked up and the email sent after the page is answered.
 
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
 use askama::Template;
@@ -24,6 +24,7 @@ use crate::i18n::{I18n, Locale};
 use crate::middleware::csrf::form_token;
 use crate::middleware::headers::no_store;
 use crate::middleware::{FormCsrfToken, HtmlForm, OptionalUser};
+use crate::models::User;
 use crate::services::{Notifier, PasswordResetService, ResetEmail, page_address};
 use crate::state::AppState;
 
@@ -229,12 +230,27 @@ pub async fn reset_form(
     render_reset(&page)
 }
 
+/// The link proved who the member is, like a sign-in: their sign-in
+/// failures from this address are forgotten.
+async fn sign_in(
+    state: &AppState,
+    session: &Session,
+    ip: &IpAddr,
+    user: &User,
+) -> Result<Response, AppError> {
+    state.login_limiter.clear(ip, &user.email);
+    open_session(session, user, false).await?;
+    Ok(signed_in_redirect(user, state.serves_https()))
+}
+
 /// Signs the member in with the new password; their other sessions no
 /// longer match it.
 pub async fn reset(
     State(state): State<AppState>,
     session: Session,
     FormCsrfToken(csrf_token): FormCsrfToken,
+    headers: HeaderMap,
+    connect_info: Option<Extension<ConnectInfo<SocketAddr>>>,
     Locale(i18n): Locale,
     HtmlForm(input): HtmlForm<ResetInput>,
 ) -> Result<Response, AppError> {
@@ -246,8 +262,8 @@ pub async fn reset(
     );
     match redeemed.await {
         Ok(user) => {
-            open_session(&session, &user, false).await?;
-            Ok(signed_in_redirect(&user, state.serves_https()))
+            let ip = request_ip(&state, &headers, connect_info);
+            sign_in(&state, &session, &ip, &user).await
         }
         Err(AppError::Validation(key)) if key == INVALID_LINK => {
             let page = reset_page(

@@ -409,3 +409,24 @@ async fn asking_for_links_in_someone_s_name_never_locks_them_out() {
     assert_eq!(status, StatusCode::SEE_OTHER);
     assert_eq!(location.as_deref(), Some("/"));
 }
+
+#[tokio::test]
+async fn a_link_lifts_the_lock_of_failed_sign_ins() {
+    let (app, sink) = app_with_mail().await;
+    let member = Visitor::new(&app);
+    for _ in 0..5 {
+        member.sign_in(EMAIL, "not the right password").await;
+    }
+    let (status, _) = member.sign_in(EMAIL, OLD_PASSWORD).await;
+    assert_eq!(status, StatusCode::OK, "locked out after five failures");
+
+    let link = emailed_link(&member, &sink, 0).await;
+    let (status, _, _) = member
+        .choose_password(&link, NEW_PASSWORD, NEW_PASSWORD)
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let (status, location) = Visitor::new(&app).sign_in(EMAIL, NEW_PASSWORD).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/"));
+}
