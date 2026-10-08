@@ -64,22 +64,28 @@ impl PasswordResetService {
         Ok(user.filter(|user| user.is_active))
     }
 
-    /// Sets the password chosen through the link, then forgets every link
-    /// of the account. Returns the account and its new hash, which the
-    /// session is tied to next.
+    /// Sets the password chosen through the link. A refused password keeps
+    /// the link; an accepted one uses up every link of the account before
+    /// the password changes. Returns the account as stored now, its new
+    /// password hash included, which the session is tied to next.
     pub async fn redeem(
         pool: &DbPool,
         token: &str,
         password: &str,
         confirmation: &str,
-    ) -> Result<(User, String), AppError> {
-        let user = Self::account_for(pool, token)
-            .await?
-            .ok_or_else(|| AppError::validation("validation.reset_link_invalid"))?;
-        let hash = AuthService::change_password(pool, user.id, password, confirmation).await?;
-        PasswordResetRepository::delete_for_user(pool, user.id).await?;
+    ) -> Result<User, AppError> {
+        let invalid = || AppError::validation("validation.reset_link_invalid");
+        let user = Self::account_for(pool, token).await?.ok_or_else(invalid)?;
+        AuthService::check_new_password(password, confirmation)?;
+        if !PasswordResetRepository::delete_for_user(pool, user.id).await? {
+            return Err(invalid());
+        }
+        let hash = AuthService::hash_password(password).await?;
+        UserRepository::update_password(pool, user.id, &hash).await?;
         tracing::info!(user_id = user.id, "Password reset through an emailed link");
-        Ok((user, hash))
+        UserRepository::find_by_id(pool, user.id)
+            .await?
+            .ok_or(AppError::NotFound)
     }
 }
 
@@ -186,14 +192,14 @@ mod tests {
         let ana = member(&pool, "ana@example.com").await;
         let token = link(&pool, "ana@example.com").await;
 
-        let (user, hash) = PasswordResetService::redeem(&pool, &token, NEW_PASSWORD, NEW_PASSWORD)
+        let user = PasswordResetService::redeem(&pool, &token, NEW_PASSWORD, NEW_PASSWORD)
             .await
             .unwrap();
         let again = PasswordResetService::redeem(&pool, &token, NEW_PASSWORD, NEW_PASSWORD).await;
 
         assert_eq!(user.id, ana.id);
         assert!(
-            AuthService::verify_password(NEW_PASSWORD, &hash)
+            AuthService::verify_password(NEW_PASSWORD, &user.password_hash)
                 .await
                 .unwrap()
         );
@@ -235,15 +241,11 @@ mod tests {
             .unwrap();
         let token = link(&pool, "ana@example.com").await;
 
-        let (user, _) = PasswordResetService::redeem(&pool, &token, NEW_PASSWORD, NEW_PASSWORD)
+        let user = PasswordResetService::redeem(&pool, &token, NEW_PASSWORD, NEW_PASSWORD)
             .await
-            .unwrap();
-        let stored = UserRepository::find_by_id(&pool, user.id)
-            .await
-            .unwrap()
             .unwrap();
 
-        assert!(!stored.must_change_password);
+        assert!(!user.must_change_password);
     }
 
     #[tokio::test]

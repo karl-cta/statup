@@ -59,13 +59,15 @@ impl PasswordResetRepository {
         .await
     }
 
-    /// Forget every link of an account, once one of them was used.
-    pub async fn delete_for_user(pool: &DbPool, user_id: i64) -> Result<(), sqlx::Error> {
-        sqlx::query("DELETE FROM password_resets WHERE user_id = ?")
+    /// Forget every link of an account, as one of them is used. Returns
+    /// whether there was any: of two uses of one link at the same moment,
+    /// only the first finds it.
+    pub async fn delete_for_user(pool: &DbPool, user_id: i64) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query("DELETE FROM password_resets WHERE user_id = ?")
             .bind(user_id)
             .execute(pool)
             .await?;
-        Ok(())
+        Ok(result.rows_affected() > 0)
     }
 
     /// Forget the links older than a day: past their hour, and no longer
@@ -201,9 +203,9 @@ mod tests {
             .await
             .unwrap();
 
-        PasswordResetRepository::delete_for_user(&pool, ana)
-            .await
-            .unwrap();
+        let used = |id| PasswordResetRepository::delete_for_user(&pool, id);
+        assert!(used(ana).await.unwrap());
+        assert!(!used(ana).await.unwrap(), "a link is used up once");
         PasswordResetRepository::delete_stale(&pool).await.unwrap();
 
         let left: Vec<i64> = sqlx::query_scalar("SELECT id FROM password_resets")
