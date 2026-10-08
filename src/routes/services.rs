@@ -67,6 +67,11 @@ impl ServiceListTemplate {
     fn history_of(&self, id: &i64) -> Option<&Strip> {
         self.histories.get(id)
     }
+
+    /// "Move Mail up": a button's name says which row it moves.
+    fn move_label(&self, key: &str, name: &str) -> String {
+        self.i18n.tf(key, &[("name", name)])
+    }
 }
 
 /// The last check of a monitored service, as its row says it: the latency,

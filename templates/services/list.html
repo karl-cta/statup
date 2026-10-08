@@ -10,6 +10,9 @@
 <script src="{{ crate::asset("js/custom-select.js") }}" defer></script>
 <script src="{{ crate::asset("js/status-publish.js") }}" defer></script>
 <script src="{{ crate::asset("js/uptime-tooltip.js") }}" defer></script>
+{% if services.len() > 1 %}
+<script src="{{ crate::asset("js/service-order.js") }}" defer></script>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -19,6 +22,14 @@
             <h1 class="page-title">{{ i18n.t("services.heading") }}</h1>
         </div>
         <div class="page-actions">
+            {% if services.len() > 1 %}
+            {# Revealed by its script, without which it would do nothing. Both
+               labels hold their place, so the header keeps its width. #}
+            <button type="button" class="btn btn-ghost order-toggle" data-order-toggle aria-pressed="false" hidden>
+                <span data-when="closed">{{ i18n.t("services.reorder") }}</span>
+                <span data-when="open">{{ i18n.t("services.reorder_done") }}</span>
+            </button>
+            {% endif %}
             <a href="/services/new" class="btn btn-primary">{% call ui::plus() %}{% endcall %}{{ i18n.t("services.new") }}</a>
         </div>
     </header>
@@ -39,9 +50,9 @@
         <p class="empty-state-text">{{ i18n.t("services.empty_text") }}</p>
     </div>
     {% else %}
-    <ul class="admin-list">
+    <ul class="admin-list" data-service-order data-moved="{{ i18n.t("services.moved") }}" data-saved="{{ i18n.t("services.order_saved") }}">
         {% for service in services %}
-        <li class="admin-row svc-admin-row{% if self.is_saved(service.id) %} row-saved{% endif %}" id="{{ service.anchor() }}"{% if self.is_saved(service.id) %} data-scroll-into-view{% endif %}>
+        <li class="admin-row svc-admin-row{% if self.is_saved(service.id) %} row-saved{% endif %}" id="{{ service.anchor() }}"{% if self.is_saved(service.id) %} data-scroll-into-view{% endif %} data-service-id="{{ service.id }}" data-service-name="{{ service.name }}">
             <div class="admin-row-ident">
                 <span class="svc-icon">{% call ui::service_icon(service) %}{% endcall %}</span>
                 <div class="min-w-0">
@@ -61,6 +72,10 @@
                 {% let driver = self.driver_of(service.id) %}
                 {% let csrf_token = frame.csrf_token.as_str() %}
                 {% include "components/status_selector.html" %}
+            </div>
+            <div class="svc-move">
+                <button type="button" class="btn btn-ghost btn-icon" data-move="up" aria-label="{{ self.move_label("services.move_up", service.name) }}">{% call ui::arrow_up() %}{% endcall %}</button>
+                <button type="button" class="btn btn-ghost btn-icon" data-move="down" aria-label="{{ self.move_label("services.move_down", service.name) }}">{% call ui::arrow_down() %}{% endcall %}</button>
             </div>
             <a href="/services/{{ service.id }}/edit" class="btn btn-ghost btn-icon svc-edit" title="{{ i18n.t("services.edit") }} {{ service.name }}" aria-label="{{ i18n.t("services.edit") }} {{ service.name }}">{% call ui::pencil_icon() %}{% endcall %}</a>
             {% if let Some(history) = self.history_of(service.id) %}

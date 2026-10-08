@@ -347,6 +347,48 @@
         grid-column: 2;
     }
 
+    /* The button that opens and closes the mode, as wide as its longer
+       label whichever one shows. */
+    .order-toggle {
+        display: inline-grid;
+        place-items: center;
+    }
+
+    .order-toggle > span {
+        grid-area: 1 / 1;
+    }
+
+    .order-toggle[aria-pressed="true"] > [data-when="closed"],
+    .order-toggle[aria-pressed="false"] > [data-when="open"] {
+        visibility: hidden;
+    }
+
+    /* Choosing the order: each row keeps its name and gains two arrows
+       where its pencil was; its state, pencil and history step aside. */
+    .svc-move {
+        display: none;
+        gap: 4px;
+        grid-row: 1;
+        grid-column: 2;
+    }
+
+    .is-ordering .svc-move {
+        display: flex;
+    }
+
+    /* The first row cannot go up, the last cannot go down. */
+    .svc-move .btn:disabled {
+        color: var(--muted);
+        background: transparent;
+        border-color: var(--line);
+    }
+
+    .is-ordering .svc-admin-row .admin-row-cell,
+    .is-ordering .svc-edit,
+    .is-ordering .svc-history {
+        display: none;
+    }
+
     /* Ninety days under the row, across its width, in the bars of the
        dashboard; a phone keeps the last thirty. */
     .svc-history {
@@ -390,6 +432,10 @@
 
         .svc-edit {
             grid-column: 3;
+        }
+
+        .is-ordering .svc-admin-row {
+            grid-template-columns: minmax(0, 1fr) auto;
         }
 
         .svc-history .svc-bars > .bar-early,
