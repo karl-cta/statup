@@ -2,7 +2,7 @@
 
 All notable changes to Statup are listed here. The project is pre-v1: until 1.0, a minor version may change the interface or the database, and the README asks you to back up before upgrading.
 
-## Unreleased
+## 0.4.0, 2026-10-08
 
 - Editors choose the order of services: Change order, on the Services page, gives each row an up and a down arrow, and the order applies wherever services are listed. Existing services keep their alphabetical order, and a new service goes last; the database is upgraded on start to keep it.
 - The browser tab icon sits on a white rounded tile, so it stays readable on a dark tab bar.
