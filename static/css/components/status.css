@@ -479,11 +479,8 @@
         box-shadow: var(--shadow-menu);
     }
 
-    .cell-options legend {
-        float: left;
-        width: 100%;
+    .cell-options > .label {
         margin-bottom: 2px;
-        padding: 0;
     }
 
     /* A block being moved: its slot stays, dashed, where it will land; a

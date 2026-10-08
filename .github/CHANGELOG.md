@@ -6,6 +6,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 
 - The browser tab icon sits on a white rounded tile, so it stays readable on a dark tab bar.
 - A long service name in the Services block wraps onto a second line instead of being cut short, and the state moves below it when the column is narrow.
+- Fixed: in Safari, the "Show" title of a block's settings menu no longer sits on the menu's top border.
 
 ## 0.3.0, 2026-10-07
 
