@@ -88,13 +88,23 @@ Add them from the **Team** page: they open the same address. For HTTPS and a nam
 
 ## Roadmap
 
-Planned, without dates:
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/roadmap-dark.png">
+  <img src=".github/assets/roadmap.png" alt="Roadmap: shipped are automatic monitoring, notifications, four languages and password reset; coming next, in order, the ten steps listed below, then the stable 1.0 release" width="1296">
+</picture>
 
-- **Incidents from your monitoring**: Zabbix, Grafana or any other tool opens and closes an incident by itself.
-- **Email subscriptions**: visitors sign up with their own address to get each update by email.
-- **Groups and visibility**: gather colleagues into groups and choose which services and events each group sees.
-- **Recurring maintenance**: announce once a slot that comes back every week or month.
-- **Themes** and an accent colour.
+Planned, in this order, without dates:
+
+1. **Clearer incident updates**: time since the last update, next update time with a reminder, and a short report once it is over.
+2. **Activity log**: every action, check and sign-in, for administrators to look back on.
+3. **Groups and visibility**: choose which services and events each group of colleagues sees.
+4. **Email subscriptions**: visitors get each update in their inbox.
+5. **API and monitoring tools**: Zabbix, Grafana or a script open and close incidents by themselves.
+6. **Recurring maintenance**: announce a slot once, and see every maintenance in your calendar.
+7. **Themes** and an accent colour.
+8. **Backup and restore**, one command each, without stopping Statup.
+9. **Status widget** for your intranet or wiki.
+10. **Hardening**: full testing, a security review and safe upgrades from every version, before 1.0.
 
 Ideas and requests are welcome in the [issues](https://github.com/karl-cta/statup/issues).
 

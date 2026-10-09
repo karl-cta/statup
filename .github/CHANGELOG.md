@@ -2,12 +2,12 @@
 
 All notable changes to Statup are listed here. The project is pre-v1: until 1.0, a minor version may change the interface or the database, and the README asks you to back up before upgrading.
 
-## Unreleased
+## 0.4.0, 2026-10-09
 
 - Editors choose the order of services: Change order, on the Services page, gives each row an up and a down arrow, and the order applies wherever services are listed. Existing services keep their alphabetical order, and a new service goes last; the database is upgraded on start to keep it.
 - "Forgot your password?" on the sign-in page: with a mail server set, a member receives a link that works once, for one hour, and is signed in once they choose a new password; without one, the page says to ask an administrator. The answer never tells whether an address has an account. The database is upgraded on start.
 - An open incident tells how long ago its last update was posted: "last update 2h ago" under how long it has been open, on its page and in its side panel, and the status banner gives the age of the latest update ("2h ago") instead of its time, so an old message never looks current.
-- Services with a problem can come first (#11): in Change order, on the Services page, "Put services with a problem first" lists degraded, down and under-maintenance services ahead of the others, on the dashboard and the Services page; each goes back to its place once it is fine again. Off by default.
+- Services with a problem can come first ([#11](https://github.com/karl-cta/statup/issues/11)): in Change order, on the Services page, "Put services with a problem first" lists degraded, down and under-maintenance services ahead of the others, on the dashboard and the Services page; each goes back to its place once it is fine again. Off by default.
 
 ## 0.3.1, 2026-10-08
 
