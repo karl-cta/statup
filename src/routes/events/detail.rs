@@ -4,6 +4,7 @@ use askama::Template;
 use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
 use axum::response::Response;
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
 use super::form::MaintenanceChoice;
@@ -96,6 +97,8 @@ pub struct StateLine {
     pub tone: &'static str,
     pub label: String,
     pub detail: Option<String>,
+    /// How long ago the last update was posted on an open incident.
+    pub last_news: Option<String>,
 }
 
 async fn load_view(
@@ -106,6 +109,7 @@ async fn load_view(
 ) -> Result<EventView, AppError> {
     let ews = EventService::find_with_services(&state.pool, id).await?;
     let updates = EventRepository::list_updates(&state.pool, id).await?;
+    let last_posted = updates.iter().map(|update| update.created_at).max();
     let author = match user {
         Some(_) => Some(author_name(state, ews.event.author_id, i18n).await?),
         None => None,
@@ -133,7 +137,7 @@ async fn load_view(
     Ok(EventView {
         follows,
         article,
-        state: state_line(&ews.event, i18n),
+        state: state_line(&ews.event, last_posted, i18n),
         event: ews.event,
         services: ews.services,
         timeline,
@@ -151,8 +155,11 @@ async fn author_name(state: &AppState, author_id: i64, i18n: &I18n) -> Result<St
     )
 }
 
-fn state_line(event: &Event, i18n: &I18n) -> Option<StateLine> {
+fn state_line(event: &Event, last_posted: Option<DateTime<Utc>>, i18n: &I18n) -> Option<StateLine> {
     let lifecycle = event.lifecycle?;
+    let last_news = last_posted
+        .filter(|_| event.kind == Kind::Incident && lifecycle.is_active())
+        .map(|at| i18n.tf("events.last_news", &[("ago", &i18n.format_ago(&at))]));
     let detail = match lifecycle {
         Lifecycle::Scheduled => i18n.format_countdown(event.countdown()),
         Lifecycle::Cancelled => None,
@@ -168,6 +175,7 @@ fn state_line(event: &Event, i18n: &I18n) -> Option<StateLine> {
         tone: event.tone().as_str(),
         label: i18n.t(lifecycle.label_key(event.kind)).to_string(),
         detail,
+        last_news,
     })
 }
 

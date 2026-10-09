@@ -8,6 +8,7 @@
         <dd class="fact-state" data-tone="{{ state.tone }}">
             <span class="dot" aria-hidden="true"></span><strong>{{ state.label }}</strong>
             {% if let Some(detail) = state.detail %}<span class="fact-note">{{ detail }}</span>{% endif %}
+            {% if let Some(last_news) = state.last_news %}<span class="fact-note">{{ last_news }}</span>{% endif %}
         </dd>
         {% if let Some(label) = revert_label %}
         <dd class="fact-revert">

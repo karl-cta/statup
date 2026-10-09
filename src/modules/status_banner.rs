@@ -239,7 +239,7 @@ fn cause(event: &EventSummary, i18n: &I18n) -> Cause {
             .latest_update_excerpt(UPDATE_EXCERPT_CHARS)
             .zip(event.latest_update_at)
             .map(|(text, at)| LatestUpdate {
-                when: short_when(&at, i18n),
+                when: i18n.format_ago(&at),
                 text,
             }),
     }
@@ -533,6 +533,21 @@ mod tests {
             })
             .collect();
         assert_eq!(texts, [Some("Supplier on it"), None]);
+    }
+
+    #[test]
+    fn the_latest_update_says_how_long_ago_it_was_posted() {
+        let mut outage = event(
+            Kind::Incident,
+            Some(Severity::Critical),
+            Lifecycle::Investigating,
+            "Mail",
+        );
+        outage.latest_update = Some("<p>Supplier on it</p>".to_string());
+        outage.latest_update_at = Some(Utc::now() - Duration::hours(2));
+        let found = cause(&outage, &I18n::new("en"));
+        let when = found.latest.map(|latest| latest.when);
+        assert_eq!(when.as_deref(), Some("2h ago"));
     }
 
     #[test]

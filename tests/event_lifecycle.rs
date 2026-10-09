@@ -1187,6 +1187,39 @@ async fn feed_lists_events_with_their_updates() {
 }
 
 #[tokio::test]
+async fn an_open_incident_says_how_long_ago_its_last_update_was_posted() {
+    let app = TestApp::spawn().await;
+    app.setup_publisher().await;
+    let service_id = app.create_service("Search").await;
+    let path = app
+        .create_incident(
+            "Search is slow",
+            "Latency above 2s",
+            "critical",
+            &[service_id],
+        )
+        .await;
+    let event_id = event_id_from_path(&path);
+
+    let (_, body) = app.get(&path).await;
+    assert!(
+        !body.contains("dernière nouvelle"),
+        "without an update, the time since it opened already says it all"
+    );
+
+    app.post_form_with_header_csrf(
+        &format!("/events/{event_id}/updates"),
+        &[("lifecycle", ""), ("message", "Supplier on it")],
+    )
+    .await;
+    let (_, body) = app.get(&path).await;
+    assert!(
+        body.contains("dernière nouvelle il y a 1\u{a0}min"),
+        "the state line should tell how old the last word is"
+    );
+}
+
+#[tokio::test]
 async fn detail_page_says_an_incident_is_still_ongoing() {
     let app = TestApp::spawn().await;
     app.setup_publisher().await;

@@ -12,7 +12,7 @@ use axum::http::request::Parts;
 use chrono::{DateTime, Datelike, NaiveDate, Utc};
 
 use crate::clock;
-use crate::models::Countdown;
+use crate::models::{Countdown, split_duration};
 
 type TranslationMap = HashMap<String, String>;
 
@@ -260,6 +260,15 @@ impl I18n {
             (_, 1.., _) => self.tf("duration.hours_minutes", &[("h", &h), ("m", &m)]),
             _ => self.tf("duration.minutes", &[("m", &m)]),
         }
+    }
+
+    /// "il y a 2 h" for a moment past.
+    pub fn format_ago(&self, at: &DateTime<Utc>) -> String {
+        let parts = split_duration(Utc::now() - *at);
+        self.tf(
+            "duration.ago",
+            &[("duration", &self.format_duration(&parts))],
+        )
     }
 
     /// "dans 3 j 2 h" before a planned start.
