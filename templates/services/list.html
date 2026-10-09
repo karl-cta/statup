@@ -34,6 +34,11 @@
         </div>
     </header>
 
+    {% if services.len() > 1 %}
+    {# Shown by the ordering mode, which also puts back the chosen order. #}
+    <label class="check-row order-option mb-5" data-problems-first-field hidden><input type="checkbox" class="checkbox" data-problems-first{% if problems_first %} checked{% endif %}><span>{{ i18n.t("services.problems_first") }}</span></label>
+    {% endif %}
+
     {% if let Some(name) = saved_name %}
     <div class="form-notice mb-5" role="status"><p><q>{{ name }}</q> {% if saved_monitored %}{{ i18n.t("services.saved_monitored_notice") }}{% else %}{{ i18n.t("services.saved_notice") }}{% endif %}</p></div>
     {% endif %}
@@ -52,7 +57,7 @@
     {% else %}
     <ul class="admin-list" data-service-order data-moved="{{ i18n.t("services.moved") }}" data-saved="{{ i18n.t("services.order_saved") }}">
         {% for service in services %}
-        <li class="admin-row svc-admin-row{% if self.is_saved(service.id) %} row-saved{% endif %}" id="{{ service.anchor() }}"{% if self.is_saved(service.id) %} data-scroll-into-view{% endif %} data-service-id="{{ service.id }}" data-service-name="{{ service.name }}">
+        <li class="admin-row svc-admin-row{% if self.is_saved(service.id) %} row-saved{% endif %}" id="{{ service.anchor() }}"{% if self.is_saved(service.id) %} data-scroll-into-view{% endif %} data-service-id="{{ service.id }}" data-service-name="{{ service.name }}" data-place="{{ self.chosen_place(service.id) }}">
             <div class="admin-row-ident">
                 <span class="svc-icon">{% call ui::service_icon(service) %}{% endcall %}</span>
                 <div class="min-w-0">

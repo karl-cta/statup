@@ -363,6 +363,11 @@
         visibility: hidden;
     }
 
+    /* The problems-first box shows only while choosing the order. */
+    .order-option[hidden] {
+        display: none;
+    }
+
     /* Choosing the order: each row keeps its name and gains two arrows
        where its pencil was; its state, pencil and history step aside. */
     .svc-move {

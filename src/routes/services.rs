@@ -21,7 +21,7 @@ use crate::models::{
 };
 use crate::modules::services::{LONG_DAYS, ServiceRow, Strip, service_history, strips};
 use crate::repositories::{EventRepository, ServiceRepository};
-use crate::services::{IconService, LastCheck, ServiceService};
+use crate::services::{IconService, LastCheck, ServiceService, put_problems_first};
 use crate::state::AppState;
 
 #[derive(Template)]
@@ -41,6 +41,10 @@ struct ServiceListTemplate {
     pulses: HashMap<i64, Pulse>,
     /// Each service's last ninety days, drawn small on its row.
     histories: HashMap<i64, Strip>,
+    /// Services with a problem are listed first; the ordering mode puts
+    /// back the chosen order, kept here as each service's place.
+    problems_first: bool,
+    chosen_places: HashMap<i64, usize>,
     deleted_name: Option<String>,
     error: Option<String>,
     i18n: I18n,
@@ -66,6 +70,11 @@ impl ServiceListTemplate {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     fn history_of(&self, id: &i64) -> Option<&Strip> {
         self.histories.get(id)
+    }
+
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    fn chosen_place(&self, id: &i64) -> usize {
+        self.chosen_places.get(id).copied().unwrap_or_default()
     }
 
     /// "Move Mail up": a button's name says which row it moves.
@@ -119,7 +128,16 @@ async fn render_list(
     query: ListQuery,
     error: Option<String>,
 ) -> Result<Response, AppError> {
-    let services = ServiceRepository::list_all(&state.pool).await?;
+    let mut services = ServiceRepository::list_all(&state.pool).await?;
+    let chosen_places = services
+        .iter()
+        .enumerate()
+        .map(|(place, service)| (service.id, place))
+        .collect();
+    let problems_first = ServiceService::problems_first(&state.pool).await?;
+    if problems_first {
+        put_problems_first(&mut services);
+    }
     let saved = query
         .saved
         .and_then(|id| services.iter().find(|s| s.id == id));
@@ -141,6 +159,8 @@ async fn render_list(
         saved_monitored,
         pulses,
         histories,
+        problems_first,
+        chosen_places,
         deleted_name: query.deleted,
         error,
         i18n,
@@ -504,6 +524,28 @@ pub async fn save_order(
         return Err(AppError::validation("error.invalid_data"));
     }
     tracing::info!(user_id = user.id, "Service order saved");
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+#[derive(Deserialize)]
+pub struct ProblemsFirstForm {
+    #[serde(default)]
+    enabled: bool,
+}
+
+/// Turns on or off listing services with a problem first, from the
+/// ordering mode's checkbox.
+pub async fn save_problems_first(
+    RequirePublisher(user): RequirePublisher,
+    State(state): State<AppState>,
+    HtmlForm(form): HtmlForm<ProblemsFirstForm>,
+) -> Result<Response, AppError> {
+    ServiceService::set_problems_first(&state.pool, form.enabled).await?;
+    tracing::info!(
+        user_id = user.id,
+        enabled = form.enabled,
+        "Problems first saved"
+    );
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 

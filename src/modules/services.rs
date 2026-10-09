@@ -19,6 +19,7 @@ use crate::repositories::{
 };
 
 use super::{ColumnWidth, Module, ModuleOption, ModuleRenderContext, render_template};
+use crate::services::ServiceService;
 
 /// The days every strip shows; a column wide enough adds the older ones.
 pub const SHORT_DAYS: i64 = 30;
@@ -99,7 +100,7 @@ impl Module for ServicesModule {
     }
 
     async fn render(&self, ctx: &ModuleRenderContext<'_>) -> Result<String, AppError> {
-        let services: Vec<Service> = ServiceRepository::list_all(ctx.pool)
+        let services: Vec<Service> = ServiceService::list_for_display(ctx.pool)
             .await?
             .into_iter()
             .filter(|service| {

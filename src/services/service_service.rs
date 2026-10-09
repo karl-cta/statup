@@ -4,11 +4,12 @@
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::{CheckKind, Service, ServiceCheck, ServiceStatus, derive_status};
-use crate::repositories::{EventRepository, ServiceRepository};
+use crate::repositories::{EventRepository, ServiceRepository, SettingsRepository};
 
 const MAX_NAME_CHARS: usize = 100;
 const MAX_DESCRIPTION_CHARS: usize = 500;
 const MAX_CHECK_TARGET_CHARS: usize = 2000;
+const PROBLEMS_FIRST_SETTING: &str = "services_problems_first";
 
 pub struct ServiceService;
 
@@ -110,6 +111,35 @@ impl ServiceService {
         }
         Ok(())
     }
+
+    /// Whether services with a problem are listed before the others. Off
+    /// until someone who orders the services turns it on.
+    pub async fn problems_first(pool: &DbPool) -> Result<bool, AppError> {
+        let stored = SettingsRepository::get(pool, PROBLEMS_FIRST_SETTING).await?;
+        Ok(stored.as_deref() == Some("true"))
+    }
+
+    pub async fn set_problems_first(pool: &DbPool, enabled: bool) -> Result<(), AppError> {
+        let value = if enabled { "true" } else { "false" };
+        SettingsRepository::set(pool, PROBLEMS_FIRST_SETTING, value).await?;
+        Ok(())
+    }
+
+    /// The services as readers see them: in the chosen order, with those
+    /// that have a problem first when that is asked for.
+    pub async fn list_for_display(pool: &DbPool) -> Result<Vec<Service>, AppError> {
+        let mut services = ServiceRepository::list_all(pool).await?;
+        if Self::problems_first(pool).await? {
+            put_problems_first(&mut services);
+        }
+        Ok(services)
+    }
+}
+
+/// Moves every service that is not operational ahead of the others; each
+/// group keeps the chosen order.
+pub fn put_problems_first(services: &mut [Service]) {
+    services.sort_by_key(|service| service.status == ServiceStatus::Operational);
 }
 
 /// Name and description rules as a message key, so a route can re-render
@@ -203,6 +233,24 @@ async fn unique_slug(pool: &DbPool, name: &str) -> Result<String, AppError> {
 mod tests {
     use super::*;
     use crate::test_helpers::test_pool;
+
+    #[tokio::test]
+    async fn problems_come_first_and_each_group_keeps_its_order() {
+        let pool = test_pool().await;
+        let mut created = Vec::new();
+        for name in ["Mail", "VPN", "Wiki", "Paie"] {
+            created.push(
+                ServiceRepository::create(&pool, name, &name.to_lowercase(), None, None, None)
+                    .await
+                    .unwrap(),
+            );
+        }
+        created[1].status = ServiceStatus::Maintenance;
+        created[3].status = ServiceStatus::Degraded;
+        put_problems_first(&mut created);
+        let names: Vec<&str> = created.iter().map(|s| s.name.as_str()).collect();
+        assert_eq!(names, ["VPN", "Paie", "Mail", "Wiki"]);
+    }
 
     #[test]
     fn field_rules_count_characters() {

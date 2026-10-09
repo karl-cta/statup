@@ -326,6 +326,7 @@
   "services.edit": "Modifier",
   "services.reorder": "Changer l'ordre",
   "services.reorder_done": "Terminer",
+  "services.problems_first": "Mettre en tête les services qui ont un problème",
   "services.move_up": "Monter {name}",
   "services.move_down": "Descendre {name}",
   "services.moved": "{name}, position {index} sur {total}",

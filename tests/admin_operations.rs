@@ -1169,6 +1169,80 @@ async fn a_publisher_sets_the_order_of_services() {
 }
 
 #[tokio::test]
+async fn services_with_a_problem_come_first_once_asked() {
+    let (app, _admin_id) = spawn_with_admin().await;
+    let mut ids = Vec::new();
+    for name in ["Mail", "VPN", "Wiki"] {
+        let service =
+            ServiceRepository::create(&app.pool, name, &name.to_lowercase(), None, None, None)
+                .await
+                .expect("db error");
+        ids.push(service.id);
+    }
+    let csrf = app.csrf_from("/services").await;
+    let (status, _, _) = app
+        .post_form(
+            &format!("/services/{}/status", ids[2]),
+            &csrf,
+            &[("status", "major_outage")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let order_on_home = |page: &str| {
+        let card = services_card(page);
+        let mut found: Vec<(usize, &str)> = ["Mail", "VPN", "Wiki"]
+            .into_iter()
+            .filter_map(|name| card.find(name).map(|at| (at, name)))
+            .collect();
+        found.sort_unstable();
+        found.into_iter().map(|(_, name)| name).collect::<Vec<_>>()
+    };
+
+    let (_, page) = app.get("/").await;
+    assert_eq!(
+        order_on_home(&page),
+        ["Mail", "VPN", "Wiki"],
+        "off by default"
+    );
+
+    let (status, _, _) = app
+        .post_form("/services/problems-first", &csrf, &[("enabled", "true")])
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (_, page) = app.get("/").await;
+    assert_eq!(order_on_home(&page), ["Wiki", "Mail", "VPN"]);
+    let (_, list) = app.get("/services").await;
+    assert!(
+        list.find("Wiki") < list.find("Mail"),
+        "the Services page lists it first too"
+    );
+    assert_eq!(
+        service_names(&app).await,
+        ["Mail", "VPN", "Wiki"],
+        "the chosen order is kept"
+    );
+
+    let (status, _, _) = app
+        .post_form("/services/problems-first", &csrf, &[("enabled", "false")])
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (_, page) = app.get("/").await;
+    assert_eq!(order_on_home(&page), ["Mail", "VPN", "Wiki"]);
+}
+
+#[tokio::test]
+async fn reader_cannot_put_problems_first() {
+    let app = TestApp::spawn().await;
+    app.reader("reader@test.com", "Reader").await;
+    app.login("reader@test.com", "reader_password_12").await;
+    let csrf = app.csrf_from("/").await;
+    let (status, _, _) = app
+        .post_form("/services/problems-first", &csrf, &[("enabled", "true")])
+        .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
 async fn reader_cannot_set_the_order_of_services() {
     let app = TestApp::spawn().await;
     app.reader("reader@test.com", "Reader").await;
