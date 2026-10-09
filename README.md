@@ -90,12 +90,12 @@ Add them from the **Team** page: they open the same address. For HTTPS and a nam
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/roadmap-dark.png">
-  <img src=".github/assets/roadmap.png" alt="Roadmap: shipped are automatic monitoring, notifications, four languages and password reset; coming next, in order, the ten steps listed below, then the stable 1.0 release" width="1296">
+  <img src=".github/assets/roadmap.png" alt="Roadmap: shipped are automatic monitoring, notifications, four languages, the age of the last update and password reset; coming next, in order, the ten steps listed below, then the stable 1.0 release" width="1296">
 </picture>
 
 Planned, in this order, without dates:
 
-1. **Clearer incident updates**: time since the last update, next update time with a reminder, and a short report once it is over.
+1. **Clearer incident updates**: next update time with a reminder, and a short report once it is over.
 2. **Activity log**: every action, check and sign-in, for administrators to look back on.
 3. **Groups and visibility**: choose which services and events each group of colleagues sees.
 4. **Email subscriptions**: visitors get each update in their inbox.
