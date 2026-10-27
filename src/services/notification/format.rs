@@ -444,6 +444,7 @@ mod tests {
             updated_at: at(),
             next_update_at: None,
             update_every_minutes: None,
+            series_id: None,
         }
     }
 

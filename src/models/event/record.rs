@@ -189,6 +189,8 @@ pub struct Event {
     pub next_update_at: Option<DateTime<Utc>>,
     /// The delay that time was given as, offered again with the next update.
     pub update_every_minutes: Option<i64>,
+    /// The repeating maintenance this session belongs to.
+    pub series_id: Option<i64>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

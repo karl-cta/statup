@@ -152,6 +152,23 @@ impl Recurrence {
         }
     }
 
+    /// The rule a stored series describes: its rhythm, its weekday from 0
+    /// for Monday, its rank when monthly and its `HH:MM` start. `None` when
+    /// a part is not one.
+    pub fn from_stored(rhythm: &str, weekday: i64, rank: Option<&str>, time: &str) -> Option<Self> {
+        let weekday = Weekday::try_from(u8::try_from(weekday).ok()?).ok()?;
+        let time = NaiveTime::parse_from_str(time, "%H:%M").ok()?;
+        match (Rhythm::parse(rhythm)?, rank) {
+            (Rhythm::Weekly, None) => Some(Self::Weekly { weekday, time }),
+            (Rhythm::Monthly, Some(rank)) => Some(Self::Monthly {
+                weekday,
+                rank: Rank::parse(rank)?,
+                time,
+            }),
+            _ => None,
+        }
+    }
+
     /// First start strictly after `after`, in the instance zone.
     pub fn next_after(&self, after: DateTime<Utc>) -> Option<DateTime<Utc>> {
         self.next_after_in(&clock::zone(), after)
@@ -350,5 +367,32 @@ mod tests {
         }
         assert_eq!(Rhythm::parse("daily"), None);
         assert_eq!(Rank::parse("fifth"), None);
+    }
+
+    #[test]
+    fn a_stored_rule_reads_back_and_a_broken_one_is_refused() {
+        let time = NaiveTime::from_hms_opt(2, 30, 0).unwrap();
+        assert_eq!(
+            Recurrence::from_stored("weekly", 6, None, "02:30"),
+            Some(Recurrence::Weekly {
+                weekday: Weekday::Sun,
+                time
+            })
+        );
+        assert_eq!(
+            Recurrence::from_stored("monthly", 1, Some("second"), "02:30"),
+            Some(Recurrence::Monthly {
+                weekday: Weekday::Tue,
+                rank: Rank::Second,
+                time
+            })
+        );
+        assert_eq!(Recurrence::from_stored("weekly", 7, None, "02:30"), None);
+        assert_eq!(
+            Recurrence::from_stored("weekly", 0, Some("first"), "02:30"),
+            None
+        );
+        assert_eq!(Recurrence::from_stored("monthly", 0, None, "02:30"), None);
+        assert_eq!(Recurrence::from_stored("weekly", 0, None, "2h30"), None);
     }
 }

@@ -71,11 +71,24 @@ pub struct EventRepository;
 impl EventRepository {
     pub async fn create(pool: &DbPool, input: &CreateEventInput) -> Result<Event, sqlx::Error> {
         let mut tx = pool.begin().await?;
+        let event = Self::insert(&mut tx, input, None).await?;
+        tx.commit().await?;
+        Ok(event)
+    }
+
+    /// Writes a new event and its services inside `tx`, as a session of
+    /// `series_id` when it repeats.
+    pub(crate) async fn insert(
+        tx: &mut sqlx::Transaction<'_, Sqlite>,
+        input: &CreateEventInput,
+        series_id: Option<i64>,
+    ) -> Result<Event, sqlx::Error> {
         let event = sqlx::query_as::<_, Event>(
             "INSERT INTO events (kind, severity, planned, lifecycle, category, title, \
              description, planned_start, planned_end, started_at, follows_event_id, author_id, \
-             api_key_id, keeps_services_up, next_update_at, update_every_minutes, next_update_by) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
+             api_key_id, keeps_services_up, next_update_at, update_every_minutes, next_update_by, \
+             series_id) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
         )
         .bind(input.kind)
         .bind(input.severity)
@@ -94,10 +107,10 @@ impl EventRepository {
         .bind(input.next_update.map(|next| clock::db(next.at)))
         .bind(input.next_update.and_then(|next| next.every_minutes))
         .bind(input.next_update.map(|_| input.author_id))
-        .fetch_one(&mut *tx)
+        .bind(series_id)
+        .fetch_one(&mut **tx)
         .await?;
-        link_services(&mut tx, event.id, &input.service_ids).await?;
-        tx.commit().await?;
+        link_services(tx, event.id, &input.service_ids).await?;
         Ok(event)
     }
 

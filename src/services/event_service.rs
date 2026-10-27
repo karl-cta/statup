@@ -483,6 +483,7 @@ mod tests {
             updated_at: Utc::now(),
             next_update_at: None,
             update_every_minutes: None,
+            series_id: None,
         }
     }
 
