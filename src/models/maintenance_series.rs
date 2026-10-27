@@ -1,8 +1,8 @@
 //! A maintenance announced once that comes back on its own.
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 
-use super::{CreateEventInput, Recurrence, Rhythm};
+use super::{CreateEventInput, Kind, Recurrence, Rhythm};
 use crate::clock;
 
 /// A repeating maintenance. Each session copies its title, description,
@@ -19,6 +19,41 @@ pub struct MaintenanceSeries {
     pub next_start: DateTime<Utc>,
     pub author_id: i64,
     pub stopped_at: Option<DateTime<Utc>>,
+}
+
+impl MaintenanceSeries {
+    /// When the next session begins: the slot the series waits for, or the
+    /// first one after `now` when that slot went by while the server was
+    /// off. A missed session is skipped, never caught up.
+    pub fn next_session_start(&self, now: DateTime<Utc>) -> Option<DateTime<Utc>> {
+        if self.next_start > now {
+            Some(self.next_start)
+        } else {
+            self.recurrence.next_after(now)
+        }
+    }
+
+    /// The session of this series that begins at `start`.
+    pub fn session(&self, start: DateTime<Utc>, service_ids: Vec<i64>) -> CreateEventInput {
+        CreateEventInput {
+            kind: Kind::Maintenance,
+            severity: None,
+            planned: true,
+            category: None,
+            title: self.title.clone(),
+            description: self.description.clone(),
+            planned_start: Some(start),
+            planned_end: Some(start + TimeDelta::minutes(self.duration_minutes)),
+            started_at: None,
+            opening_step: None,
+            keeps_services_up: self.keeps_services_up,
+            service_ids,
+            follows_event_id: None,
+            author_id: self.author_id,
+            api_key_id: None,
+            next_update: None,
+        }
+    }
 }
 
 /// The rule and timing a first session sets for its series.
@@ -92,6 +127,63 @@ mod tests {
             series.recurrence.weekday(),
             clock::local(&start).naive_local().date().weekday()
         );
+    }
+
+    fn weekly_series(next_start: DateTime<Utc>) -> MaintenanceSeries {
+        let input = first(
+            next_start - Duration::weeks(1),
+            Some(next_start - Duration::weeks(1) + Duration::minutes(90)),
+        );
+        let new = NewSeries::from_first(Rhythm::Weekly, &input).unwrap();
+        MaintenanceSeries {
+            id: 1,
+            recurrence: new.recurrence,
+            duration_minutes: new.duration_minutes,
+            title: input.title,
+            description: "Copies of every disk.".to_string(),
+            keeps_services_up: true,
+            next_start,
+            author_id: 7,
+            stopped_at: None,
+        }
+    }
+
+    #[test]
+    fn the_next_session_waits_for_its_slot_and_skips_the_missed_ones() {
+        let next = Utc.with_ymd_and_hms(2026, 11, 22, 2, 0, 0).unwrap();
+        let series = weekly_series(next);
+
+        assert_eq!(
+            series.next_session_start(next - Duration::days(3)),
+            Some(next)
+        );
+        assert_eq!(
+            series.next_session_start(next),
+            Some(next + Duration::weeks(1))
+        );
+        let after_three_weeks_off = next + Duration::weeks(2) + Duration::hours(1);
+        assert_eq!(
+            series.next_session_start(after_three_weeks_off),
+            Some(next + Duration::weeks(3))
+        );
+    }
+
+    #[test]
+    fn a_session_repeats_what_the_first_one_said() {
+        let next = Utc.with_ymd_and_hms(2026, 11, 22, 2, 0, 0).unwrap();
+        let series = weekly_series(next);
+
+        let session = series.session(next, vec![3, 4]);
+
+        assert_eq!(session.kind, Kind::Maintenance);
+        assert!(session.planned);
+        assert_eq!(session.title, "Backups");
+        assert_eq!(session.description, "Copies of every disk.");
+        assert_eq!(session.planned_start, Some(next));
+        assert_eq!(session.planned_end, Some(next + Duration::minutes(90)));
+        assert!(session.keeps_services_up);
+        assert_eq!(session.service_ids, vec![3, 4]);
+        assert_eq!(session.author_id, 7);
     }
 
     #[test]

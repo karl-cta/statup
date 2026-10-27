@@ -372,18 +372,17 @@ impl EventRepository {
         .await
     }
 
-    /// Starts every announced maintenance whose start has come. Returns the
-    /// ids that changed.
+    /// Starts every announced maintenance whose start has come.
     pub async fn start_due_maintenance(
         pool: &DbPool,
         now: DateTime<Utc>,
-    ) -> Result<Vec<i64>, sqlx::Error> {
-        sqlx::query_scalar(
+    ) -> Result<Vec<DueMaintenance>, sqlx::Error> {
+        sqlx::query_as(
             "UPDATE events SET previous_lifecycle = NULL, lifecycle = 'in_progress', \
                started_at = COALESCE(started_at, planned_start) \
              WHERE kind = 'maintenance' AND lifecycle = 'scheduled' \
                AND planned_start IS NOT NULL AND planned_start <= ? \
-             RETURNING id",
+             RETURNING id, series_id IS NOT NULL AS repeats",
         )
         .bind(clock::db(now))
         .fetch_all(pool)
@@ -394,13 +393,13 @@ impl EventRepository {
     pub async fn complete_due_maintenance(
         pool: &DbPool,
         now: DateTime<Utc>,
-    ) -> Result<Vec<i64>, sqlx::Error> {
-        sqlx::query_scalar(
+    ) -> Result<Vec<DueMaintenance>, sqlx::Error> {
+        sqlx::query_as(
             "UPDATE events SET previous_lifecycle = NULL, lifecycle = 'completed', \
                ended_at = COALESCE(ended_at, planned_end) \
              WHERE kind = 'maintenance' AND lifecycle = 'in_progress' \
                AND planned_end IS NOT NULL AND planned_end <= ? \
-             RETURNING id",
+             RETURNING id, series_id IS NOT NULL AS repeats",
         )
         .bind(clock::db(now))
         .fetch_all(pool)
@@ -622,14 +621,18 @@ impl EventRepository {
     }
 
     /// Incidents and maintenances created since `since`, for the unread
-    /// badge. Announcements are not interventions.
+    /// badge. Announcements are not interventions, and the sessions a
+    /// repeating maintenance adds after its first are not news.
     pub async fn count_since(
         pool: &DbPool,
         since: DateTime<Utc>,
         scope: &Scope,
     ) -> Result<i64, sqlx::Error> {
         let mut qb = QueryBuilder::<Sqlite>::new(
-            "SELECT COUNT(*) FROM events e WHERE e.kind != 'publication' AND e.created_at >= ",
+            "SELECT COUNT(*) FROM events e WHERE e.kind != 'publication' \
+             AND NOT (e.series_id IS NOT NULL \
+                      AND e.id > (SELECT MIN(f.id) FROM events f WHERE f.series_id = e.series_id)) \
+             AND e.created_at >= ",
         );
         qb.push_bind(clock::db(since));
         push_scope(&mut qb, scope, "e");
@@ -677,6 +680,14 @@ fn activity_condition(kind: ActivityKind) -> &'static str {
         ActivityKind::Maintenance => "kind = 'maintenance'",
         ActivityKind::Announcements => "kind = 'publication'",
     }
+}
+
+/// A maintenance the schedule started or completed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::FromRow)]
+pub struct DueMaintenance {
+    pub id: i64,
+    /// A session of a repeating maintenance, which passes in silence.
+    pub repeats: bool,
 }
 
 /// One incident on one service, as the availability strip reads it.
@@ -1066,7 +1077,11 @@ mod tests {
         let started = EventRepository::start_due_maintenance(&pool, Utc::now())
             .await
             .unwrap();
-        assert_eq!(started, vec![event.id]);
+        let moved = DueMaintenance {
+            id: event.id,
+            repeats: false,
+        };
+        assert_eq!(started, vec![moved]);
         let running = EventRepository::find_by_id(&pool, event.id)
             .await
             .unwrap()
@@ -1088,7 +1103,7 @@ mod tests {
         let completed = EventRepository::complete_due_maintenance(&pool, later)
             .await
             .unwrap();
-        assert_eq!(completed, vec![event.id]);
+        assert_eq!(completed, vec![moved]);
         let done = EventRepository::find_by_id(&pool, event.id)
             .await
             .unwrap()
@@ -1109,7 +1124,7 @@ mod tests {
             EventRepository::start_due_maintenance(&pool, Utc::now())
                 .await
                 .unwrap(),
-            Vec::<i64>::new()
+            Vec::<DueMaintenance>::new()
         );
     }
 

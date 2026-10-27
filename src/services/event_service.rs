@@ -14,9 +14,10 @@ use crate::models::{
     Notification, ReviewSaved, Role, Scope, Severity, UpdateEventInput, User,
 };
 use crate::repositories::{EventRepository, EventReviewRepository};
-use crate::services::{ServiceService, notify, scope_of};
+use crate::services::{SeriesService, ServiceService, notify, scope_of};
 
-/// How often announced maintenances are started and completed.
+/// How often announced maintenances are started and completed, and
+/// repeating ones given their next session.
 const SCHEDULE_INTERVAL: Duration = Duration::from_secs(60);
 
 const MAX_TITLE_CHARS: usize = 200;
@@ -236,12 +237,14 @@ impl EventService {
     }
 
     /// Starts and completes the announced maintenances whose time has come,
-    /// then refreshes the services they touch. Returns how many changed.
-    pub async fn apply_schedule(pool: &DbPool) -> Result<usize, AppError> {
-        let now = Utc::now();
+    /// refreshes the services they touch, then gives each repeating
+    /// maintenance its next session. A session of a repeating maintenance
+    /// starts and ends in silence: the series was announced once. Returns
+    /// how many maintenances changed or were added.
+    pub async fn apply_schedule(pool: &DbPool, now: DateTime<Utc>) -> Result<usize, AppError> {
         let started = EventRepository::start_due_maintenance(pool, now).await?;
         let completed = EventRepository::complete_due_maintenance(pool, now).await?;
-        let mut changed: Vec<i64> = started.iter().chain(&completed).copied().collect();
+        let mut changed: Vec<i64> = started.iter().chain(&completed).map(|m| m.id).collect();
         changed.sort_unstable();
         changed.dedup();
         for id in &changed {
@@ -251,14 +254,15 @@ impl EventService {
             (started, Happening::Started, Lifecycle::InProgress),
             (completed, Happening::Closed, Lifecycle::Completed),
         ];
-        for (ids, happening, lifecycle) in moves {
-            for id in ids {
+        for (due, happening, lifecycle) in moves {
+            for moved in due.into_iter().filter(|m| !m.repeats) {
                 let notification =
-                    Notification::event(happening, Kind::Maintenance, id, Some(lifecycle));
+                    Notification::event(happening, Kind::Maintenance, moved.id, Some(lifecycle));
                 notify(pool, notification).await;
             }
         }
-        Ok(changed.len())
+        let added = SeriesService::add_due_sessions(pool, now).await?;
+        Ok(changed.len() + added)
     }
 }
 
@@ -270,7 +274,7 @@ pub fn spawn_maintenance_schedule(pool: DbPool) -> AbortHandle {
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             ticker.tick().await;
-            match EventService::apply_schedule(&pool).await {
+            match EventService::apply_schedule(&pool, Utc::now()).await {
                 Ok(0) => {}
                 Ok(count) => tracing::info!(count, "Maintenance schedule applied"),
                 Err(e) => tracing::warn!(error = %e, "Maintenance schedule failed"),

@@ -14,6 +14,10 @@ const SERIES_COLUMNS: &str = "SELECT id, rhythm, weekday, rank, start_time, dura
      title, description, keeps_services_up, next_start, author_id, stopped_at \
      FROM maintenance_series";
 
+/// The series has no session waiting to begin.
+const NOTHING_SCHEDULED: &str = "NOT EXISTS (SELECT 1 FROM events e \
+     WHERE e.series_id = maintenance_series.id AND e.lifecycle = 'scheduled')";
+
 #[derive(sqlx::FromRow)]
 struct SeriesRow {
     id: i64,
@@ -106,6 +110,44 @@ impl SeriesRepository {
             .fetch_optional(pool)
             .await?;
         row.map(MaintenanceSeries::try_from).transpose()
+    }
+
+    /// Series still repeating with no session to come: the one ahead has
+    /// begun, or was cancelled or deleted.
+    pub async fn awaiting_session(pool: &DbPool) -> Result<Vec<MaintenanceSeries>, sqlx::Error> {
+        let rows: Vec<SeriesRow> = sqlx::query_as(&format!(
+            "{SERIES_COLUMNS} WHERE stopped_at IS NULL AND {NOTHING_SCHEDULED} ORDER BY id"
+        ))
+        .fetch_all(pool)
+        .await?;
+        rows.into_iter().map(MaintenanceSeries::try_from).collect()
+    }
+
+    /// Adds `session` to the series and moves the series on to `following`,
+    /// in one transaction. `None`, with nothing written, when the series
+    /// changed since it was read: stopped, edited, or given a session.
+    pub async fn add_session(
+        pool: &DbPool,
+        series: &MaintenanceSeries,
+        session: &CreateEventInput,
+        following: DateTime<Utc>,
+    ) -> Result<Option<Event>, sqlx::Error> {
+        let mut tx = pool.begin().await?;
+        let moved_on = sqlx::query(&format!(
+            "UPDATE maintenance_series SET next_start = ? \
+             WHERE id = ? AND next_start = ? AND stopped_at IS NULL AND {NOTHING_SCHEDULED}"
+        ))
+        .bind(clock::db(following))
+        .bind(series.id)
+        .bind(clock::db(series.next_start))
+        .execute(&mut *tx)
+        .await?;
+        if moved_on.rows_affected() == 0 {
+            return Ok(None);
+        }
+        let event = EventRepository::insert(&mut tx, session, Some(series.id)).await?;
+        tx.commit().await?;
+        Ok(Some(event))
     }
 
     /// The services each session of the series concerns, by id.
@@ -222,6 +264,38 @@ mod tests {
                 .unwrap(),
             vec![services[0]]
         );
+    }
+
+    #[tokio::test]
+    async fn a_series_read_before_a_change_gets_no_session() {
+        let pool = test_pool().await;
+        let (author, services) = seed(&pool).await;
+        let start = Utc.with_ymd_and_hms(2026, 11, 1, 2, 0, 0).unwrap();
+        let input = first(author, services, start);
+        let new = NewSeries::from_first(Rhythm::Weekly, &input).unwrap();
+        let event = SeriesRepository::create(&pool, &new, &input).await.unwrap();
+        EventRepository::delete(&pool, event.id).await.unwrap();
+        let read = SeriesRepository::find(&pool, event.series_id.unwrap())
+            .await
+            .unwrap()
+            .unwrap();
+        let session = read.session(read.next_start, vec![]);
+        let following = read.next_start + Duration::weeks(1);
+
+        let added = SeriesRepository::add_session(&pool, &read, &session, following)
+            .await
+            .unwrap();
+        let again = SeriesRepository::add_session(&pool, &read, &session, following)
+            .await
+            .unwrap();
+
+        assert!(added.is_some());
+        assert!(again.is_none());
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM events")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count, 1);
     }
 
     #[tokio::test]
