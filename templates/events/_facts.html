@@ -25,8 +25,8 @@
                 <div class="more-actions-menu">
                     {# Outlook and Apple Calendar open the same file: each
                        reader finds the name of their own calendar. #}
-                    <a class="more-actions-item" href="/events/{{ view.event.id }}/calendar.ics" download>{{ i18n.t("events.calendar_outlook") }}</a>
-                    <a class="more-actions-item" href="/events/{{ view.event.id }}/calendar.ics" download>{{ i18n.t("events.calendar_apple") }}</a>
+                    <a class="more-actions-item" href="/events/{{ view.event.id }}/calendar.ics">{{ i18n.t("events.calendar_outlook") }}</a>
+                    <a class="more-actions-item" href="/events/{{ view.event.id }}/calendar.ics">{{ i18n.t("events.calendar_apple") }}</a>
                     <a class="more-actions-item" href="/events/{{ view.event.id }}/calendar/google" target="_blank" rel="noopener noreferrer">{{ i18n.t("events.calendar_google") }}</a>
                 </div>
             </details>

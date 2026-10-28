@@ -70,7 +70,7 @@ async fn a_maintenance_to_come_offers_its_calendar_menu_on_its_page_and_panel() 
     for path in [format!("/events/{id}"), format!("/events/{id}/drawer")] {
         let (status, body) = app.get(&path).await;
         assert_eq!(status, StatusCode::OK);
-        let file = format!("href=\"/events/{id}/calendar.ics\" download");
+        let file = format!("href=\"/events/{id}/calendar.ics\"");
         assert_eq!(body.matches(&file).count(), 2, "Outlook and Apple");
         assert!(body.contains(&format!("href=\"/events/{id}/calendar/google\"")));
     }
