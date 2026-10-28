@@ -21,10 +21,10 @@ pub struct CalendarEntry {
     pub end: Option<DateTime<Utc>>,
     /// When the event last changed (`DTSTAMP`).
     pub stamp: DateTime<Utc>,
-    /// Plain text, already composed by the caller.
+    /// Plain text, already composed by the caller. The page's address goes
+    /// here, not in a `URL` property: Outlook and Google read only the text,
+    /// and Apple Calendar would show the address twice.
     pub description: String,
-    /// Address of the event's page.
-    pub url: String,
 }
 
 impl CalendarEntry {
@@ -48,7 +48,6 @@ impl CalendarEntry {
         if !self.description.is_empty() {
             lines.push(format!("DESCRIPTION:{}", escape_text(&self.description)));
         }
-        lines.push(format!("URL:{}", self.url));
         lines.push("END:VEVENT".to_string());
         lines.push("END:VCALENDAR".to_string());
         lines.iter().map(|line| fold_line(line)).collect()
@@ -94,17 +93,23 @@ fn escape_text(value: &str) -> String {
 }
 
 /// Splits a content line so no physical line exceeds 75 octets, continuation
-/// space included, and ends each physical line with CRLF.
+/// space included, and ends each physical line with CRLF. An escape such as
+/// `\n` stays on one line: the standard allows the cut, some readers do not.
 fn fold_line(line: &str) -> String {
     let mut folded = String::with_capacity(line.len() + 8);
     let mut octets_in_line = 0;
-    for c in line.chars() {
-        if octets_in_line + c.len_utf8() > MAX_LINE_OCTETS {
+    let mut chars = line.chars();
+    while let Some(c) = chars.next() {
+        let mut unit = c.to_string();
+        if c == '\\' {
+            unit.extend(chars.next());
+        }
+        if octets_in_line + unit.len() > MAX_LINE_OCTETS {
             folded.push_str("\r\n ");
             octets_in_line = 1;
         }
-        folded.push(c);
-        octets_in_line += c.len_utf8();
+        folded.push_str(&unit);
+        octets_in_line += unit.len();
     }
     folded.push_str("\r\n");
     folded
@@ -124,7 +129,6 @@ mod tests {
             end: Some(Utc.with_ymd_and_hms(2026, 11, 2, 3, 30, 0).unwrap()),
             stamp: Utc.with_ymd_and_hms(2026, 10, 28, 9, 15, 0).unwrap(),
             description: String::new(),
-            url: "https://status.example.com/events/42".to_string(),
         }
     }
 
@@ -147,8 +151,8 @@ mod tests {
             env!("CARGO_PKG_VERSION")
         );
         assert!(ics.contains(&producer));
-        assert!(ics.contains("URL:https://status.example.com/events/42\r\n"));
         assert!(!ics.contains("DESCRIPTION"));
+        assert!(!ics.contains("URL:"));
     }
 
     #[test]
@@ -164,15 +168,13 @@ mod tests {
     }
 
     #[test]
-    fn text_values_are_escaped_and_the_url_is_not() {
+    fn text_values_are_escaped() {
         let mut entry = entry();
         entry.title = "Mail, VPN; files\\backup".to_string();
         entry.description = "First line\r\nSecond line\nThird\rFourth".to_string();
-        entry.url = "https://status.example.com/events/42?a=1,2;b=3".to_string();
         let ics = entry.ics();
         assert!(ics.contains("SUMMARY:Mail\\, VPN\\; files\\\\backup\r\n"));
         assert!(ics.contains("DESCRIPTION:First line\\nSecond line\\nThird\\nFourth\r\n"));
-        assert!(ics.contains("URL:https://status.example.com/events/42?a=1,2;b=3\r\n"));
     }
 
     #[test]
@@ -198,6 +200,15 @@ mod tests {
         assert_eq!(fold_line(&line), format!("{line}\r\n"));
         let longer = "x".repeat(MAX_LINE_OCTETS + 1);
         assert_eq!(fold_line(&longer), format!("{}\r\n x\r\n", "x".repeat(75)));
+    }
+
+    #[test]
+    fn an_escape_is_never_cut_in_two() {
+        let line = format!("{}\\n{}", "x".repeat(MAX_LINE_OCTETS - 1), "y");
+        assert_eq!(
+            fold_line(&line),
+            format!("{}\r\n \\ny\r\n", "x".repeat(MAX_LINE_OCTETS - 1))
+        );
     }
 
     #[test]

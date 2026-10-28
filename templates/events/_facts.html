@@ -18,6 +18,20 @@
             </form>
         </dd>
         {% endif %}
+        {% if view.event.calendar_start().is_some() %}
+        <dd class="fact-revert">
+            <details class="more-actions calendar-menu" data-more-actions>
+                <summary class="text-action">{{ i18n.t("events.add_to_calendar") }}{% call ui::caret_icon() %}{% endcall %}</summary>
+                <div class="more-actions-menu">
+                    {# Outlook and Apple Calendar open the same file: each
+                       reader finds the name of their own calendar. #}
+                    <a class="more-actions-item" href="/events/{{ view.event.id }}/calendar.ics" download>{{ i18n.t("events.calendar_outlook") }}</a>
+                    <a class="more-actions-item" href="/events/{{ view.event.id }}/calendar.ics" download>{{ i18n.t("events.calendar_apple") }}</a>
+                    <a class="more-actions-item" href="/events/{{ view.event.id }}/calendar/google" target="_blank" rel="noopener noreferrer">{{ i18n.t("events.calendar_google") }}</a>
+                </div>
+            </details>
+        </dd>
+        {% endif %}
     </div>
     {% endif %}
     {% if let Some(rhythm) = view.repeats %}

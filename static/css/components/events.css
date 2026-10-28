@@ -261,6 +261,25 @@
         margin-top: 6px;
     }
 
+    /* "Add to my calendar": as quiet as the other actions under a fact, its
+       menu opening from the start of the line. */
+    .calendar-menu > summary {
+        gap: 4px;
+        cursor: pointer;
+    }
+
+    .calendar-menu > summary svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    .calendar-menu > .more-actions-menu {
+        right: auto;
+        left: 0;
+        min-width: 0;
+        width: max-content;
+    }
+
     .fact-note {
         flex-basis: 100%;
         padding-left: 16px;

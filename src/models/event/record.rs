@@ -278,6 +278,14 @@ impl Event {
         takes_review(self.kind, self.lifecycle)
     }
 
+    /// When a maintenance still to come starts, for whoever adds it to a
+    /// calendar; none for any other event.
+    pub fn calendar_start(&self) -> Option<DateTime<Utc>> {
+        self.planned_start.filter(|_| {
+            self.kind == Kind::Maintenance && self.lifecycle == Some(Lifecycle::Scheduled)
+        })
+    }
+
     /// When the next update is due, or how long it is overdue, said after
     /// the age of the last one when there is one.
     pub fn next_update_text(&self, last_ago: Option<&str>, i18n: &I18n) -> Option<String> {

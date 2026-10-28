@@ -167,6 +167,8 @@ fn public_routes() -> Router<AppState> {
         .route("/events", get(events::list))
         .route("/events/{id}", get(events::detail))
         .route("/events/{id}/drawer", get(events::drawer_content))
+        .route("/events/{id}/calendar.ics", get(events::calendar_file))
+        .route("/events/{id}/calendar/google", get(events::calendar_google))
         .route("/services/{id}/drawer", get(services::drawer_content))
         .route("/feed", get(feed::atom))
         .route("/subscribe", get(subscriptions::page))

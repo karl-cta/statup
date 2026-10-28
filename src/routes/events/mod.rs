@@ -9,6 +9,7 @@ use crate::journal;
 use crate::models::{JournalKind, User};
 use crate::repositories::{EventRepository, NewJournalEntry};
 
+mod calendar;
 mod detail;
 mod form;
 mod list;
@@ -16,6 +17,7 @@ mod review;
 mod templates;
 mod updates;
 
+pub use calendar::{calendar_file, calendar_google};
 pub use detail::{detail, drawer_content};
 pub use form::{create, edit_form, new_form, update};
 pub use list::list;
