@@ -2,6 +2,7 @@
 
 mod api_key;
 mod builtin_icon;
+mod calendar;
 mod event;
 mod event_template;
 mod icon;
@@ -19,6 +20,7 @@ mod visibility;
 
 pub use api_key::*;
 pub use builtin_icon::*;
+pub use calendar::*;
 pub use event::*;
 pub use event_template::*;
 pub use icon::*;
