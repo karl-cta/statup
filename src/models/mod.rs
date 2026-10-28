@@ -15,6 +15,7 @@ mod recurrence;
 mod service;
 mod service_folder;
 mod subscriber;
+mod theme;
 mod user;
 mod visibility;
 
@@ -33,5 +34,6 @@ pub use recurrence::*;
 pub use service::*;
 pub use service_folder::*;
 pub use subscriber::*;
+pub use theme::*;
 pub use user::*;
 pub use visibility::*;

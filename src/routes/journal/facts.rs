@@ -186,7 +186,8 @@ fn visibility_facts(detail: &str, i18n: &I18n) -> Vec<String> {
     }
 }
 
-/// `name, logo, time_zone, access`, as the settings page names them.
+/// `name, logo, time_zone, access, accent, ambiance`, as the settings page
+/// names them.
 fn settings_fields(detail: &str, i18n: &I18n) -> String {
     detail
         .split(", ")
@@ -195,6 +196,8 @@ fn settings_fields(detail: &str, i18n: &I18n) -> String {
             "logo" => i18n.t("admin.logo").to_string(),
             "time_zone" => i18n.t("admin.time_zone").to_string(),
             "access" => i18n.t("admin.public_mode").to_string(),
+            "accent" => i18n.t("admin.accent").to_string(),
+            "ambiance" => i18n.t("admin.ambiance").to_string(),
             other => other.to_string(),
         })
         .collect::<Vec<_>>()

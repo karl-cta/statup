@@ -39,6 +39,26 @@ pub fn set_instance_logo(filename: &str) {
         .unwrap_or_else(PoisonError::into_inner) = filename.to_string();
 }
 
+/// The colour and ambiance the host chose, the defaults until they pick.
+static INSTANCE_THEME: RwLock<models::Theme> = RwLock::new(models::Theme {
+    accent: models::Accent::Ink,
+    ambiance: models::Ambiance::Sand,
+});
+
+/// The colour and ambiance every page is drawn with.
+pub fn instance_theme() -> models::Theme {
+    *INSTANCE_THEME
+        .read()
+        .unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Stores the colour and ambiance for every later render.
+pub fn set_instance_theme(theme: models::Theme) {
+    *INSTANCE_THEME
+        .write()
+        .unwrap_or_else(PoisonError::into_inner) = theme;
+}
+
 /// The instance's own name, or an empty string when none was set.
 pub fn instance_name() -> String {
     INSTANCE_NAME

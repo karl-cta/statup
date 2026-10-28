@@ -1,9 +1,9 @@
 ---
 title: Paramètres
-description: "Le nom, le logo, le fuseau horaire et le public de la page, la version, et l'organisation du tableau de bord."
+description: "Le nom, le logo, les couleurs, le fuseau horaire et le public de la page, la version, et l'organisation du tableau de bord."
 ---
 
-La page **Paramètres**, réservée aux administrateurs, s'ouvre sur cinq tuiles, sous **Gestion** :
+La page **Paramètres**, réservée aux administrateurs, liste cinq pages sous **Gestion**, à côté de la carte **Général** sur un grand écran, au-dessus sinon :
 
 - **Équipe** : les membres et leurs rôles. Voir [Équipe et rôles](team.md).
 - **Alertes** : les canaux qui reçoivent les nouvelles. Voir [Alertes](alerts.md).
@@ -19,14 +19,18 @@ Un seul formulaire, enregistré par un seul bouton **Enregistrer**. Tous les cha
 |---|---|
 | **Nom de la page** | Affiché à la place de Statup dans l'en-tête et l'onglet du navigateur. 40 caractères au plus ; vide, il affiche Statup. |
 | **Logo** | Remplace le signe Statup dans l'en-tête ; « Propulsé par Statup » reste en bas de page. PNG, JPG, WebP ou SVG, jusqu'à 256 Ko. Une image de plus de 256 pixels est réduite. **Retirer le logo** remet aussitôt le signe. |
+| **Couleur** | Colore les boutons principaux, les cases cochées, les choix sélectionnés, et le trait sous l'en-tête et sous l'onglet courant, sur toutes les pages et pour tous les lecteurs. Douze couleurs : **Encre** (par défaut), **Marine**, **Cobalt**, **Pétrole**, **Sapin**, **Rose**, **Violet**, **Bordeaux**, **Brique**, **Cuivre**, **Cacao** et **Ardoise**, chacune dessinée pour le thème clair et le thème sombre. Les couleurs des états ne changent jamais. |
+| **Ambiance** | Le fond et les cartes de toutes les pages : **Sable** (par défaut, une page blanche aux cartes crème), **Brume** (teintée de bleu), **Papier** (crème) ou **Galet** (une page grise aux cartes blanches), chacune avec sa version sombre. Chaque lecteur garde le bouton clair ou sombre de l'en-tête. |
 | **Fuseau horaire** | Les heures de la page, des événements et des maintenances s'affichent et se saisissent dans ce fuseau. |
 | **Accès à la page** | **Membres seulement** ou **Publique**. Voir [Équipe et rôles](team.md#page-access). |
+
+Une couleur ou une ambiance s'affiche sur la page des paramètres dès qu'elle est choisie, et sur toutes les pages une fois enregistrée.
 
 Ce qui est enregistré ici prime sur [`TZ`](configuration.md#tz) et [`PUBLIC_MODE`](configuration.md#public_mode), et est conservé d'un redémarrage à l'autre.
 
 ## Version
 
-La tuile **Version** indique la version en service. Quand une version plus récente est publiée, elle affiche « La version 0.7.0 est disponible. » et renvoie vers ses nouveautés.
+La ligne **Version** indique la version en service et mène aux versions publiées sur GitHub. Quand une version plus récente est publiée, elle affiche « La version 0.7.0 est disponible. » et mène à ses nouveautés.
 
 Statup interroge GitHub une fois par jour, la première fois une minute après son démarrage. La réponse est gardée en mémoire : après un redémarrage, rien ne s'affiche avant cette première interrogation. [`UPDATE_CHECK=false`](configuration.md#update_check) la désactive.
 

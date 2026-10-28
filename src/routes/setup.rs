@@ -16,7 +16,9 @@ use crate::clock;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, HtmlForm, RequireAdmin};
-use crate::models::{CheckKind, JournalKind, MAX_ICON_SIZE, Service, ServiceCheck, User};
+use crate::models::{
+    Accent, Ambiance, CheckKind, JournalKind, MAX_ICON_SIZE, Service, ServiceCheck, Theme, User,
+};
 use crate::repositories::{NewJournalEntry, ServiceRepository};
 use crate::services::{LogoService, ServiceService, SettingsService};
 use crate::state::AppState;
@@ -243,13 +245,30 @@ pub(super) struct GeneralInput {
     pub(super) instance_name: String,
     pub(super) access: String,
     pub(super) time_zone: Option<String>,
+    /// Absent from the setup, which leaves the theme as it is.
+    accent: Option<Accent>,
+    ambiance: Option<Ambiance>,
     logo: Vec<u8>,
 }
 
 impl GeneralInput {
+    /// The theme this save sets, the saved one filling what it does not
+    /// send; none when it sends neither, as the setup does.
+    pub(super) fn theme(&self) -> Option<Theme> {
+        if self.accent.is_none() && self.ambiance.is_none() {
+            return None;
+        }
+        let saved = crate::instance_theme();
+        Some(Theme {
+            accent: self.accent.unwrap_or(saved.accent),
+            ambiance: self.ambiance.unwrap_or(saved.ambiance),
+        })
+    }
+
     /// What this save would change, named in English. Read before saving.
     pub(super) fn changed_fields(&self, state: &AppState) -> Vec<&'static str> {
-        let differs = [
+        let saved = crate::instance_theme();
+        let changes = [
             ("name", self.instance_name.trim() != crate::instance_name()),
             ("logo", !self.logo.is_empty()),
             (
@@ -262,12 +281,26 @@ impl GeneralInput {
                 "access",
                 (self.access == "everyone") != state.is_public_mode(),
             ),
+            (
+                "accent",
+                self.accent.is_some_and(|accent| accent != saved.accent),
+            ),
+            (
+                "ambiance",
+                self.ambiance
+                    .is_some_and(|ambiance| ambiance != saved.ambiance),
+            ),
         ];
-        differs
+        changes
             .into_iter()
             .filter_map(|(field, changed)| changed.then_some(field))
             .collect()
     }
+}
+
+/// A theme choice from the form, refused unless it names one of the list.
+fn theme_choice<T>(sent: &str, parse: fn(&str) -> Option<T>) -> Result<T, AppError> {
+    parse(sent).ok_or_else(|| AppError::validation("validation.unknown_theme"))
 }
 
 /// The general settings were saved, from the settings page or the setup.
@@ -289,6 +322,14 @@ pub(super) async fn read_general(multipart: &mut Multipart) -> Result<GeneralInp
             }
             Some("access") => input.access = field.text().await.map_err(unreadable)?,
             Some("time_zone") => input.time_zone = Some(field.text().await.map_err(unreadable)?),
+            Some("accent") => {
+                let sent = field.text().await.map_err(unreadable)?;
+                input.accent = Some(theme_choice(&sent, Accent::parse)?);
+            }
+            Some("ambiance") => {
+                let sent = field.text().await.map_err(unreadable)?;
+                input.ambiance = Some(theme_choice(&sent, Ambiance::parse)?);
+            }
             Some("file") => input.logo = field.bytes().await.map_err(unreadable)?.to_vec(),
             _ => {}
         }
@@ -299,7 +340,8 @@ pub(super) async fn read_general(multipart: &mut Multipart) -> Result<GeneralInp
     Ok(input)
 }
 
-/// Name, logo, zone and audience, all checked before any is written.
+/// Name, logo, zone, theme and audience, all checked before any is written
+/// (the theme already by `read_general`).
 pub(super) async fn apply_general(state: &AppState, input: &GeneralInput) -> Result<(), AppError> {
     let name = input.instance_name.trim();
     if let Some(key) = SettingsService::name_refusal(name) {
@@ -323,6 +365,9 @@ pub(super) async fn apply_general(state: &AppState, input: &GeneralInput) -> Res
     SettingsService::set_name(&state.pool, name).await?;
     if let Some(zone) = zone {
         SettingsService::set_time_zone(&state.pool, zone).await?;
+    }
+    if let Some(theme) = input.theme() {
+        SettingsService::set_theme(&state.pool, theme).await?;
     }
     SettingsService::set_public_mode(state, public).await
 }

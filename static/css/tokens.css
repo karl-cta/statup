@@ -48,7 +48,7 @@
        belongs to the mark alone. */
     --mark-radius: 1px;
     --ink: var(--color-ink);
-    --ink-soft: rgb(28 27 24 / 0.85);
+    --ink-soft: color-mix(in srgb, var(--ink) 85%, transparent);
     --muted: var(--color-muted-light);
     --ground: var(--color-page);
     --card: var(--color-cream);
@@ -56,21 +56,23 @@
     --menu: var(--color-cream);
     --edge: var(--color-sand-warm);
     /* 3:1 against the page and the field, so a field can be found. */
-    --edge-input: rgb(28 27 24 / 0.5);
+    --edge-input: color-mix(in srgb, var(--ink) 50%, transparent);
     --hover: var(--color-sand-warm);
     --untracked: var(--color-surface-2);
 
-    --hairline: rgb(28 27 24 / 0.08);
-    --line: rgb(28 27 24 / 0.12);
-    --line-strong: rgb(28 27 24 / 0.18);
-    --surface-hover: rgb(28 27 24 / 0.04);
-    --surface-subtle: rgb(28 27 24 / 0.06);
-    --scrim: rgb(28 27 24 / 0.44);
+    --hairline: color-mix(in srgb, var(--ink) 8%, transparent);
+    --line: color-mix(in srgb, var(--ink) 12%, transparent);
+    --line-strong: color-mix(in srgb, var(--ink) 18%, transparent);
+    --surface-hover: color-mix(in srgb, var(--ink) 4%, transparent);
+    --surface-subtle: color-mix(in srgb, var(--ink) 6%, transparent);
+    --scrim: color-mix(in srgb, var(--ink) 44%, transparent);
 
-    --focus: var(--color-ink);
-    --focus-halo: rgb(28 27 24 / 0.12);
+    --focus: var(--ink);
+    --focus-halo: color-mix(in srgb, var(--ink) 12%, transparent);
 
-    --primary: var(--color-ink);
+    /* The host's accent, when one is chosen, takes the action roles and, by
+       them, the rules of the masthead. Text keeps the ink. */
+    --primary: var(--ink);
     --primary-hover: var(--color-ink-deep);
     --primary-active: #000000;
     --on-primary: var(--color-sand-light);
@@ -101,6 +103,118 @@
 
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Ambiances: the ground and ink family the host picks. Sand, the default,
+   is the :root above. Placed before the accents so an accent keeps its own
+   hover and active values. */
+
+[data-ambiance="mist"] {
+    --ink: #121A25;
+    --muted: #4A586A;
+    --ground: #F0F7FD;
+    --card: #E8F0F9;
+    --raised: #E8F0F9;
+    --menu: #E8F0F9;
+    --edge: #CDDBE9;
+    --hover: #CDDBE9;
+    --untracked: #CDDBE9;
+    --primary-hover: #08101A;
+}
+
+[data-ambiance="paper"] {
+    --ink: #201B15;
+    --muted: #63594C;
+    --ground: #FCF7ED;
+    --card: #F6EFE3;
+    --raised: #F6EFE3;
+    --menu: #F6EFE3;
+    --edge: #E5DBCB;
+    --hover: #E5DBCB;
+    --untracked: #E5DBCB;
+    --primary-hover: #16110B;
+}
+
+[data-ambiance="pebble"] {
+    --ink: #161614;
+    --muted: #575754;
+    --ground: #F3F2F1;
+    --card: #FFFFFF;
+    --raised: #FFFFFF;
+    --menu: #FFFFFF;
+    --edge: #DEDEDC;
+    --hover: #DEDEDC;
+    --untracked: #DEDEDC;
+    --primary-hover: #0D0C0B;
+}
+
+/* Accents: each clears 4.5:1 under its label and 3:1 against the ground,
+   checked by tests/theme_contrast.rs. */
+
+[data-accent="navy"] {
+    --primary: #1F3D69;
+    --primary-hover: #14325D;
+    --primary-active: #0A2752;
+}
+
+[data-accent="cobalt"] {
+    --primary: #2B51AA;
+    --primary-hover: #21459D;
+    --primary-active: #163990;
+}
+
+[data-accent="teal"] {
+    --primary: #115D65;
+    --primary-hover: #00525A;
+    --primary-active: #00474E;
+}
+
+[data-accent="pine"] {
+    --primary: #28523C;
+    --primary-hover: #1C4732;
+    --primary-active: #103C28;
+}
+
+[data-accent="rose"] {
+    --primary: #AF2E70;
+    --primary-hover: #A21F64;
+    --primary-active: #940A59;
+}
+
+[data-accent="violet"] {
+    --primary: #58428D;
+    --primary-hover: #4E3680;
+    --primary-active: #432B74;
+}
+
+[data-accent="burgundy"] {
+    --primary: #762331;
+    --primary-hover: #691726;
+    --primary-active: #5D081D;
+}
+
+[data-accent="brick"] {
+    --primary: #9A412B;
+    --primary-hover: #8D351F;
+    --primary-active: #802913;
+}
+
+[data-accent="copper"] {
+    --primary: #8F521B;
+    --primary-hover: #82470A;
+    --primary-active: #763B00;
+}
+
+[data-accent="cocoa"] {
+    --primary: #543C2F;
+    --primary-hover: #493225;
+    --primary-active: #3E281B;
+}
+
+[data-accent="slate"] {
+    --primary: #434E5B;
+    --primary-hover: #38444F;
+    --primary-active: #2E3945;
 }
 
 .dark {
@@ -153,6 +267,123 @@
     --sem-info-text: #73ABDA;
     --sem-info-soft: rgb(115 171 218 / 0.12);
     --sem-info-border: rgb(115 171 218 / 0.32);
+}
+
+/* Night versions: the ambiance keeps its family, the accent is lifted until
+   the dark label reads on it. An element of its own, a swatch, can carry an
+   accent too. */
+
+.dark[data-ambiance="mist"] {
+    --night-ink: #F0F4F9;
+    --ink: #F4F7FB;
+    --muted: #A1ACBB;
+    --ground: #12181F;
+    --card: #151C25;
+    --raised: #1B222C;
+    --menu: #252D38;
+    --untracked: #252D38;
+    --on-primary: #12181F;
+}
+
+.dark[data-ambiance="paper"] {
+    --night-ink: #F5F1EC;
+    --ink: #F7F5F1;
+    --muted: #B0AAA1;
+    --ground: #1A1713;
+    --card: #1F1B17;
+    --raised: #25211D;
+    --menu: #302C27;
+    --untracked: #302C27;
+    --on-primary: #1A1713;
+}
+
+.dark[data-ambiance="pebble"] {
+    --night-ink: #F2F2F2;
+    --ink: #F5F5F5;
+    --muted: #A8A8A8;
+    --ground: #0A0A0A;
+    --card: #131313;
+    --raised: #191919;
+    --menu: #252525;
+    --untracked: #252525;
+    --on-primary: #0A0A0A;
+}
+
+.dark[data-accent="navy"],
+.dark [data-accent="navy"] {
+    --primary: #70A1E2;
+    --primary-hover: #79AAEC;
+    --primary-active: #82B4F6;
+}
+
+.dark[data-accent="cobalt"],
+.dark [data-accent="cobalt"] {
+    --primary: #6895F4;
+    --primary-hover: #719EFF;
+    --primary-active: #7AA8FF;
+}
+
+.dark[data-accent="teal"],
+.dark [data-accent="teal"] {
+    --primary: #4FB7BC;
+    --primary-hover: #5AC0C6;
+    --primary-active: #64CACF;
+}
+
+.dark[data-accent="pine"],
+.dark [data-accent="pine"] {
+    --primary: #72B694;
+    --primary-hover: #7BBF9E;
+    --primary-active: #84C9A7;
+}
+
+.dark[data-accent="rose"],
+.dark [data-accent="rose"] {
+    --primary: #EA6DA5;
+    --primary-hover: #F577AF;
+    --primary-active: #FF80B8;
+}
+
+.dark[data-accent="violet"],
+.dark [data-accent="violet"] {
+    --primary: #9588E9;
+    --primary-hover: #9E92F3;
+    --primary-active: #A79BFE;
+}
+
+.dark[data-accent="burgundy"],
+.dark [data-accent="burgundy"] {
+    --primary: #DD747A;
+    --primary-hover: #E77E83;
+    --primary-active: #F1878C;
+}
+
+.dark[data-accent="brick"],
+.dark [data-accent="brick"] {
+    --primary: #E57E5E;
+    --primary-hover: #EF8767;
+    --primary-active: #F99170;
+}
+
+.dark[data-accent="copper"],
+.dark [data-accent="copper"] {
+    --primary: #E19956;
+    --primary-hover: #EBA25F;
+    --primary-active: #F5AC69;
+}
+
+.dark[data-accent="cocoa"],
+.dark [data-accent="cocoa"] {
+    --primary: #C19C85;
+    --primary-hover: #CBA58E;
+    --primary-active: #D5AE98;
+}
+
+.dark[data-accent="slate"],
+.dark [data-accent="slate"] {
+    --primary: #95A7BA;
+    --primary-hover: #9EB0C4;
+    --primary-active: #A7BACD;
 }
 
 /* A tone names a status hue once; the component decides where it lands. */
