@@ -39,6 +39,40 @@ pub fn set_instance_logo(filename: &str) {
         .unwrap_or_else(PoisonError::into_inner) = filename.to_string();
 }
 
+/// The accent colour the host chose, the default until they pick one.
+static INSTANCE_ACCENT: RwLock<models::Accent> = RwLock::new(models::Accent::Ink);
+
+/// The ambiance the host chose, the default until they pick one.
+static INSTANCE_AMBIANCE: RwLock<models::Ambiance> = RwLock::new(models::Ambiance::Sand);
+
+/// The accent colour every page is drawn with.
+pub fn instance_accent() -> models::Accent {
+    *INSTANCE_ACCENT
+        .read()
+        .unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Stores the accent colour for every later render.
+pub fn set_instance_accent(accent: models::Accent) {
+    *INSTANCE_ACCENT
+        .write()
+        .unwrap_or_else(PoisonError::into_inner) = accent;
+}
+
+/// The ambiance every page is drawn with.
+pub fn instance_ambiance() -> models::Ambiance {
+    *INSTANCE_AMBIANCE
+        .read()
+        .unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Stores the ambiance for every later render.
+pub fn set_instance_ambiance(ambiance: models::Ambiance) {
+    *INSTANCE_AMBIANCE
+        .write()
+        .unwrap_or_else(PoisonError::into_inner) = ambiance;
+}
+
 /// The instance's own name, or an empty string when none was set.
 pub fn instance_name() -> String {
     INSTANCE_NAME

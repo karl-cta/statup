@@ -1,16 +1,19 @@
-//! The instance's own settings: its name, who can read it and its time
-//! zone. Stored in the database and held in memory for every request. The
-//! logo has a service of its own.
+//! The instance's own settings: its name, who can read it, its time zone
+//! and its theme. Stored in the database and held in memory for every
+//! request. The logo has a service of its own.
 
 use chrono_tz::Tz;
 
 use crate::clock;
 use crate::db::DbPool;
 use crate::error::AppError;
+use crate::models::{Accent, Ambiance};
 use crate::repositories::SettingsRepository;
 use crate::services::LOGO_SETTING;
 use crate::state::AppState;
 
+const ACCENT_SETTING: &str = "accent";
+const AMBIANCE_SETTING: &str = "ambiance";
 const NAME_SETTING: &str = "instance_name";
 const PUBLIC_MODE_SETTING: &str = "public_mode";
 const ZONE_SETTING: &str = "time_zone";
@@ -22,7 +25,7 @@ const NAME_MAX_CHARS: usize = 40;
 pub struct SettingsService;
 
 impl SettingsService {
-    /// Puts the stored name, logo and zone in memory at start. Returns
+    /// Puts the stored name, logo, zone and theme in memory at start. Returns
     /// whether visitors without an account read the page: `default_public`
     /// until an administrator chooses.
     pub async fn load(pool: &DbPool, default_public: bool) -> Result<bool, AppError> {
@@ -35,6 +38,14 @@ impl SettingsService {
         let zone = SettingsRepository::get(pool, ZONE_SETTING).await?;
         if let Some(zone) = zone.as_deref().and_then(clock::parse_zone) {
             clock::set_zone(zone);
+        }
+        let accent = SettingsRepository::get(pool, ACCENT_SETTING).await?;
+        if let Some(accent) = accent.as_deref().and_then(Accent::parse) {
+            crate::set_instance_accent(accent);
+        }
+        let ambiance = SettingsRepository::get(pool, AMBIANCE_SETTING).await?;
+        if let Some(ambiance) = ambiance.as_deref().and_then(Ambiance::parse) {
+            crate::set_instance_ambiance(ambiance);
         }
         let public = SettingsRepository::get(pool, PUBLIC_MODE_SETTING).await?;
         Ok(public.map_or(default_public, |stored| stored == "true"))
@@ -73,11 +84,25 @@ impl SettingsService {
         clock::set_zone(zone);
         Ok(())
     }
+
+    /// The accent colour and ambiance every page is drawn with.
+    pub async fn set_theme(
+        pool: &DbPool,
+        accent: Accent,
+        ambiance: Ambiance,
+    ) -> Result<(), AppError> {
+        SettingsRepository::set(pool, ACCENT_SETTING, accent.as_str()).await?;
+        SettingsRepository::set(pool, AMBIANCE_SETTING, ambiance.as_str()).await?;
+        crate::set_instance_accent(accent);
+        crate::set_instance_ambiance(ambiance);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_helpers::test_pool;
 
     #[test]
     fn instance_names_are_bounded_and_printable() {
@@ -92,5 +117,32 @@ mod tests {
             refusal("Acme\u{7}"),
             Some("validation.display_name_invalid")
         );
+    }
+
+    // One test: the theme lives in process-wide globals, so two tests
+    // writing them in parallel would race.
+    #[tokio::test]
+    async fn the_theme_is_stored_and_an_unknown_stored_value_keeps_the_default() {
+        let pool = test_pool().await;
+        SettingsService::set_theme(&pool, Accent::Navy, Ambiance::Mist)
+            .await
+            .unwrap();
+        crate::set_instance_accent(Accent::default());
+        crate::set_instance_ambiance(Ambiance::default());
+        SettingsService::load(&pool, true).await.unwrap();
+        assert_eq!(crate::instance_accent(), Accent::Navy);
+        assert_eq!(crate::instance_ambiance(), Ambiance::Mist);
+
+        crate::set_instance_accent(Accent::default());
+        crate::set_instance_ambiance(Ambiance::default());
+        SettingsRepository::set(&pool, ACCENT_SETTING, "neon")
+            .await
+            .unwrap();
+        SettingsRepository::set(&pool, AMBIANCE_SETTING, "Sand")
+            .await
+            .unwrap();
+        SettingsService::load(&pool, true).await.unwrap();
+        assert_eq!(crate::instance_accent(), Accent::default());
+        assert_eq!(crate::instance_ambiance(), Ambiance::default());
     }
 }
