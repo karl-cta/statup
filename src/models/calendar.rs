@@ -178,6 +178,15 @@ mod tests {
     }
 
     #[test]
+    fn a_title_cannot_add_lines_to_the_file() {
+        let mut entry = entry();
+        entry.title = "Mail\r\nEND:VEVENT\r\nBEGIN:VEVENT\nSUMMARY:Fake".to_string();
+        let ics = entry.ics();
+        assert_eq!(ics.matches("\r\nEND:VEVENT\r\n").count(), 1);
+        assert_eq!(ics.matches("\r\nSUMMARY:").count(), 1);
+    }
+
+    #[test]
     fn long_lines_are_folded_on_character_boundaries() {
         let mut entry = entry();
         entry.title = format!("{} and more, with a comma", "é".repeat(60));

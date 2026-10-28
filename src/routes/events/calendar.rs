@@ -32,7 +32,7 @@ pub async fn calendar_file(
         return Ok(redirect);
     }
     let entry = entry(&state, &viewer, id, &headers, &i18n).await?;
-    let disposition = format!("attachment; filename=\"maintenance-{id}.ics\"");
+    let disposition = format!("inline; filename=\"maintenance-{id}.ics\"");
     Ok((
         [
             (CONTENT_TYPE, "text/calendar; charset=utf-8".to_string()),

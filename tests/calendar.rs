@@ -96,7 +96,7 @@ async fn the_file_holds_the_maintenance_and_is_kept_by_no_cache() {
     assert_eq!(header("content-type"), "text/calendar; charset=utf-8");
     assert_eq!(
         header("content-disposition"),
-        format!("attachment; filename=\"maintenance-{id}.ics\"")
+        format!("inline; filename=\"maintenance-{id}.ics\"")
     );
     assert_eq!(header("cache-control"), "private, no-store");
     let body = response.text().await.unwrap();
