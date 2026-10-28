@@ -61,13 +61,19 @@ pub fn build(
     entries
 }
 
+/// A session the schedule added to a repeating maintenance was announced
+/// by nobody: it opens without an author.
 fn opening_entry(
     event: &Event,
     description_html: String,
     author: Option<String>,
     i18n: &I18n,
 ) -> TimelineEntry {
-    let opening = i18n.t(opening_key(event));
+    let (opening, author) = if event.added_by_schedule {
+        (i18n.t("timeline.added"), None)
+    } else {
+        (i18n.t(opening_key(event)), author)
+    };
     let label = match event.qualifier(i18n) {
         Some(qualifier) => format!("{opening}{SEPARATOR}{qualifier}"),
         None => opening.to_string(),
@@ -244,6 +250,8 @@ mod tests {
             updated_at: now,
             next_update_at: None,
             update_every_minutes: None,
+            series_id: None,
+            added_by_schedule: false,
         }
     }
 
@@ -305,6 +313,20 @@ mod tests {
                 .as_deref()
                 .is_some_and(|l| l.starts_with("Incident began"))
         );
+    }
+
+    #[test]
+    fn a_session_the_schedule_added_opens_without_an_author() {
+        let i18n = I18n::new("en");
+        let mut work = event(Kind::Maintenance, true, Lifecycle::Scheduled);
+        work.added_by_schedule = true;
+        let author = Some("Karl".to_string());
+
+        let entries = build(&work, String::new(), author, Vec::new(), None, &i18n);
+
+        let opening = entries.last().unwrap();
+        assert_eq!(opening.label.as_deref(), Some("Added automatically"));
+        assert_eq!(opening.author, None);
     }
 
     #[test]

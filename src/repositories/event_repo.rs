@@ -20,7 +20,7 @@ use crate::repositories::service_repo::CHOSEN_ORDER;
 const SUMMARY_COLUMNS: &str = "e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
      e.title, e.description, e.planned_start, e.planned_end, e.started_at, e.ended_at, \
      e.keeps_services_up, e.next_update_at, e.created_at, e.updated_at, e.author_id, \
-     EXISTS (SELECT 1 FROM event_reviews r WHERE r.event_id = e.id) AS has_review, \
+     e.series_id, EXISTS (SELECT 1 FROM event_reviews r WHERE r.event_id = e.id) AS has_review, \
      COALESCE((SELECT GROUP_CONCAT(s.name, char(31) ORDER BY s.position, s.name COLLATE NOCASE, s.id) \
                FROM event_services es JOIN services s ON s.id = es.service_id \
                WHERE es.event_id = e.id), '') AS service_names, \
@@ -71,11 +71,27 @@ pub struct EventRepository;
 impl EventRepository {
     pub async fn create(pool: &DbPool, input: &CreateEventInput) -> Result<Event, sqlx::Error> {
         let mut tx = pool.begin().await?;
+        let event = Self::insert(&mut tx, input, None, false).await?;
+        tx.commit().await?;
+        Ok(event)
+    }
+
+    /// Writes a new event and its services inside `tx`, as a session of
+    /// `series_id` when it repeats.
+    /// Inserts an event and links its services. A session of a repeating
+    /// maintenance names its series, and whether the schedule added it.
+    pub(crate) async fn insert(
+        tx: &mut sqlx::Transaction<'_, Sqlite>,
+        input: &CreateEventInput,
+        series_id: Option<i64>,
+        added_by_schedule: bool,
+    ) -> Result<Event, sqlx::Error> {
         let event = sqlx::query_as::<_, Event>(
             "INSERT INTO events (kind, severity, planned, lifecycle, category, title, \
              description, planned_start, planned_end, started_at, follows_event_id, author_id, \
-             api_key_id, keeps_services_up, next_update_at, update_every_minutes, next_update_by) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
+             api_key_id, keeps_services_up, next_update_at, update_every_minutes, next_update_by, \
+             series_id, added_by_schedule) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
         )
         .bind(input.kind)
         .bind(input.severity)
@@ -94,10 +110,11 @@ impl EventRepository {
         .bind(input.next_update.map(|next| clock::db(next.at)))
         .bind(input.next_update.and_then(|next| next.every_minutes))
         .bind(input.next_update.map(|_| input.author_id))
-        .fetch_one(&mut *tx)
+        .bind(series_id)
+        .bind(added_by_schedule)
+        .fetch_one(&mut **tx)
         .await?;
-        link_services(&mut tx, event.id, &input.service_ids).await?;
-        tx.commit().await?;
+        link_services(tx, event.id, &input.service_ids).await?;
         Ok(event)
     }
 
@@ -287,7 +304,8 @@ impl EventRepository {
         fetch_scoped(qb, pool, scope).await
     }
 
-    /// Maintenances that ended or were called off, latest first.
+    /// Maintenances that ended or were called off, latest first. A
+    /// repeating one shows its latest session only.
     pub async fn list_finished_maintenance(
         pool: &DbPool,
         limit: i64,
@@ -296,7 +314,12 @@ impl EventRepository {
         let mut qb = QueryBuilder::<Sqlite>::new(format!(
             "SELECT {SUMMARY_COLUMNS} FROM events e WHERE e.id IN ( \
                SELECT x.id FROM events x \
-               WHERE x.kind = 'maintenance' AND x.lifecycle IN ('completed', 'cancelled')"
+               WHERE x.kind = 'maintenance' AND x.lifecycle IN ('completed', 'cancelled') \
+                 AND (x.series_id IS NULL OR x.id = ( \
+                   SELECT y.id FROM events y \
+                   WHERE y.series_id = x.series_id AND y.lifecycle IN ('completed', 'cancelled') \
+                   ORDER BY COALESCE(y.ended_at, y.planned_end, y.updated_at) DESC, y.id DESC \
+                   LIMIT 1))"
         ));
         push_scope(&mut qb, scope, "x");
         qb.push(" ORDER BY x.updated_at DESC LIMIT ")
@@ -359,18 +382,17 @@ impl EventRepository {
         .await
     }
 
-    /// Starts every announced maintenance whose start has come. Returns the
-    /// ids that changed.
+    /// Starts every announced maintenance whose start has come.
     pub async fn start_due_maintenance(
         pool: &DbPool,
         now: DateTime<Utc>,
-    ) -> Result<Vec<i64>, sqlx::Error> {
-        sqlx::query_scalar(
+    ) -> Result<Vec<DueMaintenance>, sqlx::Error> {
+        sqlx::query_as(
             "UPDATE events SET previous_lifecycle = NULL, lifecycle = 'in_progress', \
                started_at = COALESCE(started_at, planned_start) \
              WHERE kind = 'maintenance' AND lifecycle = 'scheduled' \
                AND planned_start IS NOT NULL AND planned_start <= ? \
-             RETURNING id",
+             RETURNING id, series_id IS NOT NULL AS repeats",
         )
         .bind(clock::db(now))
         .fetch_all(pool)
@@ -381,13 +403,13 @@ impl EventRepository {
     pub async fn complete_due_maintenance(
         pool: &DbPool,
         now: DateTime<Utc>,
-    ) -> Result<Vec<i64>, sqlx::Error> {
-        sqlx::query_scalar(
+    ) -> Result<Vec<DueMaintenance>, sqlx::Error> {
+        sqlx::query_as(
             "UPDATE events SET previous_lifecycle = NULL, lifecycle = 'completed', \
                ended_at = COALESCE(ended_at, planned_end) \
              WHERE kind = 'maintenance' AND lifecycle = 'in_progress' \
                AND planned_end IS NOT NULL AND planned_end <= ? \
-             RETURNING id",
+             RETURNING id, series_id IS NOT NULL AS repeats",
         )
         .bind(clock::db(now))
         .fetch_all(pool)
@@ -609,14 +631,16 @@ impl EventRepository {
     }
 
     /// Incidents and maintenances created since `since`, for the unread
-    /// badge. Announcements are not interventions.
+    /// badge. Announcements are not interventions, and the sessions a
+    /// repeating maintenance adds after its first are not news.
     pub async fn count_since(
         pool: &DbPool,
         since: DateTime<Utc>,
         scope: &Scope,
     ) -> Result<i64, sqlx::Error> {
         let mut qb = QueryBuilder::<Sqlite>::new(
-            "SELECT COUNT(*) FROM events e WHERE e.kind != 'publication' AND e.created_at >= ",
+            "SELECT COUNT(*) FROM events e WHERE e.kind != 'publication' \
+             AND e.added_by_schedule = 0 AND e.created_at >= ",
         );
         qb.push_bind(clock::db(since));
         push_scope(&mut qb, scope, "e");
@@ -666,6 +690,14 @@ fn activity_condition(kind: ActivityKind) -> &'static str {
     }
 }
 
+/// A maintenance the schedule started or completed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::FromRow)]
+pub struct DueMaintenance {
+    pub id: i64,
+    /// A session of a repeating maintenance, which passes in silence.
+    pub repeats: bool,
+}
+
 /// One incident on one service, as the availability strip reads it.
 pub struct IncidentSpan {
     pub severity: Option<Severity>,
@@ -676,7 +708,7 @@ pub struct IncidentSpan {
 /// Service id, severity, start and end of an incident span.
 type SpanRow = (i64, Option<Severity>, DateTime<Utc>, Option<DateTime<Utc>>);
 
-async fn link_services(
+pub(crate) async fn link_services(
     tx: &mut sqlx::Transaction<'_, Sqlite>,
     event_id: i64,
     service_ids: &[i64],
@@ -1053,7 +1085,11 @@ mod tests {
         let started = EventRepository::start_due_maintenance(&pool, Utc::now())
             .await
             .unwrap();
-        assert_eq!(started, vec![event.id]);
+        let moved = DueMaintenance {
+            id: event.id,
+            repeats: false,
+        };
+        assert_eq!(started, vec![moved]);
         let running = EventRepository::find_by_id(&pool, event.id)
             .await
             .unwrap()
@@ -1075,7 +1111,7 @@ mod tests {
         let completed = EventRepository::complete_due_maintenance(&pool, later)
             .await
             .unwrap();
-        assert_eq!(completed, vec![event.id]);
+        assert_eq!(completed, vec![moved]);
         let done = EventRepository::find_by_id(&pool, event.id)
             .await
             .unwrap()
@@ -1096,7 +1132,7 @@ mod tests {
             EventRepository::start_due_maintenance(&pool, Utc::now())
                 .await
                 .unwrap(),
-            Vec::<i64>::new()
+            Vec::<DueMaintenance>::new()
         );
     }
 

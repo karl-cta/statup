@@ -18,6 +18,39 @@
             </form>
         </dd>
         {% endif %}
+        {% if view.event.upcoming_start().is_some() %}
+        <dd class="fact-revert">
+            <details class="more-actions calendar-menu" data-more-actions>
+                <summary class="text-action">{{ i18n.t("events.add_to_calendar") }}{% call ui::caret_icon() %}{% endcall %}</summary>
+                <div class="more-actions-menu">
+                    {# Outlook and Apple Calendar open the same file: each
+                       reader finds the name of their own calendar. #}
+                    <a class="more-actions-item" href="/events/{{ view.event.id }}/calendar.ics">{{ i18n.t("events.calendar_outlook") }}</a>
+                    <a class="more-actions-item" href="/events/{{ view.event.id }}/calendar.ics">{{ i18n.t("events.calendar_apple") }}</a>
+                    <a class="more-actions-item" href="/events/{{ view.event.id }}/calendar/google" target="_blank" rel="noopener noreferrer">{{ i18n.t("events.calendar_google") }}</a>
+                </div>
+            </details>
+        </dd>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% if let Some(rhythm) = view.repeats %}
+    <div class="fact">
+        <dt>{{ i18n.t("events.fact_repeats") }}</dt>
+        <dd>{{ rhythm }}</dd>
+        {% if let Some(cancels) = stop_repeat %}
+        <dd class="fact-revert">
+            <form method="post" action="/events/{{ view.event.id }}/stop-repeat" data-confirm>
+                <input type="hidden" name="csrf_token" value="{{ facts_csrf }}">
+                <button type="button" class="text-action" data-confirm-open>{{ i18n.t("events.stop_repeat") }}</button>
+                <div class="confirm" role="group" aria-label="{{ i18n.t("events.stop_repeat") }}" data-confirm-box hidden>
+                    <span class="confirm-text">{{ i18n.t("common.question_open") }}{{ i18n.t("events.stop_repeat") }}{{ i18n.t("common.question_mark") }}{% if !cancels.is_empty() %} {{ cancels }}{% endif %}</span>
+                    <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
+                    <button type="submit" class="confirm-go" data-danger>{{ i18n.t("events.stop_repeat_go") }}</button>
+                </div>
+            </form>
+        </dd>
+        {% endif %}
     </div>
     {% endif %}
     {% if !view.services.is_empty() %}

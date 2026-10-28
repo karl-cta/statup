@@ -130,7 +130,7 @@ Aucun pourcentage : la légende compte les jours avec incident.
 
 ## Supprimer un service
 
-Un service qu'aucun événement n'a jamais cité peut être supprimé depuis son formulaire, avec **Supprimer le service**. Il disparaît sans laisser de trace, pannes détectées comprises.
+Un service qu'aucun événement n'a jamais cité, et qu'aucune [maintenance répétée](maintenance.md#repeat) encore active ne cite, peut être supprimé depuis son formulaire, avec **Supprimer le service**. Il disparaît sans laisser de trace, pannes détectées comprises.
 
 Un service cité par des événements est conservé, pour que leur historique reste complet. Pour ne plus le montrer sur le tableau de bord, un administrateur le décoche dans **Organiser** du tableau de bord : voir [Paramètres](settings.md#arrange-the-dashboard). Un service décoché revient dès qu'il n'est plus **Opérationnel**.
 

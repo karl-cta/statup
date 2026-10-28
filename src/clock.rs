@@ -6,8 +6,13 @@
 
 use std::sync::{OnceLock, PoisonError, RwLock};
 
-use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Offset, SecondsFormat, TimeZone, Utc};
+use chrono::{
+    DateTime, NaiveDate, NaiveDateTime, NaiveTime, Offset, SecondsFormat, TimeDelta, TimeZone, Utc,
+};
 use chrono_tz::Tz;
+
+/// Longest daylight saving gap searched past, in minutes.
+const MAX_SKIPPED_MINUTES: i64 = 180;
 
 /// The zone chosen in the settings, once there is one.
 static CHOSEN_ZONE: RwLock<Option<Tz>> = RwLock::new(None);
@@ -161,6 +166,16 @@ fn to_utc<Tz: TimeZone>(zone: &Tz, naive: NaiveDateTime) -> Option<DateTime<Utc>
         .map(|dt| dt.with_timezone(&Utc))
 }
 
+/// Like `to_utc`, but a wall-clock time skipped by a daylight saving change
+/// moves to the first valid minute after it (02:30 becomes 03:00 when the
+/// clock jumps from 02:00 to 03:00). `None` if nothing is valid within 3 hours.
+pub fn to_utc_or_later<Tz: TimeZone>(zone: &Tz, naive: NaiveDateTime) -> Option<DateTime<Utc>> {
+    (0..=MAX_SKIPPED_MINUTES).find_map(|minutes| {
+        let candidate = naive.checked_add_signed(TimeDelta::minutes(minutes))?;
+        to_utc(zone, candidate)
+    })
+}
+
 fn format_offset(seconds: i32) -> String {
     if seconds == 0 {
         return "UTC".to_string();
@@ -224,6 +239,28 @@ mod tests {
         let time = NaiveTime::from_hms_opt(2, 30, 0).unwrap();
         let at = next_occurrence_in(&paris, time, now).unwrap();
         assert_eq!(at, Utc.with_ymd_and_hms(2027, 3, 29, 0, 30, 0).unwrap());
+    }
+
+    #[test]
+    fn a_skipped_time_moves_to_the_first_valid_minute() {
+        let paris = chrono_tz::Europe::Paris;
+        let skipped = NaiveDate::from_ymd_opt(2027, 3, 28)
+            .unwrap()
+            .and_hms_opt(2, 30, 0)
+            .unwrap();
+        let at = to_utc_or_later(&paris, skipped).unwrap();
+        assert_eq!(at, Utc.with_ymd_and_hms(2027, 3, 28, 1, 0, 0).unwrap());
+    }
+
+    #[test]
+    fn a_valid_or_doubled_time_keeps_its_first_reading() {
+        let paris = chrono_tz::Europe::Paris;
+        let doubled = NaiveDate::from_ymd_opt(2026, 10, 25)
+            .unwrap()
+            .and_hms_opt(2, 30, 0)
+            .unwrap();
+        let at = to_utc_or_later(&paris, doubled).unwrap();
+        assert_eq!(at, Utc.with_ymd_and_hms(2026, 10, 25, 0, 30, 0).unwrap());
     }
 
     #[test]

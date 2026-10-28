@@ -70,6 +70,7 @@ fn summary(kind: Kind, severity: Option<Severity>, lifecycle: Option<Lifecycle>)
         updated_at: Utc::now(),
         keeps_services_up: false,
         author_id: 1,
+        series_id: None,
         has_review: false,
         service_names: String::new(),
         service_icons: String::new(),
@@ -336,6 +337,8 @@ fn scheduled_maintenance_is_not_elapsed() {
         updated_at: Utc::now(),
         next_update_at: None,
         update_every_minutes: None,
+        series_id: None,
+        added_by_schedule: false,
     };
     assert!(event.elapsed().is_none());
     assert!(event.countdown().is_some());

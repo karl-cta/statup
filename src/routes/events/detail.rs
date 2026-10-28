@@ -14,7 +14,9 @@ use crate::middleware::{CsrfToken, Viewer};
 use crate::models::{
     Event, EventReview, Kind, Lifecycle, Scope, Service, ServiceTag, User, delay_text,
 };
-use crate::repositories::{EventRepository, EventReviewRepository, ServiceRepository};
+use crate::repositories::{
+    EventRepository, EventReviewRepository, SeriesRepository, ServiceRepository,
+};
 use crate::routes::timeline::{self, TimelineEntry};
 use crate::routes::{Frame, members_only, render};
 use crate::services::{EventService, can_modify, can_review, sanitize_markdown};
@@ -116,6 +118,8 @@ pub(super) struct EventDetailTemplate {
     follow_up: FollowUp,
     transitions: Vec<TransitionOption>,
     revert_label: Option<String>,
+    /// What stopping the repetition cancels, when the viewer may stop it.
+    stop_repeat: Option<String>,
     published_notice: bool,
     composer: Composer,
     review_form: ReviewForm,
@@ -141,6 +145,8 @@ pub(super) struct DrawerTemplate {
     transitions: Vec<TransitionOption>,
     /// Undoing a step is offered on the event's page only.
     revert_label: Option<String>,
+    /// So is stopping a repetition.
+    stop_repeat: Option<String>,
     /// The next step after the event, done on its page.
     follow_up: FollowUp,
     /// The service whose panel this one was opened from, to go back to.
@@ -156,6 +162,8 @@ pub struct EventView {
     /// The maintenance this announcement follows.
     pub follows: Option<MaintenanceChoice>,
     pub state: Option<StateLine>,
+    /// "Chaque dimanche", for a session of a maintenance that repeats.
+    pub repeats: Option<String>,
     /// An announcement reads as a text, its updates after it.
     pub article: Option<TimelineEntry>,
     /// A resolved incident reads its review first, its timeline after it.
@@ -199,7 +207,10 @@ impl EventView {
 
     /// A row of facts is worth drawing when there is one.
     pub fn has_facts(&self) -> bool {
-        self.state.is_some() || !self.services.is_empty() || self.follows.is_some()
+        self.state.is_some()
+            || self.repeats.is_some()
+            || !self.services.is_empty()
+            || self.follows.is_some()
     }
 }
 
@@ -241,7 +252,9 @@ async fn load_view(
         .flatten()
         .map(|opening| timeline.remove(opening));
     let review = load_review(state, &ews.event, user, i18n).await?;
+    let repeats = load_rhythm(state, &ews.event, i18n).await?;
     Ok(EventView {
+        repeats,
         follows,
         article,
         review,
@@ -250,6 +263,42 @@ async fn load_view(
         services: ews.services,
         timeline,
     })
+}
+
+/// The rhythm of the maintenance a session belongs to, while it repeats.
+async fn load_rhythm(
+    state: &AppState,
+    event: &Event,
+    i18n: &I18n,
+) -> Result<Option<String>, AppError> {
+    let Some(id) = event.series_id else {
+        return Ok(None);
+    };
+    let series = SeriesRepository::find_active(&state.pool, id).await?;
+    Ok(series.map(|series| series.recurrence.describe(i18n)))
+}
+
+/// What stopping the repetition does, for a publisher on a session of a
+/// maintenance that repeats: the session it cancels, or nothing to say.
+async fn stop_repeat_text(
+    state: &AppState,
+    view: &EventView,
+    user: Option<&User>,
+    i18n: &I18n,
+) -> Result<Option<String>, AppError> {
+    let publishes = user.is_some_and(|u| u.role.can_publish());
+    let Some(series_id) = view
+        .event
+        .series_id
+        .filter(|_| publishes && view.repeats.is_some())
+    else {
+        return Ok(None);
+    };
+    let next = SeriesRepository::scheduled_start(&state.pool, series_id).await?;
+    Ok(Some(next.map_or_else(String::new, |start| {
+        let when = i18n.format_datetime(&start);
+        i18n.tf("events.stop_repeat_cancels", &[("when", &when)])
+    })))
 }
 
 /// The maintenance an announcement follows; none when the viewer may not
@@ -402,6 +451,7 @@ pub(super) async fn detail_page(
         frame: Frame::load(&state.pool, user, csrf_token, &i18n).await?,
         transitions: transition_options(&view.event, composer.lifecycle, &i18n),
         revert_label: can_edit.then(|| revert_label(&view.event, &i18n)).flatten(),
+        stop_repeat: stop_repeat_text(state, &view, user, &i18n).await?,
         published_notice: false,
         can_edit,
         view,
@@ -434,6 +484,7 @@ pub(super) async fn drawer_page(
     Ok(DrawerTemplate {
         transitions: transition_options(&view.event, composer.lifecycle, &i18n),
         revert_label: None,
+        stop_repeat: None,
         follow_up: FollowUp::of(&view.event, user),
         back_to: None,
         can_edit,

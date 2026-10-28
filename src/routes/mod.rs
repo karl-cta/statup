@@ -167,6 +167,8 @@ fn public_routes() -> Router<AppState> {
         .route("/events", get(events::list))
         .route("/events/{id}", get(events::detail))
         .route("/events/{id}/drawer", get(events::drawer_content))
+        .route("/events/{id}/calendar.ics", get(events::calendar_file))
+        .route("/events/{id}/calendar/google", get(events::calendar_google))
         .route("/services/{id}/drawer", get(services::drawer_content))
         .route("/feed", get(feed::atom))
         .route("/subscribe", get(subscriptions::page))
@@ -201,6 +203,7 @@ fn publisher_routes() -> Router<AppState> {
             "/events/{id}/revert-lifecycle",
             post(events::revert_lifecycle),
         )
+        .route("/events/{id}/stop-repeat", post(events::stop_repeat))
         .route("/events/{id}/delete", post(events::delete))
         .route("/events/{id}/updates", post(events::add_update))
         .route(

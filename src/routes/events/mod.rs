@@ -9,6 +9,7 @@ use crate::journal;
 use crate::models::{JournalKind, User};
 use crate::repositories::{EventRepository, NewJournalEntry};
 
+mod calendar;
 mod detail;
 mod form;
 mod list;
@@ -16,12 +17,15 @@ mod review;
 mod templates;
 mod updates;
 
+pub use calendar::{calendar_file, calendar_google};
 pub use detail::{detail, drawer_content};
 pub use form::{create, edit_form, new_form, update};
 pub use list::list;
 pub use review::{publish_review, remove_review};
 pub use templates::{template_delete, template_detail, template_search};
-pub use updates::{add_update, add_update_in_panel, delete, delete_update, revert_lifecycle};
+pub use updates::{
+    add_update, add_update_in_panel, delete, delete_update, revert_lifecycle, stop_repeat,
+};
 
 /// The title an event has now, which the journal copies to name it. A failed
 /// read leaves the line unnamed rather than failing what was already done.

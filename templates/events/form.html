@@ -63,8 +63,8 @@
         <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
 
         <div class="card form-card">
-            <div class="form-columns">
-                <div class="form-col">
+            <div class="form-columns event-columns">
+                <div class="form-col event-settings">
                     {% if edit_id.is_some() %}
                     <input type="hidden" name="kind" value="{{ form.kind.as_str() }}">
                     <p class="field-label">{{ i18n.t("events.kind") }}</p>
@@ -124,6 +124,29 @@
                                 </div>
                             </div>
                             <p id="zone-hint" class="field-hint">{{ zone_hint }}</p>
+                            {% if edit_id.is_none() %}
+                            {# Offered once a day is picked: the script names each
+                               rhythm after that day. #}
+                            <div class="schedule-repeat" data-repeat{% if form.planned_start.is_empty() %} hidden{% endif %}>
+                                <label class="check-row">
+                                    <input type="checkbox" name="repeats" value="on" class="checkbox" data-repeat-box{% if form.repeat.is_some() %} checked{% endif %}>
+                                    <span>{{ i18n.t("events.repeat") }}</span>
+                                </label>
+                                <fieldset class="choice-group" data-repeat-choices{% if form.repeat.is_none() %} hidden{% endif %}>
+                                    <legend class="sr-only">{{ i18n.t("events.repeat_rhythm") }}</legend>
+                                    <div class="choice-row">
+                                        <label class="choice"><input type="radio" name="repeat" value="weekly" class="sr-only"{% if !form.repeat_is("monthly") %} checked{% endif %}><span data-repeat-label="weekly">{{ i18n.t("events.repeat_every_week") }}</span></label>
+                                        <label class="choice"><input type="radio" name="repeat" value="monthly" class="sr-only"{% if form.repeat_is("monthly") %} checked{% endif %}><span data-repeat-label="monthly">{{ i18n.t("events.repeat_every_month") }}</span></label>
+                                    </div>
+                                </fieldset>
+                            </div>
+                            {% endif %}
+                            {% if form.offers_following() %}
+                            <label class="check-row">
+                                <input type="checkbox" name="also_following" value="on" class="checkbox"{% if form.also_following() %} checked{% endif %}>
+                                <span>{{ i18n.t("events.also_following") }}</span>
+                            </label>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -137,46 +160,8 @@
                         </fieldset>
                     </div>
 
-                    {# The services under their folders, as on the dashboard: a
-                       folder's box checks all of them, and only the services'
-                       own boxes are sent. #}
-                    <section class="form-block" aria-labelledby="services-label" data-filter-scope>
-                        <h2 id="services-label" class="field-label">{{ i18n.t("events.services_concerned") }}</h2>
-                        {% if sections.is_empty() %}
-                        <p class="field-hint mt-1">{{ i18n.t("events.no_services_available") }} <a href="/services/new" class="link">{{ i18n.t("services.new") }}</a></p>
-                        {% else %}
-                        {% if self.searchable() %}
-                        <input type="search" class="input mt-2" autocomplete="off" placeholder="{{ i18n.t("events.search_service") }}" data-filter-input aria-label="{{ i18n.t("events.search_service") }}">
-                        {% endif %}
-                        <div class="svc-pick-list" role="group" aria-labelledby="services-label">
-                            {% for section in sections %}
-                            <div class="svc-pick-section" data-filter-group{% if let Some(folder) = section.folder %} role="group" aria-labelledby="svc-folder-{{ folder.id }}" data-folder-pick{% endif %}>
-                                {% if let Some(folder) = section.folder %}
-                                <label class="svc-pick svc-pick-folder">
-                                    <input type="checkbox" class="checkbox" data-folder-box{% if self.folder_checked(section) %} checked{% endif %}>
-                                    <span id="svc-folder-{{ folder.id }}" class="svc-pick-name">{{ folder.name }}</span>
-                                    <span class="count">{{ section.services.len() }}</span>
-                                </label>
-                                {% endif %}
-                                {% for service in section.services %}
-                                <label class="svc-pick" data-filter-text="{{ service.name }}{% if let Some(folder) = section.folder %} {{ folder.name }}{% endif %}">
-                                    <input type="checkbox" name="service_ids" value="{{ service.id }}" class="checkbox" data-service-name="{{ service.name }}"{% if form.has_service(service.id) %} checked{% endif %}>
-                                    <span class="svc-pick-name">{{ service.name }}</span>
-                                    <span class="state" data-tone="{{ service.status.tone().as_str() }}">{{ i18n.t(service.status.i18n_key()) }}</span>
-                                </label>
-                                {% endfor %}
-                            </div>
-                            {% endfor %}
-                        </div>
-                        <p class="field-hint mt-2" data-filter-none hidden>{{ i18n.t("events.no_service_found") }}</p>
-                        {% endif %}
-                        <p class="consequence" role="status" data-consequence-row hidden>
-                            <span class="dot" data-consequence-dot hidden aria-hidden="true"></span>
-                            <span data-consequence></span>
-                        </p>
-                    </section>
                 </div>
-                <div class="form-col">
+                <div class="form-col event-text">
                     <div class="form-block field suggest">
                         <label for="title" class="field-label">{{ i18n.t("events.title_label") }}</label>
                         <input id="title" name="title" type="text" class="input" required maxlength="200" autocomplete="off"
@@ -259,6 +244,44 @@
                     </details>
                     {% endif %}
                 </div>
+                {# The services under their folders, as on the dashboard: a
+                   folder's box checks all of them, and only the services'
+                   own boxes are sent. #}
+                <section class="form-services" aria-labelledby="services-label" data-filter-scope>
+                    <h2 id="services-label" class="field-label">{{ i18n.t("events.services_concerned") }}</h2>
+                    {% if sections.is_empty() %}
+                    <p class="field-hint mt-1">{{ i18n.t("events.no_services_available") }} <a href="/services/new" class="link">{{ i18n.t("services.new") }}</a></p>
+                    {% else %}
+                    {% if self.searchable() %}
+                    <input type="search" class="input mt-2" autocomplete="off" placeholder="{{ i18n.t("events.search_service") }}" data-filter-input aria-label="{{ i18n.t("events.search_service") }}">
+                    {% endif %}
+                    <div class="svc-pick-list" role="group" aria-labelledby="services-label">
+                        {% for section in sections %}
+                        <div class="svc-pick-section" data-filter-group{% if let Some(folder) = section.folder %} role="group" aria-labelledby="svc-folder-{{ folder.id }}" data-folder-pick{% endif %}>
+                            {% if let Some(folder) = section.folder %}
+                            <label class="svc-pick svc-pick-folder">
+                                <input type="checkbox" class="checkbox" data-folder-box{% if self.folder_checked(section) %} checked{% endif %}>
+                                <span id="svc-folder-{{ folder.id }}" class="svc-pick-name">{{ folder.name }}</span>
+                                <span class="count">{{ section.services.len() }}</span>
+                            </label>
+                            {% endif %}
+                            {% for service in section.services %}
+                            <label class="svc-pick" data-filter-text="{{ service.name }}{% if let Some(folder) = section.folder %} {{ folder.name }}{% endif %}">
+                                <input type="checkbox" name="service_ids" value="{{ service.id }}" class="checkbox" data-service-name="{{ service.name }}"{% if form.has_service(service.id) %} checked{% endif %}>
+                                <span class="svc-pick-name">{{ service.name }}</span>
+                                <span class="state" data-tone="{{ service.status.tone().as_str() }}">{{ i18n.t(service.status.i18n_key()) }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <p class="field-hint mt-2" data-filter-none hidden>{{ i18n.t("events.no_service_found") }}</p>
+                    {% endif %}
+                    <p class="consequence" role="status" data-consequence-row hidden>
+                        <span class="dot" data-consequence-dot hidden aria-hidden="true"></span>
+                        <span data-consequence></span>
+                    </p>
+                </section>
             </div>
         </div>
 
@@ -301,7 +324,15 @@
     "time_required": {{ i18n.t("events.time_required")|json|safe }},
     "start_right_away": {{ i18n.t("events.start_right_away")|json|safe }},
     "prev_month": {{ i18n.t("events.prev_month")|json|safe }},
-    "next_month": {{ i18n.t("events.next_month")|json|safe }}
+    "next_month": {{ i18n.t("events.next_month")|json|safe }},
+    "repeat_weekly": {{ i18n.t("events.repeat_weekly")|json|safe }},
+    "repeat_monthly": {{ i18n.t("events.repeat_monthly")|json|safe }},
+    "rank_first": {{ i18n.t("events.repeat_rank_first")|json|safe }},
+    "rank_second": {{ i18n.t("events.repeat_rank_second")|json|safe }},
+    "rank_third": {{ i18n.t("events.repeat_rank_third")|json|safe }},
+    "rank_fourth": {{ i18n.t("events.repeat_rank_fourth")|json|safe }},
+    "rank_last": {{ i18n.t("events.repeat_rank_last")|json|safe }},
+    "repeat_needs_duration": {{ i18n.t("validation.repeat_needs_duration")|json|safe }}
 }
 </script>
 

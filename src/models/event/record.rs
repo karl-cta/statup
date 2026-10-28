@@ -189,6 +189,11 @@ pub struct Event {
     pub next_update_at: Option<DateTime<Utc>>,
     /// The delay that time was given as, offered again with the next update.
     pub update_every_minutes: Option<i64>,
+    /// The repeating maintenance this session belongs to.
+    pub series_id: Option<i64>,
+    /// Added by the schedule to a repeating maintenance, after its first
+    /// session.
+    pub added_by_schedule: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -273,6 +278,14 @@ impl Event {
         takes_review(self.kind, self.lifecycle)
     }
 
+    /// When a maintenance still to come starts (only a maintenance is ever
+    /// scheduled); none for any other event.
+    pub fn upcoming_start(&self) -> Option<DateTime<Utc>> {
+        (self.lifecycle == Some(Lifecycle::Scheduled))
+            .then_some(self.planned_start)
+            .flatten()
+    }
+
     /// When the next update is due, or how long it is overdue, said after
     /// the age of the last one when there is one.
     pub fn next_update_text(&self, last_ago: Option<&str>, i18n: &I18n) -> Option<String> {
@@ -298,10 +311,7 @@ impl Event {
     }
 
     pub fn countdown(&self) -> Option<Countdown> {
-        (self.lifecycle == Some(Lifecycle::Scheduled))
-            .then_some(self.planned_start)
-            .flatten()
-            .and_then(countdown_to)
+        self.upcoming_start().and_then(countdown_to)
     }
 }
 
@@ -325,6 +335,8 @@ pub struct EventSummary {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub author_id: i64,
+    /// The repeating maintenance this session belongs to.
+    pub series_id: Option<i64>,
     /// A review was published for it.
     pub has_review: bool,
     /// Linked service names, joined with [`NAME_SEPARATOR`].
@@ -428,9 +440,7 @@ impl EventSummary {
 
     /// Plain text of the latest update, for the status banner.
     pub fn latest_update_excerpt(&self, max_chars: usize) -> Option<String> {
-        let html = self.latest_update.as_deref()?;
-        let text = html_to_text(html);
-        (!text.is_empty()).then(|| excerpt(&text, max_chars))
+        plain_text(self.latest_update.as_deref()?, max_chars)
     }
 
     pub fn is_open(&self) -> bool {
@@ -518,6 +528,13 @@ pub fn excerpt(text: &str, max_chars: usize) -> String {
     }
     let cut: String = text.chars().take(max_chars).collect();
     format!("{}…", cut.trim_end())
+}
+
+/// Sanitized HTML as plain text cut to `max_chars`, or none when it holds
+/// no text.
+pub(crate) fn plain_text(html: &str, max_chars: usize) -> Option<String> {
+    let text = html_to_text(html);
+    (!text.is_empty()).then(|| excerpt(&text, max_chars))
 }
 
 /// Text content of sanitized HTML: tags dropped, the entities ammonia

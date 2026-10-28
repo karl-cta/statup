@@ -251,7 +251,9 @@ mod tests {
         EventService::update(&pool, event.id, edit("Server move", past), Role::Admin)
             .await
             .unwrap();
-        EventService::apply_schedule(&pool).await.unwrap();
+        EventService::apply_schedule(&pool, Utc::now())
+            .await
+            .unwrap();
 
         let scheduled = Some(Lifecycle::Scheduled);
         assert_eq!(

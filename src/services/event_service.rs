@@ -10,13 +10,14 @@ use crate::clock;
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::{
-    CreateEventInput, Event, EventWithServices, Happening, Kind, Lifecycle, NextUpdate,
-    Notification, ReviewSaved, Role, Scope, Severity, UpdateEventInput, User,
+    CreateEventInput, Event, EventWithServices, Happening, Kind, Lifecycle, NewSeries, NextUpdate,
+    Notification, ReviewSaved, Rhythm, Role, Scope, Severity, UpdateEventInput, User,
 };
-use crate::repositories::{EventRepository, EventReviewRepository};
-use crate::services::{ServiceService, notify, scope_of};
+use crate::repositories::{EventRepository, EventReviewRepository, SeriesRepository};
+use crate::services::{SeriesService, ServiceService, notify, scope_of};
 
-/// How often announced maintenances are started and completed.
+/// How often announced maintenances are started and completed, and
+/// repeating ones given their next session.
 const SCHEDULE_INTERVAL: Duration = Duration::from_secs(60);
 
 const MAX_TITLE_CHARS: usize = 200;
@@ -25,25 +26,39 @@ pub struct EventService;
 
 impl EventService {
     pub async fn create(pool: &DbPool, input: CreateEventInput) -> Result<Event, AppError> {
-        if let Some(key) = event_field_error(&input.title)
-            .or_else(|| severity_error(input.kind, input.severity))
-            .or_else(|| opening_step_error(input.kind, input.opening_step))
-            .or_else(|| began_error(input.started_at))
-            .or_else(|| {
-                let start = if input.planned {
-                    input.planned_start
-                } else {
-                    Some(Utc::now())
-                };
-                schedule_error(input.kind, input.planned, start, input.planned_end)
-            })
-        {
+        Self::announce(pool, input, None).await
+    }
+
+    /// Announces a maintenance that comes back every week or every month:
+    /// its series and first session, told once like any announced
+    /// maintenance. A session needs an end to repeat.
+    pub async fn create_series(
+        pool: &DbPool,
+        input: CreateEventInput,
+        rhythm: Rhythm,
+    ) -> Result<Event, AppError> {
+        Self::announce(pool, input, Some(rhythm)).await
+    }
+
+    async fn announce(
+        pool: &DbPool,
+        input: CreateEventInput,
+        rhythm: Option<Rhythm>,
+    ) -> Result<Event, AppError> {
+        if let Some(key) = creation_error(&input) {
             return Err(AppError::validation(key));
         }
         let mut input = input;
         input.follows_event_id =
             followed_maintenance(pool, input.kind, input.follows_event_id).await?;
-        let event = EventRepository::create(pool, &input).await?;
+        let event = match rhythm {
+            None => EventRepository::create(pool, &input).await?,
+            Some(rhythm) => {
+                let series = NewSeries::from_first(rhythm, &input)
+                    .ok_or_else(|| AppError::validation("validation.repeat_needs_duration"))?;
+                SeriesRepository::create(pool, &series, &input).await?
+            }
+        };
         if affects_services(event.kind) {
             ServiceService::recalculate_many(pool, &input.service_ids).await?;
         }
@@ -236,12 +251,14 @@ impl EventService {
     }
 
     /// Starts and completes the announced maintenances whose time has come,
-    /// then refreshes the services they touch. Returns how many changed.
-    pub async fn apply_schedule(pool: &DbPool) -> Result<usize, AppError> {
-        let now = Utc::now();
+    /// refreshes the services they touch, then gives each repeating
+    /// maintenance its next session. A session of a repeating maintenance
+    /// starts and ends in silence: the series was announced once. Returns
+    /// how many maintenances changed or were added.
+    pub async fn apply_schedule(pool: &DbPool, now: DateTime<Utc>) -> Result<usize, AppError> {
         let started = EventRepository::start_due_maintenance(pool, now).await?;
         let completed = EventRepository::complete_due_maintenance(pool, now).await?;
-        let mut changed: Vec<i64> = started.iter().chain(&completed).copied().collect();
+        let mut changed: Vec<i64> = started.iter().chain(&completed).map(|m| m.id).collect();
         changed.sort_unstable();
         changed.dedup();
         for id in &changed {
@@ -251,14 +268,15 @@ impl EventService {
             (started, Happening::Started, Lifecycle::InProgress),
             (completed, Happening::Closed, Lifecycle::Completed),
         ];
-        for (ids, happening, lifecycle) in moves {
-            for id in ids {
+        for (due, happening, lifecycle) in moves {
+            for moved in due.into_iter().filter(|m| !m.repeats) {
                 let notification =
-                    Notification::event(happening, Kind::Maintenance, id, Some(lifecycle));
+                    Notification::event(happening, Kind::Maintenance, moved.id, Some(lifecycle));
                 notify(pool, notification).await;
             }
         }
-        Ok(changed.len())
+        let added = SeriesService::add_due_sessions(pool, now).await?;
+        Ok(changed.len() + added)
     }
 }
 
@@ -270,7 +288,7 @@ pub fn spawn_maintenance_schedule(pool: DbPool) -> AbortHandle {
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             ticker.tick().await;
-            match EventService::apply_schedule(&pool).await {
+            match EventService::apply_schedule(&pool, Utc::now()).await {
                 Ok(0) => {}
                 Ok(count) => tracing::info!(count, "Maintenance schedule applied"),
                 Err(e) => tracing::warn!(error = %e, "Maintenance schedule failed"),
@@ -283,6 +301,22 @@ pub fn spawn_maintenance_schedule(pool: DbPool) -> AbortHandle {
 /// When the team says its next update is due, read from what it wrote.
 pub fn read_next_update(text: &str) -> Result<Option<NextUpdate>, AppError> {
     NextUpdate::parse(text, Utc::now()).map_err(|_| AppError::validation("validation.next_update"))
+}
+
+/// What keeps a new event from being saved, as a message key.
+fn creation_error(input: &CreateEventInput) -> Option<&'static str> {
+    event_field_error(&input.title)
+        .or_else(|| severity_error(input.kind, input.severity))
+        .or_else(|| opening_step_error(input.kind, input.opening_step))
+        .or_else(|| began_error(input.started_at))
+        .or_else(|| {
+            let start = if input.planned {
+                input.planned_start
+            } else {
+                Some(Utc::now())
+            };
+            schedule_error(input.kind, input.planned, start, input.planned_end)
+        })
 }
 
 /// Title rules as a message key, so a route can re-render the form with
@@ -483,6 +517,8 @@ mod tests {
             updated_at: Utc::now(),
             next_update_at: None,
             update_every_minutes: None,
+            series_id: None,
+            added_by_schedule: false,
         }
     }
 

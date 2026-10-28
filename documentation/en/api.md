@@ -178,6 +178,8 @@ curl https://status.example.com/api/v1/events \
 
 A field that does not fit the kind is left out, as the form does.
 
+A maintenance that repeats is set in the app ([Maintenance](maintenance.md#repeat)); the API reads and changes each of its sessions as an ordinary maintenance.
+
 ### Post an update
 
 `POST /api/v1/events/7/updates`, with a `message` in Markdown, a new `state`, or both, and for an incident a `next_update`:

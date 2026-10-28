@@ -130,7 +130,7 @@ There is no percentage: the caption counts the days with an incident.
 
 ## Delete a service
 
-A service that no event ever named can be deleted from its form, under **Delete the service**. It leaves without a trace, its detected outages included.
+A service that no event ever named, and no [repeating maintenance](maintenance.md#repeat) still running names, can be deleted from its form, under **Delete the service**. It leaves without a trace, its detected outages included.
 
 A service that events name is kept, so their history stays whole. To stop showing it on the dashboard, an administrator leaves it out in **Arrange** on the dashboard: see [Settings](settings.md#arrange-the-dashboard). A service left out comes back as soon as it is not **Operational**.
 

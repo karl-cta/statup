@@ -17,7 +17,8 @@ use crate::journal;
 use crate::models::{Channel, ChannelKind, Delivery, Happening, JournalKind, Scope};
 use crate::repositories::{
     EventRepository, EventReviewRepository, MemberNoticeRepository, NewJournalEntry,
-    NotificationRepository, OutageRepository, ServiceRepository, SettingsRepository,
+    NotificationRepository, OutageRepository, SeriesRepository, ServiceRepository,
+    SettingsRepository,
 };
 use crate::services::{sanitize_markdown, tell_delivery_failed};
 
@@ -253,10 +254,19 @@ pub(super) async fn load_event(
             .map(|update| update.message),
         (_, None) => None,
     };
+    let rhythm = match found.event.series_id {
+        Some(series_id) if reading.happening == Happening::Opened => {
+            SeriesRepository::find_active(pool, series_id)
+                .await?
+                .map(|series| series.recurrence)
+        }
+        _ => None,
+    };
     Ok(Some(Subject::Event {
         event: Box::new(found.event),
         services: found.services.into_iter().map(|s| s.name).collect(),
         message,
+        rhythm,
     }))
 }
 
@@ -402,9 +412,10 @@ mod tests {
     use super::*;
     use crate::models::{
         ChannelInput, ChannelKind, CreateEventInput, DeliveryStatus, Happening, Kind, Lifecycle,
-        Notification, Role, Severity,
+        Notification, Rhythm, Role, Severity,
     };
     use crate::repositories::UserRepository;
+    use crate::services::EventService;
     use crate::services::Finding;
     use crate::test_helpers::test_pool;
 
@@ -865,6 +876,62 @@ mod tests {
                 .await
                 .iter()
                 .all(|d| d.status == DeliveryStatus::Sent)
+        );
+    }
+
+    async fn rhythm_of(
+        pool: &DbPool,
+        event_id: i64,
+        happening: Happening,
+    ) -> Option<crate::models::Recurrence> {
+        let reading = Reading {
+            happening,
+            update_id: None,
+            scope: &Scope::All,
+        };
+        match load_event(pool, event_id, &reading).await.unwrap() {
+            Some(Subject::Event { rhythm, .. }) => rhythm,
+            _ => None,
+        }
+    }
+
+    #[tokio::test]
+    async fn the_announce_of_a_repeating_maintenance_carries_its_rhythm() {
+        let pool = test_pool().await;
+        let author = UserRepository::create(&pool, "ops@example.com", "hash", "Ops", Role::Admin)
+            .await
+            .unwrap();
+        let start = Utc::now() + Delay::days(3);
+        let input = CreateEventInput {
+            kind: Kind::Maintenance,
+            severity: None,
+            planned: true,
+            category: None,
+            title: "Backups".to_string(),
+            description: String::new(),
+            planned_start: Some(start),
+            planned_end: Some(start + Delay::hours(2)),
+            started_at: None,
+            opening_step: None,
+            keeps_services_up: false,
+            service_ids: Vec::new(),
+            follows_event_id: None,
+            author_id: author.id,
+            api_key_id: None,
+            next_update: None,
+        };
+        let event = EventService::create_series(&pool, input, Rhythm::Weekly)
+            .await
+            .unwrap();
+        assert!(
+            rhythm_of(&pool, event.id, Happening::Opened)
+                .await
+                .is_some()
+        );
+        assert!(
+            rhythm_of(&pool, event.id, Happening::Rescheduled)
+                .await
+                .is_none()
         );
     }
 }

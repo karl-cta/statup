@@ -178,6 +178,8 @@ curl https://status.example.com/api/v1/events \
 
 Un champ qui ne convient pas au type est laissé de côté, comme le fait le formulaire.
 
+Une maintenance qui se répète se règle dans l'application ([Maintenances](maintenance.md#repeat)) ; l'API lit et modifie chacune de ses séances comme une maintenance ordinaire.
+
 ### Publier une mise à jour
 
 `POST /api/v1/events/7/updates`, avec un `message` en Markdown, un nouvel `state`, ou les deux, et pour un incident un `next_update` :
