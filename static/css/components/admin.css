@@ -165,9 +165,40 @@
         transition: opacity 80ms ease-out;
     }
 
-    .swatch:hover .swatch-name,
+    /* A touch screen keeps a hover after the tap: the bubble would stay over
+       the label, so it answers a real pointer and the keyboard only. */
     .swatch:has(:focus-visible) .swatch-name {
         opacity: 1;
+    }
+
+    @media (hover: hover) {
+        .swatch:hover .swatch-name {
+            opacity: 1;
+        }
+    }
+
+    /* Once the control goes under its label, two rows of six, each swatch a
+       size a thumb can take. */
+    @media (max-width: 720px) {
+        .swatches {
+            display: grid;
+            grid-template-columns: repeat(6, 40px);
+            justify-content: space-between;
+            gap: 10px 0;
+            max-width: 22rem;
+        }
+
+        .swatch {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+        }
+
+        .swatch .swatch-chip {
+            width: 30px;
+            height: 30px;
+            border-radius: 5px;
+        }
     }
 
     .swatch-chip {
