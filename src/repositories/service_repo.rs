@@ -281,11 +281,20 @@ impl ServiceRepository {
         Ok(true)
     }
 
+    /// Named by an event, or by a repeating maintenance still running: its
+    /// next sessions take their visibility from their services, and would be
+    /// open to everyone once the last restricted one is gone.
     pub async fn has_events(pool: &DbPool, service_id: i64) -> Result<bool, sqlx::Error> {
-        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM event_services WHERE service_id = ?)")
-            .bind(service_id)
-            .fetch_one(pool)
-            .await
+        sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM event_services WHERE service_id = ?)
+                 OR EXISTS(SELECT 1 FROM maintenance_series_services ss
+                           JOIN maintenance_series s ON s.id = ss.series_id
+                           WHERE ss.service_id = ? AND s.stopped_at IS NULL)",
+        )
+        .bind(service_id)
+        .bind(service_id)
+        .fetch_one(pool)
+        .await
     }
 
     /// The ids of the services this reader may see, with the count of all

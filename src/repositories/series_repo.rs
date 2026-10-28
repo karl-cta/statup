@@ -453,6 +453,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_service_of_a_running_series_is_kept_until_it_stops() {
+        let pool = test_pool().await;
+        let (author, services) = seed(&pool).await;
+        let start = Utc.with_ymd_and_hms(2026, 11, 1, 2, 0, 0).unwrap();
+        let input = first(author, services.clone(), start);
+        let new = NewSeries::from_first(Rhythm::Weekly, &input).unwrap();
+        let event = SeriesRepository::create(&pool, &new, &input).await.unwrap();
+        EventRepository::delete(&pool, event.id).await.unwrap();
+
+        assert!(
+            ServiceRepository::has_events(&pool, services[0])
+                .await
+                .unwrap()
+        );
+
+        sqlx::query("UPDATE maintenance_series SET stopped_at = CURRENT_TIMESTAMP WHERE id = ?")
+            .bind(event.series_id.unwrap())
+            .execute(&pool)
+            .await
+            .unwrap();
+        assert!(
+            !ServiceRepository::has_events(&pool, services[0])
+                .await
+                .unwrap()
+        );
+    }
+
+    #[tokio::test]
     async fn a_series_read_before_a_change_gets_no_session() {
         let pool = test_pool().await;
         let (author, services) = seed(&pool).await;
