@@ -39,38 +39,24 @@ pub fn set_instance_logo(filename: &str) {
         .unwrap_or_else(PoisonError::into_inner) = filename.to_string();
 }
 
-/// The accent colour the host chose, the default until they pick one.
-static INSTANCE_ACCENT: RwLock<models::Accent> = RwLock::new(models::Accent::Ink);
+/// The colour and ambiance the host chose, the defaults until they pick.
+static INSTANCE_THEME: RwLock<models::Theme> = RwLock::new(models::Theme {
+    accent: models::Accent::Ink,
+    ambiance: models::Ambiance::Sand,
+});
 
-/// The ambiance the host chose, the default until they pick one.
-static INSTANCE_AMBIANCE: RwLock<models::Ambiance> = RwLock::new(models::Ambiance::Sand);
-
-/// The accent colour every page is drawn with.
-pub fn instance_accent() -> models::Accent {
-    *INSTANCE_ACCENT
+/// The colour and ambiance every page is drawn with.
+pub fn instance_theme() -> models::Theme {
+    *INSTANCE_THEME
         .read()
         .unwrap_or_else(PoisonError::into_inner)
 }
 
-/// Stores the accent colour for every later render.
-pub fn set_instance_accent(accent: models::Accent) {
-    *INSTANCE_ACCENT
+/// Stores the colour and ambiance for every later render.
+pub fn set_instance_theme(theme: models::Theme) {
+    *INSTANCE_THEME
         .write()
-        .unwrap_or_else(PoisonError::into_inner) = accent;
-}
-
-/// The ambiance every page is drawn with.
-pub fn instance_ambiance() -> models::Ambiance {
-    *INSTANCE_AMBIANCE
-        .read()
-        .unwrap_or_else(PoisonError::into_inner)
-}
-
-/// Stores the ambiance for every later render.
-pub fn set_instance_ambiance(ambiance: models::Ambiance) {
-    *INSTANCE_AMBIANCE
-        .write()
-        .unwrap_or_else(PoisonError::into_inner) = ambiance;
+        .unwrap_or_else(PoisonError::into_inner) = theme;
 }
 
 /// The instance's own name, or an empty string when none was set.

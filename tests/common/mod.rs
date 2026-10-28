@@ -251,6 +251,29 @@ impl TestApp {
     }
 
     /// The CSRF token of a page.
+    /// The page step of the first launch, sent as multipart with an empty
+    /// logo, as the browser sends it.
+    pub async fn save_setup_page(&self, name: &str, access: &str) -> reqwest::Response {
+        let csrf = self.csrf_from("/setup/page").await;
+        let field = |key: &str, value: &str| {
+            format!("--statup\r\nContent-Disposition: form-data; name=\"{key}\"\r\n\r\n{value}\r\n")
+        };
+        let body = format!(
+            "{}{}{}--statup\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\"\r\n\
+             Content-Type: application/octet-stream\r\n\r\n\r\n--statup--\r\n",
+            field("csrf_token", &csrf),
+            field("instance_name", name),
+            field("access", access),
+        );
+        self.client
+            .post(self.url("/setup/page"))
+            .header("content-type", "multipart/form-data; boundary=statup")
+            .body(body.into_bytes())
+            .send()
+            .await
+            .expect("page step failed")
+    }
+
     pub async fn csrf_from(&self, path: &str) -> String {
         let (_, body) = self.get(path).await;
         extract_csrf_token(&body)

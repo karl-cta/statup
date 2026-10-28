@@ -714,6 +714,7 @@
     // A form whose changes wait for its button: leaving before it is sent
     // asks first, in the browser's own words, and its note says so.
     function showUnsaved(form, unsaved) {
+        if (("unsaved" in form.dataset) === unsaved) return;
         if (unsaved) form.dataset.unsaved = "1";
         else delete form.dataset.unsaved;
         form.querySelectorAll("[data-unsaved-note]").forEach((note) => (note.hidden = !unsaved));

@@ -124,6 +124,13 @@ impl Ambiance {
     }
 }
 
+/// The colour and the ambiance together, as they are saved and drawn.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Theme {
+    pub accent: Accent,
+    pub ambiance: Ambiance,
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;

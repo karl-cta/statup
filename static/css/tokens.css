@@ -70,14 +70,13 @@
     --focus: var(--ink);
     --focus-halo: color-mix(in srgb, var(--ink) 12%, transparent);
 
-    /* The host's accent, when one is chosen, takes the action roles and the
-       rules of the masthead. Text keeps the ink. */
+    /* The host's accent, when one is chosen, takes the action roles and, by
+       them, the rules of the masthead. Text keeps the ink. */
     --primary: var(--ink);
     --primary-hover: var(--color-ink-deep);
     --primary-active: #000000;
     --on-primary: var(--color-sand-light);
     --primary-sheen: rgb(250 248 242 / 0.14);
-    --accent-line: var(--ink);
 
     --shadow-menu: 0 10px 28px -14px rgb(28 27 24 / 0.22), 0 2px 6px -2px rgb(28 27 24 / 0.08);
     --shadow-drawer: -20px 0 48px rgb(28 27 24 / 0.18);
@@ -156,77 +155,66 @@
     --primary: #1F3D69;
     --primary-hover: #14325D;
     --primary-active: #0A2752;
-    --accent-line: var(--primary);
 }
 
 [data-accent="cobalt"] {
     --primary: #2B51AA;
     --primary-hover: #21459D;
     --primary-active: #163990;
-    --accent-line: var(--primary);
 }
 
 [data-accent="teal"] {
     --primary: #115D65;
     --primary-hover: #00525A;
     --primary-active: #00474E;
-    --accent-line: var(--primary);
 }
 
 [data-accent="pine"] {
     --primary: #28523C;
     --primary-hover: #1C4732;
     --primary-active: #103C28;
-    --accent-line: var(--primary);
 }
 
 [data-accent="rose"] {
     --primary: #AF2E70;
     --primary-hover: #A21F64;
     --primary-active: #940A59;
-    --accent-line: var(--primary);
 }
 
 [data-accent="violet"] {
     --primary: #58428D;
     --primary-hover: #4E3680;
     --primary-active: #432B74;
-    --accent-line: var(--primary);
 }
 
 [data-accent="burgundy"] {
     --primary: #762331;
     --primary-hover: #691726;
     --primary-active: #5D081D;
-    --accent-line: var(--primary);
 }
 
 [data-accent="brick"] {
     --primary: #9A412B;
     --primary-hover: #8D351F;
     --primary-active: #802913;
-    --accent-line: var(--primary);
 }
 
 [data-accent="copper"] {
     --primary: #8F521B;
     --primary-hover: #82470A;
     --primary-active: #763B00;
-    --accent-line: var(--primary);
 }
 
 [data-accent="cocoa"] {
     --primary: #543C2F;
     --primary-hover: #493225;
     --primary-active: #3E281B;
-    --accent-line: var(--primary);
 }
 
 [data-accent="slate"] {
     --primary: #434E5B;
     --primary-hover: #38444F;
     --primary-active: #2E3945;
-    --accent-line: var(--primary);
 }
 
 .dark {

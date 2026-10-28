@@ -7,7 +7,7 @@ use chrono_tz::Tz;
 use crate::clock;
 use crate::db::DbPool;
 use crate::error::AppError;
-use crate::models::{Accent, Ambiance};
+use crate::models::{Accent, Ambiance, Theme};
 use crate::repositories::SettingsRepository;
 use crate::services::LOGO_SETTING;
 use crate::state::AppState;
@@ -40,13 +40,17 @@ impl SettingsService {
             clock::set_zone(zone);
         }
         let accent = SettingsRepository::get(pool, ACCENT_SETTING).await?;
-        if let Some(accent) = accent.as_deref().and_then(Accent::parse) {
-            crate::set_instance_accent(accent);
-        }
         let ambiance = SettingsRepository::get(pool, AMBIANCE_SETTING).await?;
-        if let Some(ambiance) = ambiance.as_deref().and_then(Ambiance::parse) {
-            crate::set_instance_ambiance(ambiance);
-        }
+        crate::set_instance_theme(Theme {
+            accent: accent
+                .as_deref()
+                .and_then(Accent::parse)
+                .unwrap_or_default(),
+            ambiance: ambiance
+                .as_deref()
+                .and_then(Ambiance::parse)
+                .unwrap_or_default(),
+        });
         let public = SettingsRepository::get(pool, PUBLIC_MODE_SETTING).await?;
         Ok(public.map_or(default_public, |stored| stored == "true"))
     }
@@ -86,15 +90,10 @@ impl SettingsService {
     }
 
     /// The accent colour and ambiance every page is drawn with.
-    pub async fn set_theme(
-        pool: &DbPool,
-        accent: Accent,
-        ambiance: Ambiance,
-    ) -> Result<(), AppError> {
-        SettingsRepository::set(pool, ACCENT_SETTING, accent.as_str()).await?;
-        SettingsRepository::set(pool, AMBIANCE_SETTING, ambiance.as_str()).await?;
-        crate::set_instance_accent(accent);
-        crate::set_instance_ambiance(ambiance);
+    pub async fn set_theme(pool: &DbPool, theme: Theme) -> Result<(), AppError> {
+        SettingsRepository::set(pool, ACCENT_SETTING, theme.accent.as_str()).await?;
+        SettingsRepository::set(pool, AMBIANCE_SETTING, theme.ambiance.as_str()).await?;
+        crate::set_instance_theme(theme);
         Ok(())
     }
 }
@@ -124,17 +123,15 @@ mod tests {
     #[tokio::test]
     async fn the_theme_is_stored_and_an_unknown_stored_value_keeps_the_default() {
         let pool = test_pool().await;
-        SettingsService::set_theme(&pool, Accent::Navy, Ambiance::Mist)
-            .await
-            .unwrap();
-        crate::set_instance_accent(Accent::default());
-        crate::set_instance_ambiance(Ambiance::default());
+        let chosen = Theme {
+            accent: Accent::Navy,
+            ambiance: Ambiance::Mist,
+        };
+        SettingsService::set_theme(&pool, chosen).await.unwrap();
+        crate::set_instance_theme(Theme::default());
         SettingsService::load(&pool, true).await.unwrap();
-        assert_eq!(crate::instance_accent(), Accent::Navy);
-        assert_eq!(crate::instance_ambiance(), Ambiance::Mist);
+        assert_eq!(crate::instance_theme(), chosen);
 
-        crate::set_instance_accent(Accent::default());
-        crate::set_instance_ambiance(Ambiance::default());
         SettingsRepository::set(&pool, ACCENT_SETTING, "neon")
             .await
             .unwrap();
@@ -142,7 +139,6 @@ mod tests {
             .await
             .unwrap();
         SettingsService::load(&pool, true).await.unwrap();
-        assert_eq!(crate::instance_accent(), Accent::default());
-        assert_eq!(crate::instance_ambiance(), Ambiance::default());
+        assert_eq!(crate::instance_theme(), Theme::default());
     }
 }

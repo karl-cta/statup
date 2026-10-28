@@ -3,10 +3,10 @@
 // reloads the saved ones.
 (function () {
     const root = document.documentElement;
-    const defaults = { accent: "ink", ambiance: "sand" };
+    const names = ["accent", "ambiance"];
 
     function wear(input) {
-        if (input.value === defaults[input.name]) {
+        if (input.hasAttribute("data-default")) {
             delete root.dataset[input.name];
         } else {
             root.dataset[input.name] = input.value;
@@ -20,7 +20,7 @@
 
     document.addEventListener("change", (event) => {
         const input = event.target;
-        if (input instanceof HTMLInputElement && input.name in defaults) {
+        if (input instanceof HTMLInputElement && names.includes(input.name)) {
             wear(input);
         }
     });

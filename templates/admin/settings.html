@@ -129,19 +129,19 @@
                     <div class="swatches" role="radiogroup" aria-labelledby="accent-label">
                         {% for accent in Accent::ALL %}
                         <label class="swatch" title="{{ i18n.t(accent.label_key()) }}">
-                            <input type="radio" name="accent" value="{{ accent.as_str() }}" class="sr-only"{% if accent.as_str() == chosen_accent.as_str() %} checked{% endif %}>
+                            <input type="radio" name="accent" value="{{ accent.as_str() }}" class="sr-only"{% if accent.as_str() == chosen.accent.as_str() %} checked{% endif %}{% if accent.attribute().is_none() %} data-default{% endif %}>
                             <span class="swatch-chip"{% if let Some(id) = accent.attribute() %} data-accent="{{ id }}"{% endif %} aria-hidden="true"></span>
                             <span class="sr-only">{{ i18n.t(accent.label_key()) }}</span>
                         </label>
                         {% endfor %}
-                        <span class="swatch-name" aria-hidden="true" data-accent-name>{{ i18n.t(chosen_accent.label_key()) }}</span>
+                        <span class="swatch-name" aria-hidden="true" data-accent-name>{{ i18n.t(chosen.accent.label_key()) }}</span>
                     </div>
                 </div>
                 <div class="set-row">
                     <p id="ambiance-label" class="set-label">{{ i18n.t("admin.ambiance") }}</p>
                     <div class="segmented" role="radiogroup" aria-labelledby="ambiance-label">
                         {% for ambiance in Ambiance::ALL %}
-                        <label class="choice"><input type="radio" name="ambiance" value="{{ ambiance.as_str() }}" class="sr-only"{% if ambiance.as_str() == chosen_ambiance.as_str() %} checked{% endif %}><span>{{ i18n.t(ambiance.label_key()) }}</span></label>
+                        <label class="choice"><input type="radio" name="ambiance" value="{{ ambiance.as_str() }}" class="sr-only"{% if ambiance.as_str() == chosen.ambiance.as_str() %} checked{% endif %}{% if ambiance.attribute().is_none() %} data-default{% endif %}><span>{{ i18n.t(ambiance.label_key()) }}</span></label>
                         {% endfor %}
                     </div>
                 </div>

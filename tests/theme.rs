@@ -80,27 +80,6 @@ async fn journal_details(app: &TestApp) -> Vec<String> {
 }
 
 /// The setup's page step, which sends no theme fields.
-async fn save_setup_page(app: &TestApp) -> StatusCode {
-    let csrf = app.csrf_from("/setup/page").await;
-    let field = |key: &str, value: &str| {
-        format!("--statup\r\nContent-Disposition: form-data; name=\"{key}\"\r\n\r\n{value}\r\n")
-    };
-    let body = format!(
-        "{}{}{}--statup--\r\n",
-        field("csrf_token", &csrf),
-        field("instance_name", "Acme"),
-        field("access", "members"),
-    );
-    app.client
-        .post(app.url("/setup/page"))
-        .header("content-type", "multipart/form-data; boundary=statup")
-        .body(body.into_bytes())
-        .send()
-        .await
-        .expect("page step failed")
-        .status()
-}
-
 #[tokio::test]
 async fn the_theme_is_chosen_in_the_settings_and_kept_until_changed() {
     let app = spawn_with_admin().await;
@@ -126,7 +105,10 @@ async fn the_theme_is_chosen_in_the_settings_and_kept_until_changed() {
     assert!(body.contains(&refusal_text()), "{body}");
     assert_theme_on_pages(&app, Some("navy"), Some("pebble")).await;
 
-    assert_eq!(save_setup_page(&app).await, StatusCode::SEE_OTHER);
+    assert_eq!(
+        app.save_setup_page("Acme", "members").await.status(),
+        StatusCode::SEE_OTHER
+    );
     assert_theme_on_pages(&app, Some("navy"), Some("pebble")).await;
 
     let (status, _, _) = app.save_settings(&[("accent", "cobalt")], None).await;

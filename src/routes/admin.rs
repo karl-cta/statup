@@ -12,7 +12,7 @@ use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::headers::no_store;
 use crate::middleware::{CsrfToken, HtmlForm, RequireAdmin};
-use crate::models::{Accent, Ambiance, JournalKind, Role, User, check_display_name};
+use crate::models::{Accent, Ambiance, JournalKind, Role, Theme, User, check_display_name};
 use crate::repositories::{
     ApiKeyRepository, GroupRepository, NewJournalEntry, NotificationRepository, UserRepository,
 };
@@ -33,8 +33,7 @@ struct SettingsPageTemplate {
     /// The zone shown as chosen, and the ones it may switch to.
     time_zone: String,
     /// The colour and ambiance shown as chosen.
-    chosen_accent: Accent,
-    chosen_ambiance: Ambiance,
+    chosen: Theme,
     zones: Vec<&'static str>,
     users_count: i64,
     admins_count: i64,
@@ -93,8 +92,7 @@ impl SettingsPageTemplate {
 struct SettingsPage {
     instance_name: String,
     time_zone: String,
-    accent: Accent,
-    ambiance: Ambiance,
+    theme: Theme,
     public_mode: bool,
     notice: Option<SettingsNotice>,
     error: Option<String>,
@@ -105,8 +103,7 @@ impl SettingsPage {
         Self {
             instance_name: crate::instance_name(),
             time_zone: clock::zone().name().to_string(),
-            accent: crate::instance_accent(),
-            ambiance: crate::instance_ambiance(),
+            theme: crate::instance_theme(),
             public_mode: state.is_public_mode(),
             notice: None,
             error: None,
@@ -118,16 +115,7 @@ impl SettingsPage {
         Self {
             instance_name: input.instance_name.trim().to_string(),
             time_zone: input.time_zone.clone().unwrap_or(saved.time_zone),
-            accent: input
-                .accent
-                .as_deref()
-                .and_then(Accent::parse)
-                .unwrap_or(saved.accent),
-            ambiance: input
-                .ambiance
-                .as_deref()
-                .and_then(Ambiance::parse)
-                .unwrap_or(saved.ambiance),
+            theme: input.theme().unwrap_or(saved.theme),
             public_mode: match input.access.as_str() {
                 "everyone" => true,
                 "members" => false,
@@ -319,8 +307,7 @@ async fn render_settings(
         notice: page.notice,
         error: page.error,
         time_zone: page.time_zone,
-        chosen_accent: page.accent,
-        chosen_ambiance: page.ambiance,
+        chosen: page.theme,
         zones: clock::zone_names(),
         users_count: UserRepository::count_all(&state.pool).await?,
         admins_count: UserRepository::count_admins(&state.pool).await?,

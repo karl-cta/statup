@@ -29,7 +29,7 @@
         top: 0;
         z-index: 40;
         background: var(--ground);
-        border-bottom: 2px solid var(--accent-line);
+        border-bottom: 2px solid var(--primary);
     }
 
     .mast-inner {
@@ -154,7 +154,7 @@
     [data-section="events"] .mnav[data-nav="events"] .mnav-bar,
     [data-section="services"] .mnav[data-nav="services"] .mnav-bar,
     [data-section="admin"] .mnav[data-nav="admin"] .mnav-bar {
-        background: var(--accent-line);
+        background: var(--primary);
         opacity: 1;
         transform: none;
     }
@@ -733,7 +733,7 @@
         left: -12px;
         width: 3px;
         height: 18px;
-        background: var(--accent-line);
+        background: var(--primary);
         border-radius: 2px;
         transform: translateY(-50%);
     }

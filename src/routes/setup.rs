@@ -17,7 +17,7 @@ use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, HtmlForm, RequireAdmin};
 use crate::models::{
-    Accent, Ambiance, CheckKind, JournalKind, MAX_ICON_SIZE, Service, ServiceCheck, User,
+    Accent, Ambiance, CheckKind, JournalKind, MAX_ICON_SIZE, Service, ServiceCheck, Theme, User,
 };
 use crate::repositories::{NewJournalEntry, ServiceRepository};
 use crate::services::{LogoService, ServiceService, SettingsService};
@@ -246,14 +246,28 @@ pub(super) struct GeneralInput {
     pub(super) access: String,
     pub(super) time_zone: Option<String>,
     /// Absent from the setup, which leaves the theme as it is.
-    pub(super) accent: Option<String>,
-    pub(super) ambiance: Option<String>,
+    accent: Option<Accent>,
+    ambiance: Option<Ambiance>,
     logo: Vec<u8>,
 }
 
 impl GeneralInput {
+    /// The theme this save sets, the saved one filling what it does not
+    /// send; none when it sends neither, as the setup does.
+    pub(super) fn theme(&self) -> Option<Theme> {
+        if self.accent.is_none() && self.ambiance.is_none() {
+            return None;
+        }
+        let saved = crate::instance_theme();
+        Some(Theme {
+            accent: self.accent.unwrap_or(saved.accent),
+            ambiance: self.ambiance.unwrap_or(saved.ambiance),
+        })
+    }
+
     /// What this save would change, named in English. Read before saving.
     pub(super) fn changed_fields(&self, state: &AppState) -> Vec<&'static str> {
+        let saved = crate::instance_theme();
         let changes = [
             ("name", self.instance_name.trim() != crate::instance_name()),
             ("logo", !self.logo.is_empty()),
@@ -269,14 +283,12 @@ impl GeneralInput {
             ),
             (
                 "accent",
-                differs(self.accent.as_deref(), crate::instance_accent().as_str()),
+                self.accent.is_some_and(|accent| accent != saved.accent),
             ),
             (
                 "ambiance",
-                differs(
-                    self.ambiance.as_deref(),
-                    crate::instance_ambiance().as_str(),
-                ),
+                self.ambiance
+                    .is_some_and(|ambiance| ambiance != saved.ambiance),
             ),
         ];
         changes
@@ -286,17 +298,9 @@ impl GeneralInput {
     }
 }
 
-fn differs(sent: Option<&str>, saved: &str) -> bool {
-    sent.is_some_and(|value| value != saved)
-}
-
 /// A theme choice from the form, refused unless it names one of the list.
-fn parse_choice<T>(
-    sent: Option<&str>,
-    parse: fn(&str) -> Option<T>,
-) -> Result<Option<T>, AppError> {
-    sent.map(|value| parse(value).ok_or_else(|| AppError::validation("validation.unknown_theme")))
-        .transpose()
+fn theme_choice<T>(sent: &str, parse: fn(&str) -> Option<T>) -> Result<T, AppError> {
+    parse(sent).ok_or_else(|| AppError::validation("validation.unknown_theme"))
 }
 
 /// The general settings were saved, from the settings page or the setup.
@@ -318,8 +322,14 @@ pub(super) async fn read_general(multipart: &mut Multipart) -> Result<GeneralInp
             }
             Some("access") => input.access = field.text().await.map_err(unreadable)?,
             Some("time_zone") => input.time_zone = Some(field.text().await.map_err(unreadable)?),
-            Some("accent") => input.accent = Some(field.text().await.map_err(unreadable)?),
-            Some("ambiance") => input.ambiance = Some(field.text().await.map_err(unreadable)?),
+            Some("accent") => {
+                let sent = field.text().await.map_err(unreadable)?;
+                input.accent = Some(theme_choice(&sent, Accent::parse)?);
+            }
+            Some("ambiance") => {
+                let sent = field.text().await.map_err(unreadable)?;
+                input.ambiance = Some(theme_choice(&sent, Ambiance::parse)?);
+            }
             Some("file") => input.logo = field.bytes().await.map_err(unreadable)?.to_vec(),
             _ => {}
         }
@@ -348,8 +358,6 @@ pub(super) async fn apply_general(state: &AppState, input: &GeneralInput) -> Res
         ),
         None => None,
     };
-    let accent = parse_choice(input.accent.as_deref(), Accent::parse)?;
-    let ambiance = parse_choice(input.ambiance.as_deref(), Ambiance::parse)?;
     if !input.logo.is_empty() {
         LogoService::replace(&state.pool, &state.upload_dir, input.logo.clone()).await?;
     }
@@ -357,10 +365,8 @@ pub(super) async fn apply_general(state: &AppState, input: &GeneralInput) -> Res
     if let Some(zone) = zone {
         SettingsService::set_time_zone(&state.pool, zone).await?;
     }
-    if accent.is_some() || ambiance.is_some() {
-        let accent = accent.unwrap_or_else(crate::instance_accent);
-        let ambiance = ambiance.unwrap_or_else(crate::instance_ambiance);
-        SettingsService::set_theme(&state.pool, accent, ambiance).await?;
+    if let Some(theme) = input.theme() {
+        SettingsService::set_theme(&state.pool, theme).await?;
     }
     SettingsService::set_public_mode(state, public).await
 }

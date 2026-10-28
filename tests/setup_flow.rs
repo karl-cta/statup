@@ -26,38 +26,12 @@ async fn register(app: &TestApp) {
     assert_eq!(location.as_deref(), Some("/setup/page"));
 }
 
-/// The page step sends its fields as multipart, the logo among them.
-fn page_body(csrf: &str, name: &str, access: &str) -> Vec<u8> {
-    let field = |key: &str, value: &str| {
-        format!("--statup\r\nContent-Disposition: form-data; name=\"{key}\"\r\n\r\n{value}\r\n")
-    };
-    format!(
-        "{}{}{}--statup\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\"\r\n\
-         Content-Type: application/octet-stream\r\n\r\n\r\n--statup--\r\n",
-        field("csrf_token", csrf),
-        field("instance_name", name),
-        field("access", access),
-    )
-    .into_bytes()
-}
-
-async fn save_page(app: &TestApp, name: &str, access: &str) -> reqwest::Response {
-    let csrf = app.csrf_from("/setup/page").await;
-    app.client
-        .post(app.url("/setup/page"))
-        .header("content-type", "multipart/form-data; boundary=statup")
-        .body(page_body(&csrf, name, access))
-        .send()
-        .await
-        .expect("page step failed")
-}
-
 #[tokio::test]
 async fn the_first_launch_sets_up_the_page_and_its_services() {
     let app = TestApp::spawn().await;
     register(&app).await;
 
-    let response = save_page(&app, "Acme IT", "everyone").await;
+    let response = app.save_setup_page("Acme IT", "everyone").await;
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(
         response
@@ -124,7 +98,7 @@ async fn the_first_launch_sets_up_the_page_and_its_services() {
 async fn a_name_too_long_is_refused_on_the_page_step() {
     let app = TestApp::spawn().await;
     register(&app).await;
-    let response = save_page(&app, &"a".repeat(41), "members").await;
+    let response = app.save_setup_page(&"a".repeat(41), "members").await;
     assert_eq!(response.status(), StatusCode::OK, "refused in the page");
     let body = response.text().await.unwrap_or_default();
     assert!(body.contains("form-error"), "{body}");
