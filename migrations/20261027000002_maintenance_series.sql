@@ -44,6 +44,11 @@ CREATE INDEX idx_maintenance_series_services_service
 ALTER TABLE events ADD COLUMN series_id INTEGER
     REFERENCES maintenance_series(id) ON DELETE SET NULL;
 
+-- A session the schedule added after the one the series was announced
+-- with: nobody announced it, so it is not news.
+ALTER TABLE events ADD COLUMN added_by_schedule INTEGER NOT NULL DEFAULT 0
+    CHECK (added_by_schedule IN (0, 1));
+
 -- The schedule looks for active series without a session to come.
 CREATE INDEX idx_events_series ON events(series_id, lifecycle)
     WHERE series_id IS NOT NULL;

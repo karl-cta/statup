@@ -65,8 +65,8 @@ pub struct EventInput {
     next_update: String,
     #[serde(default)]
     repeats: Option<String>,
-    #[serde(default)]
-    repeat: String,
+    #[serde(default, deserialize_with = "super::deserialize_blank_as_none")]
+    repeat: Option<Rhythm>,
     #[serde(default)]
     also_following: Option<String>,
 }
@@ -122,7 +122,7 @@ impl EventInput {
     /// unless the month is chosen.
     fn rhythm(&self, kind: Kind) -> Option<Rhythm> {
         (self.planned(kind) && self.repeats.is_some())
-            .then(|| Rhythm::parse(&self.repeat).unwrap_or(Rhythm::Weekly))
+            .then(|| self.repeat.unwrap_or(Rhythm::Weekly))
     }
 
     /// The step an incident is declared at; only an incident has one.

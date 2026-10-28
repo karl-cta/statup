@@ -46,7 +46,8 @@ pub enum Subject {
         /// What was written with it, sanitized HTML: the update posted with
         /// the change, or the review published.
         message: Option<String>,
-        /// How a repeating maintenance comes back, told with its announce.
+        /// How a repeating maintenance comes back, loaded for its announce
+        /// only.
         rhythm: Option<Recurrence>,
     },
     /// Services the checks found down, or back, in one wave: the first one
@@ -147,10 +148,7 @@ impl AboutEvent<'_> {
     fn notice(&self, origin: &Origin, i18n: &I18n) -> Notice {
         let event = self.event;
         let services = (!self.services.is_empty()).then(|| self.services.join(", "));
-        let rhythm = self
-            .rhythm
-            .filter(|_| self.happening == Happening::Opened)
-            .map(|rhythm| rhythm.describe(i18n));
+        let rhythm = self.rhythm.map(|rhythm| rhythm.describe(i18n));
         let summary = [self.state(i18n), rhythm, services]
             .into_iter()
             .flatten()
@@ -410,6 +408,7 @@ mod tests {
             next_update_at: None,
             update_every_minutes: None,
             series_id: None,
+            added_by_schedule: false,
         }
     }
 
@@ -573,7 +572,7 @@ mod tests {
     }
 
     #[test]
-    fn a_repeating_maintenance_tells_its_rhythm_with_its_announce_only() {
+    fn a_repeating_maintenance_tells_its_rhythm_after_its_window() {
         let mut maintenance = event(Kind::Maintenance, None, Some(Lifecycle::Scheduled));
         maintenance.planned = true;
         maintenance.planned_start = Some(at(60 * 13));
@@ -590,13 +589,11 @@ mod tests {
         };
 
         let opened = write(Happening::Opened, &subject, "fr");
-        let moved = write(Happening::Rescheduled, &subject, "en");
         let english = write(Happening::Opened, &subject, "en");
 
         let summary = opened.summary.unwrap();
         assert!(summary.ends_with(&line(&["Chaque dimanche", "Sauvegardes"])));
         assert!(english.summary.unwrap().contains("Every Sunday"));
-        assert!(!moved.summary.unwrap().contains("Every Sunday"));
     }
 
     #[test]

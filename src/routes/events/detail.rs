@@ -239,12 +239,10 @@ async fn load_view(
         None => None,
     };
     let follows = load_follows(state, &ews.event, &viewer.scope, i18n).await?;
-    let added = added_by_schedule(state, &ews.event).await?;
     let mut timeline = timeline::build(
         &ews.event,
         sanitize_markdown(&ews.event.description),
         author,
-        added,
         updates,
         user,
         i18n,
@@ -265,16 +263,6 @@ async fn load_view(
         services: ews.services,
         timeline,
     })
-}
-
-/// A session the schedule added to a repeating maintenance, after the one
-/// it was announced with.
-async fn added_by_schedule(state: &AppState, event: &Event) -> Result<bool, AppError> {
-    let Some(series_id) = event.series_id else {
-        return Ok(false);
-    };
-    let first = SeriesRepository::first_session(&state.pool, series_id).await?;
-    Ok(first != Some(event.id))
 }
 
 /// The rhythm of the maintenance a session belongs to, while it repeats.

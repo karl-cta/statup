@@ -71,24 +71,27 @@ pub struct EventRepository;
 impl EventRepository {
     pub async fn create(pool: &DbPool, input: &CreateEventInput) -> Result<Event, sqlx::Error> {
         let mut tx = pool.begin().await?;
-        let event = Self::insert(&mut tx, input, None).await?;
+        let event = Self::insert(&mut tx, input, None, false).await?;
         tx.commit().await?;
         Ok(event)
     }
 
     /// Writes a new event and its services inside `tx`, as a session of
     /// `series_id` when it repeats.
+    /// Inserts an event and links its services. A session of a repeating
+    /// maintenance names its series, and whether the schedule added it.
     pub(crate) async fn insert(
         tx: &mut sqlx::Transaction<'_, Sqlite>,
         input: &CreateEventInput,
         series_id: Option<i64>,
+        added_by_schedule: bool,
     ) -> Result<Event, sqlx::Error> {
         let event = sqlx::query_as::<_, Event>(
             "INSERT INTO events (kind, severity, planned, lifecycle, category, title, \
              description, planned_start, planned_end, started_at, follows_event_id, author_id, \
              api_key_id, keeps_services_up, next_update_at, update_every_minutes, next_update_by, \
-             series_id) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
+             series_id, added_by_schedule) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *",
         )
         .bind(input.kind)
         .bind(input.severity)
@@ -108,6 +111,7 @@ impl EventRepository {
         .bind(input.next_update.and_then(|next| next.every_minutes))
         .bind(input.next_update.map(|_| input.author_id))
         .bind(series_id)
+        .bind(added_by_schedule)
         .fetch_one(&mut **tx)
         .await?;
         link_services(tx, event.id, &input.service_ids).await?;
@@ -636,9 +640,7 @@ impl EventRepository {
     ) -> Result<i64, sqlx::Error> {
         let mut qb = QueryBuilder::<Sqlite>::new(
             "SELECT COUNT(*) FROM events e WHERE e.kind != 'publication' \
-             AND NOT (e.series_id IS NOT NULL \
-                      AND e.id > (SELECT MIN(f.id) FROM events f WHERE f.series_id = e.series_id)) \
-             AND e.created_at >= ",
+             AND e.added_by_schedule = 0 AND e.created_at >= ",
         );
         qb.push_bind(clock::db(since));
         push_scope(&mut qb, scope, "e");

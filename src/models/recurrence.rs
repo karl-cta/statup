@@ -12,7 +12,8 @@ use crate::i18n::I18n;
 const MAX_MONTHS_AHEAD: u32 = 14;
 
 /// How often a maintenance repeats.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Rhythm {
     Weekly,
     Monthly,
@@ -81,8 +82,7 @@ impl Rank {
     /// Day of the month of the Nth `weekday` in `year` and `month`.
     fn day_in(self, year: i32, month: u32, weekday: Weekday) -> Option<NaiveDate> {
         let first = NaiveDate::from_ymd_opt(year, month, 1)?;
-        let offset =
-            (weekday.num_days_from_monday() + 7 - first.weekday().num_days_from_monday()) % 7;
+        let offset = weekday.days_since(first.weekday());
         let week = match self {
             Self::First => 0,
             Self::Second => 1,
@@ -126,6 +126,17 @@ impl Recurrence {
                 i18n.tf("events.repeat_monthly", &args)
             }
         }
+    }
+
+    /// The rule as its columns store it: rhythm, weekday from 0 for Monday,
+    /// rank, and time of day; [`Self::from_stored`] reads it back.
+    pub fn stored(&self) -> (&'static str, i64, Option<&'static str>, String) {
+        (
+            self.rhythm().as_str(),
+            i64::from(self.weekday().num_days_from_monday()),
+            self.rank().map(Rank::as_str),
+            self.time().format("%H:%M").to_string(),
+        )
     }
 
     /// The rule a first start, read on the instance clock, sets.
@@ -206,9 +217,7 @@ impl Recurrence {
     fn days_from(&self, today: NaiveDate) -> Box<dyn Iterator<Item = NaiveDate>> {
         match *self {
             Self::Weekly { weekday, .. } => {
-                let ahead = (weekday.num_days_from_monday() + 7
-                    - today.weekday().num_days_from_monday())
-                    % 7;
+                let ahead = weekday.days_since(today.weekday());
                 let first = today.checked_add_days(Days::new(u64::from(ahead)));
                 Box::new(
                     (0..3u64).filter_map(move |week| first?.checked_add_days(Days::new(7 * week))),

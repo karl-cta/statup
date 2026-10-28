@@ -33,8 +33,9 @@ impl MaintenanceSeries {
         }
     }
 
-    /// The session of this series that begins at `start`.
-    pub fn session(&self, start: DateTime<Utc>, service_ids: Vec<i64>) -> CreateEventInput {
+    /// The session of this series that begins at `start`; its services
+    /// are the series' own, linked when it is added.
+    pub fn session(&self, start: DateTime<Utc>) -> CreateEventInput {
         CreateEventInput {
             kind: Kind::Maintenance,
             severity: None,
@@ -47,7 +48,7 @@ impl MaintenanceSeries {
             started_at: None,
             opening_step: None,
             keeps_services_up: self.keeps_services_up,
-            service_ids,
+            service_ids: Vec::new(),
             follows_event_id: None,
             author_id: self.author_id,
             api_key_id: None,
@@ -178,7 +179,7 @@ mod tests {
         let next = Utc.with_ymd_and_hms(2026, 11, 22, 2, 0, 0).unwrap();
         let series = weekly_series(next);
 
-        let session = series.session(next, vec![3, 4]);
+        let session = series.session(next);
 
         assert_eq!(session.kind, Kind::Maintenance);
         assert!(session.planned);
@@ -187,7 +188,6 @@ mod tests {
         assert_eq!(session.planned_start, Some(next));
         assert_eq!(session.planned_end, Some(next + Duration::minutes(90)));
         assert!(session.keeps_services_up);
-        assert_eq!(session.service_ids, vec![3, 4]);
         assert_eq!(session.author_id, 7);
     }
 

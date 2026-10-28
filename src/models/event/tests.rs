@@ -338,6 +338,7 @@ fn scheduled_maintenance_is_not_elapsed() {
         next_update_at: None,
         update_every_minutes: None,
         series_id: None,
+        added_by_schedule: false,
     };
     assert!(event.elapsed().is_none());
     assert!(event.countdown().is_some());

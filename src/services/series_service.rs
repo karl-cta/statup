@@ -6,7 +6,8 @@ use chrono::{DateTime, Utc};
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::{
-    Happening, Kind, Lifecycle, MaintenanceSeries, NewSeries, Notification, Role, UpdateEventInput,
+    Event, Happening, Kind, Lifecycle, MaintenanceSeries, NewSeries, Notification, Role,
+    UpdateEventInput,
 };
 use crate::repositories::{EventRepository, SeriesRepository};
 use crate::services::{EventService, notify};
@@ -80,14 +81,7 @@ impl SeriesService {
         let Some(series) = SeriesRepository::find(pool, series_id).await? else {
             return Ok(());
         };
-        let start = session.planned_start.or(session.started_at);
-        let carried = start.zip(session.planned_end).and_then(|(start, end)| {
-            NewSeries::from_window(series.recurrence.rhythm(), start, end)
-        });
-        let following = carried
-            .zip(start)
-            .and_then(|(carried, start)| carried.recurrence.next_after(start.max(Utc::now())));
-        let (Some(carried), Some(following)) = (carried, following) else {
+        let Some((carried, following)) = carried_rule(&series, &session) else {
             return Err(AppError::validation("validation.repeat_needs_duration"));
         };
         SeriesRepository::carry_forward(pool, &session, &carried, &service_ids, following).await?;
@@ -95,19 +89,29 @@ impl SeriesService {
     }
 }
 
+/// The rule and length a session's window sets for its series, and when
+/// the session after it begins.
+fn carried_rule(series: &MaintenanceSeries, session: &Event) -> Option<(NewSeries, DateTime<Utc>)> {
+    let start = session.planned_start.or(session.started_at)?;
+    let rhythm = series.recurrence.rhythm();
+    let carried = NewSeries::from_window(rhythm, start, session.planned_end?)?;
+    let following = carried.recurrence.next_after(start.max(Utc::now()))?;
+    Some((carried, following))
+}
+
 async fn add_next_session(
     pool: &DbPool,
     series: &MaintenanceSeries,
     now: DateTime<Utc>,
 ) -> Result<bool, AppError> {
-    let start = series.next_session_start(now);
-    let following = start.and_then(|start| series.recurrence.next_after(start));
-    let (Some(start), Some(following)) = (start, following) else {
+    let next = series
+        .next_session_start(now)
+        .and_then(|start| Some((start, series.recurrence.next_after(start)?)));
+    let Some((start, following)) = next else {
         tracing::warn!(series = series.id, "Repeating maintenance has no next date");
         return Ok(false);
     };
-    let service_ids = SeriesRepository::service_ids(pool, series.id).await?;
-    let session = series.session(start, service_ids);
+    let session = series.session(start);
     let added = SeriesRepository::add_session(pool, series, &session, following).await?;
     Ok(added.is_some())
 }

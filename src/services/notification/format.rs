@@ -445,6 +445,7 @@ mod tests {
             next_update_at: None,
             update_every_minutes: None,
             series_id: None,
+            added_by_schedule: false,
         }
     }
 

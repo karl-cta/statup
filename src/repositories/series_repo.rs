@@ -8,7 +8,7 @@ use super::EventRepository;
 use super::event_repo::link_services;
 use crate::clock;
 use crate::db::DbPool;
-use crate::models::{CreateEventInput, Event, MaintenanceSeries, NewSeries, Rank, Recurrence};
+use crate::models::{CreateEventInput, Event, MaintenanceSeries, NewSeries, Recurrence};
 
 pub struct SeriesRepository;
 
@@ -72,17 +72,17 @@ impl SeriesRepository {
         series: &NewSeries,
         first: &CreateEventInput,
     ) -> Result<Event, sqlx::Error> {
-        let rule = series.recurrence;
+        let (rhythm, weekday, rank, time) = series.recurrence.stored();
         let mut tx = pool.begin().await?;
         let series_id: i64 = sqlx::query_scalar(
             "INSERT INTO maintenance_series (rhythm, weekday, rank, start_time, \
              duration_minutes, title, description, keeps_services_up, next_start, author_id) \
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
         )
-        .bind(rule.rhythm().as_str())
-        .bind(i64::from(rule.weekday().num_days_from_monday()))
-        .bind(rule.rank().map(Rank::as_str))
-        .bind(rule.time().format("%H:%M").to_string())
+        .bind(rhythm)
+        .bind(weekday)
+        .bind(rank)
+        .bind(time)
         .bind(series.duration_minutes)
         .bind(&first.title)
         .bind(&first.description)
@@ -92,7 +92,7 @@ impl SeriesRepository {
         .fetch_one(&mut *tx)
         .await?;
         link_series_services(&mut tx, series_id, &first.service_ids).await?;
-        let event = EventRepository::insert(&mut tx, first, Some(series_id)).await?;
+        let event = EventRepository::insert(&mut tx, first, Some(series_id), false).await?;
         tx.commit().await?;
         Ok(event)
     }
@@ -116,8 +116,8 @@ impl SeriesRepository {
         rows.into_iter().map(MaintenanceSeries::try_from).collect()
     }
 
-    /// Adds `session` to the series and moves the series on to `following`,
-    /// in one transaction. `None`, with nothing written, when the series
+    /// Adds `session`, with the services of the series, and moves the
+    /// series on to `following`, in one transaction. `None`, with nothing written, when the series
     /// changed since it was read: stopped, edited, or given a session.
     pub async fn add_session(
         pool: &DbPool,
@@ -138,7 +138,15 @@ impl SeriesRepository {
         if moved_on.rows_affected() == 0 {
             return Ok(None);
         }
-        let event = EventRepository::insert(&mut tx, session, Some(series.id)).await?;
+        let event = EventRepository::insert(&mut tx, session, Some(series.id), true).await?;
+        sqlx::query(
+            "INSERT OR IGNORE INTO event_services (event_id, service_id) \
+             SELECT ?, service_id FROM maintenance_series_services WHERE series_id = ?",
+        )
+        .bind(event.id)
+        .bind(series.id)
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
         Ok(Some(event))
     }
@@ -151,15 +159,6 @@ impl SeriesRepository {
         Ok(Self::find(pool, id)
             .await?
             .filter(|series| series.stopped_at.is_none()))
-    }
-
-    /// The session the series was announced with, while it exists: the
-    /// others were added by the schedule.
-    pub async fn first_session(pool: &DbPool, id: i64) -> Result<Option<i64>, sqlx::Error> {
-        sqlx::query_scalar("SELECT MIN(id) FROM events WHERE series_id = ?")
-            .bind(id)
-            .fetch_one(pool)
-            .await
     }
 
     /// When the session waiting to begin starts, if there is one.
@@ -327,17 +326,17 @@ async fn update_rule(
     like: &Event,
     next_start: DateTime<Utc>,
 ) -> Result<bool, sqlx::Error> {
-    let recurrence = rule.recurrence;
+    let (rhythm, weekday, rank, time) = rule.recurrence.stored();
     let updated = sqlx::query(
         "UPDATE maintenance_series SET rhythm = ?, weekday = ?, rank = ?, start_time = ?, \
            duration_minutes = ?, title = ?, description = ?, next_start = ?, \
            updated_at = datetime('now') \
          WHERE id = ? AND stopped_at IS NULL",
     )
-    .bind(recurrence.rhythm().as_str())
-    .bind(i64::from(recurrence.weekday().num_days_from_monday()))
-    .bind(recurrence.rank().map(Rank::as_str))
-    .bind(recurrence.time().format("%H:%M").to_string())
+    .bind(rhythm)
+    .bind(weekday)
+    .bind(rank)
+    .bind(time)
     .bind(rule.duration_minutes)
     .bind(&like.title)
     .bind(&like.description)
@@ -351,7 +350,7 @@ async fn update_rule(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Kind, Lifecycle, Rhythm, Role};
+    use crate::models::{Kind, Lifecycle, Rank, Rhythm, Role};
     use crate::repositories::{ServiceRepository, UserRepository};
     use crate::test_helpers::test_pool;
     use chrono::{Duration, TimeZone};
@@ -465,7 +464,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
-        let session = read.session(read.next_start, vec![]);
+        let session = read.session(read.next_start);
         let following = read.next_start + Duration::weeks(1);
 
         let added = SeriesRepository::add_session(&pool, &read, &session, following)
