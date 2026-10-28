@@ -43,6 +43,19 @@ Dans **Publier une mise à jour**, choisissez :
 
 Tant qu'elle est programmée, **Modifier** change son début ou sa durée, et les canaux d'alerte reçoivent le nouveau créneau (« Nouvelle date : … »). Une fois commencée, son début est verrouillé ; sa durée peut encore changer.
 
+## Ajouter à un agenda
+
+Une maintenance à venir, **Programmée**, peut être copiée dans un agenda. La carte **Détails** montre **Ajouter à mon agenda** sous l'état, et le panneau latéral porte le même lien. Toute personne qui peut lire la page le voit, visiteurs compris sur une page publique.
+
+Le lien ouvre un menu à trois choix :
+
+- **Outlook** et **Apple** téléchargent le même fichier d'agenda (`.ics`). Outlook l'ouvre comme un rendez-vous à enregistrer (le nouvel Outlook pour Windows demande de l'importer) ; Calendrier d'Apple l'ajoute après avoir demandé dans quel agenda.
+- **Google Agenda** ouvre Google Agenda dans un nouvel onglet, avec l'événement déjà rempli.
+
+L'entrée s'intitule « Maintenance : … » dans la langue du lecteur. Elle porte le début et la fin prévus, la **Description**, les services concernés et l'adresse de la page. Sans fin prévue, l'entrée n'a pas de durée.
+
+C'est une copie : si la maintenance est déplacée ou annulée ensuite, l'agenda garde l'ancienne entrée. Les abonnés par courriel reçoivent le changement comme d'habitude. Le lien n'est pas proposé sur un incident ni sur une annonce, ni sur une maintenance commencée, terminée ou annulée.
+
 ## Répéter
 
 **Répéter** ramène les mêmes travaux chaque semaine ou chaque mois. Ses deux choix portent le nom du jour choisi : « Chaque dimanche », ou « Le premier dimanche du mois » pour le rang de ce jour dans son mois. Le rang vient du jour du mois : du 1er au 7, le premier ; du 8 au 14, le deuxième ; du 15 au 21, le troisième ; du 22 au 28, le quatrième ; du 29 au 31, le dernier. Pour « le dernier », choisissez une date du 29 au 31.
@@ -55,7 +68,7 @@ Statup garde une séance programmée d'avance. Dès qu'elle commence, ou qu'elle
 
 Les heures suivent l'horloge de l'instance : 02:00 reste 02:00 d'un changement d'heure à l'autre. La nuit où une heure n'existe pas, la séance commence à la première minute qui suit.
 
-Sur la page d'une séance, la carte **Détails** montre **Répétition** avec le rythme. Les éditeurs et les administrateurs y trouvent **Arrêter la répétition** : elle demande une confirmation, annule la séance programmée d'avance (son annulation est envoyée comme n'importe quelle autre) et n'en ajoute plus. Une séance en cours va jusqu'à sa fin.
+Sur la page d'une séance, la carte **Détails** montre **Répétition** avec le rythme. Les éditeurs et les administrateurs y trouvent **Arrêter la répétition** : elle demande une confirmation, annule la séance programmée d'avance (son annulation est envoyée comme n'importe quelle autre) et n'en ajoute plus. Une séance en cours va jusqu'à sa fin. Sur une maintenance répétée, **Ajouter à mon agenda** n'ajoute que la séance de cette page, pas la répétition.
 
 **Modifier** ne change qu'une séance. Cocher **Appliquer aussi aux suivantes** donne son titre, sa description, ses services, son heure et sa durée aux séances qui la suivent, y compris celle déjà programmée. Le jour où elle tombe devient le jour du rythme, ou son rang dans le mois.
 

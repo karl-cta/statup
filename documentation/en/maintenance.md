@@ -43,6 +43,19 @@ In **Post an update**, choose:
 
 While it is scheduled, **Edit** changes its start or its duration, and the alert channels receive the new window ("Moved to …"). Once it has started, its start is locked; its duration can still change.
 
+## Add to a calendar
+
+A maintenance still to come, **Scheduled**, can be copied into a calendar. The **Details** card shows **Add to my calendar** under the state, and the side panel has the same link. Anyone who can read the page sees it, visitors included on a public page.
+
+The link opens a menu of three choices:
+
+- **Outlook** and **Apple** download the same calendar file (`.ics`). Outlook opens it as an appointment to save (the new Outlook for Windows asks to import it); Apple Calendar adds it after asking which calendar.
+- **Google Calendar** opens Google Calendar in a new tab, with the event filled in.
+
+The entry is titled "Maintenance: …" in the reader's language. It carries the planned start and end, the **Description**, the services affected and the address of the page. Without a planned end, the entry has no duration.
+
+The entry is a copy: if the maintenance is moved or cancelled afterwards, the calendar keeps the old entry. Email subscribers receive the change as usual. The link is not offered on an incident or an announcement, nor on a maintenance that has started, been completed or been cancelled.
+
 ## Repeat
 
 **Repeat** brings the same work back every week or every month. Its two choices are named after the day picked: "Every Sunday", or "The first Sunday of the month" for the rank of that weekday in its month. The rank comes from the day of the month: the 1st to the 7th is the first, the 8th to the 14th the second, the 15th to the 21st the third, the 22nd to the 28th the fourth, the 29th to the 31st the last. For "the last", pick a date from the 29th to the 31st.
@@ -55,7 +68,7 @@ Statup keeps one session scheduled ahead. Once it starts, or is cancelled or del
 
 Times follow the instance's clock: 02:00 stays 02:00 across daylight saving changes. On the night a time does not exist, the session starts at the first minute after it.
 
-On a session's page, the **Details** card shows **Repeats** with the rhythm. Editors and administrators find **Stop repeating** under it: it asks to confirm, cancels the session scheduled ahead (its cancellation is sent like any other) and adds no more. A session under way runs to its end.
+On a session's page, the **Details** card shows **Repeats** with the rhythm. Editors and administrators find **Stop repeating** under it: it asks to confirm, cancels the session scheduled ahead (its cancellation is sent like any other) and adds no more. A session under way runs to its end. On a repeating maintenance, **Add to my calendar** adds the session of that page only, not the repetition.
 
 **Edit** changes one session only. Ticking **Apply to the following ones too** gives its title, description, services, time of day and duration to the sessions after it, the one already scheduled included. The day it now falls on becomes the rhythm's day, or its rank in the month.
 
