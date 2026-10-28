@@ -6,6 +6,7 @@
 
 {% block scripts %}
 <script src="{{ crate::asset("js/custom-select.js") }}" defer></script>
+<script src="{{ crate::asset("js/theme-preview.js") }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -30,33 +31,35 @@
     <div id="form-error" class="form-error mb-5" role="alert"><p>{{ message }}</p></div>
     {% endif %}
 
-    <div class="card-grid">
-        <section aria-labelledby="manage-title">
-            <h2 id="manage-title" class="card-title mb-3">{{ i18n.t("admin.section_manage") }}</h2>
+    <div class="settings-layout">
+        <section class="card set-manage" aria-labelledby="manage-title">
+            <header class="card-head">
+                <h2 id="manage-title" class="card-title">{{ i18n.t("admin.section_manage") }}</h2>
+            </header>
             <ul class="manage-tiles">
                 <li>
-                    <a href="/admin/users" class="card manage-tile">
+                    <a href="/admin/users" class="manage-tile">
                         <span class="manage-tile-name">{{ i18n.t("admin.section_team") }}{% call ui::chevron_right() %}{% endcall %}</span>
                         <span class="manage-tile-meta">{{ self.team_count() }}</span>
                         <span class="manage-tile-action">{{ i18n.t("admin.team_manage") }}</span>
                     </a>
                 </li>
                 <li>
-                    <a href="/admin/notifications" class="card manage-tile">
+                    <a href="/admin/notifications" class="manage-tile">
                         <span class="manage-tile-name">{{ i18n.t("notifications.title") }}{% call ui::chevron_right() %}{% endcall %}</span>
                         <span class="manage-tile-meta">{{ self.notifications_label() }}</span>
                         <span class="manage-tile-action">{{ i18n.t("notifications.manage") }}</span>
                     </a>
                 </li>
                 <li>
-                    <a href="/admin/api-keys" class="card manage-tile">
+                    <a href="/admin/api-keys" class="manage-tile">
                         <span class="manage-tile-name">{{ i18n.t("api_keys.title") }}{% call ui::chevron_right() %}{% endcall %}</span>
                         <span class="manage-tile-meta">{{ self.api_keys_label() }}</span>
                         <span class="manage-tile-action">{{ i18n.t("api_keys.manage") }}</span>
                     </a>
                 </li>
                 <li>
-                    <a href="/admin/journal" class="card manage-tile">
+                    <a href="/admin/journal" class="manage-tile">
                         <span class="manage-tile-name">{{ i18n.t("journal.title") }}{% call ui::chevron_right() %}{% endcall %}</span>
                         <span class="manage-tile-meta">{{ journal_label }}</span>
                         <span class="manage-tile-action">{{ i18n.t("journal.open") }}</span>
@@ -64,23 +67,24 @@
                 </li>
                 <li>
                     {% if let Some(release) = newer %}
-                    <a href="{{ release.url }}" class="card manage-tile" rel="noopener">
+                    <a href="{{ release.url }}" class="manage-tile" rel="noopener">
                         <span class="manage-tile-name">{{ i18n.t("admin.version") }}{% call ui::chevron_right() %}{% endcall %}</span>
                         <span class="manage-tile-meta">{{ CURRENT_VERSION }}</span>
                         <span class="set-update" data-tone="info">{{ self.newer_notice(release) }}</span>
                         <span class="manage-tile-action">{{ i18n.t("admin.version_view") }}</span>
                     </a>
                     {% else %}
-                    <div class="card manage-tile">
-                        <span class="manage-tile-name">{{ i18n.t("admin.version") }}</span>
+                    <a href="{{ RELEASES_PAGE }}" class="manage-tile" rel="noopener">
+                        <span class="manage-tile-name">{{ i18n.t("admin.version") }}{% call ui::chevron_right() %}{% endcall %}</span>
                         <span class="manage-tile-meta">{{ CURRENT_VERSION }}</span>
-                    </div>
+                        <span class="manage-tile-action">{{ i18n.t("admin.version_releases") }}</span>
+                    </a>
                     {% endif %}
                 </li>
             </ul>
         </section>
 
-        <section class="card" aria-labelledby="general-title">
+        <section class="card set-general" aria-labelledby="general-title">
             <header class="card-head">
                 <h2 id="general-title" class="card-title">{{ i18n.t("admin.section_general") }}</h2>
             </header>
@@ -96,12 +100,16 @@
                 <div class="set-row">
                     <p class="set-label">{{ i18n.t("admin.logo") }}</p>
                     <div class="set-logo">
-                        {% if let Some(url) = crate::instance_logo_url() %}
-                        <img class="set-logo-preview" src="{{ url }}" alt="">
-                        {% endif %}
-                        <label class="icon-upload-field">
-                            <span class="icon-upload-cta" data-file-name>{% if crate::instance_logo_url().is_some() %}{{ i18n.t("admin.logo_replace") }}{% else %}{{ i18n.t("admin.logo_upload") }}{% endif %}</span>
-                            <span class="icon-upload-hint">{{ i18n.t("icons.upload_hint_short") }} {{ crate::models::MAX_ICON_SIZE / 1024 }}&nbsp;{{ i18n.t("units.kb") }}</span>
+                        <span class="set-logo-tile">
+                            {% if let Some(url) = crate::instance_logo_url() %}
+                            <img class="set-logo-preview" src="{{ url }}" alt="">
+                            {% else %}
+                            <img class="set-logo-mark" src="{{ crate::asset("logo.svg") }}" alt="">
+                            {% endif %}
+                        </span>
+                        <label class="set-logo-pick">
+                            <span class="set-logo-cta" data-file-name>{% if crate::instance_logo_url().is_some() %}{{ i18n.t("admin.logo_replace") }}{% else %}{{ i18n.t("admin.logo_upload") }}{% endif %}</span>
+                            <span class="set-logo-hint">{{ i18n.t("icons.upload_hint_short") }} {{ crate::models::MAX_ICON_SIZE / 1024 }}&nbsp;{{ i18n.t("units.kb") }}</span>
                             <input type="file" name="file" class="sr-only" accept="image/png,image/jpeg,image/webp,image/svg+xml">
                         </label>
                         {% if crate::instance_logo_url().is_some() %}
@@ -114,6 +122,27 @@
                             </div>
                         </div>
                         {% endif %}
+                    </div>
+                </div>
+                <div class="set-row">
+                    <p id="accent-label" class="set-label">{{ i18n.t("admin.accent") }}</p>
+                    <div class="swatches" role="radiogroup" aria-labelledby="accent-label">
+                        {% for accent in Accent::ALL %}
+                        <label class="swatch" title="{{ i18n.t(accent.label_key()) }}">
+                            <input type="radio" name="accent" value="{{ accent.as_str() }}" class="sr-only"{% if accent.as_str() == crate::instance_accent().as_str() %} checked{% endif %}>
+                            <span class="swatch-chip"{% if let Some(id) = accent.attribute() %} data-accent="{{ id }}"{% endif %} aria-hidden="true"></span>
+                            <span class="sr-only">{{ i18n.t(accent.label_key()) }}</span>
+                        </label>
+                        {% endfor %}
+                        <span class="swatch-name" aria-hidden="true" data-accent-name>{{ i18n.t(crate::instance_accent().label_key()) }}</span>
+                    </div>
+                </div>
+                <div class="set-row">
+                    <p id="ambiance-label" class="set-label">{{ i18n.t("admin.ambiance") }}</p>
+                    <div class="segmented" role="radiogroup" aria-labelledby="ambiance-label">
+                        {% for ambiance in Ambiance::ALL %}
+                        <label class="choice"><input type="radio" name="ambiance" value="{{ ambiance.as_str() }}" class="sr-only"{% if ambiance.as_str() == crate::instance_ambiance().as_str() %} checked{% endif %}><span>{{ i18n.t(ambiance.label_key()) }}</span></label>
+                        {% endfor %}
                     </div>
                 </div>
                 <div class="set-row">
@@ -132,6 +161,7 @@
                     </div>
                 </div>
                 <div class="set-foot">
+                    <span class="set-unsaved" data-unsaved-note hidden>{{ i18n.t("common.unsaved") }}</span>
                     <button type="submit" class="btn btn-primary">{{ i18n.t("common.save") }}</button>
                 </div>
             </form>

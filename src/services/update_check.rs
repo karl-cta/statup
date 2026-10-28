@@ -12,6 +12,9 @@ use tokio::task::AbortHandle;
 pub const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const LATEST_RELEASE: &str = "https://api.github.com/repos/karl-cta/statup/releases/latest";
+/// Every published version, where the Version tile leads when nothing newer
+/// is known.
+pub const RELEASES_PAGE: &str = "https://github.com/karl-cta/statup/releases";
 const RELEASES: &str = "https://github.com/karl-cta/statup/releases/tag";
 const PERIOD: Duration = Duration::from_secs(24 * 60 * 60);
 /// A restart loop must not turn into a request loop.

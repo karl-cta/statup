@@ -43,5 +43,7 @@ pub use series_service::*;
 pub use service_service::*;
 pub use settings_service::SettingsService;
 pub use subscription_service::*;
-pub use update_check::{CURRENT_VERSION, NewerRelease, UpdateStatus, spawn_update_check};
+pub use update_check::{
+    CURRENT_VERSION, NewerRelease, RELEASES_PAGE, UpdateStatus, spawn_update_check,
+};
 pub use visibility::scope_of;

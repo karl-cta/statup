@@ -12,11 +12,11 @@ use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::headers::no_store;
 use crate::middleware::{CsrfToken, HtmlForm, RequireAdmin};
-use crate::models::{JournalKind, Role, User, check_display_name};
+use crate::models::{Accent, Ambiance, JournalKind, Role, User, check_display_name};
 use crate::repositories::{
     ApiKeyRepository, GroupRepository, NewJournalEntry, NotificationRepository, UserRepository,
 };
-use crate::services::{AuthService, CURRENT_VERSION, LogoService, NewerRelease};
+use crate::services::{AuthService, CURRENT_VERSION, LogoService, NewerRelease, RELEASES_PAGE};
 use crate::state::AppState;
 
 #[derive(Template)]

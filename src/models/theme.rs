@@ -57,6 +57,24 @@ impl Accent {
             .find(|accent| accent.as_str() == value)
     }
 
+    /// The name the settings page gives it.
+    pub const fn label_key(self) -> &'static str {
+        match self {
+            Self::Ink => "admin.accent_ink",
+            Self::Navy => "admin.accent_navy",
+            Self::Cobalt => "admin.accent_cobalt",
+            Self::Teal => "admin.accent_teal",
+            Self::Pine => "admin.accent_pine",
+            Self::Rose => "admin.accent_rose",
+            Self::Violet => "admin.accent_violet",
+            Self::Burgundy => "admin.accent_burgundy",
+            Self::Brick => "admin.accent_brick",
+            Self::Copper => "admin.accent_copper",
+            Self::Cocoa => "admin.accent_cocoa",
+            Self::Slate => "admin.accent_slate",
+        }
+    }
+
     /// The value of the `data-accent` attribute, absent for the default.
     pub fn attribute(self) -> Option<&'static str> {
         (self != Self::default()).then(|| self.as_str())
@@ -88,6 +106,16 @@ impl Ambiance {
         Self::ALL
             .into_iter()
             .find(|ambiance| ambiance.as_str() == value)
+    }
+
+    /// The name the settings page gives it.
+    pub const fn label_key(self) -> &'static str {
+        match self {
+            Self::Sand => "admin.ambiance_sand",
+            Self::Mist => "admin.ambiance_mist",
+            Self::Paper => "admin.ambiance_paper",
+            Self::Pebble => "admin.ambiance_pebble",
+        }
     }
 
     /// The value of the `data-ambiance` attribute, absent for the default.

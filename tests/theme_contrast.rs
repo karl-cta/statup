@@ -14,17 +14,17 @@ const CONTROL: f64 = 3.0;
 
 type Block = HashMap<String, String>;
 
-/// Each rule of the file, by its selector, as its custom properties.
+/// Each rule of the file, by each of its selectors, as its custom properties.
 fn blocks() -> HashMap<String, Block> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("static/css/tokens.css");
     let css = without_comments(&fs::read_to_string(path).unwrap());
     let mut blocks = HashMap::new();
     let mut rest = css.as_str();
     while let Some(open) = rest.find('{') {
-        let selector = rest[..open].trim().to_string();
+        let selectors = rest[..open].to_string();
         let close = open + rest[open..].find('}').unwrap();
         let body = &rest[open + 1..close];
-        let properties = body
+        let properties: Block = body
             .split(';')
             .filter_map(|line| {
                 let (name, value) = line.split_once(':')?;
@@ -33,7 +33,9 @@ fn blocks() -> HashMap<String, Block> {
                     .then(|| (name.to_string(), value.trim().to_string()))
             })
             .collect();
-        blocks.insert(selector, properties);
+        for selector in selectors.split(',') {
+            blocks.insert(selector.trim().to_string(), properties.clone());
+        }
         rest = &rest[close + 1..];
     }
     blocks

@@ -712,16 +712,22 @@
     });
 
     // A form whose changes wait for its button: leaving before it is sent
-    // asks first, in the browser's own words.
+    // asks first, in the browser's own words, and its note says so.
+    function showUnsaved(form, unsaved) {
+        if (unsaved) form.dataset.unsaved = "1";
+        else delete form.dataset.unsaved;
+        form.querySelectorAll("[data-unsaved-note]").forEach((note) => (note.hidden = !unsaved));
+    }
+
     function markUnsaved(event) {
         const form = event.target instanceof Element ? event.target.closest("form[data-warn-unsaved]") : null;
-        if (form) form.dataset.unsaved = "1";
+        if (form) showUnsaved(form, true);
     }
 
     document.addEventListener("input", markUnsaved);
     document.addEventListener("change", markUnsaved);
     document.addEventListener("submit", (event) => {
-        if (event.target instanceof HTMLFormElement) delete event.target.dataset.unsaved;
+        if (event.target instanceof HTMLFormElement) showUnsaved(event.target, false);
     });
     // A menu closed without saving forgets what was changed in its forms.
     document.addEventListener(
@@ -733,7 +739,7 @@
             menu.querySelectorAll("[data-swap-panel]").forEach((panel) => panel.classList.remove("is-form"));
             menu.querySelectorAll("form[data-warn-unsaved]").forEach((form) => {
                 form.reset();
-                delete form.dataset.unsaved;
+                showUnsaved(form, false);
             });
         },
         true,

@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<html lang="{{ i18n.locale() }}">
+<html lang="{{ i18n.locale() }}"
+    {%- if let Some(accent) = crate::instance_accent().attribute() %} data-accent="{{ accent }}"{% endif %}
+    {%- if let Some(ambiance) = crate::instance_ambiance().attribute() %} data-ambiance="{{ ambiance }}"{% endif %}>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">

@@ -282,7 +282,8 @@
 }
 
 /* Night versions: the ambiance keeps its family, the accent is lifted until
-   the dark label reads on it. */
+   the dark label reads on it. An element of its own, a swatch, can carry an
+   accent too. */
 
 .dark[data-ambiance="mist"] {
     --night-ink: #F0F4F9;
@@ -320,67 +321,78 @@
     --on-primary: #0A0A0A;
 }
 
-.dark[data-accent="navy"] {
+.dark[data-accent="navy"],
+.dark [data-accent="navy"] {
     --primary: #70A1E2;
     --primary-hover: #79AAEC;
     --primary-active: #82B4F6;
 }
 
-.dark[data-accent="cobalt"] {
+.dark[data-accent="cobalt"],
+.dark [data-accent="cobalt"] {
     --primary: #6895F4;
     --primary-hover: #719EFF;
     --primary-active: #7AA8FF;
 }
 
-.dark[data-accent="teal"] {
+.dark[data-accent="teal"],
+.dark [data-accent="teal"] {
     --primary: #4FB7BC;
     --primary-hover: #5AC0C6;
     --primary-active: #64CACF;
 }
 
-.dark[data-accent="pine"] {
+.dark[data-accent="pine"],
+.dark [data-accent="pine"] {
     --primary: #72B694;
     --primary-hover: #7BBF9E;
     --primary-active: #84C9A7;
 }
 
-.dark[data-accent="rose"] {
+.dark[data-accent="rose"],
+.dark [data-accent="rose"] {
     --primary: #EA6DA5;
     --primary-hover: #F577AF;
     --primary-active: #FF80B8;
 }
 
-.dark[data-accent="violet"] {
+.dark[data-accent="violet"],
+.dark [data-accent="violet"] {
     --primary: #9588E9;
     --primary-hover: #9E92F3;
     --primary-active: #A79BFE;
 }
 
-.dark[data-accent="burgundy"] {
+.dark[data-accent="burgundy"],
+.dark [data-accent="burgundy"] {
     --primary: #DD747A;
     --primary-hover: #E77E83;
     --primary-active: #F1878C;
 }
 
-.dark[data-accent="brick"] {
+.dark[data-accent="brick"],
+.dark [data-accent="brick"] {
     --primary: #E57E5E;
     --primary-hover: #EF8767;
     --primary-active: #F99170;
 }
 
-.dark[data-accent="copper"] {
+.dark[data-accent="copper"],
+.dark [data-accent="copper"] {
     --primary: #E19956;
     --primary-hover: #EBA25F;
     --primary-active: #F5AC69;
 }
 
-.dark[data-accent="cocoa"] {
+.dark[data-accent="cocoa"],
+.dark [data-accent="cocoa"] {
     --primary: #C19C85;
     --primary-hover: #CBA58E;
     --primary-active: #D5AE98;
 }
 
-.dark[data-accent="slate"] {
+.dark[data-accent="slate"],
+.dark [data-accent="slate"] {
     --primary: #95A7BA;
     --primary-hover: #9EB0C4;
     --primary-active: #A7BACD;
