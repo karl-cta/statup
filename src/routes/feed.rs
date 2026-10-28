@@ -6,10 +6,11 @@ use std::collections::HashMap;
 use askama::Template;
 use axum::extract::State;
 use axum::http::header::{CACHE_CONTROL, CONTENT_TYPE, IF_MODIFIED_SINCE, LAST_MODIFIED, VARY};
-use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
+use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Redirect, Response};
 use chrono::{DateTime, NaiveDateTime, Utc};
 
+use super::dashboard::origin;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::OptionalUser;
@@ -83,7 +84,7 @@ pub async fn atom(
     }
 
     let feed = FeedTemplate {
-        base_url: base_url(&state, &headers),
+        base_url: origin(&state, &headers),
         brand: crate::brand_name(),
         updated: last_activity.unwrap_or_else(Utc::now).to_rfc3339(),
         entries: render_entries(&state, &events, &i18n).await?,
@@ -185,26 +186,6 @@ fn group_by_event(updates: Vec<EventUpdateWithAuthor>) -> HashMap<i64, Vec<Event
         grouped.entry(update.event_id).or_default().push(update);
     }
     grouped
-}
-
-/// Absolute origin for entry links. `PUBLIC_URL` wins when set; otherwise the
-/// request host, with the scheme taken from the proxy only when its headers
-/// are trusted, for the same reason as the rate limiter.
-fn base_url(state: &AppState, headers: &HeaderMap) -> String {
-    if let Some(url) = &state.public_url {
-        return url.clone();
-    }
-    let host = headers
-        .get(header::HOST)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("localhost");
-    let forwarded_https = state.trust_proxy_headers
-        && headers
-            .get("x-forwarded-proto")
-            .and_then(|v| v.to_str().ok())
-            .is_some_and(|proto| proto.eq_ignore_ascii_case("https"));
-    let scheme = if forwarded_https { "https" } else { "http" };
-    format!("{scheme}://{host}")
 }
 
 fn render_error(e: &askama::Error) -> AppError {
