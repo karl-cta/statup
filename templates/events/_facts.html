@@ -20,6 +20,25 @@
         {% endif %}
     </div>
     {% endif %}
+    {% if let Some(rhythm) = view.repeats %}
+    <div class="fact">
+        <dt>{{ i18n.t("events.fact_repeats") }}</dt>
+        <dd>{{ rhythm }}</dd>
+        {% if let Some(cancels) = stop_repeat %}
+        <dd class="fact-revert">
+            <form method="post" action="/events/{{ view.event.id }}/stop-repeat" data-confirm>
+                <input type="hidden" name="csrf_token" value="{{ facts_csrf }}">
+                <button type="button" class="text-action" data-confirm-open>{{ i18n.t("events.stop_repeat") }}</button>
+                <div class="confirm" role="group" aria-label="{{ i18n.t("events.stop_repeat") }}" data-confirm-box hidden>
+                    <span class="confirm-text">{{ i18n.t("common.question_open") }}{{ i18n.t("events.stop_repeat") }}{{ i18n.t("common.question_mark") }}{% if !cancels.is_empty() %} {{ cancels }}{% endif %}</span>
+                    <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
+                    <button type="submit" class="confirm-go" data-danger>{{ i18n.t("events.stop_repeat_go") }}</button>
+                </div>
+            </form>
+        </dd>
+        {% endif %}
+    </div>
+    {% endif %}
     {% if !view.services.is_empty() %}
     <div class="fact">
         <dt>{{ i18n.t("events.services_concerned") }}</dt>

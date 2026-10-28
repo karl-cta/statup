@@ -5,8 +5,11 @@ use chrono::{DateTime, Utc};
 
 use crate::db::DbPool;
 use crate::error::AppError;
-use crate::models::MaintenanceSeries;
-use crate::repositories::SeriesRepository;
+use crate::models::{
+    Happening, Kind, Lifecycle, MaintenanceSeries, NewSeries, Notification, Role, UpdateEventInput,
+};
+use crate::repositories::{EventRepository, SeriesRepository};
+use crate::services::{EventService, notify};
 
 pub struct SeriesService;
 
@@ -28,6 +31,67 @@ impl SeriesService {
             }
         }
         Ok(added)
+    }
+
+    /// Stops the maintenance a session belongs to from repeating. The
+    /// session waiting to begin is cancelled and told, as a cancellation
+    /// by hand would be; one under way runs to its end.
+    pub async fn stop(pool: &DbPool, session_id: i64) -> Result<(), AppError> {
+        let series_id = EventRepository::find_by_id(pool, session_id)
+            .await?
+            .and_then(|session| session.series_id)
+            .ok_or(AppError::NotFound)?;
+        let Some(cancelled) = SeriesRepository::stop(pool, series_id, Utc::now()).await? else {
+            return Ok(());
+        };
+        let scheduled = Some(Lifecycle::Scheduled);
+        let happening = Happening::of_move(Kind::Maintenance, scheduled, Lifecycle::Cancelled);
+        for id in cancelled {
+            let cancelled = Some(Lifecycle::Cancelled);
+            notify(
+                pool,
+                Notification::event(happening, Kind::Maintenance, id, cancelled),
+            )
+            .await;
+        }
+        Ok(())
+    }
+
+    /// Saves the edit of a session, then carries its title, text,
+    /// services, time of day and length to the sessions after it. The day
+    /// it now falls on sets the rhythm's day, or its rank in the month.
+    pub async fn update_with_following(
+        pool: &DbPool,
+        id: i64,
+        changes: UpdateEventInput,
+        role: Role,
+    ) -> Result<(), AppError> {
+        if changes.planned_end.is_none() {
+            return Err(AppError::validation("validation.repeat_needs_duration"));
+        }
+        let service_ids = changes.service_ids.clone();
+        EventService::update(pool, id, changes, role).await?;
+        let session = EventRepository::find_by_id(pool, id)
+            .await?
+            .ok_or(AppError::NotFound)?;
+        let Some(series_id) = session.series_id else {
+            return Ok(());
+        };
+        let Some(series) = SeriesRepository::find(pool, series_id).await? else {
+            return Ok(());
+        };
+        let start = session.planned_start.or(session.started_at);
+        let carried = start.zip(session.planned_end).and_then(|(start, end)| {
+            NewSeries::from_window(series.recurrence.rhythm(), start, end)
+        });
+        let following = carried
+            .zip(start)
+            .and_then(|(carried, start)| carried.recurrence.next_after(start.max(Utc::now())));
+        let (Some(carried), Some(following)) = (carried, following) else {
+            return Err(AppError::validation("validation.repeat_needs_duration"));
+        };
+        SeriesRepository::carry_forward(pool, &session, &carried, &service_ids, following).await?;
+        Ok(())
     }
 }
 
@@ -55,7 +119,7 @@ mod tests {
     use super::*;
     use crate::models::{
         ChannelInput, ChannelKind, CreateEventInput, Kind, Lifecycle, NewSeries, Rhythm, Role,
-        Scope,
+        Scope, UpdateEventInput,
     };
     use crate::repositories::{
         EventRepository, NotificationRepository, ServiceRepository, UserRepository,
@@ -187,19 +251,7 @@ mod tests {
     #[tokio::test]
     async fn the_sessions_of_a_series_start_and_end_in_silence() {
         let pool = test_pool().await;
-        let channel = ChannelInput {
-            name: "Team".to_string(),
-            kind: ChannelKind::Slack,
-            target: "https://hooks.slack.com/services/team".to_string(),
-            locale: "en".to_string(),
-            on_incidents: true,
-            on_maintenances: true,
-            on_publications: true,
-            on_detected: true,
-        };
-        NotificationRepository::create_channel(&pool, &channel)
-            .await
-            .unwrap();
+        everything(&pool).await;
         let (author, service) = author_and_service(&pool).await;
         let series = weekly_by(&pool, author, service).await;
         let single = EventRepository::create(&pool, &maintenance(author, service, first_start()))
@@ -211,13 +263,8 @@ mod tests {
         }
 
         assert_eq!(sessions(&pool, series).await.len(), 3);
-        let queued: Vec<(i64, String)> =
-            sqlx::query_as("SELECT event_id, happening FROM notification_deliveries ORDER BY id")
-                .fetch_all(&pool)
-                .await
-                .unwrap();
         assert_eq!(
-            queued,
+            queued(&pool).await,
             [
                 (single.id, "started".to_string()),
                 (single.id, "closed".to_string()),
@@ -282,6 +329,182 @@ mod tests {
             sessions(&pool, series).await,
             [(first_start(), Lifecycle::InProgress)]
         );
+    }
+
+    async fn queued(pool: &DbPool) -> Vec<(i64, String)> {
+        sqlx::query_as("SELECT event_id, happening FROM notification_deliveries ORDER BY id")
+            .fetch_all(pool)
+            .await
+            .unwrap()
+    }
+
+    async fn everything(pool: &DbPool) {
+        let channel = ChannelInput {
+            name: "Team".to_string(),
+            kind: ChannelKind::Slack,
+            target: "https://hooks.slack.com/services/team".to_string(),
+            locale: "en".to_string(),
+            on_incidents: true,
+            on_maintenances: true,
+            on_publications: true,
+            on_detected: true,
+        };
+        NotificationRepository::create_channel(pool, &channel)
+            .await
+            .unwrap();
+    }
+
+    async fn session_ids(pool: &DbPool, series_id: i64) -> Vec<i64> {
+        sqlx::query_scalar("SELECT id FROM events WHERE series_id = ? ORDER BY id")
+            .bind(series_id)
+            .fetch_all(pool)
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn stopping_cancels_the_session_ahead_once_and_adds_no_more() {
+        let pool = test_pool().await;
+        everything(&pool).await;
+        let series = weekly(&pool).await;
+        run_at(&pool, first_start() + Duration::minutes(1)).await;
+        let ids = session_ids(&pool, series).await;
+
+        SeriesService::stop(&pool, ids[0]).await.unwrap();
+        SeriesService::stop(&pool, ids[0]).await.unwrap();
+        run_at(&pool, weeks_after_first(2) + Duration::minutes(1)).await;
+
+        assert_eq!(
+            sessions(&pool, series).await,
+            [
+                (first_start(), Lifecycle::Completed),
+                (weeks_after_first(1), Lifecycle::Cancelled),
+            ]
+        );
+        assert_eq!(queued(&pool).await, [(ids[1], "closed".to_string())]);
+        let found = SeriesRepository::find(&pool, series)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(found.stopped_at.is_some());
+    }
+
+    #[tokio::test]
+    async fn an_edit_carried_forward_moves_the_session_ahead_and_the_rule() {
+        let pool = test_pool().await;
+        let (author, service) = author_and_service(&pool).await;
+        let other = ServiceRepository::create(&pool, "Mail", "mail", None, None, None)
+            .await
+            .unwrap()
+            .id;
+        let series = weekly_by(&pool, author, service).await;
+        run_at(&pool, first_start() + Duration::minutes(1)).await;
+        let ids = session_ids(&pool, series).await;
+        // The session under way keeps its start; its new end makes 3 hours.
+        let monday = first_start() + Duration::days(1) + Duration::hours(1);
+        let ahead = UpdateEventInput {
+            severity: None,
+            planned: true,
+            category: None,
+            title: "Monday backups".to_string(),
+            description: "Copies and checks.".to_string(),
+            planned_start: Some(monday + Duration::weeks(1)),
+            planned_end: Some(monday + Duration::weeks(1) + Duration::hours(3)),
+            service_ids: vec![service, other],
+            follows_event_id: None,
+        };
+
+        SeriesService::update_with_following(&pool, ids[1], ahead, Role::Admin)
+            .await
+            .unwrap();
+
+        let next = monday + Duration::weeks(2);
+        assert_eq!(
+            sessions(&pool, series).await,
+            [
+                (first_start(), Lifecycle::InProgress),
+                (monday + Duration::weeks(1), Lifecycle::Scheduled),
+            ]
+        );
+        let found = SeriesRepository::find(&pool, series)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(found.recurrence.weekday(), chrono::Weekday::Mon);
+        assert_eq!(found.duration_minutes, 180);
+        assert_eq!(found.title, "Monday backups");
+        assert_eq!(found.next_start, next);
+        assert_eq!(
+            SeriesRepository::service_ids(&pool, series).await.unwrap(),
+            vec![service, other]
+        );
+    }
+
+    #[tokio::test]
+    async fn an_edit_from_the_session_under_way_reaches_the_one_ahead() {
+        let pool = test_pool().await;
+        let series = weekly(&pool).await;
+        run_at(&pool, first_start() + Duration::minutes(1)).await;
+        let ids = session_ids(&pool, series).await;
+        let running = EventRepository::find_by_id(&pool, ids[0])
+            .await
+            .unwrap()
+            .unwrap();
+        let changes = UpdateEventInput {
+            severity: None,
+            planned: true,
+            category: None,
+            title: "Longer backups".to_string(),
+            description: String::new(),
+            planned_start: running.planned_start,
+            planned_end: Some(first_start() + Duration::hours(4)),
+            service_ids: EventRepository::service_ids(&pool, ids[0]).await.unwrap(),
+            follows_event_id: None,
+        };
+
+        SeriesService::update_with_following(&pool, ids[0], changes, Role::Admin)
+            .await
+            .unwrap();
+
+        let ahead = EventRepository::find_by_id(&pool, ids[1])
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(ahead.title, "Longer backups");
+        assert_eq!(ahead.planned_start, Some(weeks_after_first(1)));
+        assert_eq!(
+            ahead.planned_end,
+            Some(weeks_after_first(1) + Duration::hours(4))
+        );
+        let found = SeriesRepository::find(&pool, series)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(found.next_start, weeks_after_first(2));
+        assert_eq!(found.duration_minutes, 240);
+    }
+
+    #[tokio::test]
+    async fn an_edit_carried_forward_needs_an_end() {
+        let pool = test_pool().await;
+        let series = weekly(&pool).await;
+        let ids = session_ids(&pool, series).await;
+        let changes = UpdateEventInput {
+            severity: None,
+            planned: true,
+            category: None,
+            title: "Sunday backups".to_string(),
+            description: String::new(),
+            planned_start: Some(first_start()),
+            planned_end: None,
+            service_ids: Vec::new(),
+            follows_event_id: None,
+        };
+
+        let refused =
+            SeriesService::update_with_following(&pool, ids[0], changes, Role::Admin).await;
+
+        assert!(matches!(refused, Err(AppError::Validation(_))));
     }
 
     #[tokio::test]

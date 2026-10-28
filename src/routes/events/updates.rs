@@ -13,7 +13,7 @@ use crate::middleware::{CsrfToken, HtmlForm, RequirePublisher, Viewer};
 use crate::models::{JournalKind, Lifecycle, User};
 use crate::repositories::NewJournalEntry;
 use crate::routes::render;
-use crate::services::{EventService, read_next_update};
+use crate::services::{EventService, SeriesService, read_next_update};
 use crate::state::AppState;
 
 #[derive(Deserialize)]
@@ -148,6 +148,16 @@ pub async fn revert_lifecycle(
 ) -> Result<Response, AppError> {
     EventService::revert(&state.pool, id, user.role).await?;
     record_event(&state.pool, JournalKind::EventReverted, &user, id, None).await;
+    Ok(Redirect::to(&format!("/events/{id}")).into_response())
+}
+
+pub async fn stop_repeat(
+    RequirePublisher(user): RequirePublisher,
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> Result<Response, AppError> {
+    SeriesService::stop(&state.pool, id).await?;
+    record_event(&state.pool, JournalKind::RepeatStopped, &user, id, None).await;
     Ok(Redirect::to(&format!("/events/{id}")).into_response())
 }
 

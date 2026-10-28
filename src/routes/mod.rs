@@ -201,6 +201,7 @@ fn publisher_routes() -> Router<AppState> {
             "/events/{id}/revert-lifecycle",
             post(events::revert_lifecycle),
         )
+        .route("/events/{id}/stop-repeat", post(events::stop_repeat))
         .route("/events/{id}/delete", post(events::delete))
         .route("/events/{id}/updates", post(events::add_update))
         .route(

@@ -700,7 +700,7 @@ pub struct IncidentSpan {
 /// Service id, severity, start and end of an incident span.
 type SpanRow = (i64, Option<Severity>, DateTime<Utc>, Option<DateTime<Utc>>);
 
-async fn link_services(
+pub(crate) async fn link_services(
     tx: &mut sqlx::Transaction<'_, Sqlite>,
     event_id: i64,
     service_ids: &[i64],

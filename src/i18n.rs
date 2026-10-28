@@ -9,7 +9,7 @@ use std::sync::LazyLock;
 
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
-use chrono::{DateTime, Datelike, NaiveDate, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, Utc, Weekday};
 
 use crate::clock;
 use crate::models::{Countdown, split_duration};
@@ -246,6 +246,11 @@ impl I18n {
         let mut args = date_args(*date, month);
         args.push(("weekday", weekday.to_string()));
         self.tf("date.dateline", &as_refs(&args))
+    }
+
+    /// "dimanche", a weekday on its own.
+    pub fn weekday_name(&self, weekday: Weekday) -> &'static str {
+        self.t(weekday_key(weekday.number_from_monday()))
     }
 
     /// "Aujourd'hui", "Hier", or the date.

@@ -145,3 +145,87 @@ async fn a_maintenance_begun_now_does_not_repeat() {
     assert_eq!(event.series_id, None);
     assert_eq!(app.series_count().await, 0);
 }
+
+impl TestApp {
+    /// A weekly maintenance announced through the form; returns its first
+    /// session and when it starts.
+    async fn weekly_series(&self, service: i64) -> (i64, chrono::NaiveDateTime) {
+        let start = sunday_ahead();
+        let mut fields = maintenance(service, start);
+        fields.push(("planned_end", input(start + Duration::hours(2))));
+        let (_, _, location) = self.announce(&fields).await;
+        (event_id(&location.unwrap()), start)
+    }
+
+    async fn series_of(&self, session: i64) -> statup::models::MaintenanceSeries {
+        let event = EventRepository::find_by_id(&self.pool, session)
+            .await
+            .unwrap()
+            .unwrap();
+        SeriesRepository::find(&self.pool, event.series_id.unwrap())
+            .await
+            .unwrap()
+            .unwrap()
+    }
+}
+
+#[tokio::test]
+async fn a_session_names_its_rhythm_and_a_publisher_stops_it_there() {
+    let app = TestApp::spawn().await;
+    let service = app.as_publisher().await;
+    let (session, _) = app.weekly_series(service).await;
+    let rhythm = I18n::new(LANGUAGES[0].code).tf(
+        "events.repeat_weekly",
+        &[(
+            "weekday",
+            I18n::new(LANGUAGES[0].code).weekday_name(chrono::Weekday::Sun),
+        )],
+    );
+
+    let (_, page) = app.get(&format!("/events/{session}")).await;
+    assert!(page.contains(&rhythm));
+    assert!(page.contains(&format!("/events/{session}/stop-repeat")));
+
+    let csrf = app.csrf_from(&format!("/events/{session}")).await;
+    let (status, _, _) = app
+        .post_form(&format!("/events/{session}/stop-repeat"), &csrf, &[])
+        .await;
+
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert!(app.series_of(session).await.stopped_at.is_some());
+    let (_, page) = app.get(&format!("/events/{session}")).await;
+    assert!(!page.contains(&rhythm));
+    let journal: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM journal_entries WHERE kind = 'repeat_stopped'")
+            .fetch_one(&app.pool)
+            .await
+            .unwrap();
+    assert_eq!(journal, 1);
+}
+
+#[tokio::test]
+async fn an_edit_of_a_session_carries_to_the_next_ones_when_asked() {
+    let app = TestApp::spawn().await;
+    let service = app.as_publisher().await;
+    let (session, start) = app.weekly_series(service).await;
+    let edit = format!("/events/{session}/edit");
+    let (_, form) = app.get(&edit).await;
+    assert!(form.contains("name=\"also_following\""));
+
+    let csrf = app.csrf_from(&edit).await;
+    let fields = [
+        ("title", "Longer backups".to_string()),
+        ("description", String::new()),
+        ("planned_start", input(start)),
+        ("planned_end", input(start + Duration::hours(3))),
+        ("service_ids", service.to_string()),
+        ("also_following", "on".to_string()),
+    ];
+    let fields: Vec<(&str, &str)> = fields.iter().map(|(k, v)| (*k, v.as_str())).collect();
+    let (status, _, _) = app.post_form(&edit, &csrf, &fields).await;
+
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let series = app.series_of(session).await;
+    assert_eq!(series.title, "Longer backups");
+    assert_eq!(series.duration_minutes, 180);
+}

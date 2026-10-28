@@ -16,11 +16,13 @@ use crate::models::{
 };
 use crate::repositories::{
     CreateTemplateInput, EventRepository, EventTemplateRepository, FolderRepository,
-    NewJournalEntry, OutageRepository, ServiceRepository,
+    NewJournalEntry, OutageRepository, SeriesRepository, ServiceRepository,
 };
 use crate::routes::services::{ServiceGroup, grouped};
 use crate::routes::{Frame, render};
-use crate::services::{EventService, EventTemplateService, can_modify, read_next_update};
+use crate::services::{
+    EventService, EventTemplateService, SeriesService, can_modify, read_next_update,
+};
 use crate::state::AppState;
 
 /// How many recent maintenances the announcement form offers.
@@ -65,6 +67,8 @@ pub struct EventInput {
     repeats: Option<String>,
     #[serde(default)]
     repeat: String,
+    #[serde(default)]
+    also_following: Option<String>,
 }
 
 impl EventInput {
@@ -153,6 +157,9 @@ pub struct EventFormData {
     pub next_update: String,
     /// How a maintenance being announced repeats, when it does.
     pub repeat: Option<Rhythm>,
+    /// Whether the edit of a session goes to the next ones too; `None`
+    /// when the event is not a session of a maintenance that repeats.
+    pub following: Option<bool>,
 }
 
 /// A maintenance an announcement may follow, dated so that two with the
@@ -202,6 +209,7 @@ impl EventFormData {
             follows_event_id: None,
             next_update: String::new(),
             repeat: None,
+            following: None,
         }
     }
 
@@ -239,6 +247,7 @@ impl EventFormData {
             follows_event_id: Some(ews.event.id),
             next_update: String::new(),
             repeat: None,
+            following: None,
         }
     }
 
@@ -270,6 +279,7 @@ impl EventFormData {
             follows_event_id: event.follows_event_id,
             next_update: String::new(),
             repeat: None,
+            following: None,
         }
     }
 
@@ -291,6 +301,7 @@ impl EventFormData {
             started_at: input.started_at,
             follows_event_id: input.follows_event_id,
             next_update: input.next_update,
+            following: None,
         }
     }
 
@@ -316,6 +327,14 @@ impl EventFormData {
             .unwrap_or(Lifecycle::Investigating)
             .as_str()
             == step
+    }
+
+    fn offers_following(&self) -> bool {
+        self.following.is_some()
+    }
+
+    fn also_following(&self) -> bool {
+        self.following == Some(true)
     }
 
     fn repeat_is(&self, rhythm: &str) -> bool {
@@ -601,7 +620,8 @@ pub async fn edit_form(
         return Err(AppError::refused("validation.event_closed_admin_only"));
     }
     let service_ids = ews.services.iter().map(|s| s.id).collect();
-    let form = EventFormData::from_event(&ews.event, service_ids);
+    let mut form = EventFormData::from_event(&ews.event, service_ids);
+    form.following = repeats(&state, &ews.event).await?.then_some(false);
     render_form(&state, &user, csrf_token.0, i18n, Some(id), form, None).await
 }
 
@@ -629,9 +649,21 @@ pub async fn update(
         follows_event_id: input.follows_event_id,
     };
     let title = changes.title.clone();
-    match EventService::update(&state.pool, id, changes, user.role).await {
+    let offers_following = repeats(&state, &event).await?;
+    let also_following = offers_following && input.also_following.is_some();
+    let saved = if also_following {
+        SeriesService::update_with_following(&state.pool, id, changes, user.role).await
+    } else {
+        EventService::update(&state.pool, id, changes, user.role).await
+    };
+    match saved {
         Ok(()) => {
-            NewJournalEntry::new(JournalKind::EventEdited)
+            let kind = if also_following {
+                JournalKind::RepeatChanged
+            } else {
+                JournalKind::EventEdited
+            };
+            NewJournalEntry::new(kind)
                 .by(&user)
                 .about(&title)
                 .record(&state.pool)
@@ -641,11 +673,21 @@ pub async fn update(
         Err(AppError::Validation(key)) => {
             let mut form = EventFormData::from_input(input, kind, planned);
             form.start_locked = kind == Kind::Maintenance && event.started_at.is_some();
+            form.following = offers_following.then_some(also_following);
             let error = Some(i18n.t(&key).to_string());
             render_form(&state, &user, csrf_token.0, i18n, Some(id), form, error).await
         }
         Err(e) => Err(e),
     }
+}
+
+/// Whether the event is a session of a maintenance that still repeats.
+async fn repeats(state: &AppState, event: &Event) -> Result<bool, AppError> {
+    let Some(series_id) = event.series_id else {
+        return Ok(false);
+    };
+    let series = SeriesRepository::find(&state.pool, series_id).await?;
+    Ok(series.is_some_and(|series| series.stopped_at.is_none()))
 }
 
 #[cfg(test)]

@@ -6,6 +6,7 @@ use chrono::{
 };
 
 use crate::clock;
+use crate::i18n::I18n;
 
 /// How many months ahead a search goes before giving up.
 const MAX_MONTHS_AHEAD: u32 = 14;
@@ -113,6 +114,20 @@ pub enum Recurrence {
 }
 
 impl Recurrence {
+    /// "Chaque dimanche", "Le premier dimanche du mois", as the form names
+    /// the rhythm.
+    pub fn describe(&self, i18n: &I18n) -> String {
+        let weekday = i18n.weekday_name(self.weekday());
+        match self.rank() {
+            None => i18n.tf("events.repeat_weekly", &[("weekday", weekday)]),
+            Some(rank) => {
+                let rank_key = format!("events.repeat_rank_{}", rank.as_str());
+                let args = [("rank", i18n.t(&rank_key)), ("weekday", weekday)];
+                i18n.tf("events.repeat_monthly", &args)
+            }
+        }
+    }
+
     /// The rule a first start, read on the instance clock, sets.
     pub fn from_first(rhythm: Rhythm, start: NaiveDateTime) -> Self {
         let (weekday, time) = (start.weekday(), start.time());

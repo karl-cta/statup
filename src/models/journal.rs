@@ -112,6 +112,10 @@ pub enum JournalKind {
     EventReverted,
     /// A member deleted an event.
     EventDeleted,
+    /// A member stopped a maintenance from repeating.
+    RepeatStopped,
+    /// A member carried an edit of a repeating maintenance to the next ones.
+    RepeatChanged,
     /// A member published the review of an incident.
     ReviewPublished,
     /// A member removed the review of an incident.
@@ -265,6 +269,8 @@ impl JournalKind {
             Self::EventUpdateDeleted => row(Cat::Members, false, Level::INFO, Tone::Neutral, "Event update deleted", "journal.event_update_deleted"),
             Self::EventReverted => row(Cat::Members, false, Level::INFO, Tone::Neutral, "Event reverted", "journal.event_reverted"),
             Self::EventDeleted => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Event deleted", "journal.event_deleted"),
+            Self::RepeatStopped => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Maintenance repeat stopped", "journal.repeat_stopped"),
+            Self::RepeatChanged => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Repeating maintenance edited with the next ones", "journal.repeat_changed"),
             Self::ReviewPublished => row(Cat::Members, false, Level::INFO, Tone::Neutral, "Review published", "journal.review_published"),
             Self::ReviewRemoved => row(Cat::Members, false, Level::INFO, Tone::Neutral, "Review removed", "journal.review_removed"),
             Self::TemplateSaved => row(Cat::Members, false, Level::INFO, Tone::Neutral, "Template saved", "journal.template_saved"),

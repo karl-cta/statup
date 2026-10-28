@@ -141,6 +141,12 @@
                                 </fieldset>
                             </div>
                             {% endif %}
+                            {% if form.offers_following() %}
+                            <label class="check-row">
+                                <input type="checkbox" name="also_following" value="on" class="checkbox"{% if form.also_following() %} checked{% endif %}>
+                                <span>{{ i18n.t("events.also_following") }}</span>
+                            </label>
+                            {% endif %}
                         </div>
                     </div>
 

@@ -69,8 +69,13 @@ impl NewSeries {
     /// `None` without a start, or without an end after it: a session with
     /// no end would never complete.
     pub fn from_first(rhythm: Rhythm, first: &CreateEventInput) -> Option<Self> {
-        let start = first.planned_start?;
-        let duration_minutes = (first.planned_end? - start).num_minutes();
+        Self::from_window(rhythm, first.planned_start?, first.planned_end?)
+    }
+
+    /// The rule and length a session's window sets, the next start being
+    /// the one after it.
+    pub fn from_window(rhythm: Rhythm, start: DateTime<Utc>, end: DateTime<Utc>) -> Option<Self> {
+        let duration_minutes = (end - start).num_minutes();
         if duration_minutes <= 0 {
             return None;
         }
