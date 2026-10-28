@@ -2,6 +2,11 @@
 
 All notable changes to Statup are listed here. The project is pre-v1: until 1.0, a minor version may change the interface or the database, and the README asks you to back up before upgrading.
 
+## Unreleased
+
+- With a colour chosen in **Settings**, the dot and the last letter of the Statup mark take it too, and each swatch shows its name in a bubble on hover instead of a line under the row.
+- In **Settings**, the border of a hovered **Ambiance** or **Page access** choice no longer slips under the chosen one.
+
 ## 0.10.0, 2026-10-28
 
 - A maintenance announced ahead can **Repeat** every week or every month, on the day picked: it is announced once, then each session comes, starts and ends on its own, without a message. **Stop repeating** on a session's page ends it, and **Apply to the following ones too** carries an edit to the next sessions. The banner never announces a repeating maintenance ahead, and the **Maintenance** block shows its next and latest sessions only. The database is upgraded on start.

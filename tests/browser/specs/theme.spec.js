@@ -11,16 +11,18 @@ async function saveGeneral(page) {
     await expect(page.getByRole("status").filter({ hasText: "Paramètres enregistrés." })).toBeVisible();
 }
 
-// The inputs are visually hidden: the click goes to the swatch, named by its
-// title, and to the drawn choice, as a reader's would.
+// The inputs are visually hidden: the click goes to the swatch, named above
+// it on hover, and to the drawn choice, as a reader's would.
 async function choose(page, accent, ambiance) {
     await page.goto("/admin/settings");
-    await page.getByTitle(accent, { exact: true }).click();
+    await page.getByRole("radio", { name: accent, exact: true }).locator("xpath=..").click();
     await page.getByRole("radiogroup", { name: "Ambiance" }).getByText(ambiance, { exact: true }).click();
     await expect(page.getByRole("radio", { name: accent, exact: true })).toBeChecked();
     await expect(page.getByRole("radio", { name: ambiance, exact: true })).toBeChecked();
 }
 
+const markDot = (page) =>
+    page.locator(".mast .logo-dot").first().evaluate((dot) => getComputedStyle(dot).fill);
 const mastLine = (page) => page.getByRole("banner").evaluate((mast) => getComputedStyle(mast).borderBottomColor);
 
 test("a chosen colour and ambiance show before saving and stay on every page after", async ({ page }) => {
@@ -29,7 +31,6 @@ test("a chosen colour and ambiance show before saving and stay on every page aft
         await choose(page, "Marine", "Galet");
         await expect(html).toHaveAttribute("data-accent", "navy");
         await expect(html).toHaveAttribute("data-ambiance", "pebble");
-        await expect(page.locator("[data-accent-name]")).toHaveText("Marine");
         await expect(page.locator("[data-unsaved-note]")).toBeVisible();
 
         await saveGeneral(page);
@@ -39,6 +40,9 @@ test("a chosen colour and ambiance show before saving and stay on every page aft
         await expect(html).toHaveAttribute("data-accent", "navy");
         await expect(html).toHaveAttribute("data-ambiance", "pebble");
         await expect.poll(() => mastLine(page), "the masthead line takes the accent").toBe(NAVY_LIGHT);
+        await expect
+            .poll(() => markDot(page), "the dot of the mark takes the accent")
+            .toBe(NAVY_LIGHT);
 
         await page.evaluate(() => window.localStorage.setItem("theme", "dark"));
         await page.reload();

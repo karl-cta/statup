@@ -269,6 +269,12 @@
     --sem-info-border: rgb(115 171 218 / 0.32);
 }
 
+/* With an accent chosen, the mark's dot and the wordmark's last letter take
+   it too, in place of the Statup sage. */
+[data-accent] {
+    --color-brand: var(--primary);
+}
+
 /* Night versions: the ambiance keeps its family, the accent is lifted until
    the dark label reads on it. An element of its own, a swatch, can carry an
    accent too. */

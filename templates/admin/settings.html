@@ -104,7 +104,8 @@
                             {% if let Some(url) = crate::instance_logo_url() %}
                             <img class="set-logo-preview" src="{{ url }}" alt="">
                             {% else %}
-                            <img class="set-logo-mark" src="{{ crate::asset("logo.svg") }}" alt="">
+                            {% let logo_size = "set-logo-mark" %}
+                            {% include "components/logo.html" %}
                             {% endif %}
                         </span>
                         <label class="set-logo-pick">
@@ -128,13 +129,12 @@
                     <p id="accent-label" class="set-label">{{ i18n.t("admin.accent") }}</p>
                     <div class="swatches" role="radiogroup" aria-labelledby="accent-label">
                         {% for accent in Accent::ALL %}
-                        <label class="swatch" title="{{ i18n.t(accent.label_key()) }}">
+                        <label class="swatch">
                             <input type="radio" name="accent" value="{{ accent.as_str() }}" class="sr-only"{% if accent.as_str() == chosen.accent.as_str() %} checked{% endif %}{% if accent.attribute().is_none() %} data-default{% endif %}>
                             <span class="swatch-chip"{% if let Some(id) = accent.attribute() %} data-accent="{{ id }}"{% endif %} aria-hidden="true"></span>
-                            <span class="sr-only">{{ i18n.t(accent.label_key()) }}</span>
+                            <span class="swatch-name">{{ i18n.t(accent.label_key()) }}</span>
                         </label>
                         {% endfor %}
-                        <span class="swatch-name" aria-hidden="true" data-accent-name>{{ i18n.t(chosen.accent.label_key()) }}</span>
                     </div>
                 </div>
                 <div class="set-row">

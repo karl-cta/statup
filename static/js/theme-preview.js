@@ -11,11 +11,6 @@
         } else {
             root.dataset[input.name] = input.value;
         }
-        const name = document.querySelector("[data-accent-name]");
-        const label = input.closest("label");
-        if (input.name === "accent" && name && label) {
-            name.textContent = label.title;
-        }
     }
 
     document.addEventListener("change", (event) => {
