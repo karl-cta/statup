@@ -453,6 +453,7 @@ mod tests {
             event: Box::new(event()),
             services: vec!["Réseau".to_string(), "VPN".to_string()],
             message: None,
+            rhythm: None,
         }
     }
 
@@ -698,6 +699,7 @@ mod tests {
             event: Box::new(resolved),
             services: vec!["Réseau".to_string()],
             message: Some("<p>Un câble a été coupé.</p>".to_string()),
+            rhythm: None,
         };
         let reviewed = Some(Lifecycle::Resolved);
         let i18n = crate::i18n::I18n::new("fr");

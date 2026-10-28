@@ -143,6 +143,15 @@ impl SeriesRepository {
         Ok(Some(event))
     }
 
+    /// The session the series was announced with, while it exists: the
+    /// others were added by the schedule.
+    pub async fn first_session(pool: &DbPool, id: i64) -> Result<Option<i64>, sqlx::Error> {
+        sqlx::query_scalar("SELECT MIN(id) FROM events WHERE series_id = ?")
+            .bind(id)
+            .fetch_one(pool)
+            .await
+    }
+
     /// When the session waiting to begin starts, if there is one.
     pub async fn scheduled_start(
         pool: &DbPool,

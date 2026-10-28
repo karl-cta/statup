@@ -252,6 +252,7 @@
   "timeline.declared": "Incident declared",
   "timeline.began": "Incident began",
   "timeline.announced": "Maintenance announced",
+  "timeline.added": "Added automatically",
   "timeline.started": "Maintenance started",
   "timeline.restored": "Service restored",
   "timeline.published": "Announcement posted",

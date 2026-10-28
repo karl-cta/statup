@@ -6,8 +6,8 @@ use chrono::{DateTime, Utc};
 use crate::clock;
 use crate::i18n::I18n;
 use crate::models::{
-    Event, Happening, Kind, Lifecycle, SEPARATOR, Tone, chip_key, excerpt, html_to_text,
-    split_duration, state_tone,
+    Event, Happening, Kind, Lifecycle, Recurrence, SEPARATOR, Tone, chip_key, excerpt,
+    html_to_text, split_duration, state_tone,
 };
 use crate::services::sanitize_markdown;
 
@@ -46,6 +46,8 @@ pub enum Subject {
         /// What was written with it, sanitized HTML: the update posted with
         /// the change, or the review published.
         message: Option<String>,
+        /// How a repeating maintenance comes back, told with its announce.
+        rhythm: Option<Recurrence>,
     },
     /// Services the checks found down, or back, in one wave: the first one
     /// leads, the others fell or came back with it.
@@ -104,6 +106,7 @@ impl Notice {
                 event,
                 services,
                 message,
+                rhythm,
             } => {
                 let about = AboutEvent {
                     happening,
@@ -111,6 +114,7 @@ impl Notice {
                     event,
                     services,
                     message: message.as_deref(),
+                    rhythm: rhythm.as_ref(),
                 };
                 about.notice(origin, i18n)
             }
@@ -136,13 +140,18 @@ struct AboutEvent<'a> {
     event: &'a Event,
     services: &'a [String],
     message: Option<&'a str>,
+    rhythm: Option<&'a Recurrence>,
 }
 
 impl AboutEvent<'_> {
     fn notice(&self, origin: &Origin, i18n: &I18n) -> Notice {
         let event = self.event;
         let services = (!self.services.is_empty()).then(|| self.services.join(", "));
-        let summary = [self.state(i18n), services]
+        let rhythm = self
+            .rhythm
+            .filter(|_| self.happening == Happening::Opened)
+            .map(|rhythm| rhythm.describe(i18n));
+        let summary = [self.state(i18n), rhythm, services]
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
@@ -416,6 +425,7 @@ mod tests {
             event: Box::new(event),
             services: vec!["Réseau".to_string(), "VPN".to_string()],
             message: update.map(ToString::to_string),
+            rhythm: None,
         }
     }
 
@@ -563,6 +573,33 @@ mod tests {
     }
 
     #[test]
+    fn a_repeating_maintenance_tells_its_rhythm_with_its_announce_only() {
+        let mut maintenance = event(Kind::Maintenance, None, Some(Lifecycle::Scheduled));
+        maintenance.planned = true;
+        maintenance.planned_start = Some(at(60 * 13));
+        maintenance.planned_end = Some(at(60 * 14));
+        let sunday = chrono::NaiveTime::from_hms_opt(2, 0, 0).unwrap();
+        let subject = Subject::Event {
+            event: Box::new(maintenance),
+            services: vec!["Sauvegardes".to_string()],
+            message: None,
+            rhythm: Some(Recurrence::Weekly {
+                weekday: chrono::Weekday::Sun,
+                time: sunday,
+            }),
+        };
+
+        let opened = write(Happening::Opened, &subject, "fr");
+        let moved = write(Happening::Rescheduled, &subject, "en");
+        let english = write(Happening::Opened, &subject, "en");
+
+        let summary = opened.summary.unwrap();
+        assert!(summary.ends_with(&line(&["Chaque dimanche", "Sauvegardes"])));
+        assert!(english.summary.unwrap().contains("Every Sunday"));
+        assert!(!moved.summary.unwrap().contains("Every Sunday"));
+    }
+
+    #[test]
     fn a_window_over_two_days_names_both() {
         let mut maintenance = event(Kind::Maintenance, None, Some(Lifecycle::Scheduled));
         maintenance.planned_start = Some(at(60 * 13));
@@ -616,6 +653,7 @@ mod tests {
             event: Box::new(announcement),
             services: Vec::new(),
             message: None,
+            rhythm: None,
         };
 
         let published = write(Happening::Published, &subject, "fr");

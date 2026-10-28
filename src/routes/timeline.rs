@@ -39,10 +39,13 @@ struct Milestone {
 
 /// Everything that happened to the event, newest first. The opening entry
 /// carries the description and the author.
+/// `added` marks a session the schedule added to a repeating maintenance:
+/// nobody announced it, so it opens without an author.
 pub fn build(
     event: &Event,
     description_html: String,
     author: Option<String>,
+    added: bool,
     updates: Vec<EventUpdateWithAuthor>,
     user: Option<&User>,
     i18n: &I18n,
@@ -56,7 +59,8 @@ pub fn build(
         })
         .collect();
     entries.extend(milestones.into_iter().map(|m| milestone_entry(m, i18n)));
-    entries.push(opening_entry(event, description_html, author, i18n));
+    let author = author.filter(|_| !added);
+    entries.push(opening_entry(event, description_html, author, added, i18n));
     entries.sort_by_key(|entry| std::cmp::Reverse(entry.at));
     entries
 }
@@ -65,9 +69,14 @@ fn opening_entry(
     event: &Event,
     description_html: String,
     author: Option<String>,
+    added: bool,
     i18n: &I18n,
 ) -> TimelineEntry {
-    let opening = i18n.t(opening_key(event));
+    let opening = if added {
+        i18n.t("timeline.added")
+    } else {
+        i18n.t(opening_key(event))
+    };
     let label = match event.qualifier(i18n) {
         Some(qualifier) => format!("{opening}{SEPARATOR}{qualifier}"),
         None => opening.to_string(),
@@ -269,7 +278,15 @@ mod tests {
             update(1, closed - Duration::hours(1), "Cause found"),
             update(2, closed + Duration::seconds(1), "Fixed"),
         ];
-        let entries = build(&incident, "<p>Down</p>".into(), None, updates, None, &i18n);
+        let entries = build(
+            &incident,
+            "<p>Down</p>".into(),
+            None,
+            false,
+            updates,
+            None,
+            &i18n,
+        );
 
         assert_eq!(entries.len(), 3);
         assert_eq!(entries[0].update_id, Some(2));
@@ -296,7 +313,15 @@ mod tests {
         let i18n = I18n::new("en");
         let mut incident = event(Kind::Incident, false, Lifecycle::Investigating);
         incident.started_at = Some(incident.created_at - Duration::minutes(20));
-        let entries = build(&incident, String::new(), None, Vec::new(), None, &i18n);
+        let entries = build(
+            &incident,
+            String::new(),
+            None,
+            false,
+            Vec::new(),
+            None,
+            &i18n,
+        );
 
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].label.as_deref(), Some("Incident declared"));
@@ -309,13 +334,26 @@ mod tests {
     }
 
     #[test]
+    fn a_session_the_schedule_added_opens_without_an_author() {
+        let i18n = I18n::new("en");
+        let work = event(Kind::Maintenance, true, Lifecycle::Scheduled);
+        let author = Some("Karl".to_string());
+
+        let entries = build(&work, String::new(), author, true, Vec::new(), None, &i18n);
+
+        let opening = entries.last().unwrap();
+        assert_eq!(opening.label.as_deref(), Some("Added automatically"));
+        assert_eq!(opening.author, None);
+    }
+
+    #[test]
     fn announced_work_shows_the_times_still_to_come() {
         let i18n = I18n::new("en");
         let mut work = event(Kind::Maintenance, true, Lifecycle::Scheduled);
         work.started_at = None;
         work.planned_start = Some(Utc::now() + Duration::days(1));
         work.planned_end = Some(Utc::now() + Duration::days(1) + Duration::hours(2));
-        let entries = build(&work, String::new(), None, Vec::new(), None, &i18n);
+        let entries = build(&work, String::new(), None, false, Vec::new(), None, &i18n);
 
         let upcoming: Vec<bool> = entries.iter().map(|e| e.upcoming).collect();
         assert_eq!(upcoming, [true, true, false]);
