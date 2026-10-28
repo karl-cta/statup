@@ -159,7 +159,8 @@
         transform: none;
     }
 
-    /* Unread count: a neutral ink token, never the outage red. */
+    /* Unread count: a neutral ink token, never the outage red, nor the
+       host's accent, which may be red. */
     .unread {
         display: inline-flex;
         align-items: center;
@@ -170,8 +171,8 @@
         font-size: var(--text-xs);
         font-weight: 600;
         line-height: 1;
-        color: var(--on-primary);
-        background: var(--primary);
+        color: var(--ground);
+        background: var(--ink);
         border-radius: 999px;
         font-feature-settings: 'tnum' 1;
     }

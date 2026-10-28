@@ -24,6 +24,10 @@ fn blocks() -> HashMap<String, Block> {
         let selectors = rest[..open].to_string();
         let close = open + rest[open..].find('}').unwrap();
         let body = &rest[open + 1..close];
+        assert!(
+            !body.contains('{'),
+            "tokens.css gained a nested block: teach this reader to walk it"
+        );
         let properties: Block = body
             .split(';')
             .filter_map(|line| {
@@ -164,38 +168,26 @@ fn every_accent_reads_in_every_ambiance_and_theme() {
             for accent in Accent::ALL {
                 let case = format!("{} {} dark={dark}", accent.as_str(), ambiance.as_str());
                 let properties = resolve(&blocks, dark, ambiance, accent);
-                check(
-                    &mut failures,
-                    &properties,
-                    "--on-primary",
-                    "--primary",
-                    TEXT,
-                    &case,
-                );
-                check(
-                    &mut failures,
-                    &properties,
-                    "--on-primary",
-                    "--primary-hover",
-                    TEXT,
-                    &case,
-                );
-                check(
-                    &mut failures,
-                    &properties,
-                    "--primary",
-                    "--ground",
-                    CONTROL,
-                    &case,
-                );
-                check(
-                    &mut failures,
-                    &properties,
-                    "--primary",
-                    "--card",
-                    CONTROL,
-                    &case,
-                );
+                for state in ["--primary", "--primary-hover", "--primary-active"] {
+                    check(
+                        &mut failures,
+                        &properties,
+                        "--on-primary",
+                        state,
+                        TEXT,
+                        &case,
+                    );
+                }
+                for ground in ["--ground", "--card"] {
+                    check(
+                        &mut failures,
+                        &properties,
+                        "--primary",
+                        ground,
+                        CONTROL,
+                        &case,
+                    );
+                }
             }
         }
     }

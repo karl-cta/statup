@@ -150,3 +150,24 @@ async fn an_unknown_ambiance_is_refused_in_the_page() {
     assert_eq!((status, location), (StatusCode::OK, None));
     assert!(body.contains(&refusal_text()), "{body}");
 }
+
+#[tokio::test]
+async fn a_refused_save_keeps_the_colour_and_ambiance_it_sent() {
+    let app = spawn_with_admin().await;
+    let long_name = "A".repeat(41);
+
+    let (status, body, _) = app
+        .save_settings(
+            &[
+                ("instance_name", long_name.as_str()),
+                ("accent", "navy"),
+                ("ambiance", "pebble"),
+            ],
+            None,
+        )
+        .await;
+
+    assert_eq!(status, StatusCode::OK, "the long name is refused");
+    assert!(body.contains(r#"name="accent" value="navy" class="sr-only" checked"#));
+    assert!(body.contains(r#"name="ambiance" value="pebble" class="sr-only" checked"#));
+}

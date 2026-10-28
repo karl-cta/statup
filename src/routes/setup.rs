@@ -246,15 +246,15 @@ pub(super) struct GeneralInput {
     pub(super) access: String,
     pub(super) time_zone: Option<String>,
     /// Absent from the setup, which leaves the theme as it is.
-    accent: Option<String>,
-    ambiance: Option<String>,
+    pub(super) accent: Option<String>,
+    pub(super) ambiance: Option<String>,
     logo: Vec<u8>,
 }
 
 impl GeneralInput {
     /// What this save would change, named in English. Read before saving.
     pub(super) fn changed_fields(&self, state: &AppState) -> Vec<&'static str> {
-        let differs = [
+        let changes = [
             ("name", self.instance_name.trim() != crate::instance_name()),
             ("logo", !self.logo.is_empty()),
             (
@@ -279,7 +279,7 @@ impl GeneralInput {
                 ),
             ),
         ];
-        differs
+        changes
             .into_iter()
             .filter_map(|(field, changed)| changed.then_some(field))
             .collect()
