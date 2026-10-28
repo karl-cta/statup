@@ -665,8 +665,10 @@
         outline-offset: 2px;
     }
 
-    /* A status dot keeps its edge on the light ground of a chosen button. */
-    .dark .choice:has(:checked) .dot {
+    /* A status dot keeps its edge on the ground of a chosen button: light at
+       night, the host's accent by day. */
+    .dark .choice:has(:checked) .dot,
+    [data-accent] .choice:has(:checked) .dot {
         box-shadow: 0 0 0 1.5px var(--on-primary);
     }
 

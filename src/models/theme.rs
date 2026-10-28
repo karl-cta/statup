@@ -9,7 +9,7 @@ pub enum Accent {
     Cobalt,
     Teal,
     Pine,
-    Plum,
+    Rose,
     Violet,
     Burgundy,
     Brick,
@@ -25,7 +25,7 @@ impl Accent {
         Self::Cobalt,
         Self::Teal,
         Self::Pine,
-        Self::Plum,
+        Self::Rose,
         Self::Violet,
         Self::Burgundy,
         Self::Brick,
@@ -41,7 +41,7 @@ impl Accent {
             Self::Cobalt => "cobalt",
             Self::Teal => "teal",
             Self::Pine => "pine",
-            Self::Plum => "plum",
+            Self::Rose => "rose",
             Self::Violet => "violet",
             Self::Burgundy => "burgundy",
             Self::Brick => "brick",
@@ -67,20 +67,20 @@ impl Accent {
 pub enum Ambiance {
     #[default]
     Sand,
-    Stone,
     Mist,
     Paper,
+    Pebble,
 }
 
 impl Ambiance {
-    pub const ALL: [Self; 4] = [Self::Sand, Self::Stone, Self::Mist, Self::Paper];
+    pub const ALL: [Self; 4] = [Self::Sand, Self::Mist, Self::Paper, Self::Pebble];
 
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Sand => "sand",
-            Self::Stone => "stone",
             Self::Mist => "mist",
             Self::Paper => "paper",
+            Self::Pebble => "pebble",
         }
     }
 
