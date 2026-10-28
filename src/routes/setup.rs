@@ -340,7 +340,8 @@ pub(super) async fn read_general(multipart: &mut Multipart) -> Result<GeneralInp
     Ok(input)
 }
 
-/// Name, logo, zone, theme and audience, all checked before any is written.
+/// Name, logo, zone, theme and audience, all checked before any is written
+/// (the theme already by `read_general`).
 pub(super) async fn apply_general(state: &AppState, input: &GeneralInput) -> Result<(), AppError> {
     let name = input.instance_name.trim();
     if let Some(key) = SettingsService::name_refusal(name) {
