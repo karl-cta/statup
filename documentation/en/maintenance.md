@@ -11,6 +11,7 @@ A maintenance tells people that work is planned or under way, on which services,
 |---|---|
 | **Start** | **Now** by default. Pick a day and a **Start time** to announce it ahead: the list offers every half hour, and any time can be typed. |
 | **Duration** | In hours and minutes. The **Estimated end** follows, such as "Tomorrow at 02:00". Without a duration: "No set end". |
+| **Repeat** | Offered once a day is picked, never with **Now**, and only when the maintenance is created. See [Repeat](#repeat). |
 | **Services affected** | The services the work touches. |
 | **Title** | Required. Until you type one, it writes itself, such as "Maintenance of Email". |
 | **Description** | Optional. |
@@ -42,6 +43,28 @@ In **Post an update**, choose:
 
 While it is scheduled, **Edit** changes its start or its duration, and the alert channels receive the new window ("Moved to …"). Once it has started, its start is locked; its duration can still change.
 
+## Repeat
+
+**Repeat** brings the same work back every week or every month. Its two choices are named after the day picked: "Every Sunday", or "The first Sunday of the month" for the rank of that weekday in its month. The rank comes from the day of the month: the 1st to the 7th is the first, the 8th to the 14th the second, the 15th to the 21st the third, the 22nd to the 28th the fourth, the 29th to the 31st the last. For "the last", pick a date from the 29th to the 31st.
+
+A duration is required: without one, the form answers "A repeating maintenance needs a duration."
+
+A repeating maintenance is announced once. The [alert channels](alerts.md) and the email subscribers receive one message, when it is created, with the rhythm after the window, such as "Every Sunday". After that, each session starts and ends on its own, in silence: no message at its start or its end. [Monitoring](monitoring.md#when-no-outage-is-declared) stays quiet during each session, as for any maintenance. **No downtime** and the services carry over to every session.
+
+Statup keeps one session scheduled ahead. Once it starts, or is cancelled or deleted, the next one appears; its timeline opens on **Added automatically**, with no author. Sessions due while the server was off are not caught up: the next one is the first still to come.
+
+Times follow the instance's clock: 02:00 stays 02:00 across daylight saving changes. On the night a time does not exist, the session starts at the first minute after it.
+
+On a session's page, the **Details** card shows **Repeats** with the rhythm. Editors and administrators find **Stop repeating** under it: it asks to confirm, cancels the session scheduled ahead (its cancellation is sent like any other) and adds no more. A session under way runs to its end.
+
+**Edit** changes one session only. Ticking **Apply to the following ones too** gives its title, description, services, time of day and duration to the sessions after it, the one already scheduled included. The day it now falls on becomes the rhythm's day, or its rank in the month.
+
+Cancelling one session from **Post an update** skips that time only: the next session appears. Moving one session by hand sends "Moved to …" as usual.
+
+Stopping, and **Apply to the following ones too**, are recorded in the [Journal](journal.md).
+
+There are only these two rhythms, and no end date: stop it by hand. A repeat cannot be set through the [API](api.md), which reads each session as an ordinary maintenance.
+
 ## What the services show
 
 While it is under way, the services it names show **Under maintenance**, unless it is marked **No downtime**, or unless something more serious holds them. A scheduled maintenance changes nothing yet.
@@ -50,8 +73,8 @@ While it is under way, the services it names show **Under maintenance**, unless 
 
 ## On the page
 
-- When nothing is disrupted, the banner says "Maintenance in progress" during the work, and "Maintenance planned for …" when one starts within seven days.
-- The **Maintenance** block lists those under way, then the scheduled ones by start, then the five last completed or cancelled.
+- When nothing is disrupted, the banner says "Maintenance in progress" during the work, and "Maintenance planned for …" when a one-off maintenance starts within seven days. A repeating maintenance is never announced ahead there: the banner shows a session only while it is under way.
+- The **Maintenance** block lists those under way, then the scheduled ones by start, then the five last completed or cancelled. A repeating maintenance appears by its scheduled session and its latest finished one only, not by each past session.
 - The maintenance's page says "in 2d" before it starts and "started 20 min ago" during it, with the planned start and end on its timeline.
 
 ## After the work
