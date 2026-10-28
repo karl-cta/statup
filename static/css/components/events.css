@@ -848,6 +848,43 @@
         margin-top: 28px;
     }
 
+    /* The event form: the kind's settings, then the services, then the
+       text. On a wide screen the services sit under the settings, beside
+       the text; a maintenance, whose window fills that column, gives them
+       the full width instead. */
+    .event-columns {
+        grid-template-areas: "settings" "services" "text";
+    }
+
+    .event-settings {
+        grid-area: settings;
+    }
+
+    .event-text {
+        grid-area: text;
+    }
+
+    .form-services {
+        grid-area: services;
+        align-self: start;
+    }
+
+    @media (min-width: 1024px) {
+        .event-columns {
+            grid-template-areas:
+                "settings text"
+                "services text";
+            grid-template-rows: auto 1fr;
+        }
+
+        .event-columns:has(input[name="kind"][value="maintenance"]:checked),
+        .event-columns:has(input[type="hidden"][name="kind"][value="maintenance"]) {
+            grid-template-areas:
+                "settings text"
+                "services services";
+        }
+    }
+
     .form-grid {
         display: grid;
         gap: 16px;
@@ -912,14 +949,16 @@
         gap: 20px;
     }
 
+    /* The day at the width of a date, the time beside it. */
     .schedule-start {
         position: relative;
         display: grid;
+        grid-template-columns: minmax(0, 13.5rem);
         gap: 8px;
     }
 
     .schedule-start.is-timed {
-        grid-template-columns: minmax(0, 1fr) 132px;
+        grid-template-columns: minmax(0, 13.5rem) 132px;
     }
 
     .date-trigger {
@@ -1013,6 +1052,16 @@
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 20px 16px;
+    }
+
+    /* A maintenance that comes back: the box, then its two rhythms. */
+    .schedule-repeat {
+        display: grid;
+        gap: 12px;
+    }
+
+    .schedule-repeat[hidden] {
+        display: none;
     }
 
     .duration {

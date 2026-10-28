@@ -12,7 +12,7 @@ use crate::i18n::{I18n, Locale};
 use crate::middleware::{CsrfToken, HtmlForm, RequirePublisher};
 use crate::models::{
     Category, CreateEventInput, Event, EventWithServices, JournalKind, Kind, Lifecycle, NextUpdate,
-    SEARCH_FROM, SEPARATOR, Scope, Service, Severity, UpdateEventInput, User,
+    Rhythm, SEARCH_FROM, SEPARATOR, Scope, Service, Severity, UpdateEventInput, User,
 };
 use crate::repositories::{
     CreateTemplateInput, EventRepository, EventTemplateRepository, FolderRepository,
@@ -61,6 +61,10 @@ pub struct EventInput {
     follows_event_id: Option<i64>,
     #[serde(default)]
     next_update: String,
+    #[serde(default)]
+    repeats: Option<String>,
+    #[serde(default)]
+    repeat: String,
 }
 
 impl EventInput {
@@ -110,6 +114,13 @@ impl EventInput {
         read_next_update(&self.next_update)
     }
 
+    /// How an announced maintenance repeats, when it does. Every week
+    /// unless the month is chosen.
+    fn rhythm(&self, kind: Kind) -> Option<Rhythm> {
+        (self.planned(kind) && self.repeats.is_some())
+            .then(|| Rhythm::parse(&self.repeat).unwrap_or(Rhythm::Weekly))
+    }
+
     /// The step an incident is declared at; only an incident has one.
     fn opening_step(&self, kind: Kind) -> Option<Lifecycle> {
         (kind == Kind::Incident)
@@ -140,6 +151,8 @@ pub struct EventFormData {
     pub follows_event_id: Option<i64>,
     /// When an incident being declared will have its first update.
     pub next_update: String,
+    /// How a maintenance being announced repeats, when it does.
+    pub repeat: Option<Rhythm>,
 }
 
 /// A maintenance an announcement may follow, dated so that two with the
@@ -188,6 +201,7 @@ impl EventFormData {
             keeps_services_up: false,
             follows_event_id: None,
             next_update: String::new(),
+            repeat: None,
         }
     }
 
@@ -224,6 +238,7 @@ impl EventFormData {
             keeps_services_up: false,
             follows_event_id: Some(ews.event.id),
             next_update: String::new(),
+            repeat: None,
         }
     }
 
@@ -254,11 +269,13 @@ impl EventFormData {
             keeps_services_up: false,
             follows_event_id: event.follows_event_id,
             next_update: String::new(),
+            repeat: None,
         }
     }
 
     fn from_input(input: EventInput, kind: Kind, planned: bool) -> Self {
         Self {
+            repeat: input.rhythm(kind),
             severity: input.severity(kind),
             category: input.category(kind),
             opening_step: input.opening_step(kind),
@@ -299,6 +316,10 @@ impl EventFormData {
             .unwrap_or(Lifecycle::Investigating)
             .as_str()
             == step
+    }
+
+    fn repeat_is(&self, rhythm: &str) -> bool {
+        self.repeat.is_some_and(|r| r.as_str() == rhythm)
     }
 
     fn kind_is(&self, kind: &str) -> bool {
@@ -493,28 +514,28 @@ pub async fn create(
     let planned = input.planned(kind);
     let created = match input.next_update(kind) {
         Ok(next_update) => {
-            EventService::create(
-                &state.pool,
-                CreateEventInput {
-                    kind,
-                    severity: input.severity(kind),
-                    planned,
-                    category: input.category(kind),
-                    title: input.title.trim().to_string(),
-                    description: input.description.trim().to_string(),
-                    planned_start: input.start().filter(|_| planned),
-                    planned_end: input.end().filter(|_| kind == Kind::Maintenance),
-                    started_at: input.began(kind),
-                    opening_step: input.opening_step(kind),
-                    keeps_services_up: input.keeps_services_up(kind),
-                    service_ids: input.service_ids.clone(),
-                    follows_event_id: input.follows_event_id,
-                    author_id: user.id,
-                    api_key_id: None,
-                    next_update,
-                },
-            )
-            .await
+            let event = CreateEventInput {
+                kind,
+                severity: input.severity(kind),
+                planned,
+                category: input.category(kind),
+                title: input.title.trim().to_string(),
+                description: input.description.trim().to_string(),
+                planned_start: input.start().filter(|_| planned),
+                planned_end: input.end().filter(|_| kind == Kind::Maintenance),
+                started_at: input.began(kind),
+                opening_step: input.opening_step(kind),
+                keeps_services_up: input.keeps_services_up(kind),
+                service_ids: input.service_ids.clone(),
+                follows_event_id: input.follows_event_id,
+                author_id: user.id,
+                api_key_id: None,
+                next_update,
+            };
+            match input.rhythm(kind) {
+                Some(rhythm) => EventService::create_series(&state.pool, event, rhythm).await,
+                None => EventService::create(&state.pool, event).await,
+            }
         }
         Err(e) => Err(e),
     };

@@ -29,6 +29,7 @@
         const minutes = root.querySelector("[data-minutes]");
         const endText = root.querySelector("[data-end-text]");
         const calendar = root.querySelector("[data-calendar]");
+        const repeat = root.querySelector("[data-repeat]");
         const locked = trigger.disabled;
         const timed = Boolean(hours && minutes && endText && endValue);
 
@@ -62,6 +63,7 @@
         const dayInFull = format({ weekday: "long", day: "numeric", month: "long", year: "numeric" });
         const monthTitle = format({ month: "long", year: "numeric" });
         const weekdayName = format({ weekday: "short" });
+        const weekdayInFull = format({ weekday: "long" });
 
         let day = null;
         let shownMonth = null;
@@ -115,6 +117,27 @@
             return sameDay(day, today()) ? copy.today : upperFirst(dayWithYear.format(day));
         }
 
+        // The day's rank among the same weekdays of its month, as the
+        // server reads it: from the 29th on, it is the last one.
+        const RANKS = ["first", "second", "third", "fourth"];
+        const rankOf = (d) => (d.getUTCDate() > 28 ? "last" : RANKS[Math.floor((d.getUTCDate() - 1) / 7)]);
+
+        // A maintenance that repeats: offered once a day is picked, each
+        // rhythm named after that day, and only with a length.
+        function syncRepeat(start, total) {
+            const box = repeat.querySelector("[data-repeat-box]");
+            repeat.hidden = !day;
+            repeat.querySelector("[data-repeat-choices]").hidden = !box.checked;
+            hours.setCustomValidity(day && box.checked && !total ? copy.repeat_needs_duration : "");
+            if (!start) return;
+            const weekday = weekdayInFull.format(start);
+            const label = (rhythm) => repeat.querySelector(`[data-repeat-label="${rhythm}"]`);
+            label("weekly").textContent = copy.repeat_weekly.replace("{weekday}", weekday);
+            label("monthly").textContent = copy.repeat_monthly
+                .replace("{rank}", copy[`rank_${rankOf(start)}`])
+                .replace("{weekday}", weekday);
+        }
+
         function setValue(input, value) {
             if (input.value === value) return;
             input.value = value;
@@ -134,6 +157,7 @@
             endText.textContent = end ? describeEnd(end) : copy.no_end;
             endText.classList.toggle("is-empty", !end);
             setValue(endValue, end ? formatWall(end) : "");
+            if (repeat) syncRepeat(start, total);
         }
 
         function restore() {
@@ -499,6 +523,8 @@
                 minutes.value = total % 60 || "";
             });
         }
+
+        if (repeat) repeat.addEventListener("change", sync);
 
         // "Right away" and an end counted from now are settled when sent.
         form.addEventListener("submit", sync);
