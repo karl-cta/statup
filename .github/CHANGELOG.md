@@ -6,6 +6,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 
 - With a colour chosen in **Settings**, the dot and the last letter of the Statup mark take it too, and each swatch shows its name in a bubble on hover instead of a line under the row.
 - In **Settings**, the border of a hovered **Ambiance** or **Page access** choice no longer slips under the chosen one.
+- The event form keeps each box at the width of what it holds: the start's date and time, the estimated end, and the title and text at a reading width. A list of services keeps its states clear of the scroll bar in Safari.
 
 ## 0.10.0, 2026-10-28
 

@@ -879,8 +879,13 @@
         grid-area: settings;
     }
 
+    /* A title and its text at a reading width, not the whole column. */
     .event-text {
         grid-area: text;
+    }
+
+    .event-text .input {
+        max-width: 28rem;
     }
 
     .form-services {
@@ -968,16 +973,17 @@
         gap: 20px;
     }
 
-    /* The day at the width of a date, the time beside it. */
+    /* The day at the width of a date, the time beside it at the width of
+       an hour. */
     .schedule-start {
         position: relative;
         display: grid;
-        grid-template-columns: minmax(0, 13.5rem);
+        grid-template-columns: minmax(0, 12rem);
         gap: 8px;
     }
 
     .schedule-start.is-timed {
-        grid-template-columns: minmax(0, 13.5rem) 132px;
+        grid-template-columns: minmax(0, 12rem) 112px;
     }
 
     .date-trigger {
@@ -1067,10 +1073,11 @@
         border-color: var(--edge-input);
     }
 
+    /* The duration and the end it leads to, each at the width it needs. */
     .schedule-row {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 20px 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px 32px;
     }
 
     /* A maintenance that comes back: the box, then its two rhythms. */
@@ -1138,6 +1145,7 @@
     .schedule-end {
         display: flex;
         align-items: center;
+        width: max-content;
         min-height: 34px;
         padding: 5px 11px;
         font-size: var(--text-sm);
@@ -1390,7 +1398,8 @@
         align-items: center;
         gap: 10px;
         min-height: 44px;
-        padding: 8px 4px;
+        /* Room on the right for a scroll bar drawn over the list (Safari). */
+        padding: 8px 16px 8px 4px;
         border-bottom: 1px solid var(--hairline);
         transition: background-color 120ms ease;
     }
