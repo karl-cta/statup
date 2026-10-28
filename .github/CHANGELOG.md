@@ -5,6 +5,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 ## Unreleased
 
 - A maintenance announced ahead can **Repeat** every week or every month, on the day picked: it is announced once, then each session comes, starts and ends on its own, without a message. **Stop repeating** on a session's page ends it, and **Apply to the following ones too** carries an edit to the next sessions. The banner never announces a repeating maintenance ahead, and the **Maintenance** block shows its next and latest sessions only. The database is upgraded on start.
+- The event form fits its content: the start of a maintenance is a box the width of a date with the time beside it, and a maintenance lists its services across the whole form, so neither column ends on a gap.
 
 ## 0.9.0, 2026-10-27
 
