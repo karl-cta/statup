@@ -2,14 +2,15 @@
 //! Outlook and Apple Calendar open, and the way to Google Calendar.
 
 use axum::extract::{Path, State};
-use axum::http::header::{CACHE_CONTROL, CONTENT_DISPOSITION, CONTENT_TYPE};
-use axum::http::{HeaderMap, HeaderValue};
+use axum::http::HeaderMap;
+use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::response::{IntoResponse, Redirect, Response};
 
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::Viewer;
-use crate::models::{CalendarEntry, Service, excerpt, html_to_text};
+use crate::middleware::headers::no_store;
+use crate::models::{CalendarEntry, Service, plain_text};
 use crate::routes::dashboard::origin;
 use crate::routes::members_only;
 use crate::services::{EventService, sanitize_markdown};
@@ -17,9 +18,6 @@ use crate::state::AppState;
 
 /// Long enough to say what will happen, short enough for a link.
 const DESCRIPTION_CHARS: usize = 600;
-
-/// What one reader may see is never kept by a cache for the next.
-const NOT_STORED: &str = "private, no-store";
 
 pub async fn calendar_file(
     viewer: Viewer,
@@ -33,15 +31,14 @@ pub async fn calendar_file(
     }
     let entry = entry(&state, &viewer, id, &headers, &i18n).await?;
     let disposition = format!("inline; filename=\"maintenance-{id}.ics\"");
-    Ok((
+    let response = (
         [
             (CONTENT_TYPE, "text/calendar; charset=utf-8".to_string()),
             (CONTENT_DISPOSITION, disposition),
-            (CACHE_CONTROL, NOT_STORED.to_string()),
         ],
         entry.ics(),
-    )
-        .into_response())
+    );
+    Ok(no_store(response.into_response()))
 }
 
 pub async fn calendar_google(
@@ -55,11 +52,7 @@ pub async fn calendar_google(
         return Ok(redirect);
     }
     let entry = entry(&state, &viewer, id, &headers, &i18n).await?;
-    let mut response = Redirect::to(&entry.google_link()).into_response();
-    response
-        .headers_mut()
-        .insert(CACHE_CONTROL, HeaderValue::from_static(NOT_STORED));
-    Ok(response)
+    Ok(no_store(Redirect::to(&entry.google_link()).into_response()))
 }
 
 /// The maintenance as the viewer may see it; not found when it is hidden
@@ -73,14 +66,10 @@ async fn entry(
 ) -> Result<CalendarEntry, AppError> {
     let found = EventService::find_with_services(&state.pool, id, &viewer.scope).await?;
     let event = found.event;
-    let start = event.calendar_start().ok_or(AppError::NotFound)?;
-    let origin = origin(state, headers);
-    let host = origin
-        .split_once("://")
-        .map_or(origin.as_str(), |(_, host)| host);
-    let url = format!("{origin}/events/{id}");
+    let start = event.upcoming_start().ok_or(AppError::NotFound)?;
+    let url = format!("{}/events/{id}", origin(state, headers));
     Ok(CalendarEntry {
-        uid: format!("event-{id}@{host}"),
+        uid: url.clone(),
         title: i18n.tf("events.calendar_title", &[("title", &event.title)]),
         start,
         end: event.planned_end,
@@ -93,10 +82,7 @@ async fn entry(
 /// paragraph each.
 fn description(text: &str, services: &[Service], url: &str, i18n: &I18n) -> String {
     let mut parts = Vec::new();
-    let text = html_to_text(&sanitize_markdown(text));
-    if !text.is_empty() {
-        parts.push(excerpt(&text, DESCRIPTION_CHARS));
-    }
+    parts.extend(plain_text(&sanitize_markdown(text), DESCRIPTION_CHARS));
     if !services.is_empty() {
         let names: Vec<&str> = services.iter().map(|s| s.name.as_str()).collect();
         let names = names.join(", ");

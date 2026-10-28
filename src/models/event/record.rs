@@ -278,12 +278,12 @@ impl Event {
         takes_review(self.kind, self.lifecycle)
     }
 
-    /// When a maintenance still to come starts, for whoever adds it to a
-    /// calendar; none for any other event.
-    pub fn calendar_start(&self) -> Option<DateTime<Utc>> {
-        self.planned_start.filter(|_| {
-            self.kind == Kind::Maintenance && self.lifecycle == Some(Lifecycle::Scheduled)
-        })
+    /// When a maintenance still to come starts (only a maintenance is ever
+    /// scheduled); none for any other event.
+    pub fn upcoming_start(&self) -> Option<DateTime<Utc>> {
+        (self.lifecycle == Some(Lifecycle::Scheduled))
+            .then_some(self.planned_start)
+            .flatten()
     }
 
     /// When the next update is due, or how long it is overdue, said after
@@ -311,10 +311,7 @@ impl Event {
     }
 
     pub fn countdown(&self) -> Option<Countdown> {
-        (self.lifecycle == Some(Lifecycle::Scheduled))
-            .then_some(self.planned_start)
-            .flatten()
-            .and_then(countdown_to)
+        self.upcoming_start().and_then(countdown_to)
     }
 }
 
@@ -443,9 +440,7 @@ impl EventSummary {
 
     /// Plain text of the latest update, for the status banner.
     pub fn latest_update_excerpt(&self, max_chars: usize) -> Option<String> {
-        let html = self.latest_update.as_deref()?;
-        let text = html_to_text(html);
-        (!text.is_empty()).then(|| excerpt(&text, max_chars))
+        plain_text(self.latest_update.as_deref()?, max_chars)
     }
 
     pub fn is_open(&self) -> bool {
@@ -533,6 +528,13 @@ pub fn excerpt(text: &str, max_chars: usize) -> String {
     }
     let cut: String = text.chars().take(max_chars).collect();
     format!("{}…", cut.trim_end())
+}
+
+/// Sanitized HTML as plain text cut to `max_chars`, or none when it holds
+/// no text.
+pub(crate) fn plain_text(html: &str, max_chars: usize) -> Option<String> {
+    let text = html_to_text(html);
+    (!text.is_empty()).then(|| excerpt(&text, max_chars))
 }
 
 /// Text content of sanitized HTML: tags dropped, the entities ammonia

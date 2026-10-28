@@ -6,8 +6,8 @@ use chrono::{DateTime, Utc};
 use crate::clock;
 use crate::i18n::I18n;
 use crate::models::{
-    Event, Happening, Kind, Lifecycle, Recurrence, SEPARATOR, Tone, chip_key, excerpt,
-    html_to_text, split_duration, state_tone,
+    Event, Happening, Kind, Lifecycle, Recurrence, SEPARATOR, Tone, chip_key, plain_text,
+    split_duration, state_tone,
 };
 use crate::services::sanitize_markdown;
 
@@ -208,13 +208,13 @@ impl AboutEvent<'_> {
     /// begins.
     fn text(&self) -> Option<String> {
         if let Some(html) = self.message {
-            return plain_text(html);
+            return plain_text(html, MAX_TEXT_CHARS);
         }
         matches!(
             self.happening,
             Happening::Opened | Happening::Published | Happening::Started
         )
-        .then(|| plain_text(&sanitize_markdown(&self.event.description)))
+        .then(|| plain_text(&sanitize_markdown(&self.event.description), MAX_TEXT_CHARS))
         .flatten()
     }
 }
@@ -365,12 +365,6 @@ fn ends(end: DateTime<Utc>, i18n: &I18n) -> String {
             ("zone", &clock::offset_label(&end)),
         ],
     )
-}
-
-/// Sanitized HTML as plain text, cut to a length every tool takes.
-fn plain_text(html: &str) -> Option<String> {
-    let text = html_to_text(html);
-    (!text.is_empty()).then(|| excerpt(&text, MAX_TEXT_CHARS))
 }
 
 #[cfg(test)]

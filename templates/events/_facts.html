@@ -18,7 +18,7 @@
             </form>
         </dd>
         {% endif %}
-        {% if view.event.calendar_start().is_some() %}
+        {% if view.event.upcoming_start().is_some() %}
         <dd class="fact-revert">
             <details class="more-actions calendar-menu" data-more-actions>
                 <summary class="text-action">{{ i18n.t("events.add_to_calendar") }}{% call ui::caret_icon() %}{% endcall %}</summary>

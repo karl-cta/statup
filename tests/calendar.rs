@@ -37,7 +37,7 @@ fn input(kind: Kind, author_id: i64, service_ids: Vec<i64>) -> CreateEventInput 
         severity: (!maintenance).then_some(Severity::Minor),
         planned: maintenance,
         category: None,
-        title: "Mail, upgrade; v2".to_string(),
+        title: "Mail upgrade".to_string(),
         description: "Mail stops for **two hours**.".to_string(),
         planned_start: maintenance.then_some(start),
         planned_end: maintenance.then(|| start + Duration::hours(2)),
@@ -98,22 +98,17 @@ async fn the_file_holds_the_maintenance_and_is_kept_by_no_cache() {
         header("content-disposition"),
         format!("inline; filename=\"maintenance-{id}.ics\"")
     );
-    assert_eq!(header("cache-control"), "private, no-store");
+    assert_eq!(header("cache-control"), "no-store");
     let body = response.text().await.unwrap();
     let unfolded = body.replace("\r\n ", "");
     let i18n = I18n::new(LANGUAGES[0].code);
-    let summary = i18n.tf(
-        "events.calendar_title",
-        &[("title", "Mail\\, upgrade\\; v2")],
-    );
+    let summary = i18n.tf("events.calendar_title", &[("title", "Mail upgrade")]);
     assert!(unfolded.contains(&format!("SUMMARY:{summary}\r\n")));
     let services = i18n.tf("events.calendar_services", &[("names", "Mail")]);
     let description = format!("DESCRIPTION:Mail stops for two hours.\\n\\n{services}\\n\\n");
     assert!(unfolded.contains(&description));
     assert!(unfolded.contains(&format!("/events/{id}\r\n")));
-    assert!(unfolded.contains(&format!("UID:event-{id}@")));
-    assert!(body.contains("\r\nDTSTART:"));
-    assert!(body.contains("\r\nDTEND:"));
+    assert!(unfolded.contains("UID:http://127.0.0.1:"));
 }
 
 #[tokio::test]

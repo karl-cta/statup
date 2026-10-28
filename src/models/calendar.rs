@@ -13,7 +13,7 @@ const GOOGLE_RENDER_URL: &str = "https://calendar.google.com/calendar/render";
 #[derive(Debug, Clone)]
 pub struct CalendarEntry {
     /// Stable across downloads, so a calendar that already holds the event
-    /// can recognise it (e.g. `event-42@status.example.com`).
+    /// can recognise it: the address of its page.
     pub uid: String,
     pub title: String,
     pub start: DateTime<Utc>,
@@ -45,9 +45,7 @@ impl CalendarEntry {
             lines.push(format!("DTEND:{}", format_date(end)));
         }
         lines.push(format!("SUMMARY:{}", escape_text(&self.title)));
-        if !self.description.is_empty() {
-            lines.push(format!("DESCRIPTION:{}", escape_text(&self.description)));
-        }
+        lines.push(format!("DESCRIPTION:{}", escape_text(&self.description)));
         lines.push("END:VEVENT".to_string());
         lines.push("END:VCALENDAR".to_string());
         lines.iter().map(|line| fold_line(line)).collect()
@@ -58,13 +56,10 @@ impl CalendarEntry {
         let start = format_date(self.start);
         let end = format_date(self.end.unwrap_or(self.start));
         let text = utf8_percent_encode(&self.title, NON_ALPHANUMERIC);
-        let details = if self.description.is_empty() {
-            String::new()
-        } else {
-            let description = utf8_percent_encode(&self.description, NON_ALPHANUMERIC);
-            format!("&details={description}")
-        };
-        format!("{GOOGLE_RENDER_URL}?action=TEMPLATE&text={text}&dates={start}/{end}{details}")
+        let details = utf8_percent_encode(&self.description, NON_ALPHANUMERIC);
+        format!(
+            "{GOOGLE_RENDER_URL}?action=TEMPLATE&text={text}&dates={start}/{end}&details={details}"
+        )
     }
 }
 
@@ -100,16 +95,15 @@ fn fold_line(line: &str) -> String {
     let mut octets_in_line = 0;
     let mut chars = line.chars();
     while let Some(c) = chars.next() {
-        let mut unit = c.to_string();
-        if c == '\\' {
-            unit.extend(chars.next());
-        }
-        if octets_in_line + unit.len() > MAX_LINE_OCTETS {
+        let escaped = (c == '\\').then(|| chars.next()).flatten();
+        let octets = c.len_utf8() + escaped.map_or(0, char::len_utf8);
+        if octets_in_line + octets > MAX_LINE_OCTETS {
             folded.push_str("\r\n ");
             octets_in_line = 1;
         }
-        folded.push_str(&unit);
-        octets_in_line += unit.len();
+        folded.push(c);
+        folded.extend(escaped);
+        octets_in_line += octets;
     }
     folded.push_str("\r\n");
     folded
@@ -123,12 +117,12 @@ mod tests {
 
     fn entry() -> CalendarEntry {
         CalendarEntry {
-            uid: "event-42@status.example.com".to_string(),
+            uid: "https://status.example.com/events/42".to_string(),
             title: "Mail maintenance".to_string(),
             start: Utc.with_ymd_and_hms(2026, 11, 2, 1, 0, 0).unwrap(),
             end: Some(Utc.with_ymd_and_hms(2026, 11, 2, 3, 30, 0).unwrap()),
             stamp: Utc.with_ymd_and_hms(2026, 10, 28, 9, 15, 0).unwrap(),
-            description: String::new(),
+            description: "Mail stops.\n\nhttps://status.example.com/events/42".to_string(),
         }
     }
 
@@ -145,13 +139,15 @@ mod tests {
         assert!(ics.contains("DTSTART:20261102T010000Z\r\n"));
         assert!(ics.contains("DTEND:20261102T033000Z\r\n"));
         assert!(ics.contains("DTSTAMP:20261028T091500Z\r\n"));
-        assert!(ics.contains("UID:event-42@status.example.com\r\n"));
+        assert!(ics.contains("UID:https://status.example.com/events/42\r\n"));
         let producer = format!(
             "PRODID:-//Statup//Statup {}//EN\r\n",
             env!("CARGO_PKG_VERSION")
         );
         assert!(ics.contains(&producer));
-        assert!(!ics.contains("DESCRIPTION"));
+        assert!(
+            ics.contains("DESCRIPTION:Mail stops.\\n\\nhttps://status.example.com/events/42\r\n")
+        );
         assert!(!ics.contains("URL:"));
     }
 
@@ -235,11 +231,5 @@ mod tests {
         assert_eq!(params[1], "text=Mail%20%26%20VPN%20%231");
         assert_eq!(params[2], "dates=20261102T010000Z/20261102T033000Z");
         assert!(params[3].starts_with("details=Details%20at%20https%3A%2F%2F"));
-    }
-
-    #[test]
-    fn the_google_link_has_no_details_without_a_description() {
-        let link = entry().google_link();
-        assert!(!link.contains("details"));
     }
 }

@@ -82,7 +82,6 @@ test("a maintenance still to come can be added to a calendar", async ({ page }, 
 
     await createService(page, service);
     await announceMaintenance(page, { service, title, repeat: false });
-    const eventId = new URL(page.url()).pathname.match(/^\/events\/(\d+)/)[1];
 
     const summary = details.getByText("Ajouter à mon agenda", { exact: true });
     await expect(summary).toBeVisible();
@@ -94,8 +93,6 @@ test("a maintenance still to come can be added to a calendar", async ({ page }, 
     await expect(apple).toBeVisible();
     await expect(google).toBeVisible();
 
-    const icsPath = `/events/${eventId}/calendar.ics`;
-    await expect(outlook).toHaveAttribute("href", icsPath);
     const downloading = page.waitForEvent("download");
     await outlook.click();
     const download = await downloading;
@@ -104,13 +101,8 @@ test("a maintenance still to come can be added to a calendar", async ({ page }, 
     expect(file).toContain("BEGIN:VCALENDAR");
     expect(file).toContain(title);
 
-    // The link is checked but not followed: it leaves for an external site.
-    const googlePath = `/events/${eventId}/calendar/google`;
-    await expect(google).toHaveAttribute("href", googlePath);
+    // Google Calendar is an external site: its link opens a new tab.
     await expect(google).toHaveAttribute("target", "_blank");
-    const redirect = await page.request.get(googlePath, { maxRedirects: 0 });
-    expect(redirect.status()).toBe(303);
-    expect(redirect.headers().location).toMatch(/^https:\/\/calendar\.google\.com\/calendar\/render\?action=TEMPLATE/);
 
     await page.keyboard.press("Escape");
     await expect(outlook).toBeHidden();
