@@ -686,8 +686,9 @@ async fn repeats(state: &AppState, event: &Event) -> Result<bool, AppError> {
     let Some(series_id) = event.series_id else {
         return Ok(false);
     };
-    let series = SeriesRepository::find(&state.pool, series_id).await?;
-    Ok(series.is_some_and(|series| series.stopped_at.is_none()))
+    Ok(SeriesRepository::find_active(&state.pool, series_id)
+        .await?
+        .is_some())
 }
 
 #[cfg(test)]

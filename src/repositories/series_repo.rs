@@ -143,6 +143,16 @@ impl SeriesRepository {
         Ok(Some(event))
     }
 
+    /// The series while it still repeats.
+    pub async fn find_active(
+        pool: &DbPool,
+        id: i64,
+    ) -> Result<Option<MaintenanceSeries>, sqlx::Error> {
+        Ok(Self::find(pool, id)
+            .await?
+            .filter(|series| series.stopped_at.is_none()))
+    }
+
     /// The session the series was announced with, while it exists: the
     /// others were added by the schedule.
     pub async fn first_session(pool: &DbPool, id: i64) -> Result<Option<i64>, sqlx::Error> {
@@ -167,7 +177,8 @@ impl SeriesRepository {
     }
 
     /// Stops the series and cancels the session it had ahead, in one
-    /// transaction: the schedule adds no session once it is stopped.
+    /// transaction: the schedule adds no session once it is stopped, and
+    /// the cancellation cannot be undone into a session nobody repeats.
     /// Returns the cancelled sessions, or `None` when it was stopped already.
     pub async fn stop(
         pool: &DbPool,
@@ -188,7 +199,7 @@ impl SeriesRepository {
             return Ok(None);
         }
         let cancelled = sqlx::query_scalar(
-            "UPDATE events SET previous_lifecycle = lifecycle, lifecycle = 'cancelled' \
+            "UPDATE events SET previous_lifecycle = NULL, lifecycle = 'cancelled' \
              WHERE series_id = ? AND lifecycle = 'scheduled' RETURNING id",
         )
         .bind(id)

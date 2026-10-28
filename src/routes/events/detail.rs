@@ -286,10 +286,8 @@ async fn load_rhythm(
     let Some(id) = event.series_id else {
         return Ok(None);
     };
-    let series = SeriesRepository::find(&state.pool, id).await?;
-    Ok(series
-        .filter(|series| series.stopped_at.is_none())
-        .map(|series| series.recurrence.describe(i18n)))
+    let series = SeriesRepository::find_active(&state.pool, id).await?;
+    Ok(series.map(|series| series.recurrence.describe(i18n)))
 }
 
 /// What stopping the repetition does, for a publisher on a session of a

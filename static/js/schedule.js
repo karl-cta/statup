@@ -124,17 +124,17 @@
 
         // A maintenance that repeats: offered once a day is picked, each
         // rhythm named after that day, and only with a length.
-        function syncRepeat(start, total) {
+        function syncRepeat(total) {
             const box = repeat.querySelector("[data-repeat-box]");
             repeat.hidden = !day;
             repeat.querySelector("[data-repeat-choices]").hidden = !box.checked;
             hours.setCustomValidity(day && box.checked && !total ? copy.repeat_needs_duration : "");
-            if (!start) return;
-            const weekday = weekdayInFull.format(start);
+            if (!day) return;
+            const weekday = weekdayInFull.format(day);
             const label = (rhythm) => repeat.querySelector(`[data-repeat-label="${rhythm}"]`);
             label("weekly").textContent = copy.repeat_weekly.replace("{weekday}", weekday);
             label("monthly").textContent = copy.repeat_monthly
-                .replace("{rank}", copy[`rank_${rankOf(start)}`])
+                .replace("{rank}", copy[`rank_${rankOf(day)}`])
                 .replace("{weekday}", weekday);
         }
 
@@ -157,7 +157,7 @@
             endText.textContent = end ? describeEnd(end) : copy.no_end;
             endText.classList.toggle("is-empty", !end);
             setValue(endValue, end ? formatWall(end) : "");
-            if (repeat) syncRepeat(start, total);
+            if (repeat) syncRepeat(total);
         }
 
         function restore() {

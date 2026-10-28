@@ -382,6 +382,13 @@ mod tests {
             ]
         );
         assert_eq!(queued(&pool).await, [(ids[1], "closed".to_string())]);
+        let undo: Option<String> =
+            sqlx::query_scalar("SELECT previous_lifecycle FROM events WHERE id = ?")
+                .bind(ids[1])
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(undo, None, "a stopped series leaves nothing to revert");
         let found = SeriesRepository::find(&pool, series)
             .await
             .unwrap()

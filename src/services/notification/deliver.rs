@@ -256,9 +256,8 @@ pub(super) async fn load_event(
     };
     let rhythm = match found.event.series_id {
         Some(series_id) if reading.happening == Happening::Opened => {
-            SeriesRepository::find(pool, series_id)
+            SeriesRepository::find_active(pool, series_id)
                 .await?
-                .filter(|series| series.stopped_at.is_none())
                 .map(|series| series.recurrence)
         }
         _ => None,
