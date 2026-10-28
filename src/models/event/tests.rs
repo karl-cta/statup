@@ -70,6 +70,7 @@ fn summary(kind: Kind, severity: Option<Severity>, lifecycle: Option<Lifecycle>)
         updated_at: Utc::now(),
         keeps_services_up: false,
         author_id: 1,
+        series_id: None,
         has_review: false,
         service_names: String::new(),
         service_icons: String::new(),

@@ -281,7 +281,8 @@ fn until_text(event: &EventSummary, i18n: &I18n) -> Option<String> {
 
 /// The soonest maintenance still to come within the week. The list comes
 /// work under way first, then by start. A disruption keeps the banner on
-/// itself; the Maintenance block still lists what is coming.
+/// itself, and a session of a repeating maintenance is routine: the
+/// Maintenance block still lists what is coming.
 fn next_maintenance(
     services: &[Service],
     open: &[EventSummary],
@@ -292,7 +293,7 @@ fn next_maintenance(
     }
     let horizon = Utc::now() + Duration::days(NEXT_MAINTENANCE_DAYS);
     open.iter()
-        .filter(|m| m.lifecycle == Some(Lifecycle::Scheduled))
+        .filter(|m| m.lifecycle == Some(Lifecycle::Scheduled) && m.series_id.is_none())
         .find_map(|m| {
             let start = m.planned_start.filter(|start| *start <= horizon)?;
             Some(NextMaintenance {
@@ -364,6 +365,7 @@ mod tests {
             updated_at: Utc::now(),
             keeps_services_up: false,
             author_id: 1,
+            series_id: None,
             has_review: false,
             service_names: services.to_string(),
             service_icons: String::new(),
@@ -665,6 +667,14 @@ mod tests {
         assert!(
             next_maintenance(&disrupted, &open, &i18n).is_none(),
             "a disruption keeps the banner on itself"
+        );
+        let mut routine = at(1, "Sunday backups");
+        routine.series_id = Some(4);
+        let next = next_maintenance(&calm, &[routine, at(2, "Soon")], &i18n).map(|m| m.title);
+        assert_eq!(
+            next.as_deref(),
+            Some("Soon"),
+            "a repeating maintenance is not announced in the banner"
         );
     }
 

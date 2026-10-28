@@ -508,6 +508,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_repeating_maintenance_lists_its_latest_finished_session_only() {
+        let pool = test_pool().await;
+        let (author, service) = author_and_service(&pool).await;
+        let series = weekly_by(&pool, author, service).await;
+        let single = EventRepository::create(&pool, &maintenance(author, service, first_start()))
+            .await
+            .unwrap();
+        for week in 0..3 {
+            let start = weeks_after_first(week);
+            run_at(&pool, start + Duration::minutes(1)).await;
+            run_at(&pool, start + Duration::hours(2) + Duration::minutes(1)).await;
+        }
+        let latest: i64 = sqlx::query_scalar(
+            "SELECT id FROM events WHERE series_id = ? AND lifecycle = 'completed' \
+             ORDER BY planned_start DESC LIMIT 1",
+        )
+        .bind(series)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        let finished = EventRepository::list_finished_maintenance(&pool, 5, &Scope::All)
+            .await
+            .unwrap();
+
+        let mut ids: Vec<i64> = finished.iter().map(|row| row.id).collect();
+        ids.sort_unstable();
+        assert_eq!(ids, [single.id, latest]);
+    }
+
+    #[tokio::test]
     async fn the_sessions_the_schedule_adds_are_not_news() {
         let pool = test_pool().await;
         weekly(&pool).await;

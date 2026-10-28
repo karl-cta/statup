@@ -327,6 +327,8 @@ pub struct EventSummary {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub author_id: i64,
+    /// The repeating maintenance this session belongs to.
+    pub series_id: Option<i64>,
     /// A review was published for it.
     pub has_review: bool,
     /// Linked service names, joined with [`NAME_SEPARATOR`].

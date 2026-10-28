@@ -20,7 +20,7 @@ use crate::repositories::service_repo::CHOSEN_ORDER;
 const SUMMARY_COLUMNS: &str = "e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
      e.title, e.description, e.planned_start, e.planned_end, e.started_at, e.ended_at, \
      e.keeps_services_up, e.next_update_at, e.created_at, e.updated_at, e.author_id, \
-     EXISTS (SELECT 1 FROM event_reviews r WHERE r.event_id = e.id) AS has_review, \
+     e.series_id, EXISTS (SELECT 1 FROM event_reviews r WHERE r.event_id = e.id) AS has_review, \
      COALESCE((SELECT GROUP_CONCAT(s.name, char(31) ORDER BY s.position, s.name COLLATE NOCASE, s.id) \
                FROM event_services es JOIN services s ON s.id = es.service_id \
                WHERE es.event_id = e.id), '') AS service_names, \
@@ -300,7 +300,8 @@ impl EventRepository {
         fetch_scoped(qb, pool, scope).await
     }
 
-    /// Maintenances that ended or were called off, latest first.
+    /// Maintenances that ended or were called off, latest first. A
+    /// repeating one shows its latest session only.
     pub async fn list_finished_maintenance(
         pool: &DbPool,
         limit: i64,
@@ -309,7 +310,12 @@ impl EventRepository {
         let mut qb = QueryBuilder::<Sqlite>::new(format!(
             "SELECT {SUMMARY_COLUMNS} FROM events e WHERE e.id IN ( \
                SELECT x.id FROM events x \
-               WHERE x.kind = 'maintenance' AND x.lifecycle IN ('completed', 'cancelled')"
+               WHERE x.kind = 'maintenance' AND x.lifecycle IN ('completed', 'cancelled') \
+                 AND (x.series_id IS NULL OR x.id = ( \
+                   SELECT y.id FROM events y \
+                   WHERE y.series_id = x.series_id AND y.lifecycle IN ('completed', 'cancelled') \
+                   ORDER BY COALESCE(y.ended_at, y.planned_end, y.updated_at) DESC, y.id DESC \
+                   LIMIT 1))"
         ));
         push_scope(&mut qb, scope, "x");
         qb.push(" ORDER BY x.updated_at DESC LIMIT ")
