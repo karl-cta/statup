@@ -193,7 +193,6 @@ pub struct Event {
     pub series_id: Option<i64>,
     /// Added by the schedule to a repeating maintenance, after its first
     /// session.
-    #[sqlx(default)]
     pub added_by_schedule: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

@@ -254,6 +254,7 @@ impl SeriesRepository {
     }
 
     /// The services each session of the series concerns, by id.
+    #[cfg(test)]
     pub async fn service_ids(pool: &DbPool, id: i64) -> Result<Vec<i64>, sqlx::Error> {
         sqlx::query_scalar(
             "SELECT service_id FROM maintenance_series_services \

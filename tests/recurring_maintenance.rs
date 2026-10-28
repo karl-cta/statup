@@ -101,9 +101,13 @@ async fn a_maintenance_announced_to_repeat_starts_its_series() {
     assert_eq!(series.duration_minutes, 120);
     assert!(series.next_start > event.planned_start.unwrap());
     assert_eq!(
-        SeriesRepository::service_ids(&app.pool, series.id)
-            .await
-            .unwrap(),
+        sqlx::query_scalar::<_, i64>(
+            "SELECT service_id FROM maintenance_series_services WHERE series_id = ?",
+        )
+        .bind(series.id)
+        .fetch_all(&app.pool)
+        .await
+        .unwrap(),
         vec![service]
     );
 }
@@ -228,4 +232,30 @@ async fn an_edit_of_a_session_carries_to_the_next_ones_when_asked() {
     let series = app.series_of(session).await;
     assert_eq!(series.title, "Longer backups");
     assert_eq!(series.duration_minutes, 180);
+}
+
+#[tokio::test]
+async fn a_session_the_schedule_adds_opens_as_added_on_its_page() {
+    let app = TestApp::spawn().await;
+    let service = app.as_publisher().await;
+    let (first, _) = app.weekly_series(service).await;
+    let start = EventRepository::find_by_id(&app.pool, first)
+        .await
+        .unwrap()
+        .unwrap()
+        .planned_start
+        .unwrap();
+    statup::services::EventService::apply_schedule(&app.pool, start + Duration::minutes(1))
+        .await
+        .unwrap();
+    let added: i64 = sqlx::query_scalar("SELECT id FROM events WHERE added_by_schedule = 1")
+        .fetch_one(&app.pool)
+        .await
+        .unwrap();
+
+    let (_, page) = app.get(&format!("/events/{added}")).await;
+
+    let i18n = I18n::new(LANGUAGES[0].code);
+    assert!(page.contains(i18n.t("timeline.added")));
+    assert!(!page.contains(i18n.t("timeline.announced")));
 }
