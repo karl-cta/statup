@@ -66,6 +66,13 @@
                     </a>
                 </li>
                 <li>
+                    <a href="/admin/backups" class="manage-tile">
+                        <span class="manage-tile-name">{{ i18n.t("backups.title") }}{% call ui::chevron_right() %}{% endcall %}</span>
+                        <span class="manage-tile-meta">{{ backups_label }}</span>
+                        <span class="manage-tile-action">{{ i18n.t("backups.manage") }}</span>
+                    </a>
+                </li>
+                <li>
                     {% if let Some(release) = newer %}
                     <a href="{{ release.url }}" class="manage-tile" rel="noopener">
                         <span class="manage-tile-name">{{ i18n.t("admin.version") }}{% call ui::chevron_right() %}{% endcall %}</span>

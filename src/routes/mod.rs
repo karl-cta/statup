@@ -9,6 +9,7 @@ mod api;
 mod api_keys;
 mod audience;
 mod auth;
+mod backups;
 mod checks;
 mod dashboard;
 mod dashboard_layout;
@@ -293,6 +294,10 @@ fn admin_routes() -> Router<AppState> {
         .route("/admin/journal", get(journal::page))
         .route("/admin/journal/export", get(journal::export))
         .route("/admin/journal/settings", post(journal::save_settings))
+        .route("/admin/backups", get(backups::page))
+        .route("/admin/backups/schedule", post(backups::save_schedule))
+        .route("/admin/backups/download", post(backups::download_new))
+        .route("/admin/backups/files/{name}", get(backups::download))
         .route(
             "/admin/api-keys",
             get(api_keys::list).post(api_keys::create),

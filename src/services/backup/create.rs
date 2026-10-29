@@ -60,6 +60,12 @@ async fn write_backup(
         .bind(target)
         .execute(pool)
         .await?;
+    // The copy of a database in memory stays in memory, without an error.
+    if !tokio::fs::try_exists(path).await.unwrap_or(false) {
+        return Err(internal(
+            "the database is in memory: there is no file to back up".to_string(),
+        ));
+    }
     let mut copy = open_file(path, true).await?;
     let info = describe(&mut copy).await?;
     record_info(&mut copy, &info).await?;

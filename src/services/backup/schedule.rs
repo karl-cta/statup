@@ -185,7 +185,7 @@ pub async fn run_due(
     let Some(due) = schedule.last_due(now, crate::clock::zone()) else {
         return Ok(None);
     };
-    if read_time(pool, ATTEMPTED_SETTING)
+    if stored_time(pool, ATTEMPTED_SETTING)
         .await?
         .is_some_and(|tried| tried >= due)
     {
@@ -216,7 +216,7 @@ pub async fn run_due(
 ///
 /// Returns `sqlx::Error` when the settings cannot be read.
 pub async fn last_failure(pool: &DbPool) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
-    read_time(pool, FAILED_SETTING).await
+    stored_time(pool, FAILED_SETTING).await
 }
 
 /// Backs up the database before its migrations run, when it misses some
@@ -299,11 +299,36 @@ async fn journal(pool: &DbPool, kind: JournalKind, path: &Path, detail: Option<S
     entry.record(pool).await;
 }
 
-async fn read_time(pool: &DbPool, key: &str) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
+async fn stored_time(pool: &DbPool, key: &str) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
     Ok(SettingsRepository::get(pool, key)
         .await?
         .and_then(|value| DateTime::parse_from_rfc3339(&value).ok())
         .map(|at| at.with_timezone(&Utc)))
+}
+
+/// A time of day as an administrator types it: "03:00", "3:00", "3h",
+/// "22h15" or "0300".
+pub fn parse_time_input(text: &str) -> Option<NaiveTime> {
+    let compact: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+    let compact = compact.to_ascii_lowercase();
+    let (hours, minutes) = if let Some(parts) = compact.split_once([':', 'h']) {
+        parts
+    } else if compact.len() == 4 {
+        compact.split_at(2)
+    } else {
+        (compact.as_str(), "")
+    };
+    let number = |part: &str| {
+        (part.len() <= 2 && part.bytes().all(|b| b.is_ascii_digit()) && !part.is_empty())
+            .then(|| part.parse::<u32>().ok())
+            .flatten()
+    };
+    let minutes = if minutes.is_empty() {
+        Some(0)
+    } else {
+        number(minutes).filter(|_| minutes.len() == 2)
+    };
+    NaiveTime::from_hms_opt(number(hours)?, minutes?, 0)
 }
 
 fn describe(error: &AppError) -> String {
@@ -373,6 +398,24 @@ mod tests {
             schedule.last_due(utc(2026, 3, 29, 12, 0), PARIS),
             Some(utc(2026, 3, 29, 1, 0))
         );
+    }
+
+    #[test]
+    fn a_time_is_read_as_people_type_it() {
+        for (typed, expected) in [
+            ("03:00", at(3, 0)),
+            ("3:00", at(3, 0)),
+            ("3h", at(3, 0)),
+            ("22h15", at(22, 15)),
+            ("22 h 15", at(22, 15)),
+            ("0300", at(3, 0)),
+            ("7", at(7, 0)),
+        ] {
+            assert_eq!(parse_time_input(typed), Some(expected), "{typed}");
+        }
+        for typed in ["", "25:00", "3:5", "3:60", "abc", "12345", "-1"] {
+            assert_eq!(parse_time_input(typed), None, "{typed}");
+        }
     }
 
     #[test]

@@ -18,7 +18,8 @@ use sqlx::{Connection, SqliteConnection};
 pub use create::create_backup;
 pub use restore::{RestoreError, restore_backup};
 pub use schedule::{
-    BackupSchedule, Frequency, back_up_before_upgrade, last_failure, run_due, spawn_backup_schedule,
+    BackupSchedule, Frequency, KEEP_RANGE, back_up_before_upgrade, last_failure, parse_time_input,
+    run_due, spawn_backup_schedule,
 };
 
 use crate::services::CURRENT_VERSION;

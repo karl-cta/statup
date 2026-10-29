@@ -1,0 +1,113 @@
+{% extends "_layout.html" %}
+{% import "components/macros.html" as ui %}
+
+{% block title %}{{ i18n.t("backups.title") }} | {{ crate::brand_name() }}{% endblock %}
+{% block section %}admin{% endblock %}
+
+{% block scripts %}
+<script src="{{ crate::asset("js/custom-select.js") }}" defer></script>
+<script src="{{ crate::asset("js/backups.js") }}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <a href="/admin/settings" class="back-link">{% call ui::arrow_left() %}{% endcall %}{{ i18n.t("admin.back_to_settings") }}</a>
+            <h1 class="page-title">{{ i18n.t("backups.title") }}</h1>
+        </div>
+        {# When the automatic backups run, in one grey line; their settings
+           fold under "Change", in a panel over the page, as on the Journal. #}
+        <div class="journal-summary">
+            <span>{{ schedule.when }}{% if let Some(kept) = schedule.kept %}&nbsp;<span aria-hidden="true">·</span> {{ kept }}{% endif %}&nbsp;<span aria-hidden="true">·</span></span>
+            <details class="more-actions journal-menu" data-more-actions{% if schedule.open %} open{% endif %}>
+                <summary class="journal-edit">{{ i18n.t("backups.edit") }}{% call ui::caret_icon() %}{% endcall %}</summary>
+                <form class="more-actions-menu journal-panel backup-panel" method="post" action="/admin/backups/schedule" data-warn-unsaved data-backup-schedule>
+                    <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                    {% if let Some(message) = schedule.error %}
+                    <p id="form-error" class="field-error" role="alert">{{ message }}</p>
+                    {% endif %}
+                    <p id="rhythm-label" class="journal-panel-label">{{ i18n.t("backups.rhythm") }}</p>
+                    <div class="journal-options" role="radiogroup" aria-labelledby="rhythm-label">
+                        <label class="journal-option">
+                            <input type="radio" name="frequency" value="daily" class="sr-only"{% if schedule.is("daily") %} checked{% endif %}>
+                            <span class="journal-option-name">{{ i18n.t("backups.every_day") }}</span>
+                        </label>
+                        <label class="journal-option">
+                            <input type="radio" name="frequency" value="weekly" class="sr-only"{% if schedule.is("weekly") %} checked{% endif %}>
+                            <span class="journal-option-name">{{ i18n.t("backups.every_week") }}</span>
+                        </label>
+                        <label class="journal-option">
+                            <input type="radio" name="frequency" value="off" class="sr-only"{% if schedule.is("off") %} checked{% endif %}>
+                            <span class="journal-option-name">{{ i18n.t("backups.never") }}</span>
+                        </label>
+                    </div>
+                    <div class="backup-when" data-backup-when{% if schedule.is("off") %} hidden{% endif %}>
+                        <div class="journal-retention" data-weekly-only{% if !schedule.is("weekly") %} hidden{% endif %}>
+                            <label for="backup-weekday">{{ i18n.t("backups.weekday") }}</label>
+                            <select id="backup-weekday" name="weekday" class="input backup-weekday" data-custom-select>
+                                {% for (number, name) in self.weekdays() %}
+                                <option value="{{ number }}"{% if number == schedule.weekday %} selected{% endif %}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <label class="journal-retention">
+                            <span>{{ i18n.t("backups.time") }}</span>
+                            <input name="time" type="text" class="inline-number backup-time" inputmode="numeric" autocomplete="off" maxlength="8"
+                                   value="{{ schedule.time }}" placeholder="03:00"
+                                   {% if schedule.error.is_some() %}aria-invalid="true" aria-describedby="form-error"{% endif %}>
+                        </label>
+                        <label class="journal-retention">
+                            <span>{{ i18n.t("backups.keep") }}</span>
+                            <span class="journal-days">
+                                <input name="keep" type="text" class="inline-number" inputmode="numeric" autocomplete="off" maxlength="2"
+                                       value="{{ schedule.keep }}" placeholder="7"
+                                       {% if schedule.error.is_some() %}aria-invalid="true" aria-describedby="form-error"{% endif %}>
+                                {{ i18n.t("backups.keep_unit") }}
+                            </span>
+                        </label>
+                    </div>
+                    <label class="check-row backup-upgrade"><input type="checkbox" name="before_upgrade" value="on" class="checkbox"{% if schedule.before_upgrade %} checked{% endif %}><span>{{ i18n.t("backups.before_upgrade") }}</span></label>
+                    <button type="submit" class="btn btn-primary journal-save">{{ i18n.t("common.save") }}</button>
+                </form>
+            </details>
+        </div>
+    </header>
+
+    {% if saved %}
+    <div class="form-notice mb-5" role="status"><p>{{ i18n.t("backups.saved") }}</p></div>
+    {% endif %}
+
+    {% if let Some(message) = failed %}
+    <div class="form-error mb-5" role="alert"><p>{{ message }} <a class="link" href="/admin/journal?category=system">{{ i18n.t("backups.failed_link") }}</a></p></div>
+    {% endif %}
+
+    <section class="card" aria-labelledby="backups-title">
+        <header class="card-head">
+            <h2 id="backups-title" class="card-title">{{ i18n.t("backups.list_title") }} <span class="count">{{ rows.len() }}</span></h2>
+            <form method="post" action="/admin/backups/download">
+                <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                <button type="submit" class="card-action">{{ i18n.t("backups.download_new") }}</button>
+            </form>
+        </header>
+        {% if rows.is_empty() %}
+        <p class="groups-empty">{{ i18n.t("backups.empty") }}</p>
+        {% else %}
+        <ul class="admin-list">
+            {% for row in rows %}
+            <li class="admin-row backup-row">
+                <div class="min-w-0">
+                    <p class="admin-row-name">{{ row.taken }}</p>
+                    <p class="admin-row-sub">{{ row.kind }}&nbsp;<span aria-hidden="true">·</span> {{ row.size }}</p>
+                </div>
+                <div class="admin-row-actions">
+                    <a class="text-action" href="/admin/backups/files/{{ row.name }}" download aria-label="{{ i18n.t("backups.download") }} {{ row.name }}">{{ i18n.t("backups.download") }}</a>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        <p class="card-foot-note">{{ folder }}</p>
+    </section>
+</div>
+{% endblock %}

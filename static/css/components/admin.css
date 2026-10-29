@@ -2091,6 +2091,45 @@
         }
     }
 
+    /* The schedule of the automatic backups, in the Journal's panel: the
+       time typed like a number, the day in a short menu. */
+    .backup-panel .backup-time {
+        width: 6ch;
+    }
+
+    .journal-menu > .backup-panel {
+        width: 340px;
+    }
+
+    /* The day keeps to the width of a day's name. */
+    .backup-panel .backup-weekday,
+    .backup-panel .cs-wrap {
+        width: 9.5rem;
+        flex: none;
+    }
+
+    /* A backup's one action stays on the right of its row. */
+    .backup-row .admin-row-actions {
+        grid-column: auto;
+    }
+
+    .backup-panel .backup-upgrade {
+        margin: 16px -16px 0;
+        padding: 16px 16px 0;
+        font-size: var(--text-sm);
+        border-top: 1px solid var(--line);
+    }
+
+    /* Where the backups are, in grey at the foot of their card. */
+    .card-foot-note {
+        margin: 0;
+        padding: 12px 16px;
+        font-size: var(--text-xs);
+        color: var(--muted);
+        overflow-wrap: anywhere;
+        border-top: 1px solid var(--line);
+    }
+
     @media (prefers-reduced-motion: reduce) {
         .icon-choices-body.is-revealing,
         .row-saved {

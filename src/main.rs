@@ -168,6 +168,7 @@ async fn build_state(config: &Config, pool: DbPool) -> anyhow::Result<AppState> 
         pool,
         login_limiter: Arc::new(LoginRateLimiter::default()),
         upload_dir: config.upload_dir.clone(),
+        backup_dir: config.backup_dir.clone().into(),
         public_mode: Arc::new(AtomicBool::new(public_mode)),
         trust_proxy_headers: config.trust_proxy_headers,
         client_ip_source: config.client_ip_source(),
