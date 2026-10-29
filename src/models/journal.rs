@@ -32,6 +32,10 @@ pub enum JournalKind {
     AppError,
     /// A warning the app logged.
     AppWarning,
+    /// An automatic backup was written.
+    BackupWritten,
+    /// An automatic backup could not be written.
+    BackupFailed,
     /// A member added a service.
     ServiceCreated,
     /// A member changed a service.
@@ -229,6 +233,8 @@ impl JournalKind {
         match self {
             Self::AppError => row(Cat::System, true, Level::ERROR, Tone::Crit, "Application error", "journal.app_error"),
             Self::AppWarning => row(Cat::System, false, Level::WARN, Tone::Minor, "Application warning", "journal.app_warning"),
+            Self::BackupWritten => row(Cat::System, false, Level::INFO, Tone::Neutral, "Backup written", "journal.backup_written"),
+            Self::BackupFailed => row(Cat::System, true, Level::ERROR, Tone::Crit, "Backup failed", "journal.backup_failed"),
             Self::ServiceCreated => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Service created", "journal.service_created"),
             Self::ServiceUpdated => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Service updated", "journal.service_updated"),
             Self::ServiceDeleted => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Service deleted", "journal.service_deleted"),

@@ -6,7 +6,8 @@ mod pool;
 
 pub use online_copy::copy_database;
 pub use pool::{
-    create_pool, latest_migration, open_existing_file, open_existing_pool, optimize, run_migrations,
+    create_pool, has_pending_migrations, latest_migration, open_existing_file, open_existing_pool,
+    optimize, run_migrations,
 };
 
 /// Type alias for the `SQLite` connection pool.

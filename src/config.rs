@@ -61,7 +61,7 @@ pub struct Config {
     pub admin_password: Option<String>,
     /// Directory for user-uploaded files.
     pub upload_dir: String,
-    /// Directory the backups taken by `statup backup` are written to.
+    /// Directory the automatic backups and `statup backup` write to.
     pub backup_dir: String,
     /// Whether visitors without an account can read the pages, until an
     /// admin chooses in the settings.

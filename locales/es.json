@@ -715,6 +715,8 @@
   "journal.export_no": "No",
   "journal.app_error": "Error: {subject}",
   "journal.app_warning": "Aviso: {subject}",
+  "journal.backup_written": "Copia de seguridad automática escrita: {subject}",
+  "journal.backup_failed": "Error en la copia de seguridad automática: {subject}",
   "journal.fact_wrong_password": "contraseña incorrecta",
   "journal.fact_temporary_expired": "contraseña provisional caducada",
   "journal.fact_on": "activado",

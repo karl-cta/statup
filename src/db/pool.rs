@@ -93,6 +93,28 @@ pub fn latest_migration() -> i64 {
     MIGRATOR.iter().map(|m| m.version).max().unwrap_or(0)
 }
 
+/// Whether the database behind `pool` misses migrations this binary
+/// carries. A database without a migrations table is new, not behind.
+///
+/// # Errors
+///
+/// Returns `sqlx::Error` if the database cannot be read.
+pub async fn has_pending_migrations(pool: &SqlitePool) -> Result<bool, sqlx::Error> {
+    let tracked: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM sqlite_schema WHERE name = '_sqlx_migrations')",
+    )
+    .fetch_one(pool)
+    .await?;
+    if !tracked {
+        return Ok(false);
+    }
+    let applied: Vec<i64> =
+        sqlx::query_scalar("SELECT version FROM _sqlx_migrations WHERE success")
+            .fetch_all(pool)
+            .await?;
+    Ok(MIGRATOR.iter().any(|m| !applied.contains(&m.version)))
+}
+
 static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
 /// Gives the query planner statistics. `PRAGMA optimize` only analyzes the

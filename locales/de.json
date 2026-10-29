@@ -715,6 +715,8 @@
   "journal.export_no": "Nein",
   "journal.app_error": "Fehler: {subject}",
   "journal.app_warning": "Warnung: {subject}",
+  "journal.backup_written": "Automatische Sicherung geschrieben: {subject}",
+  "journal.backup_failed": "Automatische Sicherung fehlgeschlagen: {subject}",
   "journal.fact_wrong_password": "falsches Passwort",
   "journal.fact_temporary_expired": "vorläufiges Passwort abgelaufen",
   "journal.fact_on": "eingeschaltet",

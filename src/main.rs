@@ -17,6 +17,7 @@ use statup::db::{self, DbPool};
 use statup::journal::spawn_journal_writer;
 use statup::middleware::rate_limit::RateLimit;
 use statup::routes::create_router;
+use statup::services::backup;
 use statup::services::{
     AuthService, DashboardLayoutService, LoginRateLimiter, Notifier, SEND_TIMEOUT, SettingsService,
     spawn_maintenance_schedule, spawn_monitoring, spawn_notifications, spawn_subscriber_mail,
@@ -55,6 +56,11 @@ async fn main() -> anyhow::Result<()> {
     if config.monitoring {
         tasks.push(spawn_monitoring(pool.clone(), Arc::clone(&state.checks)));
     }
+    tasks.push(backup::spawn_backup_schedule(
+        pool.clone(),
+        config.upload_dir.clone(),
+        config.backup_dir.clone().into(),
+    ));
 
     let sessions = session::session_layer(
         session_store,
@@ -115,6 +121,7 @@ async fn open_database(config: &Config) -> anyhow::Result<DbPool> {
     let pool = db::create_pool(&config.database_url, config.db_max_connections)
         .await
         .with_context(|| format!("cannot open the database at {}", config.database_url))?;
+    backup::back_up_before_upgrade(&pool, &config.upload_dir, Path::new(&config.backup_dir)).await;
     db::run_migrations(&pool)
         .await
         .context("database migrations failed")?;
