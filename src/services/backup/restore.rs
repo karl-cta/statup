@@ -60,7 +60,7 @@ pub async fn restore_backup(
         });
     }
     let staging = Staging::new().await?;
-    let staged = staging.0.join("restore.db");
+    let staged = staging.0.join("staged-copy.db");
     tokio::fs::copy(backup, &staged)
         .await
         .map_err(|e| internal(format!("cannot copy the backup: {e}")))?;

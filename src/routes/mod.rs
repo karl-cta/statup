@@ -30,6 +30,7 @@ mod page;
 mod password;
 mod password_reset;
 mod profile;
+mod restore;
 mod services;
 mod setup;
 mod subscribers;
@@ -41,6 +42,7 @@ use std::time::Duration;
 
 use axum::Router;
 use axum::body::Body;
+use axum::extract::DefaultBodyLimit;
 use axum::http::header::{
     CACHE_CONTROL, CONTENT_SECURITY_POLICY, REFERRER_POLICY, STRICT_TRANSPORT_SECURITY,
     X_CONTENT_TYPE_OPTIONS, X_FRAME_OPTIONS,
@@ -78,6 +80,10 @@ const FORM_BODY_LIMIT: usize = 64 * 1024;
 /// for the handler to say the file is too large.
 const UPLOAD_BODY_LIMIT: usize = 2 * 1024 * 1024;
 
+/// A backup restored at first launch: the database of a busy instance with
+/// its history, sent in one form.
+const RESTORE_BODY_LIMIT: usize = 256 * 1024 * 1024;
+
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// No inline script, handler or style anywhere: behavior lives in
@@ -111,9 +117,14 @@ fn dynamic_routes(state: &AppState, rate_limit: &RateLimit) -> Router<AppState> 
     let uploads = with_request_guards(upload_routes(), state)
         .layer(RequestBodyLimitLayer::new(UPLOAD_BODY_LIMIT));
     let links = link_routes().layer(RequestBodyLimitLayer::new(FORM_BODY_LIMIT));
+    // Streamed to disk and checked by its handler, outside the CSRF guard.
+    let restore = restore_routes()
+        .layer(DefaultBodyLimit::max(RESTORE_BODY_LIMIT))
+        .layer(RequestBodyLimitLayer::new(RESTORE_BODY_LIMIT));
     pages
         .merge(uploads)
         .merge(links)
+        .merge(restore)
         .fallback(not_found)
         .layer(TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,
@@ -180,6 +191,10 @@ fn public_routes() -> Router<AppState> {
 /// The pages an email links to. No session and no CSRF check: the token in
 /// the address is the proof, and a mail client posts to the unsubscribe
 /// address on its own (RFC 8058), with no cookie.
+fn restore_routes() -> Router<AppState> {
+    Router::new().route("/restore", get(restore::page).post(restore::restore))
+}
+
 fn link_routes() -> Router<AppState> {
     Router::new()
         .route(

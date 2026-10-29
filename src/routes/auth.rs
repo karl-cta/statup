@@ -7,7 +7,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use askama::Template;
 use axum::Extension;
-use axum::extract::{ConnectInfo, State};
+use axum::extract::{ConnectInfo, Query, State};
 use axum::http::HeaderMap;
 use axum::http::header::{LOCATION, SET_COOKIE};
 use axum::http::{HeaderValue, StatusCode};
@@ -79,6 +79,8 @@ impl RegisterErrors {
 struct LoginTemplate {
     csrf_token: String,
     error: Option<String>,
+    /// Said above the form after a backup was restored.
+    notice: Option<String>,
     email: String,
     instance: String,
     powered_by: bool,
@@ -144,6 +146,7 @@ fn render_login(
     render(&LoginTemplate {
         csrf_token,
         error,
+        notice: None,
         email,
         instance,
         powered_by,
@@ -152,11 +155,17 @@ fn render_login(
     })
 }
 
+#[derive(Deserialize)]
+pub struct LoginQuery {
+    restored: Option<String>,
+}
+
 pub async fn login_form(
     State(state): State<AppState>,
     OptionalUser(user): OptionalUser,
     session: Session,
     Locale(i18n): Locale,
+    Query(query): Query<LoginQuery>,
 ) -> Result<Response, AppError> {
     if user.is_some() {
         return Ok(Redirect::to("/").into_response());
@@ -167,6 +176,19 @@ pub async fn login_form(
         return Ok(Redirect::to("/register").into_response());
     }
     let csrf_token = form_token(&session).await?;
+    if query.restored.is_some() {
+        let (instance, powered_by) = instance_title();
+        return render(&LoginTemplate {
+            csrf_token,
+            error: None,
+            notice: Some(i18n.t("restore.done").to_string()),
+            email: String::new(),
+            instance,
+            powered_by,
+            public_page: state.is_public_mode(),
+            i18n,
+        });
+    }
     render_login(&state, csrf_token, i18n, None, String::new())
 }
 

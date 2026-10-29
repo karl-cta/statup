@@ -60,6 +60,8 @@ pub enum JournalKind {
     BackupSettingsSaved,
     /// A member downloaded a backup.
     BackupDownloaded,
+    /// A backup was restored on an empty instance, from its first screen.
+    BackupRestored,
     /// A member changed the address of the page used in alerts.
     PageAddressSaved,
     /// A member added an alert channel.
@@ -250,6 +252,7 @@ impl JournalKind {
             Self::LogoRemoved => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Logo removed", "journal.logo_removed"),
             Self::JournalSettingsSaved => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Journal settings saved", "journal.journal_settings_saved"),
             Self::BackupSettingsSaved => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Backup settings saved", "journal.backup_settings_saved"),
+            Self::BackupRestored => row(Cat::System, true, Level::INFO, Tone::Neutral, "Backup restored", "journal.backup_restored"),
             Self::BackupDownloaded => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Backup downloaded", "journal.backup_downloaded"),
             Self::PageAddressSaved => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Page address saved", "journal.page_address_saved"),
             Self::ChannelCreated => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Alert channel created", "journal.channel_created"),

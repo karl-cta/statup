@@ -16,6 +16,8 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     {% if let Some(message) = error %}
     <div id="form-error" class="form-error" role="alert"><p>{{ message }}</p></div>
+    {% else if let Some(message) = notice %}
+    <div class="form-notice" role="status"><p>{{ message }}</p></div>
     {% endif %}
     <div class="field">
         <label for="email" class="field-label">{{ i18n.t("auth.email") }}</label>

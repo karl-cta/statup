@@ -84,16 +84,16 @@ impl ScheduleForm {
     }
 }
 
-/// A backup as the list shows it.
-struct BackupRow {
-    name: String,
-    taken: String,
-    kind: &'static str,
-    size: String,
+/// A backup as a list shows it.
+pub(super) struct BackupRow {
+    pub(super) name: String,
+    pub(super) taken: String,
+    pub(super) kind: &'static str,
+    pub(super) size: String,
 }
 
 impl BackupRow {
-    fn of(file: BackupFile, i18n: &I18n) -> Self {
+    pub(super) fn of(file: BackupFile, i18n: &I18n) -> Self {
         Self {
             taken: i18n.format_datetime(&file.taken_at),
             kind: i18n.t(kind_key(file.kind)),
