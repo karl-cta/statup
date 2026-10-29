@@ -131,7 +131,7 @@ pub(super) fn instance_title() -> (String, bool) {
     (crate::brand_name(), powered_by)
 }
 
-async fn instance_is_empty(state: &AppState) -> Result<bool, AppError> {
+pub(super) async fn instance_is_empty(state: &AppState) -> Result<bool, AppError> {
     Ok(UserRepository::count_all(&state.pool).await? == 0)
 }
 

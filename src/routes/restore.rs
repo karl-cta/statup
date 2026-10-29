@@ -17,14 +17,17 @@ use axum::response::{IntoResponse, Redirect, Response};
 use tokio::io::AsyncWriteExt;
 use tower_sessions::Session;
 
+use super::auth::instance_is_empty;
 use super::backups::BackupRow;
 use super::render;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::csrf::{check_token, form_token};
 use crate::models::JournalKind;
-use crate::repositories::{NewJournalEntry, UserRepository};
-use crate::services::backup::{RestoreError, find_backup, list_backups, restore_backup};
+use crate::repositories::NewJournalEntry;
+use crate::services::backup::{
+    RestoreError, TempFolder, find_backup, list_backups, restore_backup,
+};
 use crate::services::{DashboardLayoutService, SettingsService};
 use crate::state::AppState;
 
@@ -41,10 +44,6 @@ struct RestoreTemplate {
     i18n: I18n,
 }
 
-async fn instance_is_empty(state: &AppState) -> Result<bool, AppError> {
-    Ok(UserRepository::count_all(&state.pool).await? == 0)
-}
-
 pub async fn page(
     State(state): State<AppState>,
     session: Session,
@@ -53,21 +52,17 @@ pub async fn page(
     if !instance_is_empty(&state).await? {
         return Ok(Redirect::to("/login").into_response());
     }
-    let csrf_token = form_token(&session).await?;
-    render_page(&state, csrf_token, i18n, None).await
+    render_page(&state, &session, i18n, None, false).await
 }
 
-/// The page, with why the form was refused and what it had chosen.
-struct Refusal {
-    message: String,
-    sent_chosen: bool,
-}
-
+/// The page, with why the form was refused and whether it had a file of
+/// this computer chosen.
 async fn render_page(
     state: &AppState,
-    csrf_token: String,
+    session: &Session,
     i18n: I18n,
-    refusal: Option<Refusal>,
+    error: Option<String>,
+    sent_chosen: bool,
 ) -> Result<Response, AppError> {
     let found = list_backups(&state.backup_dir)
         .await
@@ -76,10 +71,10 @@ async fn render_page(
         .collect();
     let (_, powered_by) = super::auth::instance_title();
     render(&RestoreTemplate {
-        csrf_token,
+        csrf_token: form_token(session).await?,
         found,
-        sent_chosen: refusal.as_ref().is_some_and(|r| r.sent_chosen),
-        error: refusal.map(|r| r.message),
+        sent_chosen,
+        error,
         powered_by,
         i18n,
     })
@@ -105,31 +100,15 @@ pub async fn restore(
     // upload at all.
     if !instance_is_empty(&state).await? {
         let message = i18n.t("restore.not_empty").to_string();
-        return refuse(&state, &session, i18n, message, false).await;
+        return render_page(&state, &session, i18n, Some(message), false).await;
     }
-    let staging = Staging::new().await?;
-    let source = read_form(&session, multipart, &staging.0).await?;
+    let staging = TempFolder::new("upload").await?;
+    let source = read_form(&session, multipart, staging.path()).await?;
     let sent_chosen = !matches!(source, Source::Listed(_));
     match restore_from(&state, source, &i18n).await? {
         Ok(()) => Ok(Redirect::to("/login?restored=1").into_response()),
-        Err(message) => refuse(&state, &session, i18n, message, sent_chosen).await,
+        Err(message) => render_page(&state, &session, i18n, Some(message), sent_chosen).await,
     }
-}
-
-/// The page again, with why the form was refused and what it had chosen.
-async fn refuse(
-    state: &AppState,
-    session: &Session,
-    i18n: I18n,
-    message: String,
-    sent_chosen: bool,
-) -> Result<Response, AppError> {
-    let csrf_token = form_token(session).await?;
-    let refusal = Refusal {
-        message,
-        sent_chosen,
-    };
-    render_page(state, csrf_token, i18n, Some(refusal)).await
 }
 
 /// Restores the chosen backup. The inner error is a refusal said in the
@@ -249,13 +228,13 @@ async fn save_upload(mut field: Field<'_>, staging: &Path) -> Result<Source, App
     let path = staging.join("sent-file.db");
     let mut file = tokio::fs::File::create(&path)
         .await
-        .map_err(staging_failed)?;
+        .map_err(|e| write_failed(&e))?;
     let mut written = 0;
     while let Some(chunk) = field.chunk().await.map_err(unreadable)? {
-        file.write_all(&chunk).await.map_err(staging_failed)?;
+        file.write_all(&chunk).await.map_err(|e| write_failed(&e))?;
         written += chunk.len();
     }
-    file.flush().await.map_err(staging_failed)?;
+    file.flush().await.map_err(|e| write_failed(&e))?;
     Ok(if written == 0 {
         Source::Nothing
     } else {
@@ -263,27 +242,6 @@ async fn save_upload(mut field: Field<'_>, staging: &Path) -> Result<Source, App
     })
 }
 
-// The error is moved into the message: `map_err` hands it over by value.
-#[allow(clippy::needless_pass_by_value)]
-fn staging_failed(error: std::io::Error) -> AppError {
-    AppError::Internal(anyhow::anyhow!("cannot write the sent backup: {error}"))
-}
-
-/// A private folder for the sent file, removed when the request ends.
-struct Staging(PathBuf);
-
-impl Staging {
-    async fn new() -> Result<Self, AppError> {
-        let dir = std::env::temp_dir().join(format!("statup-upload-{}", uuid::Uuid::new_v4()));
-        tokio::fs::create_dir_all(&dir)
-            .await
-            .map_err(staging_failed)?;
-        Ok(Self(dir))
-    }
-}
-
-impl Drop for Staging {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
+fn write_failed(error: &std::io::Error) -> AppError {
+    AppError::internal(format!("cannot write the sent backup: {error}"))
 }

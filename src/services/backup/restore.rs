@@ -1,11 +1,12 @@
 //! Restoring a backup over the database and the uploads.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use sqlx::{Connection, SqliteConnection};
 
 use super::{
-    BackupInfo, FILES_TABLE, INFO_TABLE, UPLOAD_FOLDERS, create_backup, open_file, read_info,
+    BackupInfo, FILES_TABLE, INFO_TABLE, TempFolder, UPLOAD_FOLDERS, create_backup, open_file,
+    read_info,
 };
 use crate::db::{DbPool, copy_database, latest_migration, open_existing_file, run_migrations};
 use crate::error::AppError;
@@ -59,11 +60,11 @@ pub async fn restore_backup(
             app_version: info.app_version,
         });
     }
-    let staging = Staging::new().await?;
-    let staged = staging.0.join("staged-copy.db");
+    let staging = TempFolder::new("restore").await?;
+    let staged = staging.path().join("staged-copy.db");
     tokio::fs::copy(backup, &staged)
         .await
-        .map_err(|e| internal(format!("cannot copy the backup: {e}")))?;
+        .map_err(|e| AppError::internal(format!("cannot copy the backup: {e}")))?;
     let files = take_files(&staged).await?;
     bring_up_to_date(&staged).await?;
     if let Some(safety) = safety {
@@ -113,7 +114,7 @@ async fn bring_up_to_date(staged: &Path) -> Result<(), RestoreError> {
     let copy = open_existing_file(staged).await?;
     run_migrations(&copy)
         .await
-        .map_err(|e| internal(format!("cannot bring the backup up to date: {e}")))?;
+        .map_err(|e| AppError::internal(format!("cannot bring the backup up to date: {e}")))?;
     copy.close().await;
     Ok(())
 }
@@ -138,46 +139,24 @@ async fn replace_uploads(
         if let Err(e) = tokio::fs::remove_dir_all(&dir).await
             && e.kind() != std::io::ErrorKind::NotFound
         {
-            return Err(internal(format!("cannot empty {folder}: {e}")));
+            return Err(AppError::internal(format!("cannot empty {folder}: {e}")).into());
         }
         tokio::fs::create_dir_all(&dir)
             .await
-            .map_err(|e| internal(format!("cannot create {folder}: {e}")))?;
+            .map_err(|e| AppError::internal(format!("cannot create {folder}: {e}")))?;
     }
     for (path, content) in files {
         tokio::fs::write(upload_dir.join(&path), content)
             .await
-            .map_err(|e| internal(format!("cannot write {path}: {e}")))?;
+            .map_err(|e| AppError::internal(format!("cannot write {path}: {e}")))?;
     }
     Ok(())
-}
-
-/// A private folder for the staged copy, removed when the restore ends.
-struct Staging(PathBuf);
-
-impl Staging {
-    async fn new() -> Result<Self, RestoreError> {
-        let dir = std::env::temp_dir().join(format!("statup-restore-{}", uuid::Uuid::new_v4()));
-        tokio::fs::create_dir_all(&dir)
-            .await
-            .map_err(|e| internal(format!("cannot create a staging folder: {e}")))?;
-        Ok(Self(dir))
-    }
-}
-
-impl Drop for Staging {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
-fn internal(message: String) -> RestoreError {
-    RestoreError::Failed(AppError::Internal(anyhow::anyhow!(message)))
 }
 
 #[cfg(test)]
 mod tests {
     use std::borrow::Cow;
+    use std::path::PathBuf;
 
     use super::*;
     use crate::services::backup::testing::{Scratch, file_pool};

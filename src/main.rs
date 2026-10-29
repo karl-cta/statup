@@ -59,7 +59,7 @@ async fn main() -> anyhow::Result<()> {
     tasks.push(backup::spawn_backup_schedule(
         pool.clone(),
         config.upload_dir.clone(),
-        config.backup_dir.clone().into(),
+        config.backup_dir.clone(),
     ));
 
     let sessions = session::session_layer(
@@ -121,7 +121,7 @@ async fn open_database(config: &Config) -> anyhow::Result<DbPool> {
     let pool = db::create_pool(&config.database_url, config.db_max_connections)
         .await
         .with_context(|| format!("cannot open the database at {}", config.database_url))?;
-    backup::back_up_before_upgrade(&pool, &config.upload_dir, Path::new(&config.backup_dir)).await;
+    backup::back_up_before_upgrade(&pool, &config.upload_dir, &config.backup_dir).await;
     db::run_migrations(&pool)
         .await
         .context("database migrations failed")?;
@@ -168,7 +168,7 @@ async fn build_state(config: &Config, pool: DbPool) -> anyhow::Result<AppState> 
         pool,
         login_limiter: Arc::new(LoginRateLimiter::default()),
         upload_dir: config.upload_dir.clone(),
-        backup_dir: config.backup_dir.clone().into(),
+        backup_dir: config.backup_dir.clone(),
         public_mode: Arc::new(AtomicBool::new(public_mode)),
         trust_proxy_headers: config.trust_proxy_headers,
         client_ip_source: config.client_ip_source(),

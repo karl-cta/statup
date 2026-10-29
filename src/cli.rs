@@ -117,7 +117,7 @@ async fn run_reset_password(email: &str) -> i32 {
             1
         }
         Err(e) => {
-            eprintln!("Password reset failed: {}", describe(&e));
+            eprintln!("Password reset failed: {}", e.cause());
             1
         }
     }
@@ -138,7 +138,7 @@ impl Target {
         Ok(Self {
             upload_dir: std::env::var("UPLOAD_DIR")
                 .unwrap_or_else(|_| DEFAULT_UPLOAD_DIR.to_string()),
-            backup_dir: PathBuf::from(backup_dir_for(&database_url)),
+            backup_dir: backup_dir_for(&database_url),
             database_url,
         })
     }
@@ -159,7 +159,7 @@ async fn run_backup(output: Option<&Path>) -> i32 {
             0
         }
         Err(e) => {
-            eprintln!("Backup failed: {}", describe(&e));
+            eprintln!("Backup failed: {}", e.cause());
             1
         }
     }
@@ -174,7 +174,7 @@ async fn take_backup(
 ) -> Result<PathBuf, AppError> {
     let pool = db::open_existing_pool(&target.database_url)
         .await
-        .map_err(|e| internal(format!("cannot open the database: {e}")))?;
+        .map_err(|e| AppError::internal(format!("cannot open the database: {e}")))?;
     let result = write_backup(&pool, target, output, now).await;
     pool.close().await;
     result
@@ -200,7 +200,7 @@ async fn write_backup(
 
 fn create_folder(dir: &Path) -> Result<(), AppError> {
     std::fs::create_dir_all(dir)
-        .map_err(|e| internal(format!("cannot create {}: {e}", dir.display())))
+        .map_err(|e| AppError::internal(format!("cannot create {}: {e}", dir.display())))
 }
 
 async fn run_restore(file: &Path, yes: bool) -> i32 {
@@ -281,7 +281,7 @@ async fn restore_into(
     now: DateTime<Utc>,
 ) -> Result<Option<PathBuf>, RestoreError> {
     let file = database_file(&target.database_url)
-        .ok_or_else(|| restore_error("DATABASE_URL does not name a database file".to_string()))?;
+        .ok_or_else(|| AppError::internal("DATABASE_URL does not name a database file"))?;
     let existed = file.exists();
     let safety = if existed {
         create_folder(&target.backup_dir)?;
@@ -312,26 +312,9 @@ fn remove_database_files(file: &Path) {
     }
 }
 
-fn restore_error(message: String) -> RestoreError {
-    RestoreError::Failed(internal(message))
-}
-
-fn internal(message: String) -> AppError {
-    AppError::Internal(anyhow::anyhow!(message))
-}
-
 fn describe_restore(error: &RestoreError) -> String {
     match error {
-        RestoreError::Failed(inner) => format!("Restore failed: {}", describe(inner)),
-        other => other.to_string(),
-    }
-}
-
-/// The cause, which the error pages of the web app keep to the log.
-fn describe(error: &AppError) -> String {
-    match error {
-        AppError::Internal(inner) => format!("{inner:#}"),
-        AppError::Database(inner) => inner.to_string(),
+        RestoreError::Failed(inner) => format!("Restore failed: {}", inner.cause()),
         other => other.to_string(),
     }
 }
@@ -341,10 +324,10 @@ fn describe(error: &AppError) -> String {
 async fn reset_password(database_url: &str, email: &str) -> Result<String, AppError> {
     let pool = db::open_existing_pool(database_url)
         .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("cannot open the database: {e}")))?;
+        .map_err(|e| AppError::internal(format!("cannot open the database: {e}")))?;
     db::run_migrations(&pool)
         .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("cannot migrate the database: {e}")))?;
+        .map_err(|e| AppError::internal(format!("cannot migrate the database: {e}")))?;
     let result = AuthService::reset_password(&pool, email).await;
     pool.close().await;
     result

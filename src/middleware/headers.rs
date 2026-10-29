@@ -2,10 +2,12 @@
 //! files, and the policy that confines uploaded files.
 
 use axum::extract::Request;
-use axum::http::header::{CACHE_CONTROL, CONTENT_SECURITY_POLICY};
+use axum::http::header::{
+    CACHE_CONTROL, CONTENT_DISPOSITION, CONTENT_SECURITY_POLICY, CONTENT_TYPE,
+};
 use axum::http::{HeaderMap, HeaderValue};
 use axum::middleware::Next;
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 
 /// For files whose address changes with their content.
 const IMMUTABLE: &str = "public, max-age=31536000, immutable";
@@ -68,4 +70,21 @@ pub fn no_store(mut response: Response) -> Response {
         .headers_mut()
         .insert(CACHE_CONTROL, HeaderValue::from_static("no-store"));
     response
+}
+
+/// A file the browser saves under `filename` instead of showing it, kept
+/// out of every cache.
+pub fn attachment(content_type: &str, filename: &str, body: impl IntoResponse) -> Response {
+    let response = (
+        [
+            (CONTENT_TYPE, content_type.to_string()),
+            (
+                CONTENT_DISPOSITION,
+                format!("attachment; filename=\"{filename}\""),
+            ),
+        ],
+        body,
+    )
+        .into_response();
+    no_store(response)
 }

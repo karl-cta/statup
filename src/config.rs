@@ -10,6 +10,7 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 use axum::http::HeaderName;
+use sqlx::sqlite::SqliteConnectOptions;
 use tracing::level_filters::LevelFilter;
 
 use crate::journal::{JournalInbox, journal_layer};
@@ -62,7 +63,7 @@ pub struct Config {
     /// Directory for user-uploaded files.
     pub upload_dir: String,
     /// Directory the automatic backups and `statup backup` write to.
-    pub backup_dir: String,
+    pub backup_dir: PathBuf,
     /// Whether visitors without an account can read the pages, until an
     /// admin chooses in the settings.
     pub public_mode: bool,
@@ -235,33 +236,31 @@ pub fn load_dotenv() -> Result<(), ConfigError> {
     }
 }
 
-/// The database file named by `DATABASE_URL`, or `None` for an in-memory
-/// database.
+/// The database file named by `DATABASE_URL`, read as the pool reads it, or
+/// `None` for an in-memory database (sqlx names those `file:sqlx-in-memory-N`).
 pub fn database_file(database_url: &str) -> Option<PathBuf> {
-    let path = database_url
-        .strip_prefix("sqlite://")
-        .or_else(|| database_url.strip_prefix("sqlite:"))
-        .unwrap_or(database_url);
-    let path = path.split('?').next().unwrap_or_default();
-    (!path.is_empty() && path != ":memory:").then(|| PathBuf::from(path))
+    let options = SqliteConnectOptions::from_str(database_url).ok()?;
+    let file = options.get_filename();
+    let is_uri = file.to_string_lossy().starts_with("file:");
+    (!file.as_os_str().is_empty() && !is_uri).then(|| file.to_path_buf())
 }
 
 /// Where backups are written: `BACKUP_DIR`, or a `backups` folder next to
 /// the database file.
-pub fn backup_dir_for(database_url: &str) -> String {
+pub fn backup_dir_for(database_url: &str) -> PathBuf {
     default_or_chosen_backup_dir(non_empty_env("BACKUP_DIR"), database_url)
 }
 
-fn default_or_chosen_backup_dir(chosen: Option<String>, database_url: &str) -> String {
+fn default_or_chosen_backup_dir(chosen: Option<String>, database_url: &str) -> PathBuf {
     if let Some(dir) = chosen {
-        return dir;
+        return PathBuf::from(dir);
     }
     let beside = database_file(database_url)
         .and_then(|file| file.parent().map(Path::to_path_buf))
         .filter(|dir| !dir.as_os_str().is_empty() && dir != Path::new("."));
     match beside {
-        Some(dir) => dir.join(BACKUP_FOLDER).to_string_lossy().into_owned(),
-        None => BACKUP_FOLDER.to_string(),
+        Some(dir) => dir.join(BACKUP_FOLDER),
+        None => PathBuf::from(BACKUP_FOLDER),
     }
 }
 
@@ -380,24 +379,27 @@ mod tests {
         assert!(!serves_https(None));
     }
 
-    fn default_backup_dir(database_url: &str) -> String {
+    fn default_backup_dir(database_url: &str) -> PathBuf {
         default_or_chosen_backup_dir(None, database_url)
     }
 
     #[test]
     fn backups_go_to_a_folder_next_to_the_database() {
-        assert_eq!(default_backup_dir("./statup.db"), "backups");
-        assert_eq!(default_backup_dir("statup.db"), "backups");
+        assert_eq!(default_backup_dir("./statup.db"), Path::new("backups"));
+        assert_eq!(default_backup_dir("statup.db"), Path::new("backups"));
         assert_eq!(
             default_backup_dir("sqlite:///data/statup.db"),
-            "/data/backups"
+            Path::new("/data/backups")
         );
         assert_eq!(
             default_backup_dir("sqlite://data/statup.db?mode=rwc"),
-            "data/backups"
+            Path::new("data/backups")
         );
-        assert_eq!(default_backup_dir("/data/statup.db"), "/data/backups");
-        assert_eq!(default_backup_dir("sqlite::memory:"), "backups");
+        assert_eq!(
+            default_backup_dir("/data/statup.db"),
+            Path::new("/data/backups")
+        );
+        assert_eq!(default_backup_dir("sqlite::memory:"), Path::new("backups"));
     }
 
     #[test]
@@ -405,7 +407,7 @@ mod tests {
         let chosen = Some("/mnt/nas/statup".to_string());
         assert_eq!(
             default_or_chosen_backup_dir(chosen, "/data/statup.db"),
-            "/mnt/nas/statup"
+            Path::new("/mnt/nas/statup")
         );
     }
 
@@ -437,7 +439,7 @@ mod tests {
             admin_email: None,
             admin_password: None,
             upload_dir: DEFAULT_UPLOAD_DIR.to_string(),
-            backup_dir: BACKUP_FOLDER.to_string(),
+            backup_dir: PathBuf::from(BACKUP_FOLDER),
             public_mode: false,
             trust_proxy_headers: false,
             client_ip_header: X_FORWARDED_FOR,

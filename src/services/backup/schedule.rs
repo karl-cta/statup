@@ -1,6 +1,7 @@
 //! Automatic backups: on the schedule an administrator sets, and before
 //! the migrations of an upgrade.
 
+use std::collections::HashMap;
 use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -93,27 +94,28 @@ impl BackupSchedule {
     /// its default.
     pub async fn load(pool: &DbPool) -> Result<Self, sqlx::Error> {
         let defaults = Self::default();
-        let get = |key| SettingsRepository::get(pool, key);
+        let rows: Vec<(String, String)> = sqlx::query_as(
+            "SELECT key, value FROM settings WHERE key LIKE 'backup\\_%' ESCAPE '\\'",
+        )
+        .fetch_all(pool)
+        .await?;
+        let stored: HashMap<String, String> = rows.into_iter().collect();
+        let get = |key: &str| stored.get(key).map(String::as_str);
         Ok(Self {
             frequency: get(FREQUENCY_SETTING)
-                .await?
-                .and_then(|v| Frequency::parse(&v))
+                .and_then(Frequency::parse)
                 .unwrap_or(defaults.frequency),
             weekday: get(WEEKDAY_SETTING)
-                .await?
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(defaults.weekday),
             time: get(TIME_SETTING)
-                .await?
-                .and_then(|v| NaiveTime::parse_from_str(&v, "%H:%M").ok())
+                .and_then(|v| NaiveTime::parse_from_str(v, "%H:%M").ok())
                 .unwrap_or(defaults.time),
             keep: get(KEEP_SETTING)
-                .await?
                 .and_then(|v| v.parse().ok())
                 .filter(|keep| KEEP_RANGE.contains(keep))
                 .unwrap_or(defaults.keep),
             before_upgrade: get(BEFORE_UPGRADE_SETTING)
-                .await?
                 .map_or(defaults.before_upgrade, |v| v != "false"),
         })
     }
@@ -142,7 +144,7 @@ impl BackupSchedule {
 
     /// The latest moment at or before `now` when a backup was due, `None`
     /// when automatic backups are off.
-    pub fn last_due(&self, now: DateTime<Utc>, zone: Tz) -> Option<DateTime<Utc>> {
+    fn last_due(&self, now: DateTime<Utc>, zone: Tz) -> Option<DateTime<Utc>> {
         if self.frequency == Frequency::Off {
             return None;
         }
@@ -179,7 +181,7 @@ pub fn spawn_backup_schedule(pool: DbPool, upload_dir: String, backup_dir: PathB
 /// # Errors
 ///
 /// Returns `sqlx::Error` when the settings cannot be read or written.
-pub async fn run_due(
+async fn run_due(
     pool: &DbPool,
     upload_dir: &str,
     backup_dir: &Path,
@@ -189,14 +191,14 @@ pub async fn run_due(
     let Some(due) = schedule.last_due(now, crate::clock::zone()) else {
         return Ok(None);
     };
-    // An instance nobody has set up yet holds nothing worth a backup.
-    if UserRepository::count_all(pool).await? == 0 {
-        return Ok(None);
-    }
     if stored_time(pool, ATTEMPTED_SETTING)
         .await?
         .is_some_and(|tried| tried >= due)
     {
+        return Ok(None);
+    }
+    // An instance nobody has set up yet holds nothing worth a backup.
+    if UserRepository::count_all(pool).await? == 0 {
         return Ok(None);
     }
     SettingsRepository::set(pool, ATTEMPTED_SETTING, &crate::clock::rfc3339(now)).await?;
@@ -210,7 +212,7 @@ pub async fn run_due(
         }
         Err(e) => {
             SettingsRepository::set(pool, FAILED_SETTING, &crate::clock::rfc3339(now)).await?;
-            let detail = describe(&e);
+            let detail = e.cause();
             journal(pool, JournalKind::BackupFailed, backup_dir, Some(detail)).await;
             Ok(None)
         }
@@ -253,7 +255,7 @@ pub async fn back_up_before_upgrade(pool: &DbPool, upload_dir: &str, backup_dir:
             rotate(backup_dir, BackupKind::BeforeUpgrade, UPGRADE_KEEP).await;
             tracing::info!(path = %path.display(), "Backup taken before the upgrade");
         }
-        Err(e) => tracing::error!(error = %describe(&e), "No backup before the upgrade"),
+        Err(e) => tracing::error!(error = %e.cause(), "No backup before the upgrade"),
     }
 }
 
@@ -273,12 +275,9 @@ async fn write(
     kind: BackupKind,
     now: DateTime<Utc>,
 ) -> Result<PathBuf, AppError> {
-    tokio::fs::create_dir_all(backup_dir).await.map_err(|e| {
-        AppError::Internal(anyhow::anyhow!(
-            "cannot create {}: {e}",
-            backup_dir.display()
-        ))
-    })?;
+    tokio::fs::create_dir_all(backup_dir)
+        .await
+        .map_err(|e| AppError::internal(format!("cannot create {}: {e}", backup_dir.display())))?;
     let path = backup_dir.join(backup_file_name(kind, now));
     create_backup(pool, upload_dir, &path).await?;
     Ok(path)
@@ -337,13 +336,6 @@ pub fn parse_time_input(text: &str) -> Option<NaiveTime> {
         number(minutes).filter(|_| minutes.len() == 2)
     };
     NaiveTime::from_hms_opt(number(hours)?, minutes?, 0)
-}
-
-fn describe(error: &AppError) -> String {
-    match error {
-        AppError::Internal(inner) => format!("{inner:#}"),
-        other => other.to_string(),
-    }
 }
 
 #[cfg(test)]

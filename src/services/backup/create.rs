@@ -27,7 +27,7 @@ pub async fn create_backup(
     destination: &Path,
 ) -> Result<BackupInfo, AppError> {
     if tokio::fs::try_exists(destination).await.unwrap_or(true) {
-        return Err(internal(format!(
+        return Err(AppError::internal(format!(
             "{} already exists",
             destination.display()
         )));
@@ -44,7 +44,7 @@ pub async fn create_backup(
     };
     tokio::fs::rename(&partial, destination)
         .await
-        .map_err(|e| internal(format!("cannot name the backup: {e}")))?;
+        .map_err(|e| AppError::internal(format!("cannot name the backup: {e}")))?;
     Ok(info)
 }
 
@@ -55,15 +55,15 @@ async fn write_backup(
 ) -> Result<BackupInfo, AppError> {
     let target = path
         .to_str()
-        .ok_or_else(|| internal("the backup path is not valid UTF-8".to_string()))?;
+        .ok_or_else(|| AppError::internal("the backup path is not valid UTF-8"))?;
     sqlx::query("VACUUM INTO ?")
         .bind(target)
         .execute(pool)
         .await?;
     // The copy of a database in memory stays in memory, without an error.
     if !tokio::fs::try_exists(path).await.unwrap_or(false) {
-        return Err(internal(
-            "the database is in memory: there is no file to back up".to_string(),
+        return Err(AppError::internal(
+            "the database is in memory: there is no file to back up",
         ));
     }
     let mut copy = open_file(path, true).await?;
@@ -144,7 +144,7 @@ async fn uploaded_files(upload_dir: &Path) -> Result<Vec<(String, Vec<u8>)>, App
         while let Some(entry) = entries
             .next_entry()
             .await
-            .map_err(|e| internal(format!("cannot list {folder}: {e}")))?
+            .map_err(|e| AppError::internal(format!("cannot list {folder}: {e}")))?
         {
             let is_file = entry.file_type().await.is_ok_and(|kind| kind.is_file());
             let Some(name) = entry.file_name().to_str().map(str::to_string) else {
@@ -155,7 +155,7 @@ async fn uploaded_files(upload_dir: &Path) -> Result<Vec<(String, Vec<u8>)>, App
             }
             let content = tokio::fs::read(entry.path())
                 .await
-                .map_err(|e| internal(format!("cannot read {folder}/{name}: {e}")))?;
+                .map_err(|e| AppError::internal(format!("cannot read {folder}/{name}: {e}")))?;
             files.push((format!("{folder}/{name}"), content));
         }
     }
@@ -166,10 +166,6 @@ fn partial_path(destination: &Path) -> PathBuf {
     let mut name = destination.as_os_str().to_owned();
     name.push(".partial");
     PathBuf::from(name)
-}
-
-fn internal(message: String) -> AppError {
-    AppError::Internal(anyhow::anyhow!(message))
 }
 
 #[cfg(test)]

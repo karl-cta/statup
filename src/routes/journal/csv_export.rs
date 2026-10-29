@@ -2,15 +2,14 @@
 //! page.
 
 use axum::extract::{Query, State};
-use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 
 use super::JournalQuery;
 use crate::clock;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::RequireAdmin;
-use crate::middleware::headers::no_store;
+use crate::middleware::headers::attachment;
 use crate::models::JournalEntry;
 use crate::repositories::JournalRepository;
 use crate::state::AppState;
@@ -26,18 +25,11 @@ pub async fn export(
 ) -> Result<Response, AppError> {
     let entries = JournalRepository::list_page(&state.pool, &query.export_filters()).await?;
     let filename = format!("journal-{}.csv", clock::today().format("%Y-%m-%d"));
-    let response = (
-        [
-            (CONTENT_TYPE, "text/csv; charset=utf-8".to_string()),
-            (
-                CONTENT_DISPOSITION,
-                format!("attachment; filename=\"{filename}\""),
-            ),
-        ],
+    Ok(attachment(
+        "text/csv; charset=utf-8",
+        &filename,
         render_csv(&entries, &i18n),
-    )
-        .into_response();
-    Ok(no_store(response))
+    ))
 }
 
 fn render_csv(entries: &[JournalEntry], i18n: &I18n) -> String {

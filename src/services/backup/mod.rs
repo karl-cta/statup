@@ -19,9 +19,10 @@ pub use create::create_backup;
 pub use restore::{RestoreError, restore_backup};
 pub use schedule::{
     BackupSchedule, Frequency, KEEP_RANGE, back_up_before_upgrade, last_failure, parse_time_input,
-    run_due, spawn_backup_schedule,
+    spawn_backup_schedule,
 };
 
+use crate::error::AppError;
 use crate::services::CURRENT_VERSION;
 
 /// What triggered a backup, which its file name tells.
@@ -48,9 +49,12 @@ pub fn backup_file_name(kind: BackupKind, at: DateTime<Utc>) -> String {
 /// The part of a file name after its kind: `2026-10-29-163045`.
 const STAMP_FORMAT: &str = "%Y-%m-%d-%H%M%S";
 
+/// The length of a time stamp written with [`STAMP_FORMAT`].
+const STAMP_LEN: usize = 17;
+
 impl BackupKind {
     /// The kind a file name tells, `None` for a file Statup did not name.
-    pub fn of_file_name(name: &str) -> Option<Self> {
+    fn of_file_name(name: &str) -> Option<Self> {
         let stem = name.strip_suffix(".db")?;
         if stem.starts_with("statup-auto-") {
             Some(Self::Automatic)
@@ -84,14 +88,21 @@ pub async fn list_backups(dir: &Path) -> Vec<BackupFile> {
         return found;
     };
     while let Ok(Some(entry)) = entries.next_entry().await {
-        let Some(name) = entry.file_name().to_str().map(str::to_string) else {
+        let Some(named) = entry
+            .file_name()
+            .to_str()
+            .and_then(|name| backup_file(name.to_string(), 0))
+        else {
             continue;
         };
         let Ok(meta) = entry.metadata().await else {
             continue;
         };
-        if let Some(file) = backup_file(name, meta.len()).filter(|_| meta.is_file()) {
-            found.push(file);
+        if meta.is_file() {
+            found.push(BackupFile {
+                size: meta.len(),
+                ..named
+            });
         }
     }
     found.sort_by(|a, b| {
@@ -104,18 +115,9 @@ pub async fn list_backups(dir: &Path) -> Vec<BackupFile> {
 
 fn backup_file(name: String, size: u64) -> Option<BackupFile> {
     let kind = BackupKind::of_file_name(&name)?;
-    let stamp = name
-        .strip_suffix(".db")?
-        .rsplitn(5, '-')
-        .collect::<Vec<_>>();
-    let stamp = stamp
-        .iter()
-        .take(4)
-        .rev()
-        .copied()
-        .collect::<Vec<_>>()
-        .join("-");
-    let taken_at = NaiveDateTime::parse_from_str(&stamp, STAMP_FORMAT)
+    let stem = name.strip_suffix(".db")?;
+    let stamp = stem.get(stem.len().checked_sub(STAMP_LEN)?..)?;
+    let taken_at = NaiveDateTime::parse_from_str(stamp, STAMP_FORMAT)
         .ok()?
         .and_utc();
     Some(BackupFile {
@@ -126,14 +128,42 @@ fn backup_file(name: String, size: u64) -> Option<BackupFile> {
     })
 }
 
-/// The path of the backup named `name` in `dir`, when `name` is one of
-/// the listed backups: a name sent by a browser is never used as a path.
+/// The path of the backup file named `name` in `dir`. A name sent by a
+/// browser is accepted only as the plain name of a backup, never as a path.
 pub async fn find_backup(dir: &Path, name: &str) -> Option<PathBuf> {
-    list_backups(dir)
+    if name.contains(['/', '\\']) || backup_file(name.to_string(), 0).is_none() {
+        return None;
+    }
+    let path = dir.join(name);
+    tokio::fs::metadata(&path)
         .await
-        .into_iter()
-        .any(|file| file.name == name)
-        .then(|| dir.join(name))
+        .ok()?
+        .is_file()
+        .then_some(path)
+}
+
+/// A private folder in the system temporary folder, removed with its
+/// content when it goes out of scope.
+pub(crate) struct TempFolder(PathBuf);
+
+impl TempFolder {
+    pub(crate) async fn new(prefix: &str) -> Result<Self, AppError> {
+        let dir = std::env::temp_dir().join(format!("statup-{prefix}-{}", uuid::Uuid::new_v4()));
+        tokio::fs::create_dir_all(&dir)
+            .await
+            .map_err(|e| AppError::internal(format!("cannot create a temporary folder: {e}")))?;
+        Ok(Self(dir))
+    }
+
+    pub(crate) fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for TempFolder {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
 }
 
 /// What made a backup, read from its `statup_backup` row.
@@ -255,6 +285,21 @@ mod tests {
         );
         assert!(find_backup(&dir, "holiday.jpg").await.is_none());
         assert!(find_backup(&dir, "../statup.db").await.is_none());
+        assert!(
+            find_backup(&dir, "sub/statup-auto-2026-10-29-030000.db")
+                .await
+                .is_none()
+        );
+        assert!(
+            find_backup(&dir, "sub\\statup-auto-2026-10-29-030000.db")
+                .await
+                .is_none()
+        );
+        assert!(
+            find_backup(&dir, "statup-auto-2026-10-01-030000.db")
+                .await
+                .is_none()
+        );
     }
 
     #[test]

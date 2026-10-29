@@ -4,7 +4,6 @@
 
 use askama::Template;
 use axum::extract::{Path, Query, State};
-use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::response::{IntoResponse, Redirect, Response};
 use chrono::{Utc, Weekday};
 use serde::Deserialize;
@@ -12,15 +11,19 @@ use serde::Deserialize;
 use super::{Frame, render};
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
-use crate::middleware::headers::no_store;
+use crate::middleware::headers::attachment;
 use crate::middleware::{CsrfToken, HtmlForm, RequireAdmin};
 use crate::models::{JournalKind, User};
 use crate::repositories::NewJournalEntry;
+use crate::services::backup::TempFolder;
 use crate::services::backup::{
     BackupFile, BackupKind, BackupSchedule, Frequency, KEEP_RANGE, backup_file_name, create_backup,
     find_backup, last_failure, list_backups, parse_time_input,
 };
 use crate::state::AppState;
+
+/// The media type of a backup file.
+const SQLITE_TYPE: &str = "application/vnd.sqlite3";
 
 #[derive(Template)]
 #[template(path = "admin/backups.html")]
@@ -288,20 +291,14 @@ pub async fn download_new(
     State(state): State<AppState>,
 ) -> Result<Response, AppError> {
     let name = backup_file_name(BackupKind::Manual, Utc::now());
-    let folder = std::env::temp_dir().join(format!("statup-download-{}", uuid::Uuid::new_v4()));
-    tokio::fs::create_dir_all(&folder)
+    let folder = TempFolder::new("download").await?;
+    let path = folder.path().join(&name);
+    create_backup(&state.pool, &state.upload_dir, &path).await?;
+    let content = tokio::fs::read(&path)
         .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("cannot create a download folder: {e}")))?;
-    let path = folder.join(&name);
-    let written = create_backup(&state.pool, &state.upload_dir, &path).await;
-    let content = match written {
-        Ok(_) => tokio::fs::read(&path).await.map_err(|e| read_failed(&e)),
-        Err(e) => Err(e),
-    };
-    let _ = tokio::fs::remove_dir_all(&folder).await;
-    let content = content?;
+        .map_err(|e| AppError::internal(format!("cannot read the backup: {e}")))?;
     record_download(&state, &admin, &name).await;
-    Ok(attachment(&name, content))
+    Ok(attachment(SQLITE_TYPE, &name, content))
 }
 
 /// A backup of the backup folder, by its name in the list.
@@ -313,9 +310,11 @@ pub async fn download(
     let path = find_backup(&state.backup_dir, &name)
         .await
         .ok_or(AppError::NotFound)?;
-    let content = tokio::fs::read(&path).await.map_err(|e| read_failed(&e))?;
+    let content = tokio::fs::read(&path)
+        .await
+        .map_err(|e| AppError::internal(format!("cannot read the backup: {e}")))?;
     record_download(&state, &admin, &name).await;
-    Ok(attachment(&name, content))
+    Ok(attachment(SQLITE_TYPE, &name, content))
 }
 
 async fn record_download(state: &AppState, admin: &User, name: &str) {
@@ -324,25 +323,6 @@ async fn record_download(state: &AppState, admin: &User, name: &str) {
         .about(name)
         .record(&state.pool)
         .await;
-}
-
-fn attachment(name: &str, content: Vec<u8>) -> Response {
-    let response = (
-        [
-            (CONTENT_TYPE, "application/vnd.sqlite3".to_string()),
-            (
-                CONTENT_DISPOSITION,
-                format!("attachment; filename=\"{name}\""),
-            ),
-        ],
-        content,
-    )
-        .into_response();
-    no_store(response)
-}
-
-fn read_failed(error: &std::io::Error) -> AppError {
-    AppError::Internal(anyhow::anyhow!("cannot read the backup: {error}"))
 }
 
 /// What the Backups tile of the settings says: the failure of the last
