@@ -2097,14 +2097,16 @@
         width: 6ch;
     }
 
+    /* As wide as its longest row, the box of the upgrade backup. */
     .journal-menu > .backup-panel {
-        width: 340px;
+        width: max-content;
+        max-width: calc(100vw - 32px);
     }
 
-    /* The day keeps to the width of a day's name. */
-    .backup-panel .backup-weekday,
+    /* The day's menu takes the width of its longest day, set by the
+       page's script once the panel opens. */
     .backup-panel .cs-wrap {
-        width: 9.5rem;
+        width: auto;
         flex: none;
     }
 
