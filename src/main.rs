@@ -30,7 +30,7 @@ const DRAIN_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let args = command_line();
     if !args.is_empty() {
         std::process::exit(statup::cli::run(&args).await);
     }
@@ -65,6 +65,19 @@ async fn main() -> anyhow::Result<()> {
     let served = serve(app, &config.bind_addr()).await;
     stop(tasks, &pool).await;
     served
+}
+
+/// The arguments after `--env <file>`, which is applied on the way.
+fn command_line() -> Vec<String> {
+    match statup::cli::take_env_file(std::env::args().skip(1).collect()) {
+        Ok((env_file, args)) => {
+            if let Some(path) = env_file {
+                statup::config::use_env_file(path);
+            }
+            args
+        }
+        Err(statup::cli::UsageError) => std::process::exit(statup::cli::report_usage()),
+    }
 }
 
 /// Behind a proxy that terminates TLS, `PUBLIC_URL` is what marks the

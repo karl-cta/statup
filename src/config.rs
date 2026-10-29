@@ -4,7 +4,9 @@ use std::env;
 use std::fmt::Display;
 use std::io::IsTerminal;
 use std::net::{IpAddr, Ipv4Addr};
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use axum::http::HeaderName;
@@ -26,6 +28,16 @@ const FORM_SESSION_SECS: u64 = 60 * 60;
 
 /// Where the database lives when `DATABASE_URL` is not set.
 pub const DEFAULT_DATABASE_URL: &str = "./statup.db";
+
+/// Where the uploaded icons and logo live when `UPLOAD_DIR` is not set.
+pub const DEFAULT_UPLOAD_DIR: &str = "data/uploads";
+
+/// The folder named `backups` next to the database, unless `BACKUP_DIR`
+/// says otherwise.
+const BACKUP_FOLDER: &str = "backups";
+
+/// The file chosen with `--env`, read instead of `.env`.
+static ENV_FILE: OnceLock<PathBuf> = OnceLock::new();
 
 /// Application configuration.
 // Each flag is a setting of its own, read from its own variable.
@@ -49,6 +61,8 @@ pub struct Config {
     pub admin_password: Option<String>,
     /// Directory for user-uploaded files.
     pub upload_dir: String,
+    /// Directory the backups taken by `statup backup` are written to.
+    pub backup_dir: String,
     /// Whether visitors without an account can read the pages, until an
     /// admin chooses in the settings.
     pub public_mode: bool,
@@ -125,8 +139,8 @@ impl Config {
     /// Every setting has a default.
     pub fn from_env() -> Result<Self, ConfigError> {
         load_dotenv()?;
+        let database_url = env_or("DATABASE_URL", DEFAULT_DATABASE_URL);
         let config = Self {
-            database_url: env_or("DATABASE_URL", DEFAULT_DATABASE_URL),
             host: parse_env("HOST", IpAddr::V4(Ipv4Addr::UNSPECIFIED))?,
             port: parse_env("PORT", 3000)?,
             session_expiry: Duration::from_secs(parse_env("SESSION_EXPIRY", FORM_SESSION_SECS)?),
@@ -134,7 +148,8 @@ impl Config {
             db_max_connections: parse_env("DB_MAX_CONNECTIONS", 10)?,
             admin_email: non_empty_env("ADMIN_EMAIL"),
             admin_password: non_empty_env("ADMIN_PASSWORD"),
-            upload_dir: env_or("UPLOAD_DIR", "data/uploads"),
+            upload_dir: env_or("UPLOAD_DIR", DEFAULT_UPLOAD_DIR),
+            backup_dir: backup_dir_for(&database_url),
             public_mode: parse_env("PUBLIC_MODE", false)?,
             trust_proxy_headers: parse_env("TRUST_PROXY_HEADERS", false)?,
             client_ip_header: parse_env("CLIENT_IP_HEADER", X_FORWARDED_FOR)?,
@@ -143,6 +158,7 @@ impl Config {
             update_check: parse_env("UPDATE_CHECK", true)?,
             monitoring: parse_env("MONITORING", true)?,
             smtp: smtp_from_env()?,
+            database_url,
         };
         config.validate()?;
         Ok(config)
@@ -192,17 +208,60 @@ pub fn serves_https(public_url: Option<&str>) -> bool {
     public_url.is_some_and(|url| url.to_ascii_lowercase().starts_with("https://"))
 }
 
-/// Reads `.env` from the working directory only, never from a parent
-/// directory, where an unrelated project could keep its own. A missing file
-/// is not an error.
+/// Makes [`load_dotenv`] read `path` instead of `.env`. Only the first call
+/// counts.
+pub fn use_env_file(path: PathBuf) {
+    // A second call keeps the first file: the command line is read once.
+    let _ = ENV_FILE.set(path);
+}
+
+/// Reads the file chosen with `--env`, or else `.env` from the working
+/// directory only, never from a parent directory, where an unrelated project
+/// could keep its own. A missing `.env` is not an error; a missing chosen
+/// file is.
 ///
 /// # Errors
 ///
-/// Returns `ConfigError` when the file exists but cannot be read or parsed.
+/// Returns `ConfigError` when the chosen file is missing, or when a file
+/// exists but cannot be read or parsed.
 pub fn load_dotenv() -> Result<(), ConfigError> {
+    if let Some(path) = ENV_FILE.get() {
+        return dotenvy::from_path(path)
+            .map_err(|e| invalid("--env", &format!("{}: {e}", path.display())));
+    }
     match dotenvy::from_path(".env") {
         Err(e) if !e.not_found() => Err(invalid(".env", &e.to_string())),
         _ => Ok(()),
+    }
+}
+
+/// The database file named by `DATABASE_URL`, or `None` for an in-memory
+/// database.
+pub fn database_file(database_url: &str) -> Option<PathBuf> {
+    let path = database_url
+        .strip_prefix("sqlite://")
+        .or_else(|| database_url.strip_prefix("sqlite:"))
+        .unwrap_or(database_url);
+    let path = path.split('?').next().unwrap_or_default();
+    (!path.is_empty() && path != ":memory:").then(|| PathBuf::from(path))
+}
+
+/// Where backups are written: `BACKUP_DIR`, or a `backups` folder next to
+/// the database file.
+pub fn backup_dir_for(database_url: &str) -> String {
+    default_or_chosen_backup_dir(non_empty_env("BACKUP_DIR"), database_url)
+}
+
+fn default_or_chosen_backup_dir(chosen: Option<String>, database_url: &str) -> String {
+    if let Some(dir) = chosen {
+        return dir;
+    }
+    let beside = database_file(database_url)
+        .and_then(|file| file.parent().map(Path::to_path_buf))
+        .filter(|dir| !dir.as_os_str().is_empty() && dir != Path::new("."));
+    match beside {
+        Some(dir) => dir.join(BACKUP_FOLDER).to_string_lossy().into_owned(),
+        None => BACKUP_FOLDER.to_string(),
     }
 }
 
@@ -321,6 +380,45 @@ mod tests {
         assert!(!serves_https(None));
     }
 
+    fn default_backup_dir(database_url: &str) -> String {
+        default_or_chosen_backup_dir(None, database_url)
+    }
+
+    #[test]
+    fn backups_go_to_a_folder_next_to_the_database() {
+        assert_eq!(default_backup_dir("./statup.db"), "backups");
+        assert_eq!(default_backup_dir("statup.db"), "backups");
+        assert_eq!(
+            default_backup_dir("sqlite:///data/statup.db"),
+            "/data/backups"
+        );
+        assert_eq!(
+            default_backup_dir("sqlite://data/statup.db?mode=rwc"),
+            "data/backups"
+        );
+        assert_eq!(default_backup_dir("/data/statup.db"), "/data/backups");
+        assert_eq!(default_backup_dir("sqlite::memory:"), "backups");
+    }
+
+    #[test]
+    fn backup_dir_setting_wins_over_the_default() {
+        let chosen = Some("/mnt/nas/statup".to_string());
+        assert_eq!(
+            default_or_chosen_backup_dir(chosen, "/data/statup.db"),
+            "/mnt/nas/statup"
+        );
+    }
+
+    #[test]
+    fn database_file_is_none_for_a_memory_database() {
+        assert_eq!(database_file("sqlite::memory:"), None);
+        assert_eq!(database_file(""), None);
+        assert_eq!(
+            database_file("sqlite:///data/statup.db?mode=rwc"),
+            Some(PathBuf::from("/data/statup.db"))
+        );
+    }
+
     #[test]
     fn log_levels_are_parsed_case_insensitively() {
         assert_eq!(parse_log_level("WARN").unwrap(), LevelFilter::WARN);
@@ -338,7 +436,8 @@ mod tests {
             db_max_connections: 10,
             admin_email: None,
             admin_password: None,
-            upload_dir: "data/uploads".to_string(),
+            upload_dir: DEFAULT_UPLOAD_DIR.to_string(),
+            backup_dir: BACKUP_FOLDER.to_string(),
             public_mode: false,
             trust_proxy_headers: false,
             client_ip_header: X_FORWARDED_FOR,

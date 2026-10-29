@@ -17,6 +17,29 @@ use sqlx::{Connection, SqliteConnection};
 pub use create::create_backup;
 pub use restore::{RestoreError, restore_backup};
 
+use crate::services::CURRENT_VERSION;
+
+/// What triggered a backup, which its file name tells.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BackupKind {
+    Manual,
+    Automatic,
+    BeforeUpgrade,
+    BeforeRestore,
+}
+
+/// The file name of a backup taken at `at` (UTC), such as
+/// `statup-backup-2026-10-29-163045.db`.
+pub fn backup_file_name(kind: BackupKind, at: DateTime<Utc>) -> String {
+    let stamp = at.format("%Y-%m-%d-%H%M%S");
+    match kind {
+        BackupKind::Manual => format!("statup-backup-{stamp}.db"),
+        BackupKind::Automatic => format!("statup-auto-{stamp}.db"),
+        BackupKind::BeforeUpgrade => format!("statup-before-{CURRENT_VERSION}-{stamp}.db"),
+        BackupKind::BeforeRestore => format!("statup-before-restore-{stamp}.db"),
+    }
+}
+
 /// What made a backup, read from its `statup_backup` row.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BackupInfo {
@@ -72,4 +95,32 @@ async fn open_file(path: &Path, writable: bool) -> Result<SqliteConnection, sqlx
         options
     };
     SqliteConnection::connect_with(&options).await
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::TimeZone;
+
+    use super::*;
+
+    #[test]
+    fn each_kind_of_backup_has_its_own_file_name() {
+        let at = Utc.with_ymd_and_hms(2026, 10, 29, 16, 30, 45).unwrap();
+        assert_eq!(
+            backup_file_name(BackupKind::Manual, at),
+            "statup-backup-2026-10-29-163045.db"
+        );
+        assert_eq!(
+            backup_file_name(BackupKind::Automatic, at),
+            "statup-auto-2026-10-29-163045.db"
+        );
+        assert_eq!(
+            backup_file_name(BackupKind::BeforeUpgrade, at),
+            format!("statup-before-{CURRENT_VERSION}-2026-10-29-163045.db")
+        );
+        assert_eq!(
+            backup_file_name(BackupKind::BeforeRestore, at),
+            "statup-before-restore-2026-10-29-163045.db"
+        );
+    }
 }
