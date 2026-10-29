@@ -101,19 +101,47 @@ pub async fn restore(
     Locale(i18n): Locale,
     multipart: Multipart,
 ) -> Result<Response, AppError> {
+    // Refused before the body is read: an instance with an account takes no
+    // upload at all.
+    if !instance_is_empty(&state).await? {
+        let message = i18n.t("restore.not_empty").to_string();
+        return refuse(&state, &session, i18n, message, false).await;
+    }
     let staging = Staging::new().await?;
     let source = read_form(&session, multipart, &staging.0).await?;
-    let csrf_token = form_token(&session).await?;
     let sent_chosen = !matches!(source, Source::Listed(_));
-    let refusal = |message: String| {
-        Some(Refusal {
-            message,
-            sent_chosen,
-        })
+    match restore_from(&state, source, &i18n).await? {
+        Ok(()) => Ok(Redirect::to("/login?restored=1").into_response()),
+        Err(message) => refuse(&state, &session, i18n, message, sent_chosen).await,
+    }
+}
+
+/// The page again, with why the form was refused and what it had chosen.
+async fn refuse(
+    state: &AppState,
+    session: &Session,
+    i18n: I18n,
+    message: String,
+    sent_chosen: bool,
+) -> Result<Response, AppError> {
+    let csrf_token = form_token(session).await?;
+    let refusal = Refusal {
+        message,
+        sent_chosen,
     };
-    if !instance_is_empty(&state).await? {
-        let error = refusal(i18n.t("restore.not_empty").to_string());
-        return render_page(&state, csrf_token, i18n, error).await;
+    render_page(state, csrf_token, i18n, Some(refusal)).await
+}
+
+/// Restores the chosen backup. The inner error is a refusal said in the
+/// page; the outer one, a failure of the server.
+async fn restore_from(
+    state: &AppState,
+    source: Source,
+    i18n: &I18n,
+) -> Result<Result<(), String>, AppError> {
+    // Checked again: an account may have been made while the file arrived.
+    if !instance_is_empty(state).await? {
+        return Ok(Err(i18n.t("restore.not_empty").to_string()));
     }
     let found = match source {
         Source::Listed(name) => find_backup(&state.backup_dir, &name)
@@ -123,24 +151,20 @@ pub async fn restore(
         Source::Nothing => None,
     };
     let Some((path, name)) = found else {
-        let error = refusal(i18n.t("restore.no_file").to_string());
-        return render_page(&state, csrf_token, i18n, error).await;
+        return Ok(Err(i18n.t("restore.no_file").to_string()));
     };
     match restore_backup(&state.pool, &state.upload_dir, &path, None).await {
         Ok(info) => {
-            refresh_state(&state).await?;
+            refresh_state(state).await?;
             NewJournalEntry::new(JournalKind::BackupRestored)
                 .about(name)
                 .with_detail(format!("made by Statup {}", info.app_version))
                 .record(&state.pool)
                 .await;
-            Ok(Redirect::to("/login?restored=1").into_response())
+            Ok(Ok(()))
         }
         Err(RestoreError::Failed(e)) => Err(e),
-        Err(refused) => {
-            let error = refusal(refusal_text(&refused, &i18n));
-            render_page(&state, csrf_token, i18n, error).await
-        }
+        Err(refused) => Ok(Err(refusal_text(&refused, i18n))),
     }
 }
 

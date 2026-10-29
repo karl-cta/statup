@@ -86,6 +86,9 @@ const RESTORE_BODY_LIMIT: usize = 256 * 1024 * 1024;
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
+/// Sending a backup of the largest size over a slow link.
+const RESTORE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+
 /// No inline script, handler or style anywhere: behavior lives in
 /// `static/js`, presentation in the stylesheet. `blob:` images let a logo
 /// picked at first launch show before it is uploaded.
@@ -117,19 +120,18 @@ fn dynamic_routes(state: &AppState, rate_limit: &RateLimit) -> Router<AppState> 
     let uploads = with_request_guards(upload_routes(), state)
         .layer(RequestBodyLimitLayer::new(UPLOAD_BODY_LIMIT));
     let links = link_routes().layer(RequestBodyLimitLayer::new(FORM_BODY_LIMIT));
-    // Streamed to disk and checked by its handler, outside the CSRF guard.
+    // Streamed to disk and checked by its handler, outside the CSRF guard,
+    // with the time a large file needs on a slow link.
     let restore = restore_routes()
         .layer(DefaultBodyLimit::max(RESTORE_BODY_LIMIT))
-        .layer(RequestBodyLimitLayer::new(RESTORE_BODY_LIMIT));
+        .layer(RequestBodyLimitLayer::new(RESTORE_BODY_LIMIT))
+        .layer(timeout(RESTORE_TIMEOUT));
     pages
         .merge(uploads)
         .merge(links)
+        .layer(timeout(REQUEST_TIMEOUT))
         .merge(restore)
         .fallback(not_found)
-        .layer(TimeoutLayer::with_status_code(
-            StatusCode::REQUEST_TIMEOUT,
-            REQUEST_TIMEOUT,
-        ))
         .layer(CatchPanicLayer::custom(|panic: Box<dyn Any + Send>| {
             panic_response(&*panic)
         }))
@@ -191,6 +193,10 @@ fn public_routes() -> Router<AppState> {
 /// The pages an email links to. No session and no CSRF check: the token in
 /// the address is the proof, and a mail client posts to the unsubscribe
 /// address on its own (RFC 8058), with no cookie.
+fn timeout(duration: Duration) -> TimeoutLayer {
+    TimeoutLayer::with_status_code(StatusCode::REQUEST_TIMEOUT, duration)
+}
+
 fn restore_routes() -> Router<AppState> {
     Router::new().route("/restore", get(restore::page).post(restore::restore))
 }

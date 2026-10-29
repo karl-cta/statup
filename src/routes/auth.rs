@@ -142,8 +142,18 @@ fn render_login(
     error: Option<String>,
     email: String,
 ) -> Result<Response, AppError> {
+    render(&login_template(state, csrf_token, i18n, error, email))
+}
+
+fn login_template(
+    state: &AppState,
+    csrf_token: String,
+    i18n: I18n,
+    error: Option<String>,
+    email: String,
+) -> LoginTemplate {
     let (instance, powered_by) = instance_title();
-    render(&LoginTemplate {
+    LoginTemplate {
         csrf_token,
         error,
         notice: None,
@@ -152,7 +162,7 @@ fn render_login(
         powered_by,
         public_page: state.is_public_mode(),
         i18n,
-    })
+    }
 }
 
 #[derive(Deserialize)]
@@ -176,20 +186,11 @@ pub async fn login_form(
         return Ok(Redirect::to("/register").into_response());
     }
     let csrf_token = form_token(&session).await?;
-    if query.restored.is_some() {
-        let (instance, powered_by) = instance_title();
-        return render(&LoginTemplate {
-            csrf_token,
-            error: None,
-            notice: Some(i18n.t("restore.done").to_string()),
-            email: String::new(),
-            instance,
-            powered_by,
-            public_page: state.is_public_mode(),
-            i18n,
-        });
-    }
-    render_login(&state, csrf_token, i18n, None, String::new())
+    let notice = query.restored.map(|_| i18n.t("restore.done").to_string());
+    render(&LoginTemplate {
+        notice,
+        ..login_template(&state, csrf_token, i18n, None, String::new())
+    })
 }
 
 pub async fn login(

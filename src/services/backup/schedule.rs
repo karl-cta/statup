@@ -14,7 +14,7 @@ use crate::db::{DbPool, has_pending_migrations};
 use crate::error::AppError;
 
 use crate::models::JournalKind;
-use crate::repositories::{NewJournalEntry, SettingsRepository};
+use crate::repositories::{NewJournalEntry, SettingsRepository, UserRepository};
 
 const FREQUENCY_SETTING: &str = "backup_frequency";
 const WEEKDAY_SETTING: &str = "backup_weekday";
@@ -124,6 +124,10 @@ impl BackupSchedule {
         let time = self.time.format("%H:%M").to_string();
         let keep = self.keep.to_string();
         let before_upgrade = if self.before_upgrade { "true" } else { "false" };
+        // Off, no automatic backup will come to clear an old failure.
+        if self.frequency == Frequency::Off {
+            SettingsRepository::set(pool, FAILED_SETTING, "").await?;
+        }
         for (key, value) in [
             (FREQUENCY_SETTING, self.frequency.as_str()),
             (WEEKDAY_SETTING, weekday.as_str()),
@@ -185,6 +189,10 @@ pub async fn run_due(
     let Some(due) = schedule.last_due(now, crate::clock::zone()) else {
         return Ok(None);
     };
+    // An instance nobody has set up yet holds nothing worth a backup.
+    if UserRepository::count_all(pool).await? == 0 {
+        return Ok(None);
+    }
     if stored_time(pool, ATTEMPTED_SETTING)
         .await?
         .is_some_and(|tried| tried >= due)
@@ -456,6 +464,16 @@ mod tests {
         assert_eq!((loaded.keep, loaded.time), (7, at(3, 0)));
     }
 
+    async fn with_account(pool: &DbPool) {
+        sqlx::query(
+            "INSERT INTO users (email, password_hash, display_name, role) \
+             VALUES ('ada@example.com', 'hash', 'Ada', 'admin')",
+        )
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
     fn names(dir: &Path) -> Vec<String> {
         let mut names: Vec<String> = std::fs::read_dir(dir)
             .unwrap()
@@ -469,6 +487,7 @@ mod tests {
     async fn one_backup_per_turn_and_only_the_newest_are_kept() {
         let scratch = Scratch::new();
         let pool = file_pool(&scratch.path("statup.db")).await;
+        with_account(&pool).await;
         let dir = scratch.path("backups");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("statup-backup-2026-01-01-120000.db"), b"by hand").unwrap();
@@ -511,6 +530,7 @@ mod tests {
     async fn a_failed_backup_is_recorded_until_the_next_one_succeeds() {
         let scratch = Scratch::new();
         let pool = file_pool(&scratch.path("statup.db")).await;
+        with_account(&pool).await;
         let dir = scratch.path("backups");
         std::fs::write(&dir, b"a file where the folder should be").unwrap();
 
@@ -526,6 +546,36 @@ mod tests {
         std::fs::remove_file(&dir).unwrap();
         let next = run_due(&pool, &scratch.uploads(), &dir, utc(2026, 10, 29, 12, 0)).await;
         assert!(next.unwrap().is_some());
+        assert_eq!(last_failure(&pool).await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn an_instance_nobody_has_set_up_is_not_backed_up() {
+        let scratch = Scratch::new();
+        let pool = file_pool(&scratch.path("statup.db")).await;
+        let dir = scratch.path("backups");
+
+        let taken = run_due(&pool, &scratch.uploads(), &dir, utc(2026, 10, 29, 12, 0)).await;
+
+        assert!(taken.unwrap().is_none());
+        assert!(!dir.exists());
+    }
+
+    #[tokio::test]
+    async fn turning_automatic_backups_off_clears_an_old_failure() {
+        let pool = crate::test_helpers::test_pool().await;
+        SettingsRepository::set(&pool, FAILED_SETTING, "2026-10-28T03:00:00Z")
+            .await
+            .unwrap();
+
+        BackupSchedule {
+            frequency: Frequency::Off,
+            ..BackupSchedule::default()
+        }
+        .save(&pool)
+        .await
+        .unwrap();
+
         assert_eq!(last_failure(&pool).await.unwrap(), None);
     }
 
