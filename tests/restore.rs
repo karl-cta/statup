@@ -201,7 +201,7 @@ async fn an_instance_that_got_an_account_meanwhile_is_not_replaced() {
     app.create_user("first@test.com", ADMIN_PASSWORD, "First", Role::Admin)
         .await;
 
-    let (status, page, _) = send(
+    let (status, page, location) = send(
         &app,
         Some(&csrf),
         "",
@@ -209,8 +209,9 @@ async fn an_instance_that_got_an_account_meanwhile_is_not_replaced() {
     )
     .await;
 
-    assert_eq!(status, StatusCode::OK);
-    assert!(page.contains("Cette page a déjà un compte"));
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/login"));
+    assert!(!page.contains("statup-"));
     let name = SettingsRepository::get(&app.pool, "instance_name")
         .await
         .unwrap();

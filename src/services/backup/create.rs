@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use sqlx::{Connection, SqliteConnection};
 
-use super::{BackupInfo, FILES_TABLE, INFO_TABLE, UPLOAD_FOLDERS, open_file};
+use super::{BackupInfo, FILES_TABLE, INFO_TABLE, UPLOAD_FOLDERS, forget_sessions, open_file};
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::services::CURRENT_VERSION;
@@ -67,6 +67,7 @@ async fn write_backup(
         ));
     }
     let mut copy = open_file(path, true).await?;
+    forget_sessions(&mut copy).await?;
     let info = describe(&mut copy).await?;
     record_info(&mut copy, &info).await?;
     attach_uploads(&mut copy, Path::new(upload_dir)).await?;
@@ -251,6 +252,31 @@ mod tests {
             .unwrap();
         assert_eq!(mode, "delete");
         assert!(!scratch.path("backup.db-wal").exists());
+    }
+
+    #[tokio::test]
+    async fn a_backup_carries_no_sign_in() {
+        let scratch = Scratch::new();
+        let pool = file_pool(&scratch.path("statup.db")).await;
+        crate::session::create_session_store(&pool).await.unwrap();
+        sqlx::query(
+            "INSERT INTO tower_sessions (id, data, expiry_date) VALUES ('live', x'00', 4102444800)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let destination = scratch.path("backup.db");
+
+        create_backup(&pool, &scratch.uploads(), &destination)
+            .await
+            .unwrap();
+
+        let mut copy = open(&destination).await;
+        let sessions: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tower_sessions")
+            .fetch_one(&mut copy)
+            .await
+            .unwrap();
+        assert_eq!(sessions, 0);
     }
 
     #[tokio::test]

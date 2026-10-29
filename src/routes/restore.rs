@@ -99,8 +99,7 @@ pub async fn restore(
     // Refused before the body is read: an instance with an account takes no
     // upload at all.
     if !instance_is_empty(&state).await? {
-        let message = i18n.t("restore.not_empty").to_string();
-        return render_page(&state, &session, i18n, Some(message), false).await;
+        return Ok(Redirect::to("/login").into_response());
     }
     let staging = TempFolder::new("upload").await?;
     let source = read_form(&session, multipart, staging.path()).await?;

@@ -208,6 +208,23 @@ pub async fn read_info(path: &Path) -> Result<BackupInfo, sqlx::Error> {
     })
 }
 
+/// Removes the sign-ins of the copy: a session id is the cookie itself,
+/// so a backup must not carry one, and a restore must not revive one. The
+/// table is made by the session store at start, so an old file may lack it.
+async fn forget_sessions(copy: &mut SqliteConnection) -> Result<(), sqlx::Error> {
+    let present: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM sqlite_schema WHERE name = 'tower_sessions')",
+    )
+    .fetch_one(&mut *copy)
+    .await?;
+    if present {
+        sqlx::query("DELETE FROM tower_sessions")
+            .execute(&mut *copy)
+            .await?;
+    }
+    Ok(())
+}
+
 /// One connection to a backup file. Written in rollback journal mode, so
 /// that the file never grows `-wal` and `-shm` companions.
 async fn open_file(path: &Path, writable: bool) -> Result<SqliteConnection, sqlx::Error> {

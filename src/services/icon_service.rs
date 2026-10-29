@@ -189,11 +189,17 @@ impl IconService {
         }
 
         IconRepository::delete(pool, id).await?;
-        if file_exists {
+        if file_exists && is_plain_file_name(&icon.filename) {
             let _ = tokio::fs::remove_file(&file_path).await;
         }
         Ok(icon)
     }
+}
+
+/// A name Statup gives an uploaded file: one plain file name, never a path.
+/// A restored database is not trusted to hold only such names.
+pub fn is_plain_file_name(name: &str) -> bool {
+    !name.is_empty() && !name.starts_with('.') && !name.contains(['/', '\\', ':'])
 }
 
 /// Where an icon file lives under the upload directory.

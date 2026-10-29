@@ -5,11 +5,12 @@ use std::path::Path;
 use sqlx::{Connection, SqliteConnection};
 
 use super::{
-    BackupInfo, FILES_TABLE, INFO_TABLE, TempFolder, UPLOAD_FOLDERS, create_backup, open_file,
-    read_info,
+    BackupInfo, FILES_TABLE, INFO_TABLE, TempFolder, UPLOAD_FOLDERS, create_backup,
+    forget_sessions, open_file, read_info,
 };
 use crate::db::{DbPool, copy_database, latest_migration, open_existing_file, run_migrations};
 use crate::error::AppError;
+use crate::services::is_plain_file_name;
 
 /// Why a restore did not happen. Nothing was changed in any case.
 #[derive(Debug, thiserror::Error)]
@@ -67,6 +68,7 @@ pub async fn restore_backup(
         .map_err(|e| AppError::internal(format!("cannot copy the backup: {e}")))?;
     let files = take_files(&staged).await?;
     bring_up_to_date(&staged).await?;
+    check_file_names(&staged).await?;
     if let Some(safety) = safety {
         create_backup(pool, upload_dir, safety).await?;
     }
@@ -86,6 +88,7 @@ async fn take_files(staged: &Path) -> Result<Vec<(String, Vec<u8>)>, RestoreErro
     if let Some((path, _)) = files.iter().find(|(path, _)| !is_upload_path(path)) {
         return Err(RestoreError::UnexpectedFile(path.clone()));
     }
+    forget_sessions(&mut copy).await?;
     sqlx::query(&format!("DROP TABLE {FILES_TABLE}"))
         .execute(&mut copy)
         .await?;
@@ -99,13 +102,25 @@ async fn take_files(staged: &Path) -> Result<Vec<(String, Vec<u8>)>, RestoreErro
 /// A path the upload folders can hold: `icons/<name>` or `brand/<name>`,
 /// with a plain file name.
 fn is_upload_path(path: &str) -> bool {
-    let Some((folder, name)) = path.split_once('/') else {
-        return false;
-    };
-    UPLOAD_FOLDERS.contains(&folder)
-        && !name.is_empty()
-        && !name.starts_with('.')
-        && !name.contains(['/', '\\', ':'])
+    path.split_once('/')
+        .is_some_and(|(folder, name)| UPLOAD_FOLDERS.contains(&folder) && is_plain_file_name(name))
+}
+
+/// The names the database gives its uploaded files, checked like the
+/// carried files: the icon and logo pages remove a file by that name.
+async fn check_file_names(staged: &Path) -> Result<(), RestoreError> {
+    let mut copy = open_file(staged, false).await?;
+    let names: Vec<String> = sqlx::query_scalar(
+        "SELECT filename FROM icons \
+         UNION ALL SELECT value FROM settings WHERE key = 'instance_logo' AND value <> ''",
+    )
+    .fetch_all(&mut copy)
+    .await?;
+    copy.close().await?;
+    match names.into_iter().find(|name| !is_plain_file_name(name)) {
+        Some(name) => Err(RestoreError::UnexpectedFile(name)),
+        None => Ok(()),
+    }
 }
 
 /// Applies this binary's migrations to the staged copy, in WAL mode like
@@ -363,6 +378,65 @@ mod tests {
         assert!(matches!(refused, Err(RestoreError::UnexpectedFile(_))));
         let email: String = scalar(&live, "SELECT email FROM users").await;
         assert_eq!(email, "kept@example.com");
+    }
+
+    async fn crafted(scratch: &Scratch, statement: &str) -> PathBuf {
+        let backup = backup_of(scratch, "acme").await;
+        let mut file = open_file(&backup, true).await.unwrap();
+        sqlx::query(statement).execute(&mut file).await.unwrap();
+        file.close().await.unwrap();
+        backup
+    }
+
+    #[tokio::test]
+    async fn a_backup_naming_a_file_outside_the_uploads_is_refused() {
+        let scratch = Scratch::new();
+        let live = file_pool(&scratch.path("statup.db")).await;
+        seed(&live, "kept").await;
+        for statement in [
+            "INSERT INTO icons (filename, original_name, mime_type, size_bytes, uploaded_by) \
+             VALUES ('../../statup.db', 'x', 'image/png', 1, 1)",
+            "UPDATE settings SET value = '/etc/hosts' WHERE key = 'instance_name'",
+            "INSERT INTO settings (key, value) VALUES ('instance_logo', '../backups/a.db') \
+             ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+        ] {
+            let backup = crafted(&scratch, statement).await;
+            let refused = restore_backup(&live, &scratch.uploads(), &backup, None).await;
+            let is_name = statement.contains("instance_name");
+            assert_eq!(
+                matches!(refused, Err(RestoreError::UnexpectedFile(_))),
+                !is_name,
+                "{statement}"
+            );
+            std::fs::remove_file(&backup).unwrap();
+            std::fs::remove_file(scratch.path("acme.db")).ok();
+        }
+    }
+
+    #[tokio::test]
+    async fn a_restore_revives_no_sign_in() {
+        let scratch = Scratch::new();
+        let backup = crafted(
+            &scratch,
+            "CREATE TABLE IF NOT EXISTS tower_sessions (id TEXT PRIMARY KEY NOT NULL, data BLOB NOT NULL, expiry_date INTEGER NOT NULL)",
+        )
+        .await;
+        let mut file = open_file(&backup, true).await.unwrap();
+        sqlx::query(
+            "INSERT INTO tower_sessions (id, data, expiry_date) VALUES ('old', x'00', 4102444800)",
+        )
+        .execute(&mut file)
+        .await
+        .unwrap();
+        file.close().await.unwrap();
+        let live = file_pool(&scratch.path("statup.db")).await;
+
+        restore_backup(&live, &scratch.uploads(), &backup, None)
+            .await
+            .unwrap();
+
+        let sessions: i64 = scalar(&live, "SELECT COUNT(*) FROM tower_sessions").await;
+        assert_eq!(sessions, 0);
     }
 
     #[test]

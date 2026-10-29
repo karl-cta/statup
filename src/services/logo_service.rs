@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::repositories::SettingsRepository;
-use crate::services::{mime_to_extension, prepare_image};
+use crate::services::{is_plain_file_name, mime_to_extension, prepare_image};
 
 /// Settings key of the logo's file name.
 pub const LOGO_SETTING: &str = "instance_logo";
@@ -57,7 +57,7 @@ pub fn logo_dir(upload_dir: &str) -> PathBuf {
 
 /// A file left behind costs only disk space: a failure is not reported.
 async fn remove_file(upload_dir: &str, filename: Option<String>) {
-    if let Some(name) = filename.filter(|name| !name.is_empty()) {
+    if let Some(name) = filename.filter(|name| is_plain_file_name(name)) {
         let _ = tokio::fs::remove_file(logo_dir(upload_dir).join(name)).await;
     }
 }
