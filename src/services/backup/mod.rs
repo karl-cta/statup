@@ -3,6 +3,9 @@
 //! can open it with `sqlite3`; Statup restores it with `statup restore`.
 
 mod create;
+mod restore;
+#[cfg(test)]
+mod testing;
 
 use std::path::Path;
 use std::str::FromStr;
@@ -12,6 +15,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
 use sqlx::{Connection, SqliteConnection};
 
 pub use create::create_backup;
+pub use restore::{RestoreError, restore_backup};
 
 /// What made a backup, read from its `statup_backup` row.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -2802,6 +2802,7 @@ dependencies = [
  "governor",
  "image",
  "lettre",
+ "libsqlite3-sys",
  "multer",
  "percent-encoding",
  "pulldown-cmark",

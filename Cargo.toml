@@ -35,6 +35,9 @@ lettre = { version = "0.11", default-features = false, features = ["builder", "h
 
 # Database
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono", "time"] }
+# The version sqlx links: restoring a backup calls SQLite's online backup
+# API on sqlx's raw handles. Upgrade both together.
+libsqlite3-sys = { version = "=0.30.1", default-features = false }
 
 # Templates
 askama = { version = "0.16", features = ["serde_json"] }

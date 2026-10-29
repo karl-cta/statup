@@ -170,40 +170,7 @@ fn internal(message: String) -> AppError {
 mod tests {
     use super::*;
     use crate::services::backup::read_info;
-
-    struct Scratch(PathBuf);
-
-    impl Scratch {
-        fn new() -> Self {
-            let dir = std::env::temp_dir().join(format!("statup-backup-{}", uuid::Uuid::new_v4()));
-            std::fs::create_dir_all(dir.join("uploads/icons")).unwrap();
-            std::fs::create_dir_all(dir.join("uploads/brand")).unwrap();
-            Self(dir)
-        }
-
-        fn uploads(&self) -> String {
-            self.0.join("uploads").to_string_lossy().into_owned()
-        }
-
-        fn path(&self, name: &str) -> PathBuf {
-            self.0.join(name)
-        }
-    }
-
-    impl Drop for Scratch {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
-    }
-
-    /// A file database, as in production: `VACUUM INTO` reads it while
-    /// other connections write.
-    async fn file_pool(scratch: &Scratch) -> DbPool {
-        let url = format!("sqlite://{}", scratch.path("statup.db").display());
-        let pool = crate::db::create_pool(&url, 4).await.unwrap();
-        crate::db::run_migrations(&pool).await.unwrap();
-        pool
-    }
+    use crate::services::backup::testing::{Scratch, file_pool};
 
     async fn open(path: &Path) -> SqliteConnection {
         open_file(path, false).await.unwrap()
@@ -212,7 +179,7 @@ mod tests {
     #[tokio::test]
     async fn a_backup_holds_the_data_the_uploads_and_what_made_it() {
         let scratch = Scratch::new();
-        let pool = file_pool(&scratch).await;
+        let pool = file_pool(&scratch.path("statup.db")).await;
         crate::repositories::SettingsRepository::set(&pool, "instance_name", "Acme")
             .await
             .unwrap();
@@ -252,7 +219,7 @@ mod tests {
     #[tokio::test]
     async fn a_backup_taken_while_requests_write_is_whole() {
         let scratch = Scratch::new();
-        let pool = file_pool(&scratch).await;
+        let pool = file_pool(&scratch.path("statup.db")).await;
         let writer = {
             let pool = pool.clone();
             tokio::spawn(async move {
@@ -287,7 +254,7 @@ mod tests {
     #[tokio::test]
     async fn an_existing_file_is_never_overwritten() {
         let scratch = Scratch::new();
-        let pool = file_pool(&scratch).await;
+        let pool = file_pool(&scratch.path("statup.db")).await;
         let destination = scratch.path("backup.db");
         std::fs::write(&destination, b"keep me").unwrap();
 
@@ -302,7 +269,7 @@ mod tests {
     #[tokio::test]
     async fn a_failed_backup_leaves_nothing_behind() {
         let scratch = Scratch::new();
-        let pool = file_pool(&scratch).await;
+        let pool = file_pool(&scratch.path("statup.db")).await;
         let destination = scratch.path("missing-folder/backup.db");
 
         assert!(
@@ -317,7 +284,7 @@ mod tests {
     #[tokio::test]
     async fn a_database_that_is_not_a_backup_is_told_apart() {
         let scratch = Scratch::new();
-        let _pool = file_pool(&scratch).await;
+        let _pool = file_pool(&scratch.path("statup.db")).await;
 
         assert!(read_info(&scratch.path("statup.db")).await.is_err());
         std::fs::write(scratch.path("notes.txt"), b"not a database").unwrap();
