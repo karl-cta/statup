@@ -644,7 +644,10 @@
             setTheme(choice.dataset.themeChoice === "dark");
             return;
         }
-        closeMoreActions(target.closest("details[data-more-actions]"));
+        // A dressed menu draws its list on the page body: a click in it
+        // belongs to the panel of its select, which stays open.
+        const inside = target.closest(".cs-list")?.csSelect?.native ?? target;
+        closeMoreActions(inside.closest("details[data-more-actions]"));
         if (onMenuClick(target) || onSwapToForm(target) || onComposerOpen(target) || onComposerToggle(target) || onFiltersToggle(target)) return;
         if (target.closest("[data-toast-close]")) {
             clearToast();
