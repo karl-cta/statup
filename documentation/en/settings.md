@@ -3,12 +3,13 @@ title: Settings
 description: "The page's name, logo, colours, time zone and audience, the version, and the layout of the dashboard."
 ---
 
-**Settings**, for administrators, lists five pages under **Management**, beside the **General** card on a wide screen and above it otherwise:
+**Settings**, for administrators, lists six pages under **Management**, beside the **General** card on a wide screen and above it otherwise:
 
 - **Team**: the members and their roles. See [Team and roles](team.md).
 - **Alerts**: the channels that receive the news. See [Alerts](alerts.md).
 - **API**: the keys of the scripts and tools that use the API. See [API](api.md#keys).
 - **Journal**: what happened on the instance. See [Journal](journal.md).
+- **Backups**: the schedule of the automatic backups, and the backups on the server. See [Backups](backups.md).
 - **Version**: the version running.
 
 ## General

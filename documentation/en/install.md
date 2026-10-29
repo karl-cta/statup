@@ -43,6 +43,8 @@ Open `http://localhost:3000`, or your server's address on port 3000. An empty in
 3. **Services**: "Your services". Tick some of the **Suggestions**, or type your own, and open **Monitor this service** to add a check. Optional, up to 50 at once.
 4. **Ready**: the address of the page, with **Copy**, to share with the people who use your services. **Open the dashboard** ends the setup.
 
+To bring back an instance from a backup instead, the first screen also offers **Restore a backup**: see [Backups](backups.md#on-a-new-server).
+
 Everything can be changed later in [Settings](settings.md), and services added from the [Services](services.md) page.
 
 > [!WARNING]
