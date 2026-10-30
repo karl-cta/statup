@@ -5,6 +5,8 @@ description: "Les commandes que le binaire Statup exécute sur le serveur, à c�
 
 Lancé sans argument, le binaire démarre le serveur. Il existe trois commandes de maintenance, et sous Windows une quatrième le fait tourner comme service.
 
+Après `install.sh`, lancez-les avec `sudo statup <commande>` : voir [Installer sur Linux](install-linux.md#maintenance-commands). Après `install.ps1`, lancez `statup.exe --env <fichier> <commande>` dans PowerShell en administrateur : voir [Installer sur Windows Server](install-windows.md#maintenance-commands).
+
 ## `reset-password`
 
 Donne un mot de passe provisoire à un compte, et l'affiche.

@@ -5,6 +5,8 @@ description: "The commands the Statup binary runs on the server, next to the web
 
 The binary starts the server when it is run without arguments. Three maintenance commands exist, and on Windows a fourth one runs it as a service.
 
+After `install.sh`, run them with `sudo statup <command>`: see [Install on Linux](install-linux.md#maintenance-commands). After `install.ps1`, run `statup.exe --env <file> <command>` in PowerShell as an administrator: see [Install on Windows Server](install-windows.md#maintenance-commands).
+
 ## `reset-password`
 
 Gives an account a temporary password, and prints it.

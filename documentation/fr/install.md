@@ -8,7 +8,7 @@ description: "Lancer Statup avec Docker Compose sur un serveur x86-64 ou ARM, pu
 - Docker avec Docker Compose 2.24 ou plus récent.
 - Un serveur 64 bits, x86-64 ou ARM : l'image est publiée pour les deux.
 
-Sur NixOS, Statup tourne aussi comme service depuis son flake : voir [NixOS](nixos.md).
+Docker est la voie principale pour installer Statup. Sans lui, Statup tourne comme service sur [Linux](install-linux.md) et sur [Windows Server](install-windows.md), et depuis son flake sur [NixOS](nixos.md).
 
 ## Lancer Statup
 

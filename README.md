@@ -77,6 +77,8 @@ docker compose up -d
 
 Docker downloads the ready image, for x86-64 and ARM servers alike, and starts it in seconds.
 
+Without Docker, one command installs Statup as a service on [Linux](https://statup.dev/docs/install-linux/) or [Windows Server](https://statup.dev/docs/install-windows/).
+
 **2. Open it in your browser**
 
 At http://localhost:3000, or your server's address on port 3000, an empty instance walks you through four steps: your administrator account, the page's name, logo and audience, the services to follow, then the address to share.
@@ -86,7 +88,7 @@ At http://localhost:3000, or your server's address on port 3000, an empty instan
 Add them from the **Team** page: they open the same address. For HTTPS and a name of your own, such as `status.example.com`, put Statup behind a reverse proxy.
 
 > [!TIP]
-> The [documentation](https://statup.dev/docs/) has the rest: every setting, a reverse proxy with nginx or Caddy, backups, upgrades and a forgotten password.
+> The [documentation](https://statup.dev/docs/) has the rest: every setting, installing without Docker, a reverse proxy with nginx, Caddy or IIS, backups, upgrades and a forgotten password.
 
 ## Roadmap
 
