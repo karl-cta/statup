@@ -3,7 +3,7 @@ title: Ligne de commande
 description: "Les commandes que le binaire Statup exécute sur le serveur, à côté de l'application web."
 ---
 
-Lancé sans argument, le binaire démarre le serveur. Il existe trois commandes de maintenance.
+Lancé sans argument, le binaire démarre le serveur. Il existe trois commandes de maintenance, et sous Windows une quatrième le fait tourner comme service.
 
 ## `reset-password`
 
@@ -70,6 +70,21 @@ Depuis les sources, serveur arrêté :
 - Le fichier de sauvegarde n'est pas modifié, et rien ne change quand le fichier n'est pas une sauvegarde de Statup.
 
 Codes de sortie : `0` quand les données sont restaurées, `1` en cas d'échec ou de réponse négative à la question, `2` quand la commande n'est pas comprise ou que `--yes` manque sans terminal.
+
+## `service`
+
+Windows seulement. Fait tourner Statup comme service Windows : c'est le gestionnaire de services de Windows qui le lance, jamais une personne. C'est la ligne de commande avec laquelle un service est enregistré, par exemple :
+
+```text
+"C:\Program Files\Statup\statup.exe" --env C:\ProgramData\Statup\statup.env service
+```
+
+- Il travaille depuis le dossier de `statup.exe`, qui contient le dossier `static`. Donnez à `--env` un chemin complet.
+- Son journal va dans `statup.log`, dans le dossier de la base. Au-delà de 10 Mo, le fichier est renommé `statup.log.1` au démarrage suivant, à la place du précédent.
+- Arrêter le service laisse les requêtes en cours se terminer, comme Ctrl+C pour le serveur.
+- Un échec est écrit dans `statup.log`, et Windows note que le service s'est arrêté sur une erreur.
+
+Sur un autre système, la commande n'est pas comprise : code de sortie `2`.
 
 ## `--env`
 

@@ -107,6 +107,81 @@ jobs:
             tests/browser/test-results/
           retention-days: 14
 
+  # The lint and the suite on Windows Server, the only place the Windows code
+  # is compiled, then the binary registered as a service, started by the
+  # service manager and stopped. Only when the code or this workflow has
+  # changed; if the comparison fails, it runs.
+  windows:
+    name: Windows tests and service
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: windows-latest
+    steps:
+      # The runner checks files out with Windows line endings, which the
+      # documentation test and the rendered templates would carry.
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: changes
+        if: github.event_name != 'workflow_dispatch'
+        shell: bash
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if git diff --quiet "$BASE" HEAD -- src tests Cargo.toml Cargo.lock .github/workflows/ci.yml; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.changes.outputs.skip != 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - if: steps.changes.outputs.skip != 'true'
+        uses: Swatinem/rust-cache@v2
+      - if: steps.changes.outputs.skip != 'true'
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - if: steps.changes.outputs.skip != 'true'
+        run: cargo test --locked
+      - name: Run as a Windows service
+        if: steps.changes.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          cargo build --locked
+          $root = Join-Path $env:RUNNER_TEMP 'statup'
+          $bin = New-Item -ItemType Directory -Force (Join-Path $root 'bin')
+          $data = New-Item -ItemType Directory -Force (Join-Path $root 'data')
+          Copy-Item target\debug\statup.exe $bin
+          Copy-Item static (Join-Path $bin 'static') -Recurse
+          $folder = $data.FullName -replace '\\', '/'
+          $settings = Join-Path $data 'statup.env'
+          Set-Content $settings @(
+            'HOST=127.0.0.1', 'PORT=3999', 'MONITORING=false', 'UPDATE_CHECK=false',
+            "DATABASE_URL=sqlite:$folder/statup.db", "UPLOAD_DIR=$folder/uploads")
+          New-Service -Name Statup -StartupType Manual `
+            -BinaryPathName "`"$bin\statup.exe`" --env `"$settings`" service"
+          $logFile = Join-Path $data 'statup.log'
+          $answered = $false
+          try {
+            Start-Service Statup
+            foreach ($try in 1..60) {
+              try {
+                Invoke-WebRequest http://127.0.0.1:3999/health -UseBasicParsing | Out-Null
+                $answered = $true
+                break
+              } catch { Start-Sleep -Seconds 1 }
+            }
+            Stop-Service Statup
+          } finally {
+            if (Test-Path $logFile) { Get-Content $logFile } else { 'no statup.log' }
+            Get-CimInstance Win32_Service -Filter "Name='Statup'" |
+              Format-List State, ExitCode, ServiceSpecificExitCode
+          }
+          $log = Get-Content $logFile -Raw
+          $service = Get-CimInstance Win32_Service -Filter "Name='Statup'"
+          if (-not $answered) { throw 'Statup never answered on /health' }
+          if ($service.State -ne 'Stopped') { throw "the service is $($service.State)" }
+          if ($service.ExitCode -ne 0) { throw "the service stopped with code $($service.ExitCode)" }
+          if ($log -notmatch 'Statup stopped') { throw 'the log does not show a clean stop' }
+
   # Built on each platform the release publishes, on a runner of its kind,
   # with the same cache as the release: once this has run on main, the
   # release build finds every layer ready.

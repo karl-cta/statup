@@ -3,7 +3,7 @@ title: Command line
 description: "The commands the Statup binary runs on the server, next to the web app."
 ---
 
-The binary starts the server when it is run without arguments. Three maintenance commands exist.
+The binary starts the server when it is run without arguments. Three maintenance commands exist, and on Windows a fourth one runs it as a service.
 
 ## `reset-password`
 
@@ -70,6 +70,21 @@ From source, with the server stopped:
 - The backup file is not modified, and nothing changes when the file is not a Statup backup.
 
 Exit codes: `0` when the data is restored, `1` when it fails or the question is answered no, `2` when the command is not understood or `--yes` is missing without a terminal.
+
+## `service`
+
+Windows only. Runs Statup as a Windows service: the Windows service manager starts it, never a person. It is the command line a service is registered with, for example:
+
+```text
+"C:\Program Files\Statup\statup.exe" --env C:\ProgramData\Statup\statup.env service
+```
+
+- It works from the folder of `statup.exe`, which holds the `static` folder. Give `--env` a full path.
+- Its log goes to `statup.log`, in the folder of the database. Above 10 MB, the file is renamed `statup.log.1` at the next start, which replaces the previous one.
+- Stopping the service lets open requests finish, as Ctrl+C does for the server.
+- A failure is written to `statup.log`, and Windows records that the service stopped on an error.
+
+On another system, the command is not understood: exit code `2`.
 
 ## `--env`
 

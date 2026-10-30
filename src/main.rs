@@ -2,6 +2,7 @@
 
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
+use std::fs::File;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
@@ -26,18 +27,38 @@ use statup::services::{
 use statup::session;
 use statup::state::AppState;
 
+#[cfg(windows)]
+mod win_service;
+
 /// How long open connections get to finish once a shutdown is asked for.
 const DRAIN_TIMEOUT: Duration = Duration::from_secs(10);
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     let args = command_line();
-    if !args.is_empty() {
-        std::process::exit(statup::cli::run(&args).await);
+    // The service manager calls back on a thread of its own, which starts
+    // its own runtime.
+    #[cfg(windows)]
+    if args == ["service"] {
+        return win_service::run();
     }
 
+    let runtime = tokio::runtime::Runtime::new().context("cannot start the async runtime")?;
+    runtime.block_on(async {
+        if !args.is_empty() {
+            std::process::exit(statup::cli::run(&args).await);
+        }
+        run_server(None, shutdown_signal()).await
+    })
+}
+
+/// Serves until `shutdown` completes, with its log lines in `log_file`, or
+/// on the standard output when there is none.
+async fn run_server(
+    log_file: Option<File>,
+    shutdown: impl Future<Output = ()>,
+) -> anyhow::Result<()> {
     let config = Config::from_env().context("invalid configuration")?;
-    let journal_inbox = init_logging(config.log_level);
+    let journal_inbox = init_logging(config.log_level, log_file);
     statup::init_asset_versions();
     tracing::info!("Statup starting on {}", config.bind_addr());
     warn_on_plain_proxy(&config);
@@ -68,7 +89,7 @@ async fn main() -> anyhow::Result<()> {
         config.secure_cookies(),
     );
     let app = create_router(state, &rate_limit).layer(sessions);
-    let served = serve(app, &config.bind_addr()).await;
+    let served = serve(app, &config.bind_addr(), shutdown).await;
     stop(tasks, &pool).await;
     served
 }
@@ -206,9 +227,13 @@ fn spawn_background_tasks(
     ]
 }
 
-/// Serves until a shutdown signal, then gives open connections
+/// Serves until `shutdown` completes, then gives open connections
 /// [`DRAIN_TIMEOUT`] to finish.
-async fn serve(app: Router, bind_addr: &str) -> anyhow::Result<()> {
+async fn serve(
+    app: Router,
+    bind_addr: &str,
+    shutdown: impl Future<Output = ()>,
+) -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(bind_addr)
         .await
         .with_context(|| format!("cannot listen on {bind_addr}"))?;
@@ -226,7 +251,7 @@ async fn serve(app: Router, bind_addr: &str) -> anyhow::Result<()> {
 
     tokio::select! {
         result = &mut server => return server_outcome(result),
-        () = shutdown_signal() => {}
+        () = shutdown => {}
     }
     stop.send(()).ok();
     if let Ok(result) = tokio::time::timeout(DRAIN_TIMEOUT, &mut server).await {
