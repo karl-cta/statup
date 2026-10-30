@@ -182,6 +182,13 @@ jobs:
           if ($service.ExitCode -ne 0) { throw "the service stopped with code $($service.ExitCode)" }
           if ($log -notmatch 'Statup stopped') { throw 'the log does not show a clean stop' }
 
+  # Run by hand, the CI also builds the release archives, which a version
+  # tag otherwise builds on its own.
+  binaries:
+    name: Release archives
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/binaries.yml
+
   # Built on each platform the release publishes, on a runner of its kind,
   # with the same cache as the release: once this has run on main, the
   # release build finds every layer ready.

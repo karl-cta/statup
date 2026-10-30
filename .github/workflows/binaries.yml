@@ -2,11 +2,12 @@ name: Binaries
 
 # A version tag builds the archives the release page offers: Linux x86_64
 # and aarch64, from the same build as the Docker image, and Windows x86_64.
-# The maintainer attaches them when publishing the release page. Run by
-# hand, it builds them from a branch, to try them.
+# The maintainer attaches them when publishing the release page. The CI run
+# by hand builds them too, to try them from a branch.
 on:
   push:
     tags: ["v*"]
+  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -85,10 +86,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      # One folder per platform, named after its artifact.
+      # One folder per platform, named after its artifact, and none of the
+      # other artifacts of a CI run.
       - uses: actions/download-artifact@v8
         with:
           path: bin
+          pattern: linux-*
+      - uses: actions/download-artifact@v8
+        with:
+          path: bin/windows-x86_64
+          name: windows-x86_64
       - run: |
           curl -sSL -o tailwindcss \
             "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-x64"
