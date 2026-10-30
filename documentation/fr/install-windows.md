@@ -50,7 +50,7 @@ Appuyez sur Entrée pour prendre la valeur entre crochets. Un paramètre donné 
 | Profils du pare-feu | `-FirewallProfile` | les profils des réseaux de la machine |
 
 - `-Listen` prend `all` (toutes les adresses), `local` (cette machine seulement, pour un [reverse proxy](reverse-proxy.md) installé dessus) ou une adresse IP.
-- Un dossier est un chemin complet comme `C:\Statup`, sans apostrophe ni guillemet, qui n'est pas un dossier système comme `C:\Windows` ou `C:\ProgramData`. Le dossier des données est sur cette machine. Le dossier des sauvegardes peut être un partage : voir [Sauvegardes sur un partage](install-windows.md#backups-on-a-share).
+- Un dossier est un chemin complet comme `C:\Statup`, sans apostrophe ni guillemet, qui n'est pas un dossier système comme `C:\Windows` ou `C:\ProgramData`. Le dossier des données est sur cette machine. Le dossier des sauvegardes peut être un partage : voir [Sauvegardes sur un partage](install-windows.md#backups-on-a-share). Un dossier existant qui contient d'autres fichiers est refusé.
 - Les profils du pare-feu sont `Domain`, `Private` et `Public`, un ou plusieurs.
 - Les questions demandent une console. Sans console, le script s'arrête et demande `-Unattended`.
 - Quand `C:\ProgramData\Statup\statup.env` existe, d'une installation précédente qui a été retirée, ses réglages sont gardés et seuls le dossier du programme et le compte sont demandés.
@@ -105,7 +105,7 @@ Le script ouvre le port dans une règle nommée `Statup`, pour les profils des r
 | Réglages | `C:\ProgramData\Statup\statup.env`, toujours à cet endroit. |
 | Service | `Statup`, démarré automatiquement avec Windows. |
 
-- Les dossiers des données, des fichiers envoyés et des sauvegardes, et le dossier des réglages, sont ouverts aux administrateurs, au système et au compte du service, et à personne d'autre. `ProgramData` laisserait tout utilisateur les lire.
+- Les dossiers du programme, des données, des fichiers envoyés et des sauvegardes, et le dossier des réglages, sont ouverts aux administrateurs, au système et au compte du service, et à personne d'autre : `ProgramData` laisserait tout utilisateur les lire, et un dossier du programme hors de `Program Files` le laisserait y ajouter des fichiers. Le service lit `statup.env` sans pouvoir le modifier.
 - Windows redémarre le service après un échec : deux fois après 5 secondes, puis après une minute. Le compte repart de zéro après un jour.
 - `statup.log`, à côté de la base, contient le journal du serveur. Au-delà de 10 Mo, il est mis de côté sous le nom `statup.log.1`, à la place du précédent, et un nouveau fichier commence.
 - Le service se gère avec `Get-Service Statup`, `Stop-Service Statup` et `Start-Service Statup`.

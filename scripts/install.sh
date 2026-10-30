@@ -141,16 +141,30 @@ check_folder() {
         *[!A-Za-z0-9/._-]*) usage_error "$1: use letters, digits, dots, dashes and underscores only" ;;
     esac
     case $1 in
-        / | /bin | /boot | /dev | /etc | /home | /opt | /proc | /root | /run | /sbin | /srv | /sys | /tmp | /usr | /usr/local | /var | /var/lib)
+        */ | */./* | */../* | */. | */..) usage_error "$1: give the folder without a trailing /, and without . or .." ;;
+    esac
+    case $1 in
+        /bin | /boot | /dev | /etc | /home | /lib | /lib64 | /mnt | /media | /opt | /proc | /root | /run | /sbin | /srv | /sys | /tmp | /usr | /usr/bin | /usr/local | /usr/local/bin | /usr/sbin | /var | /var/lib | /var/log | /var/tmp)
             usage_error "$1: choose a folder of its own, not a system folder"
             ;;
     esac
+}
+
+# An existing folder that holds files of another account is not taken over.
+check_not_taken() {
+    [ -d "$1" ] || return 0
+    [ -n "$(ls -A "$1")" ] || return 0
+    if [ "$(stat -c %U "$1")" != "$user" ]; then
+        usage_error "$1 already holds files of another account: choose a new folder, or empty it"
+    fi
 }
 
 check_choices() {
     for folder in "$prefix" "$data_dir" "$backup_dir"; do
         check_folder "$folder"
     done
+    check_not_taken "$data_dir"
+    check_not_taken "$backup_dir"
     case $port in
         '' | *[!0-9]*) usage_error "port $port: give a number" ;;
     esac
@@ -279,13 +293,24 @@ create_account() {
     say "Created the account $user"
 }
 
+# Root makes and hands over the data folder, and a backup folder outside
+# it, never through a link. Inside the data folder, which the account owns
+# and could fill with links, the account makes its folders itself.
 prepare_folders() {
     group=$(id -gn "$user")
-    for folder in "$data_dir" "$data_dir/uploads" "$backup_dir"; do
-        mkdir -p "$folder"
-        chown "$user:$group" "$folder"
-        chmod 750 "$folder"
-    done
+    hand_over "$data_dir"
+    runuser -u "$user" -- mkdir -p "$data_dir/uploads"
+    case $backup_dir in
+        "$data_dir"/*) runuser -u "$user" -- mkdir -p "$backup_dir" ;;
+        *) hand_over "$backup_dir" ;;
+    esac
+}
+
+hand_over() {
+    [ ! -L "$1" ] || fail "$1 is a symbolic link: give the folder it points to"
+    mkdir -p "$1"
+    chown "$user:$group" "$1"
+    chmod 750 "$1"
 }
 
 write_settings() {
@@ -506,6 +531,9 @@ update() {
     installed_choices
     [ -f "$SETTINGS" ] || fail "$SETTINGS is missing: remove Statup with --uninstall, then install it again"
     read_settings
+    for folder in "$data_dir" "$backup_dir"; do
+        check_folder "$folder"
+    done
     say "Updating Statup in $prefix, with its settings"
     fetch_archive
     unpack_archive

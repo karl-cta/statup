@@ -50,7 +50,7 @@ Press Enter to take the value in brackets. A parameter given on the command line
 | Firewall profiles | `-FirewallProfile` | the profiles of the networks of the machine |
 
 - `-Listen` takes `all` (every address), `local` (this machine only, for a [reverse proxy](reverse-proxy.md) on it) or an IP address.
-- A folder is a full path such as `C:\Statup`, without a quote, and not a system folder such as `C:\Windows` or `C:\ProgramData`. The data folder is on this machine. The backup folder may be a share: see [Backups on a share](install-windows.md#backups-on-a-share).
+- A folder is a full path such as `C:\Statup`, without a quote, and not a system folder such as `C:\Windows` or `C:\ProgramData`. The data folder is on this machine. The backup folder may be a share: see [Backups on a share](install-windows.md#backups-on-a-share). An existing folder that holds other files is refused.
 - The firewall profiles are `Domain`, `Private` and `Public`, one or more.
 - The questions need a console. Without one, the script stops and asks for `-Unattended`.
 - When `C:\ProgramData\Statup\statup.env` exists, from an earlier install that was removed, its settings are kept and only the program folder and the account are asked.
@@ -105,7 +105,7 @@ The script opens the port in a rule named `Statup`, for the profiles of the netw
 | Settings | `C:\ProgramData\Statup\statup.env`, always at this place. |
 | Service | `Statup`, started automatically with Windows. |
 
-- The data, uploads and backup folders, and the folder of the settings, are open to the administrators, to the system and to the service account, and to nobody else. `ProgramData` would let every user read them.
+- The program, data, uploads and backup folders, and the folder of the settings, are open to the administrators, to the system and to the service account, and to nobody else: `ProgramData` would let every user read them, and a program folder outside `Program Files` would let them add files. The service reads `statup.env` and cannot change it.
 - Windows restarts the service after a failure: twice after 5 seconds, then after a minute. The count starts again after a day.
 - `statup.log`, next to the database, holds the log of the server. Above 10 MB, it is set aside as `statup.log.1`, which replaces the previous one, and a new file starts.
 - The service is managed with `Get-Service Statup`, `Stop-Service Statup` and `Start-Service Statup`.

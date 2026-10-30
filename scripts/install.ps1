@@ -118,12 +118,14 @@ function Confirm-StatupChoice {
 function Test-StatupFolder {
     param([string] $Path, [string] $Name, [switch] $AllowShare)
     if ($Path -match "['`"]") { throw "$Name ${Path}: a folder name cannot hold a quote" }
+    if ($Path -match '(^|\\)\.{1,2}(\\|$)') { throw "$Name ${Path}: give the folder without . or .." }
     $isShare = $Path -match '^\\\\[^\\]+\\[^\\]+'
     if ($isShare -and -not $AllowShare) { throw "$Name ${Path}: give a folder of this machine, not a share" }
     if (-not $isShare -and $Path -notmatch '^[A-Za-z]:\\') { throw "$Name ${Path}: give a full path, such as C:\Statup" }
     $system = @('', $env:SystemRoot, $env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:ProgramData, (Split-Path $env:PUBLIC))
     $trimmed = $Path.TrimEnd('\')
-    if ($trimmed -match '^[A-Za-z]:$' -or ($system | Where-Object { $_ -and $_.TrimEnd('\') -eq $trimmed })) {
+    $inWindows = $env:SystemRoot -and $trimmed.StartsWith($env:SystemRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)
+    if ($inWindows -or $trimmed -match '^[A-Za-z]:$' -or ($system | Where-Object { $_ -and $_.TrimEnd('\') -eq $trimmed })) {
         throw "$Name ${Path}: choose a folder of its own, not a system folder"
     }
 }
@@ -211,6 +213,16 @@ function Read-StatupSettingFile {
     if (-not $Choices.Host) { $Choices.Host = '0.0.0.0' }
 }
 
+# A settings file left by an earlier install belongs to the administrators;
+# one that any user put there is not trusted.
+function Test-StatupSettingOwner {
+    param([string] $Path)
+    $owner = (Get-Acl $Path).GetOwner([Security.Principal.SecurityIdentifier]).Value
+    if ($owner -notin @('S-1-5-32-544', 'S-1-5-18')) {
+        throw "$Path was not written by an administrator: check it or remove it, then run the script again"
+    }
+}
+
 function Read-StatupInstallChoice {
     param([hashtable] $Options)
     if (-not $Options.Unattended) { Test-StatupConsole }
@@ -218,6 +230,7 @@ function Read-StatupInstallChoice {
     $choices.InstallDir = Read-StatupChoice $Options $Options.InstallDir 'Program folder' ([IO.Path]::Combine($env:ProgramFiles, 'Statup'))
     $settings = Get-StatupSettingsPath
     if (Test-Path $settings) {
+        Test-StatupSettingOwner $settings
         Write-Host "Keeping the settings of $settings"
         Read-StatupSettingFile $choices $settings
     }
@@ -237,11 +250,24 @@ function Read-StatupInstallChoice {
     return $choices
 }
 
+# An existing folder with files that are not Statup's is not taken over:
+# its owner and who may use it would be reset.
+function Test-StatupFolderFree {
+    param([string] $Path, [string] $Marker)
+    if ($Path.StartsWith('\\') -or -not (Test-Path $Path)) { return }
+    $items = @(Get-ChildItem $Path -Force)
+    if ($items.Count -eq 0 -or ($items | Where-Object { $_.Name -like $Marker })) { return }
+    throw "$Path already holds other files: choose a new folder, or empty it"
+}
+
 function Test-StatupInstallChoice {
     param([hashtable] $Choices)
     Test-StatupFolder $Choices.InstallDir 'program folder'
     Test-StatupFolder $Choices.DataDir 'data folder'
     Test-StatupFolder $Choices.BackupDir 'backup folder' -AllowShare
+    Test-StatupFolderFree $Choices.InstallDir 'statup.exe'
+    Test-StatupFolderFree $Choices.DataDir 'statup*'
+    Test-StatupFolderFree $Choices.BackupDir 'statup-*'
     $number = 0
     if (-not [int]::TryParse($Choices.Port, [ref] $number) -or $number -lt 1 -or $number -gt 65535) {
         throw "port $($Choices.Port): give a number from 1 to 65535"
@@ -368,14 +394,34 @@ function Set-StatupFolderAccess {
         return
     }
     New-Item -ItemType Directory -Force -Path $Path | Out-Null
+    # A folder a user made before the install keeps neither its owner nor
+    # what that user granted.
+    & icacls.exe $Path /setowner '*S-1-5-32-544' /T /C /Q | Out-Null
+    & icacls.exe $Path /reset /T /C /Q | Out-Null
     $grants = @('*S-1-5-32-544:(OI)(CI)F', '*S-1-5-18:(OI)(CI)F')
     if ($Account -ne 'LocalSystem') { $grants += "${Account}:(OI)(CI)$Right" }
     & icacls.exe $Path /inheritance:r /grant:r $grants | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "cannot set who may use $Path" }
 }
 
+# The settings stay the administrators' to write; the service only reads
+# them.
+function Protect-StatupSettingFile {
+    param([string] $Account)
+    $path = Get-StatupSettingsPath
+    $grants = @('*S-1-5-32-544:F', '*S-1-5-18:F')
+    if ($Account -ne 'LocalSystem') { $grants += "${Account}:R" }
+    & icacls.exe $path /setowner '*S-1-5-32-544' /Q | Out-Null
+    & icacls.exe $path /reset /Q | Out-Null
+    & icacls.exe $path /inheritance:r /grant:r $grants | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "cannot set who may use $path" }
+}
+
 function Set-StatupAccess {
     param([hashtable] $Choices)
+    # Outside Program Files, a program folder would let users add files
+    # that the service then loads.
+    Set-StatupFolderAccess $Choices.InstallDir $Choices.Account 'RX'
     Set-StatupFolderAccess $Choices.DataDir $Choices.Account 'M'
     Set-StatupFolderAccess ([IO.Path]::Combine($Choices.DataDir, 'uploads')) $Choices.Account 'M'
     Set-StatupFolderAccess $Choices.BackupDir $Choices.Account 'M'
@@ -537,6 +583,7 @@ function Install-Statup {
         New-StatupService $choices
         Set-StatupAccess $choices
         if ($newSettings) { Write-StatupSettingFile $choices }
+        Protect-StatupSettingFile $choices.Account
         if ($choices.OpenFirewall) { Open-StatupPort $choices.Port $choices.Profiles }
         Start-Service Statup
         Wait-StatupHealth $choices
@@ -558,7 +605,7 @@ function Read-StatupInstalled {
     if ($service.PathName -notmatch '^"(.+)\\statup\.exe" --env "(.+)" service$') {
         throw 'the Statup service was not installed by this script'
     }
-    $choices = @{ InstallDir = $Matches[1]; Settings = $Matches[2]; Account = $service.StartName }
+    $choices = @{ InstallDir = $Matches[1]; Settings = $Matches[2]; Account = (ConvertTo-StatupAccount $service.StartName) }
     if (Test-Path $choices.Settings) { Read-StatupSettingFile $choices $choices.Settings }
     return $choices
 }
@@ -584,12 +631,15 @@ function Update-Statup {
     }
     $choices = Read-StatupInstalled
     if (-not $choices.DataDir) { throw "$($choices.Settings) is missing: remove Statup with -Uninstall, then install it again" }
+    Test-StatupInstallChoice $choices
     Write-Host "Updating Statup in $($choices.InstallDir), with its settings"
     $release = Get-StatupArchive $Options $Temp
     $source = Expand-StatupArchive $release.Path $Temp
     Test-StatupDowngrade $Options $choices.InstallDir $release.Version
     Stop-Service Statup -ErrorAction SilentlyContinue
     Install-StatupProgram $source $choices.InstallDir $release.Version
+    Set-StatupFolderAccess $choices.InstallDir $choices.Account 'RX'
+    Protect-StatupSettingFile $choices.Account
     foreach ($folder in @($choices.DataDir, $choices.BackupDir)) {
         if (-not (Test-Path $folder)) { Set-StatupFolderAccess $folder $choices.Account 'M' }
     }

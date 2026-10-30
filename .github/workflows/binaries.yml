@@ -15,6 +15,7 @@ permissions:
 
 env:
   TAILWIND_VERSION: v4.1.18
+  TAILWIND_SHA256: 737becf8d4ad1115ea98df69fa94026d402ca8feb91306a035b5b004167da8dd
 
 jobs:
   linux:
@@ -102,6 +103,9 @@ jobs:
       - run: |
           curl -sSL -o tailwindcss \
             "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-x64"
+          # The tool runs in the job that writes SHA256SUMS: checked against
+          # the sum Tailwind publishes for this version.
+          echo "${TAILWIND_SHA256}  tailwindcss" | sha256sum -c -
           chmod +x tailwindcss
       - run: scripts/build-release.sh --binaries bin
       - name: Check the binaries and the archives

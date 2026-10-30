@@ -38,7 +38,7 @@ Appuyez sur Entrée pour prendre la valeur entre crochets. Une option donnée su
 
 - `--listen` prend `all` (toutes les adresses), `local` (cette machine seulement, pour un [reverse proxy](reverse-proxy.md) installé dessus) ou une adresse IP.
 - La question du pare-feu n'est posée que si ufw ou firewalld est actif et que Statup n'écoute pas sur cette machine seulement.
-- Un dossier est un chemin complet de lettres, de chiffres, de points, de tirets et de tirets bas, qui n'est pas un dossier système comme `/opt` ou `/var/lib`.
+- Un dossier est un chemin complet de lettres, de chiffres, de points, de tirets et de tirets bas, qui n'est pas un dossier système comme `/opt` ou `/var/lib`. Un dossier existant qui contient des fichiers d'un autre compte est refusé.
 - Les questions demandent un terminal. Sans terminal, le script s'arrête et demande `--yes`.
 - Quand `/etc/statup/statup.env` existe, d'une installation précédente qui a été retirée, ses réglages sont gardés et seuls le dossier du programme et le compte sont demandés.
 

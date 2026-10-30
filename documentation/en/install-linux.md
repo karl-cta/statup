@@ -38,7 +38,7 @@ Press Enter to take the value in brackets. An option given on the command line a
 
 - `--listen` takes `all` (every address), `local` (this machine only, for a [reverse proxy](reverse-proxy.md) on it) or an IP address.
 - The firewall question is asked only when ufw or firewalld is active and Statup does not listen on this machine only.
-- A folder is a full path of letters, digits, dots, dashes and underscores, and not a system folder such as `/opt` or `/var/lib`.
+- A folder is a full path of letters, digits, dots, dashes and underscores, and not a system folder such as `/opt` or `/var/lib`. An existing folder that holds files of another account is refused.
 - The questions need a terminal. Without one, the script stops and asks for `--yes`.
 - When `/etc/statup/statup.env` exists, from an earlier install that was removed, its settings are kept and only the program folder and the account are asked.
 
