@@ -217,6 +217,17 @@ async fn post(
     authorization: Option<&str>,
     body: impl Into<reqwest::Body>,
 ) -> Answer {
+    try_post(app, content_type, authorization, body)
+        .await
+        .expect("report failed")
+}
+
+async fn try_post(
+    app: &TestApp,
+    content_type: &str,
+    authorization: Option<&str>,
+    body: impl Into<reqwest::Body>,
+) -> reqwest::Result<Answer> {
     let mut request = app
         .client
         .post(app.url(REPORTS))
@@ -225,11 +236,11 @@ async fn post(
     if let Some(value) = authorization {
         request = request.header("Authorization", value);
     }
-    let resp = request.send().await.expect("report failed");
+    let resp = request.send().await?;
     let status = resp.status();
     let text = resp.text().await.unwrap_or_default();
     let body = serde_json::from_str(&text).unwrap_or(Value::Null);
-    Answer { status, text, body }
+    Ok(Answer { status, text, body })
 }
 
 async fn report(app: &TestApp, key: &NewApiKey, body: &str) -> Answer {
@@ -612,9 +623,17 @@ async fn a_report_past_the_body_limit_is_refused_in_json() {
     let (app, key) = spawn().await;
     let padding = "a".repeat(65 * 1024);
     let body = format!(r#"{{"service": "Mail", "state": "down", "message": "{padding}"}}"#);
+    let bearer = format!("Bearer {}", key.key);
 
-    let answer = report(&app, &key, &body).await;
-    assert_eq!(answer.status, StatusCode::PAYLOAD_TOO_LARGE);
-    assert_eq!(answer.code(), "payload_too_large");
+    // The limit answers before the body is read: Windows may then reset the
+    // connection under the upload, and the answer is lost.
+    match try_post(&app, "application/json", Some(&bearer), body).await {
+        Err(e) if cfg!(windows) => assert!(e.is_request(), "{e}"),
+        sent => {
+            let answer = sent.expect("report failed");
+            assert_eq!(answer.status, StatusCode::PAYLOAD_TOO_LARGE);
+            assert_eq!(answer.code(), "payload_too_large");
+        }
+    }
     assert_eq!(state_of(&app, "mail").await.1, None);
 }

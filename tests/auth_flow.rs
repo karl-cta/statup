@@ -1074,10 +1074,24 @@ async fn an_oversized_form_gets_the_error_page() {
     let csrf = app.csrf_from("/login").await;
     let padding = "a".repeat(70 * 1024);
 
-    let (status, body, _) = app
-        .post_form("/login", &csrf, &[("email", padding.as_str())])
+    let sent = app
+        .client
+        .post(app.url("/login"))
+        .form(&[("csrf_token", csrf.as_str()), ("email", padding.as_str())])
+        .send()
         .await;
-    assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
+
+    // The limit answers before the body is read: Windows may then reset the
+    // connection under the upload, and the answer is lost.
+    let resp = match sent {
+        Err(e) if cfg!(windows) => {
+            assert!(e.is_request(), "{e}");
+            return;
+        }
+        sent => sent.expect("POST request failed"),
+    };
+    assert_eq!(resp.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = resp.text().await.unwrap_or_default();
     assert!(body.contains("trop volumineux"), "{body}");
 }
 
