@@ -7,7 +7,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use askama::Template;
 use axum::Extension;
-use axum::extract::{ConnectInfo, State};
+use axum::extract::{ConnectInfo, Query, State};
 use axum::http::HeaderMap;
 use axum::http::header::{LOCATION, SET_COOKIE};
 use axum::http::{HeaderValue, StatusCode};
@@ -79,6 +79,8 @@ impl RegisterErrors {
 struct LoginTemplate {
     csrf_token: String,
     error: Option<String>,
+    /// Said above the form after a backup was restored.
+    notice: Option<String>,
     email: String,
     instance: String,
     powered_by: bool,
@@ -129,7 +131,7 @@ pub(super) fn instance_title() -> (String, bool) {
     (crate::brand_name(), powered_by)
 }
 
-async fn instance_is_empty(state: &AppState) -> Result<bool, AppError> {
+pub(super) async fn instance_is_empty(state: &AppState) -> Result<bool, AppError> {
     Ok(UserRepository::count_all(&state.pool).await? == 0)
 }
 
@@ -140,16 +142,32 @@ fn render_login(
     error: Option<String>,
     email: String,
 ) -> Result<Response, AppError> {
+    render(&login_template(state, csrf_token, i18n, error, email))
+}
+
+fn login_template(
+    state: &AppState,
+    csrf_token: String,
+    i18n: I18n,
+    error: Option<String>,
+    email: String,
+) -> LoginTemplate {
     let (instance, powered_by) = instance_title();
-    render(&LoginTemplate {
+    LoginTemplate {
         csrf_token,
         error,
+        notice: None,
         email,
         instance,
         powered_by,
         public_page: state.is_public_mode(),
         i18n,
-    })
+    }
+}
+
+#[derive(Deserialize)]
+pub struct LoginQuery {
+    restored: Option<String>,
 }
 
 pub async fn login_form(
@@ -157,6 +175,7 @@ pub async fn login_form(
     OptionalUser(user): OptionalUser,
     session: Session,
     Locale(i18n): Locale,
+    Query(query): Query<LoginQuery>,
 ) -> Result<Response, AppError> {
     if user.is_some() {
         return Ok(Redirect::to("/").into_response());
@@ -167,7 +186,11 @@ pub async fn login_form(
         return Ok(Redirect::to("/register").into_response());
     }
     let csrf_token = form_token(&session).await?;
-    render_login(&state, csrf_token, i18n, None, String::new())
+    let notice = query.restored.map(|_| i18n.t("restore.done").to_string());
+    render(&LoginTemplate {
+        notice,
+        ..login_template(&state, csrf_token, i18n, None, String::new())
+    })
 }
 
 pub async fn login(

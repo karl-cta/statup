@@ -41,6 +41,8 @@ struct SettingsPageTemplate {
     api_keys_count: i64,
     /// What the journal captures and for how long.
     journal_label: String,
+    /// When the newest backup was taken, or that the last one failed.
+    backups_label: String,
     /// A newer published version, once the daily check finds one.
     newer: Option<NewerRelease>,
     i18n: I18n,
@@ -314,6 +316,7 @@ async fn render_settings(
         notifications_count: NotificationRepository::count_channels(&state.pool).await?,
         api_keys_count: ApiKeyRepository::count_in_use(&state.pool).await?,
         journal_label: super::journal::tile_label(state, &i18n).await,
+        backups_label: super::backups::tile_label(state, &i18n).await?,
         newer: state.update.newer(),
         i18n,
     })

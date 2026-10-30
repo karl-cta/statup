@@ -1,5 +1,6 @@
 //! `SQLite` connection pool configuration.
 
+use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -44,14 +45,29 @@ pub async fn open_existing_pool(database_url: &str) -> Result<SqlitePool, sqlx::
     pool_options(1).connect_with(options).await
 }
 
+/// Opens the database file at `path`, which must exist, with the settings
+/// of the application pool and one connection.
+///
+/// # Errors
+///
+/// Returns `sqlx::Error` if the file does not exist or cannot be opened.
+pub async fn open_existing_file(path: &Path) -> Result<SqlitePool, sqlx::Error> {
+    let options = with_pragmas(SqliteConnectOptions::new().filename(path)).create_if_missing(false);
+    pool_options(1).connect_with(options).await
+}
+
 fn connect_options(database_url: &str) -> Result<SqliteConnectOptions, sqlx::Error> {
-    Ok(SqliteConnectOptions::from_str(database_url)?
+    Ok(with_pragmas(SqliteConnectOptions::from_str(database_url)?))
+}
+
+fn with_pragmas(options: SqliteConnectOptions) -> SqliteConnectOptions {
+    options
         .journal_mode(SqliteJournalMode::Wal)
         .synchronous(SqliteSynchronous::Normal)
         .foreign_keys(true)
         .busy_timeout(BUSY_TIMEOUT)
         .analysis_limit(ANALYSIS_LIMIT)
-        .optimize_on_close(true, None))
+        .optimize_on_close(true, None)
 }
 
 fn pool_options(max_connections: u32) -> SqlitePoolOptions {
@@ -69,8 +85,37 @@ fn pool_options(max_connections: u32) -> SqlitePoolOptions {
 ///
 /// Returns `MigrateError` if a migration fails.
 pub async fn run_migrations(pool: &SqlitePool) -> Result<(), MigrateError> {
-    sqlx::migrate!("./migrations").run(pool).await
+    MIGRATOR.run(pool).await
 }
+
+/// The version of the newest migration this binary carries.
+pub fn latest_migration() -> i64 {
+    MIGRATOR.iter().map(|m| m.version).max().unwrap_or(0)
+}
+
+/// Whether the database behind `pool` misses migrations this binary
+/// carries. A database without a migrations table is new, not behind.
+///
+/// # Errors
+///
+/// Returns `sqlx::Error` if the database cannot be read.
+pub async fn has_pending_migrations(pool: &SqlitePool) -> Result<bool, sqlx::Error> {
+    let tracked: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM sqlite_schema WHERE name = '_sqlx_migrations')",
+    )
+    .fetch_one(pool)
+    .await?;
+    if !tracked {
+        return Ok(false);
+    }
+    let applied: Vec<i64> =
+        sqlx::query_scalar("SELECT version FROM _sqlx_migrations WHERE success")
+            .fetch_all(pool)
+            .await?;
+    Ok(MIGRATOR.iter().any(|m| !applied.contains(&m.version)))
+}
+
+static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
 /// Gives the query planner statistics. `PRAGMA optimize` only analyzes the
 /// tables its own connection has queried, so a database that was never

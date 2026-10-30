@@ -32,6 +32,10 @@ pub enum JournalKind {
     AppError,
     /// A warning the app logged.
     AppWarning,
+    /// An automatic backup was written.
+    BackupWritten,
+    /// An automatic backup could not be written.
+    BackupFailed,
     /// A member added a service.
     ServiceCreated,
     /// A member changed a service.
@@ -52,6 +56,12 @@ pub enum JournalKind {
     LogoRemoved,
     /// A member changed what the journal keeps.
     JournalSettingsSaved,
+    /// A member changed when automatic backups are taken.
+    BackupSettingsSaved,
+    /// A member downloaded a backup.
+    BackupDownloaded,
+    /// A backup was restored on an empty instance, from its first screen.
+    BackupRestored,
     /// A member changed the address of the page used in alerts.
     PageAddressSaved,
     /// A member added an alert channel.
@@ -229,6 +239,8 @@ impl JournalKind {
         match self {
             Self::AppError => row(Cat::System, true, Level::ERROR, Tone::Crit, "Application error", "journal.app_error"),
             Self::AppWarning => row(Cat::System, false, Level::WARN, Tone::Minor, "Application warning", "journal.app_warning"),
+            Self::BackupWritten => row(Cat::System, false, Level::INFO, Tone::Neutral, "Backup written", "journal.backup_written"),
+            Self::BackupFailed => row(Cat::System, true, Level::ERROR, Tone::Crit, "Backup failed", "journal.backup_failed"),
             Self::ServiceCreated => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Service created", "journal.service_created"),
             Self::ServiceUpdated => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Service updated", "journal.service_updated"),
             Self::ServiceDeleted => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Service deleted", "journal.service_deleted"),
@@ -239,6 +251,9 @@ impl JournalKind {
             Self::SettingsSaved => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Settings saved", "journal.settings_saved"),
             Self::LogoRemoved => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Logo removed", "journal.logo_removed"),
             Self::JournalSettingsSaved => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Journal settings saved", "journal.journal_settings_saved"),
+            Self::BackupSettingsSaved => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Backup settings saved", "journal.backup_settings_saved"),
+            Self::BackupRestored => row(Cat::System, true, Level::INFO, Tone::Neutral, "Backup restored", "journal.backup_restored"),
+            Self::BackupDownloaded => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Backup downloaded", "journal.backup_downloaded"),
             Self::PageAddressSaved => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Page address saved", "journal.page_address_saved"),
             Self::ChannelCreated => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Alert channel created", "journal.channel_created"),
             Self::ChannelUpdated => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Alert channel updated", "journal.channel_updated"),

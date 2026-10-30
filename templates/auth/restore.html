@@ -1,0 +1,53 @@
+{% extends "auth/_shell.html" %}
+{% import "components/macros.html" as ui %}
+
+{% block title %}{{ i18n.t("restore.title") }} | {{ crate::brand_name() }}{% endblock %}
+
+{% block scripts %}
+<script src="{{ crate::asset("js/restore.js") }}" defer></script>
+{% endblock %}
+
+{% block auth_back %}
+<a href="/register" class="back-link auth-back">{% call ui::arrow_left() %}{% endcall %}{{ i18n.t("restore.back") }}</a>
+{% endblock %}
+
+{% block auth_head %}
+<h1 class="auth-title">{{ i18n.t("restore.title") }}</h1>
+{% endblock %}
+
+{% block auth_body %}
+{# The token comes first: the server checks it before it reads the file. #}
+<form method="post" action="/restore" enctype="multipart/form-data" class="auth-form" data-restore>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% if let Some(message) = error %}
+    <div id="form-error" class="form-error" role="alert"><p>{{ message }}</p></div>
+    {% endif %}
+    {% if !found.is_empty() %}
+    <fieldset class="restore-sources">
+        <legend class="field-label">{{ i18n.t("restore.on_server") }}</legend>
+        <div class="journal-options">
+            {% for row in found %}
+            <label class="journal-option">
+                <input type="radio" name="source" value="{{ row.name }}" class="sr-only"{% if loop.first && !sent_chosen %} checked{% endif %}>
+                <span class="journal-option-name">{{ row.taken }}</span>
+                <span class="journal-option-text">{{ row.kind }}&nbsp;<span aria-hidden="true">·</span> {{ row.size }}</span>
+            </label>
+            {% endfor %}
+            <label class="journal-option">
+                <input type="radio" name="source" value="" class="sr-only"{% if sent_chosen %} checked{% endif %} data-restore-sent>
+                <span class="journal-option-name">{{ i18n.t("restore.from_computer") }}</span>
+            </label>
+        </div>
+    </fieldset>
+    {% endif %}
+    {# Under its choice when backups are listed, under its own name alone. #}
+    <div class="field{% if !found.is_empty() %} restore-file-under{% endif %}" data-restore-file{% if !found.is_empty() && !sent_chosen %} hidden{% endif %}>
+        {% if found.is_empty() %}<span class="field-label" aria-hidden="true">{{ i18n.t("restore.file") }}</span>{% endif %}
+        <label class="restore-file">
+            <input type="file" name="file" class="sr-only" accept=".db" aria-label="{{ i18n.t("restore.file") }}" data-restore-input>
+            <span class="link restore-file-cta" data-file-name>{{ i18n.t("restore.choose") }}</span>
+        </label>
+    </div>
+    <button type="submit" class="btn btn-primary">{{ i18n.t("restore.submit") }}</button>
+</form>
+{% endblock %}

@@ -5,14 +5,16 @@ description: "Passer à une version plus récente de Statup, ou rester sur une v
 
 ## Mettre à jour
 
-[Sauvegardez](backups.md) d'abord, puis :
+Statup sauvegarde la base avant qu'une mise à jour la modifie, sauf si **Sauvegarder avant chaque mise à jour** est désactivé dans **Paramètres › Sauvegardes**. Le fichier, `statup-before-<version>-<date>.db`, est écrit dans [`BACKUP_DIR`](configuration.md#backup_dir), et les trois derniers sont gardés. Si cette sauvegarde ne peut pas être écrite, la mise à jour continue et le serveur consigne l'échec. Pour une copie qui ne soit pas sur le même disque, voir [Garder une copie ailleurs](backups.md#keep-a-copy-elsewhere).
+
+Puis :
 
 ```bash
 docker compose pull
 docker compose up -d
 ```
 
-La base de données est migrée au démarrage de la nouvelle version : les migrations sont compilées dans le binaire. Une base migrée par une version plus récente est refusée par une version plus ancienne : revenir en arrière implique donc de restaurer la sauvegarde.
+La base de données est migrée au démarrage de la nouvelle version : les migrations sont compilées dans le binaire. Une base migrée par une version plus récente est refusée par une version plus ancienne : revenir en arrière implique donc de [restaurer](backups.md#restore-a-backup) la sauvegarde faite avant la mise à jour.
 
 Les administrateurs voient la version en service dans les Paramètres, et la plus récente dès qu'elle est publiée, sauf si [`UPDATE_CHECK`](configuration.md#update_check) vaut `false`.
 
@@ -24,4 +26,4 @@ Les administrateurs voient la version en service dans les Paramètres, et la plu
 image: ghcr.io/karl-cta/statup:0.10.1
 ```
 
-Chaque version et ce qu'elle a changé figurent dans les [notes de version](https://github.com/karl-cta/statup/blob/main/.github/CHANGELOG.md). Statup n'a pas encore atteint sa 1.0 : attendez-vous à des changements d'une version à l'autre, et sauvegardez avant chaque mise à jour.
+Chaque version et ce qu'elle a changé figurent dans les [notes de version](https://github.com/karl-cta/statup/blob/main/.github/CHANGELOG.md). Statup n'a pas encore atteint sa 1.0 : attendez-vous à des changements d'une version à l'autre, et gardez une [copie des sauvegardes](backups.md#keep-a-copy-elsewhere) hors du serveur.

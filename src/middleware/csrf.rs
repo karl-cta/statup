@@ -117,6 +117,19 @@ async fn stored_token(session: &Session) -> Result<Option<String>, AppError> {
     read_value(session, CSRF_SESSION_KEY).await
 }
 
+/// Checks a token the handler read itself, for a route that streams a large
+/// body and so stays outside [`csrf_middleware`].
+///
+/// # Errors
+///
+/// The same refusals as [`csrf_middleware`].
+pub async fn check_token(session: &Session, submitted: Option<&str>) -> Result<(), AppError> {
+    let Some(expected) = stored_token(session).await? else {
+        return Err(AppError::SessionExpired);
+    };
+    validate_token(&expected, submitted)
+}
+
 /// CSRF protection middleware.
 ///
 /// A state-changing request is refused (403) unless the session holds a

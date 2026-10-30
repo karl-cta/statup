@@ -1,5 +1,6 @@
 //! Shared application state passed to all handlers via Axum's `State` extractor.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -19,6 +20,8 @@ pub struct AppState {
     pub login_limiter: Arc<LoginRateLimiter>,
     /// Directory for user-uploaded files.
     pub upload_dir: String,
+    /// Directory the backups are written to and listed from.
+    pub backup_dir: PathBuf,
     /// Whether visitors without an account can read the pages. An admin
     /// changes it at runtime.
     pub public_mode: Arc<AtomicBool>,

@@ -197,6 +197,14 @@ The port Statup listens on. With Docker Compose, change the published port under
 
 The size of the database connection pool.
 
+### `BACKUP_DIR`
+
+- Default: a `backups` folder next to the database, and `/data/backups` in the image
+- Values: a directory
+- Since: 0.11.0
+
+Where `statup backup` writes its files, and where `statup restore` keeps a copy of the data it replaces. See [Command line](command-line.md).
+
 ## Logs
 
 ### `LOG_LEVEL`

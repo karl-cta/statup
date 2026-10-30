@@ -9,6 +9,7 @@ mod api;
 mod api_keys;
 mod audience;
 mod auth;
+mod backups;
 mod checks;
 mod dashboard;
 mod dashboard_layout;
@@ -29,6 +30,7 @@ mod page;
 mod password;
 mod password_reset;
 mod profile;
+mod restore;
 mod services;
 mod setup;
 mod subscribers;
@@ -40,6 +42,7 @@ use std::time::Duration;
 
 use axum::Router;
 use axum::body::Body;
+use axum::extract::DefaultBodyLimit;
 use axum::http::header::{
     CACHE_CONTROL, CONTENT_SECURITY_POLICY, REFERRER_POLICY, STRICT_TRANSPORT_SECURITY,
     X_CONTENT_TYPE_OPTIONS, X_FRAME_OPTIONS,
@@ -77,7 +80,14 @@ const FORM_BODY_LIMIT: usize = 64 * 1024;
 /// for the handler to say the file is too large.
 const UPLOAD_BODY_LIMIT: usize = 2 * 1024 * 1024;
 
+/// A backup restored at first launch: the database of a busy instance with
+/// its history, sent in one form.
+const RESTORE_BODY_LIMIT: usize = 256 * 1024 * 1024;
+
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Sending a backup of the largest size over a slow link.
+const RESTORE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
 /// No inline script, handler or style anywhere: behavior lives in
 /// `static/js`, presentation in the stylesheet. `blob:` images let a logo
@@ -110,14 +120,18 @@ fn dynamic_routes(state: &AppState, rate_limit: &RateLimit) -> Router<AppState> 
     let uploads = with_request_guards(upload_routes(), state)
         .layer(RequestBodyLimitLayer::new(UPLOAD_BODY_LIMIT));
     let links = link_routes().layer(RequestBodyLimitLayer::new(FORM_BODY_LIMIT));
+    // Streamed to disk and checked by its handler, outside the CSRF guard,
+    // with the time a large file needs on a slow link.
+    let restore = restore_routes()
+        .layer(DefaultBodyLimit::max(RESTORE_BODY_LIMIT))
+        .layer(RequestBodyLimitLayer::new(RESTORE_BODY_LIMIT))
+        .layer(timeout(RESTORE_TIMEOUT));
     pages
         .merge(uploads)
         .merge(links)
+        .layer(timeout(REQUEST_TIMEOUT))
+        .merge(restore)
         .fallback(not_found)
-        .layer(TimeoutLayer::with_status_code(
-            StatusCode::REQUEST_TIMEOUT,
-            REQUEST_TIMEOUT,
-        ))
         .layer(CatchPanicLayer::custom(|panic: Box<dyn Any + Send>| {
             panic_response(&*panic)
         }))
@@ -179,6 +193,14 @@ fn public_routes() -> Router<AppState> {
 /// The pages an email links to. No session and no CSRF check: the token in
 /// the address is the proof, and a mail client posts to the unsubscribe
 /// address on its own (RFC 8058), with no cookie.
+fn timeout(duration: Duration) -> TimeoutLayer {
+    TimeoutLayer::with_status_code(StatusCode::REQUEST_TIMEOUT, duration)
+}
+
+fn restore_routes() -> Router<AppState> {
+    Router::new().route("/restore", get(restore::page).post(restore::restore))
+}
+
 fn link_routes() -> Router<AppState> {
     Router::new()
         .route(
@@ -293,6 +315,10 @@ fn admin_routes() -> Router<AppState> {
         .route("/admin/journal", get(journal::page))
         .route("/admin/journal/export", get(journal::export))
         .route("/admin/journal/settings", post(journal::save_settings))
+        .route("/admin/backups", get(backups::page))
+        .route("/admin/backups/schedule", post(backups::save_schedule))
+        .route("/admin/backups/download", post(backups::download_new))
+        .route("/admin/backups/files/{name}", get(backups::download))
         .route(
             "/admin/api-keys",
             get(api_keys::list).post(api_keys::create),

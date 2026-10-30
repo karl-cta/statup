@@ -2,6 +2,10 @@
 
 All notable changes to Statup are listed here. The project is pre-v1: until 1.0, a minor version may change the interface or the database, and the README asks you to back up before upgrading.
 
+## Unreleased
+
+- **Backups**: Statup backs itself up every night at 03:00 and before each upgrade, keeping the latest seven, without stopping. **Settings › Backups** sets when (every day, every week or never), at what time and how many are kept, lists the backups with **Download**, and downloads a new one on the spot. On a new server, **Restore a backup** on the first screen brings an instance back from a file of this computer or from the backups already on the server. `statup backup` and `statup restore` do the same on the command line, and `--env <file>` reads the settings from a file of your choice. A backup is one SQLite file, written to `BACKUP_DIR`, a `backups` folder next to the database by default.
+
 ## 0.10.1, 2026-10-28
 
 - With a colour chosen in **Settings**, the dot and the last letter of the Statup mark take it too, and each swatch shows its name in a bubble on hover instead of a line under the row. On a phone the swatches sit in two rows of six, and no bubble stays after a tap.

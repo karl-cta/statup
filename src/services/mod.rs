@@ -1,7 +1,8 @@
-//! Business logic layer: authentication, events, services, icons, templates.
+//! Business logic layer: authentication, events, services, icons, templates, backups.
 
 mod api_key_service;
 mod auth_service;
+pub mod backup;
 mod dashboard_layout_service;
 mod event_service;
 mod event_template_service;

@@ -1456,6 +1456,37 @@
         font: inherit;
     }
 
+    /* Restoring at first launch: the backups found on the server as a
+       list to pick from, the file of this computer as a link. */
+    .restore-sources {
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .restore-sources > .field-label {
+        margin-bottom: 6px;
+        padding: 0;
+    }
+
+    /* Under "A file from this computer", at the left edge of its name. */
+    .restore-file-under {
+        margin-top: -8px;
+        padding-left: 24px;
+    }
+
+    .restore-file {
+        display: inline-flex;
+        cursor: pointer;
+    }
+
+    .restore-file:has(:focus-visible) {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+        border-radius: 2px;
+    }
+
     .auth-foot {
         margin-top: 32px;
         font-size: var(--text-xs);
@@ -2089,6 +2120,47 @@
         .page-actions:has(> .new-menu) {
             margin-left: auto;
         }
+    }
+
+    /* The schedule of the automatic backups, in the Journal's panel: the
+       time typed like a number, the day in a short menu. */
+    .backup-panel .backup-time {
+        width: 6ch;
+    }
+
+    /* As wide as its longest row, the box of the upgrade backup. */
+    .journal-menu > .backup-panel {
+        width: max-content;
+        max-width: calc(100vw - 32px);
+    }
+
+    /* The day's menu takes the width of its longest day, set by the
+       page's script once the panel opens. */
+    .backup-panel .cs-wrap {
+        width: auto;
+        flex: none;
+    }
+
+    /* A backup's one action stays on the right of its row. */
+    .backup-row .admin-row-actions {
+        grid-column: auto;
+    }
+
+    .backup-panel .backup-upgrade {
+        margin: 16px -16px 0;
+        padding: 16px 16px 0;
+        font-size: var(--text-sm);
+        border-top: 1px solid var(--line);
+    }
+
+    /* Where the backups are, in grey at the foot of their card. */
+    .card-foot-note {
+        margin: 0;
+        padding: 12px 16px;
+        font-size: var(--text-xs);
+        color: var(--muted);
+        overflow-wrap: anywhere;
+        border-top: 1px solid var(--line);
     }
 
     @media (prefers-reduced-motion: reduce) {

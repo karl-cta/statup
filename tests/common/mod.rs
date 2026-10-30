@@ -40,6 +40,9 @@ pub struct Options {
     pub latest_release: Option<&'static str>,
     /// The port of a mail server on this machine, as if `SMTP_*` was set.
     pub mail_port: Option<u16>,
+    /// A database file, as in production, rather than one in memory: a
+    /// backup of a database in memory stays in memory.
+    pub file_database: bool,
 }
 
 pub struct TestApp {
@@ -68,7 +71,14 @@ impl TestApp {
     }
 
     pub async fn spawn_with(options: Options) -> Self {
-        let pool = db::create_pool("sqlite::memory:", 1)
+        let upload_dir = std::env::temp_dir().join(format!("statup-test-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(upload_dir.join("icons")).expect("failed to create upload dir");
+        let database_url = if options.file_database {
+            format!("sqlite://{}", upload_dir.join("statup.db").display())
+        } else {
+            "sqlite::memory:".to_string()
+        };
+        let pool = db::create_pool(&database_url, 1)
             .await
             .expect("failed to create test pool");
         db::run_migrations(&pool)
@@ -82,14 +92,12 @@ impl TestApp {
             .await
             .expect("failed to create the session store");
 
-        let upload_dir = std::env::temp_dir().join(format!("statup-test-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(upload_dir.join("icons")).expect("failed to create upload dir");
-
         let smtp = options.mail_port.map(local_mail_server);
         let state = AppState {
             pool: pool.clone(),
             login_limiter: Arc::new(LoginRateLimiter::default()),
             upload_dir: upload_dir.to_string_lossy().to_string(),
+            backup_dir: upload_dir.join("backups"),
             public_mode: Arc::new(AtomicBool::new(options.public_mode)),
             trust_proxy_headers: options.trust_proxy_headers,
             client_ip_source: client_ip_source(options.trust_proxy_headers),
@@ -125,6 +133,11 @@ impl TestApp {
             jar,
             upload_dir,
         }
+    }
+
+    /// Where this instance writes and lists its backups.
+    pub fn backup_dir(&self) -> PathBuf {
+        self.upload_dir.join("backups")
     }
 
     pub fn url(&self, path: &str) -> String {

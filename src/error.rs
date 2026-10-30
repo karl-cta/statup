@@ -58,6 +58,20 @@ impl AppError {
         Self::Refused(key.to_string())
     }
 
+    /// A failure of the server, with what went wrong in the message.
+    pub fn internal(message: impl std::fmt::Display) -> Self {
+        Self::Internal(anyhow::anyhow!(message.to_string()))
+    }
+
+    /// The cause, which the error pages of the web app keep to the log.
+    pub fn cause(&self) -> String {
+        match self {
+            Self::Internal(inner) => format!("{inner:#}"),
+            Self::Database(inner) => inner.to_string(),
+            other => other.to_string(),
+        }
+    }
+
     /// The status and the translation key of the message shown to the person.
     fn status_and_key(&self) -> (StatusCode, &str) {
         match self {
