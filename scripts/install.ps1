@@ -333,6 +333,24 @@ function Install-StatupProgram {
     [IO.File]::WriteAllText(([IO.Path]::Combine($Folder, 'VERSION')), "$Release`r`n")
 }
 
+# Only the files this script installed leave the program folder.
+function Remove-StatupProgram {
+    param([string] $Folder)
+    foreach ($item in @('statup.exe', 'static', 'VERSION', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md')) {
+        Remove-Item ([IO.Path]::Combine($Folder, $item)) -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if (-not (Get-ChildItem $Folder -Force -ErrorAction SilentlyContinue)) {
+        Remove-Item $Folder -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Remove-StatupService {
+    if (-not (Get-Service Statup -ErrorAction SilentlyContinue)) { return }
+    Stop-Service Statup -ErrorAction SilentlyContinue
+    & sc.exe delete Statup | Out-Null
+    Get-NetFirewallRule -Name 'Statup' -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+}
+
 # Administrators and the system in full, the service account with $Right,
 # nobody else: ProgramData lets every user read and add files. Groups by
 # their SID, the same in every language of Windows.
@@ -439,10 +457,11 @@ function New-StatupService {
     }
     if ($Choices.Credential) { $service.Credential = $Choices.Credential }
     New-Service @service | Out-Null
+    # A virtual or managed account has no password; WMI refuses the former,
+    # sc.exe sets both.
     if ($Choices.Account -eq 'NT SERVICE\Statup' -or $Choices.Account.EndsWith('$')) {
-        $found = Get-CimInstance Win32_Service -Filter "Name='Statup'"
-        $result = Invoke-CimMethod -InputObject $found -MethodName Change -Arguments @{ StartName = $Choices.Account; StartPassword = '' }
-        if ($result.ReturnValue -ne 0) { throw "cannot run the service as $($Choices.Account) (error $($result.ReturnValue))" }
+        & sc.exe config Statup obj= $Choices.Account | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "cannot run the service as $($Choices.Account) (sc.exe error $LASTEXITCODE)" }
     }
     if ($Choices.Account -notin @('NT SERVICE\Statup', 'LocalSystem')) { Grant-StatupServiceLogon $Choices.Account }
     & sc.exe failure Statup reset= 86400 actions= restart/5000/restart/5000/restart/60000 | Out-Null
@@ -489,18 +508,35 @@ function Get-StatupAddress {
     return "http://$(Get-StatupProbeAddress $Choices.Host):$($Choices.Port)"
 }
 
+# Leaves the machine as it was, so that the next run installs again rather
+# than updates a service that never started. The folders stay, empty.
+function Undo-StatupInstall {
+    param([hashtable] $Choices, [bool] $NewSettings)
+    Write-Host 'The install stopped: removing what it had set up'
+    Remove-StatupService
+    Remove-StatupProgram $Choices.InstallDir
+    if ($NewSettings) { Remove-Item (Get-StatupSettingsPath) -Force -ErrorAction SilentlyContinue }
+}
+
 function Install-Statup {
     param([hashtable] $Options, [string] $Temp)
     $choices = Read-StatupInstallChoice $Options
     $release = Get-StatupArchive $Options $Temp
     $source = Expand-StatupArchive $release.Path $Temp
     Write-Host "Installing Statup $($release.Version) in $($choices.InstallDir)"
-    Install-StatupProgram $source $choices.InstallDir $release.Version
-    New-StatupService $choices
-    Set-StatupAccess $choices
-    if (-not (Test-Path (Get-StatupSettingsPath))) { Write-StatupSettingFile $choices }
-    if ($choices.OpenFirewall) { Open-StatupPort $choices.Port $choices.Profiles }
-    Start-Service Statup
+    $newSettings = -not (Test-Path (Get-StatupSettingsPath))
+    try {
+        Install-StatupProgram $source $choices.InstallDir $release.Version
+        New-StatupService $choices
+        Set-StatupAccess $choices
+        if ($newSettings) { Write-StatupSettingFile $choices }
+        if ($choices.OpenFirewall) { Open-StatupPort $choices.Port $choices.Profiles }
+        Start-Service Statup
+    }
+    catch {
+        Undo-StatupInstall $choices $newSettings
+        throw
+    }
     Wait-StatupHealth $choices
     Write-Host ''
     Write-Host "Statup $($release.Version) is running: $(Get-StatupAddress $choices)"
@@ -556,7 +592,6 @@ function Update-Statup {
     Write-Host "Statup $($release.Version) is running: $(Get-StatupAddress $choices)"
 }
 
-# Only the files this script installed leave the program folder.
 function Uninstall-Statup {
     param([hashtable] $Options)
     if (-not (Get-Service Statup -ErrorAction SilentlyContinue)) {
@@ -567,15 +602,8 @@ function Uninstall-Statup {
     if (-not $Options.Unattended -and -not (Confirm-StatupChoice $Options "Remove Statup from $($choices.InstallDir)? Its data and settings stay." $false)) {
         throw 'nothing removed'
     }
-    Stop-Service Statup -ErrorAction SilentlyContinue
-    & sc.exe delete Statup | Out-Null
-    Get-NetFirewallRule -Name 'Statup' -ErrorAction SilentlyContinue | Remove-NetFirewallRule
-    foreach ($item in @('statup.exe', 'static', 'VERSION', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md')) {
-        Remove-Item ([IO.Path]::Combine($choices.InstallDir, $item)) -Recurse -Force -ErrorAction SilentlyContinue
-    }
-    if (-not (Get-ChildItem $choices.InstallDir -Force -ErrorAction SilentlyContinue)) {
-        Remove-Item $choices.InstallDir -Force -ErrorAction SilentlyContinue
-    }
+    Remove-StatupService
+    Remove-StatupProgram $choices.InstallDir
     $kept = if ($choices.DataDir) { "the data in $($choices.DataDir) and $($choices.BackupDir), the settings in $($choices.Settings)" } else { 'the data and settings' }
     Write-Host "Statup is removed. Kept: $kept."
 }
