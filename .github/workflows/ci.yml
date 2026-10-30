@@ -362,11 +362,13 @@ jobs:
           $page = Invoke-WebRequest "$site/register" -SkipCertificateCheck -SessionVariable admin
           Assert ($page.Content -match 'name="csrf_token" value="([^"]+)"') 'no form on the first page'
           $form = @{ csrf_token = $Matches[1]; display_name = 'Ada'; email = 'ada@example.test'; password = [guid]::NewGuid().ToString() + 'Aa1!'; time_zone = 'UTC' }
-          $created = Invoke-WebRequest "$site/register" -Method Post -Body $form -WebSession $admin -SkipCertificateCheck -MaximumRedirection 0 -SkipHttpErrorCheck
-          Assert ($created.StatusCode -eq 303) "the account was not created: $($created.StatusCode)"
-          Assert (($created.Headers['Set-Cookie'] -join ' ') -match 'Secure') 'the session cookie is not marked Secure'
-          $front = Invoke-WebRequest "$site/" -WebSession $admin -SkipCertificateCheck
-          Assert ($front.Headers['Strict-Transport-Security']) 'no HSTS header behind IIS'
+          $created = Invoke-WebRequest "$site/register" -Method Post -Body $form -WebSession $admin -SkipCertificateCheck
+          $landed = $created.BaseResponse.RequestMessage.RequestUri
+          Assert ($landed.AbsolutePath -eq '/') "the account was not created: the form led to $landed"
+          $cookies = @($admin.Cookies.GetCookies([uri] $site))
+          Assert ($cookies.Count -gt 0) 'no session cookie'
+          Assert (-not ($cookies | Where-Object { -not $_.Secure })) 'a cookie is not marked Secure'
+          Assert ($created.Headers['Strict-Transport-Security']) 'no HSTS header behind IIS'
 
           "--- An error page of Statup, not of IIS"
           $missing = Invoke-WebRequest "$site/no-such-page" -SkipCertificateCheck -SkipHttpErrorCheck
@@ -436,7 +438,13 @@ jobs:
           mkdir -p "mirror/v$version" "tampered/v$version"
           cp dist/* "mirror/v$version/"
           cp dist/* "tampered/v$version/"
-          printf 'x' | dd of="tampered/v$version/$(basename "$archive")" bs=1 seek=4096 conv=notrunc
+          python3 - "tampered/v$version/$(basename "$archive")" <<'PY'
+          import sys
+          path = sys.argv[1]
+          data = bytearray(open(path, 'rb').read())
+          data[4096] ^= 0xFF
+          open(path, 'wb').write(data)
+          PY
           python3 -m http.server 8000 >/dev/null 2>&1 &
           curl -fsS --retry 10 --retry-connrefused --retry-delay 1 -o /dev/null "http://127.0.0.1:8000/mirror/v$version/SHA256SUMS"
 
