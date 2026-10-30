@@ -243,9 +243,15 @@ jobs:
             Start-Sleep 1
           }
           Assert $logged 'the wrong setting is not in statup.log'
-          $events = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; Id = 7024 } -MaxEvents 20 -ErrorAction SilentlyContinue |
-            Where-Object Message -match 'Statup')
-          Assert ($events.Count -gt 0) 'Windows did not record the service stopping on an error'
+          # Windows records the stop a moment after the log line is written.
+          $recorded = $false
+          foreach ($try in 1..30) {
+            $events = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; Id = 7024 } -MaxEvents 20 -ErrorAction SilentlyContinue |
+              Where-Object Message -match 'Statup')
+            if ($events.Count -gt 0) { $recorded = $true; break }
+            Start-Sleep 1
+          }
+          Assert $recorded 'Windows did not record the service stopping on an error'
           Set-Setting PORT 3200
           Restart-Service Statup
           Wait-Health 3200
