@@ -108,9 +108,11 @@ jobs:
           retention-days: 14
 
   # The lint and the suite on Windows Server, the only place the Windows code
-  # is compiled, then the binary registered as a service, started by the
-  # service manager and stopped. Only when the code or this workflow has
-  # changed; if the comparison fails, it runs.
+  # is compiled, then install.ps1 run for real from an archive of this build
+  # served by a local mirror, under Windows PowerShell 5.1 and PowerShell 7:
+  # install, use, a wrong setting, update, an account of its own, uninstall.
+  # Only when the code, the script or this workflow has changed; if the
+  # comparison fails, it runs.
   windows:
     name: Windows tests and service
     if: ${{ !github.event.pull_request.draft }}
@@ -128,7 +130,7 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          if git diff --quiet "$BASE" HEAD -- src tests Cargo.toml Cargo.lock .github/workflows/ci.yml; then
+          if git diff --quiet "$BASE" HEAD -- src tests Cargo.toml Cargo.lock scripts/install.ps1 .github/workflows/ci.yml; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
       - if: steps.changes.outputs.skip != 'true'
@@ -141,46 +143,158 @@ jobs:
         run: cargo clippy --all-targets --locked -- -D warnings
       - if: steps.changes.outputs.skip != 'true'
         run: cargo test --locked --no-fail-fast
-      - name: Run as a Windows service
+      - name: Package this build as a release archive
         if: steps.changes.outputs.skip != 'true'
         shell: pwsh
         run: |
           cargo build --locked
-          $root = Join-Path $env:RUNNER_TEMP 'statup'
-          $bin = New-Item -ItemType Directory -Force (Join-Path $root 'bin')
-          $data = New-Item -ItemType Directory -Force (Join-Path $root 'data')
-          Copy-Item target\debug\statup.exe $bin
-          Copy-Item static (Join-Path $bin 'static') -Recurse
-          $folder = $data.FullName -replace '\\', '/'
-          $settings = Join-Path $data 'statup.env'
-          Set-Content $settings @(
-            'HOST=127.0.0.1', 'PORT=3999', 'MONITORING=false', 'UPDATE_CHECK=false',
-            "DATABASE_URL=sqlite:$folder/statup.db", "UPLOAD_DIR=$folder/uploads")
-          New-Service -Name Statup -StartupType Manual `
-            -BinaryPathName "`"$bin\statup.exe`" --env `"$settings`" service"
-          $logFile = Join-Path $data 'statup.log'
-          $answered = $false
-          try {
-            Start-Service Statup
-            foreach ($try in 1..60) {
-              try {
-                Invoke-WebRequest http://127.0.0.1:3999/health -UseBasicParsing | Out-Null
-                $answered = $true
-                break
-              } catch { Start-Sleep -Seconds 1 }
-            }
-            Stop-Service Statup
-          } finally {
-            if (Test-Path $logFile) { Get-Content $logFile } else { 'no statup.log' }
-            Get-CimInstance Win32_Service -Filter "Name='Statup'" |
-              Format-List State, ExitCode, ServiceSpecificExitCode
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"$').Matches[0].Groups[1].Value
+          $name = "statup-$version-windows-x86_64"
+          $stage = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\pack\$name"
+          Copy-Item target\debug\statup.exe, README.md, LICENSE, THIRD_PARTY_NOTICES.md $stage
+          Copy-Item static "$stage\static" -Recurse
+          # The release files served as GitHub serves them, and a copy with
+          # one byte changed in the archive.
+          foreach ($copy in 'mirror', 'tampered') {
+            $folder = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\web\$copy\v$version"
+            Compress-Archive -Path $stage -DestinationPath "$folder\$name.zip"
           }
-          $log = Get-Content $logFile -Raw
+          $good = "$env:RUNNER_TEMP\web\mirror\v$version\$name.zip"
+          $sum = "$((Get-FileHash -Algorithm SHA256 $good).Hash.ToLowerInvariant())  $name.zip"
+          foreach ($copy in 'mirror', 'tampered') { Set-Content "$env:RUNNER_TEMP\web\$copy\v$version\SHA256SUMS" $sum }
+          $changed = "$env:RUNNER_TEMP\web\tampered\v$version\$name.zip"
+          $bytes = [IO.File]::ReadAllBytes($changed)
+          $bytes[4096] = $bytes[4096] -bxor 0xFF
+          [IO.File]::WriteAllBytes($changed, $bytes)
+          "VERSION=$version" >> $env:GITHUB_ENV
+          "ARCHIVE=$good" >> $env:GITHUB_ENV
+      - name: Install, use, update and remove Statup
+        if: steps.changes.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          $installer = (Resolve-Path scripts\install.ps1).Path
+          $settings = 'C:\ProgramData\Statup\statup.env'
+          $log = 'C:\StatupData\statup.log'
+          function Assert($ok, $message) { if (-not $ok) { throw $message } }
+          function Wait-Health($port) {
+            foreach ($try in 1..30) {
+              try { Invoke-WebRequest "http://127.0.0.1:$port/health" -UseBasicParsing | Out-Null; return } catch { Start-Sleep 1 }
+            }
+            throw "Statup does not answer on port $port"
+          }
+          function Set-Setting($key, $value) {
+            $lines = (Get-Content $settings) -replace "^$key=.*", "$key=$value"
+            [IO.File]::WriteAllLines($settings, [string[]] $lines)
+          }
+          # Its output to the log, its exit code as the result.
+          function Invoke-WindowsPowerShell {
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer @args | Out-Host
+            $LASTEXITCODE
+          }
+          Start-Process python -ArgumentList '-m', 'http.server', '8000', '--directory', "$env:RUNNER_TEMP\web" -WindowStyle Hidden
+          foreach ($try in 1..20) { try { Invoke-WebRequest "http://127.0.0.1:8000/mirror/v$env:VERSION/SHA256SUMS" -UseBasicParsing | Out-Null; break } catch { Start-Sleep 1 } }
+
+          "--- A changed archive is refused, and nothing is installed"
+          $code = Invoke-WindowsPowerShell -Mirror http://127.0.0.1:8000/tampered -Version $env:VERSION -Unattended
+          Assert ($code -ne 0) 'the changed archive was installed'
+          Assert (-not (Get-Service Statup -ErrorAction SilentlyContinue)) 'a service was created'
+
+          "--- Without a console nor -Unattended, it asks nothing and stops"
+          $null | powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Archive $env:ARCHIVE | Out-Host
+          Assert ($LASTEXITCODE -ne 0) 'it went on without a console'
+
+          "--- Install under Windows PowerShell 5.1, with chosen folders and port"
+          $code = Invoke-WindowsPowerShell -Mirror http://127.0.0.1:8000/mirror -Version $env:VERSION -Unattended `
+            -InstallDir C:\StatupCI -DataDir C:\StatupData -BackupDir C:\StatupBackups -Port 3100 -Listen local
+          Assert ($code -eq 0) 'the install failed'
           $service = Get-CimInstance Win32_Service -Filter "Name='Statup'"
-          if (-not $answered) { throw 'Statup never answered on /health' }
-          if ($service.State -ne 'Stopped') { throw "the service is $($service.State)" }
-          if ($service.ExitCode -ne 0) { throw "the service stopped with code $($service.ExitCode)" }
-          if ($log -notmatch 'Statup stopped') { throw 'the log does not show a clean stop' }
+          Assert ($service.StartName -eq 'NT SERVICE\Statup') "the service runs as $($service.StartName)"
+          Assert ($service.StartMode -eq 'Auto') "the service starts $($service.StartMode)"
+          Wait-Health 3100
+          $outside = @(Get-NetTCPConnection -LocalPort 3100 -State Listen | Where-Object LocalAddress -ne '127.0.0.1')
+          Assert ($outside.Count -eq 0) 'Statup listens beyond this machine'
+          Assert (Test-Path $log) 'no statup.log next to the database'
+          $readers = (Get-Acl $settings).Access | ForEach-Object {
+            try { $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value } catch { $_.IdentityReference.Value }
+          }
+          Assert ('S-1-5-32-545' -notin $readers) 'every user can read the settings'
+
+          "--- Another port, then a restart"
+          Set-Setting PORT 3200
+          Restart-Service Statup
+          Wait-Health 3200
+
+          "--- Backup, then restore with Statup stopped"
+          & C:\StatupCI\statup.exe --env $settings backup
+          Assert ($LASTEXITCODE -eq 0) 'the backup failed'
+          $backup = Get-ChildItem C:\StatupBackups -Filter 'statup-backup-*' | Select-Object -First 1
+          Stop-Service Statup
+          & C:\StatupCI\statup.exe --env $settings restore $backup.FullName --yes
+          Assert ($LASTEXITCODE -eq 0) 'the restore failed'
+          Start-Service Statup
+          Wait-Health 3200
+
+          "--- A wrong setting: the error is in statup.log, and Windows sees the service stop on an error"
+          Set-Setting PORT abc
+          Restart-Service Statup
+          $logged = $false
+          foreach ($try in 1..20) {
+            if (Select-String -Path $log -Pattern 'invalid value for PORT' -Quiet) { $logged = $true; break }
+            Start-Sleep 1
+          }
+          Assert $logged 'the wrong setting is not in statup.log'
+          $events = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; Id = 7024 } -MaxEvents 20 -ErrorAction SilentlyContinue |
+            Where-Object Message -match 'Statup')
+          Assert ($events.Count -gt 0) 'Windows did not record the service stopping on an error'
+          Set-Setting PORT 3200
+          Restart-Service Statup
+          Wait-Health 3200
+
+          "--- Run again in PowerShell 7, as irm | iex runs it: an update that keeps the settings"
+          & ([scriptblock]::Create((Get-Content -Raw $installer))) -Archive $env:ARCHIVE -Unattended
+          Wait-Health 3200
+          Assert ((Get-Content $settings) -contains 'PORT=3200') 'the update changed the settings'
+          Assert ((Get-Content C:\StatupCI\VERSION) -eq $env:VERSION) 'the version is not written'
+
+          "--- Uninstall: the program goes, the data and settings stay"
+          $code = Invoke-WindowsPowerShell -Uninstall -Unattended
+          Assert ($code -eq 0) 'the uninstall failed'
+          Assert (-not (Get-Service Statup -ErrorAction SilentlyContinue)) 'the service is still there'
+          Assert (-not (Test-Path C:\StatupCI)) 'the program folder is still there'
+          Assert (Test-Path C:\StatupData\statup.db) 'the data is gone'
+          Assert (Test-Path $settings) 'the settings are gone'
+
+          "--- Reinstall under 5.1 with the kept settings, an account of its own and the firewall"
+          Set-Setting HOST 0.0.0.0
+          $account = "$env:COMPUTERNAME\statupsvc"
+          $password = [guid]::NewGuid().ToString() + 'Aa1!'
+          powershell.exe -NoProfile -Command "New-LocalUser statupsvc -Password (ConvertTo-SecureString '$password' -AsPlainText -Force) -PasswordNeverExpires | Out-Null"
+          Assert ($LASTEXITCODE -eq 0) 'cannot create the local account'
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& { `$secret = ConvertTo-SecureString '$password' -AsPlainText -Force; `$credential = New-Object pscredential '$account', `$secret; & '$installer' -Archive '$env:ARCHIVE' -Unattended -ServiceAccount '$account' -Credential `$credential -Firewall }" | Out-Host
+          Assert ($LASTEXITCODE -eq 0) 'the install with an account failed'
+          $service = Get-CimInstance Win32_Service -Filter "Name='Statup'"
+          Assert ($service.StartName -in @('.\statupsvc', $account)) "the service runs as $($service.StartName)"
+          Wait-Health 3200
+          $rule = Get-NetFirewallRule -Name Statup | Get-NetFirewallPortFilter
+          Assert ($rule.LocalPort -eq '3200') "the firewall opens $($rule.LocalPort)"
+
+          "--- Uninstall in PowerShell 7: the firewall rule goes too"
+          pwsh -NoProfile -File $installer -Uninstall -Unattended | Out-Host
+          Assert ($LASTEXITCODE -eq 0) 'the uninstall failed'
+          Assert (-not (Get-NetFirewallRule -Name Statup -ErrorAction SilentlyContinue)) 'the firewall rule is still there'
+      - if: steps.changes.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          if (-not (Get-Module -ListAvailable PSScriptAnalyzer)) { Install-Module PSScriptAnalyzer -Force -Scope CurrentUser }
+          $found = Invoke-ScriptAnalyzer -Path scripts\install.ps1 -Severity Warning, Error -ExcludeRule PSAvoidUsingWriteHost, PSUseShouldProcessForStateChangingFunctions
+          $found | Format-Table -AutoSize Line, RuleName, Message -Wrap
+          if ($found) { throw 'PSScriptAnalyzer has remarks on install.ps1' }
+      - if: failure()
+        shell: pwsh
+        run: |
+          Get-Content C:\StatupData\statup.log -Tail 60 -ErrorAction SilentlyContinue
+          Get-CimInstance Win32_Service -Filter "Name='Statup'" | Format-List Name, State, StartName, PathName, ExitCode, ServiceSpecificExitCode
+          Get-Content C:\ProgramData\Statup\statup.env -ErrorAction SilentlyContinue
 
   # install.sh run for real on Ubuntu with systemd, from a release archive of
   # this build served by a local mirror: install with chosen folders,
