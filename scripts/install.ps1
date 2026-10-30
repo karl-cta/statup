@@ -155,7 +155,11 @@ function ConvertTo-StatupAccount {
 function Get-StatupCredential {
     param([hashtable] $Options, [string] $Account)
     if ($Account -in @('NT SERVICE\Statup', 'LocalSystem') -or $Account.EndsWith('$')) { return $null }
-    if ($Options.Credential) { return $Options.Credential }
+    if ($Options.Credential) {
+        $holder = ConvertTo-StatupAccount $Options.Credential.UserName
+        if ($holder -ne $Account) { throw "-Credential is for $holder, not for the account $Account" }
+        return $Options.Credential
+    }
     if ($Options.Unattended) { throw "the account $Account needs its password: pass -Credential" }
     Test-StatupConsole
     return Get-Credential -UserName $Account -Message "Password of $Account, handed to Windows only"
@@ -509,7 +513,7 @@ function Get-StatupAddress {
 }
 
 # Leaves the machine as it was, so that the next run installs again rather
-# than updates a service that never started. The folders stay, empty.
+# than updates a service that never answered. The folders stay.
 function Undo-StatupInstall {
     param([hashtable] $Choices, [bool] $NewSettings)
     Write-Host 'The install stopped: removing what it had set up'
@@ -532,12 +536,12 @@ function Install-Statup {
         if ($newSettings) { Write-StatupSettingFile $choices }
         if ($choices.OpenFirewall) { Open-StatupPort $choices.Port $choices.Profiles }
         Start-Service Statup
+        Wait-StatupHealth $choices
     }
     catch {
         Undo-StatupInstall $choices $newSettings
         throw
     }
-    Wait-StatupHealth $choices
     Write-Host ''
     Write-Host "Statup $($release.Version) is running: $(Get-StatupAddress $choices)"
     Write-Host "Open it to create the administrator account. Settings: $(Get-StatupSettingsPath)"

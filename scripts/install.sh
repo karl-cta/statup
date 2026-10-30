@@ -401,6 +401,7 @@ probe() {
 }
 
 # Waits up to 30 s for Statup to answer on the address it listens on.
+# Fails when it does not.
 wait_for_statup() {
     case $host in
         0.0.0.0) target=127.0.0.1 ;;
@@ -414,7 +415,7 @@ wait_for_statup() {
         tries=$((tries + 1))
         sleep 1
     done
-    fail "Statup does not answer on port $port: see journalctl -u statup -e"
+    return 1
 }
 
 address() {
@@ -453,12 +454,18 @@ install() {
     create_account
     prepare_folders
     install_program
-    [ -f "$SETTINGS" ] || write_settings
+    new_settings=0
+    if [ ! -f "$SETTINGS" ]; then
+        write_settings
+        new_settings=1
+    fi
     write_wrapper
     write_unit
-    systemctl enable --now statup >/dev/null 2>&1 || fail "the service does not start: see journalctl -u statup -e"
+    if ! systemctl enable --now statup >/dev/null 2>&1 || ! wait_for_statup; then
+        undo_install "$new_settings"
+        fail "Statup does not answer on port $port, so the install is undone: see journalctl -u statup -e, then run the script again"
+    fi
     open_port
-    wait_for_statup
     say ""
     say "Statup $version is running: $(address)"
     say "Open it to create the administrator account. Settings: $SETTINGS"
@@ -500,11 +507,27 @@ update() {
     write_wrapper
     write_unit
     systemctl restart statup
-    wait_for_statup
+    wait_for_statup || fail "Statup does not answer on port $port: see journalctl -u statup -e"
     say "Statup $version is running: $(address)"
 }
 
 # Only the files the script installed leave the program folder.
+remove_program() {
+    systemctl disable --now statup >/dev/null 2>&1 || true
+    rm -f "$UNIT" "$WRAPPER"
+    systemctl daemon-reload
+    rm -rf "$prefix/static" "$prefix/static.new" "$prefix/static.old"
+    rm -f "$prefix/statup" "$prefix/statup.new" "$prefix/VERSION" "$prefix/README.md" "$prefix/LICENSE" "$prefix/THIRD_PARTY_NOTICES.md"
+    rmdir "$prefix" 2>/dev/null || true
+}
+
+# Leaves the machine so that the next run installs again rather than
+# updates a service that never answered. The account and folders stay.
+undo_install() {
+    remove_program
+    [ "$1" = 0 ] || rm -f "$SETTINGS"
+}
+
 uninstall() {
     if [ ! -f "$UNIT" ]; then
         say "Statup is not installed as a service here"
@@ -519,12 +542,7 @@ uninstall() {
     if [ "$assume_yes" != 1 ]; then
         confirm "Remove Statup from $prefix? Its data, settings and account stay." n || fail "nothing removed"
     fi
-    systemctl disable --now statup >/dev/null 2>&1 || true
-    rm -f "$UNIT" "$WRAPPER"
-    systemctl daemon-reload
-    rm -rf "$prefix/static" "$prefix/static.new" "$prefix/static.old"
-    rm -f "$prefix/statup" "$prefix/statup.new" "$prefix/VERSION" "$prefix/README.md" "$prefix/LICENSE" "$prefix/THIRD_PARTY_NOTICES.md"
-    rmdir "$prefix" 2>/dev/null || true
+    remove_program
     say "Statup is removed. Kept: $kept."
 }
 

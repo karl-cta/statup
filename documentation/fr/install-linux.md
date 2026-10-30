@@ -87,6 +87,7 @@ sudo nano /etc/statup/statup.env
 sudo systemctl restart statup
 ```
 
+- Après un changement de `DATABASE_URL`, `UPLOAD_DIR` ou `BACKUP_DIR`, relancez la [commande d'installation](install-linux.md#upgrade) : elle crée le nouveau dossier et laisse le service y écrire, ce que ne fait pas un simple redémarrage.
 - La règle de pare-feu ouverte à l'installation reste sur l'ancien port après un changement de `PORT`.
 - Gardez `DATABASE_URL` à l'état de simple chemin : une [mise à jour](install-linux.md#upgrade) en déduit le dossier des données, et un chemin avec des paramètres, comme `?mode=rwc`, la tromperait.
 - Le fichier d'unité est réécrit à chaque mise à jour : les réglages ont leur place dans `statup.env`.

@@ -199,6 +199,14 @@ jobs:
           Assert ($code -ne 0) 'the changed archive was installed'
           Assert (-not (Get-Service Statup -ErrorAction SilentlyContinue)) 'a service was created'
 
+          "--- A port already taken: the install is undone"
+          $blocker = Start-Process python -ArgumentList '-m', 'http.server', '3999', '--bind', '0.0.0.0' -WindowStyle Hidden -PassThru
+          $code = Invoke-WindowsPowerShell -Archive $env:ARCHIVE -Unattended -Port 3999
+          Stop-Process -Id $blocker.Id
+          Assert ($code -ne 0) 'Statup was installed on a port another program holds'
+          Assert (-not (Get-Service Statup -ErrorAction SilentlyContinue)) 'the service of a failed install is still there'
+          Assert (-not (Test-Path $settings)) 'the settings of a failed install are still there'
+
           "--- Without a console nor -Unattended, it asks nothing and stops"
           $null | powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Archive $env:ARCHIVE | Out-Host
           Assert ($LASTEXITCODE -ne 0) 'it went on without a console'
@@ -454,6 +462,17 @@ jobs:
             echo "the changed archive was installed"; exit 1
           fi
           test ! -e /etc/systemd/system/statup.service
+
+          echo "--- A port already taken: the install is undone, and the next one starts afresh"
+          python3 -m http.server 3999 --bind 0.0.0.0 >/dev/null 2>&1 &
+          blocker=$!
+          if sudo sh scripts/install.sh --archive "$archive" --yes --port 3999; then
+            echo "Statup was installed on a port another program holds"; exit 1
+          fi
+          kill "$blocker"
+          test ! -e /etc/systemd/system/statup.service
+          test ! -e /etc/statup/statup.env
+          test ! -e /opt/statup/statup
 
           echo "--- Without a terminal nor --yes, it asks nothing and stops"
           code=0

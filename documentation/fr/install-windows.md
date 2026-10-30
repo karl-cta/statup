@@ -126,7 +126,7 @@ Restart-Service Statup
 DATABASE_URL='C:\ProgramData\Statup\statup.db'
 ```
 
-La règle du pare-feu reste sur l'ancien port après un changement de `PORT`, jusqu'à ce que le script soit relancé. Si Statup ne démarre pas, `statup.log` dit pourquoi.
+La règle du pare-feu reste sur l'ancien port après un changement de `PORT`, jusqu'à ce que le script soit relancé. Après un changement de `DATABASE_URL`, `UPLOAD_DIR` ou `BACKUP_DIR`, relancez aussi le script : il crée le nouveau dossier et laisse le service y écrire. Si Statup ne démarre pas, `statup.log` dit pourquoi.
 
 ## Commandes de maintenance
 

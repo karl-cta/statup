@@ -126,7 +126,7 @@ Restart-Service Statup
 DATABASE_URL='C:\ProgramData\Statup\statup.db'
 ```
 
-The firewall rule stays on the old port after a change of `PORT`, until the script is run again. If Statup does not start, `statup.log` tells why.
+The firewall rule stays on the old port after a change of `PORT`, until the script is run again. After a change of `DATABASE_URL`, `UPLOAD_DIR` or `BACKUP_DIR`, run the script again too: it creates the new folder and lets the service write to it. If Statup does not start, `statup.log` tells why.
 
 ## Maintenance commands
 

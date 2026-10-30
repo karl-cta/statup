@@ -87,6 +87,7 @@ sudo nano /etc/statup/statup.env
 sudo systemctl restart statup
 ```
 
+- After a change of `DATABASE_URL`, `UPLOAD_DIR` or `BACKUP_DIR`, run the [install command](install-linux.md#upgrade) again: it creates the new folder and lets the service write to it, which a restart alone does not.
 - The firewall rule opened at install stays on the old port after a change of `PORT`.
 - Keep `DATABASE_URL` a plain path: an [upgrade](install-linux.md#upgrade) finds the data folder from it, and a path with parameters, such as `?mode=rwc`, would mislead it.
 - The unit file is written again at each upgrade: settings belong in `statup.env`.
