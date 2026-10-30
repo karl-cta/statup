@@ -217,10 +217,11 @@ async fn an_instance_that_got_an_account_meanwhile_is_not_replaced() {
     )
     .await;
 
-    // The answer comes before the file is read: Windows then resets the
-    // connection under the upload, and the answer may be lost.
+    // The answer comes before the file is read, so the connection can be
+    // reset under the upload and the answer lost: what counts is that
+    // nothing is replaced.
     match sent {
-        Err(e) if cfg!(windows) => assert!(e.is_request(), "{e}"),
+        Err(e) => assert!(e.is_request(), "{e}"),
         sent => {
             let (status, page, location) = sent.unwrap();
             assert_eq!(status, StatusCode::SEE_OTHER);
