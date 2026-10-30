@@ -177,6 +177,7 @@ pub mod db;
 pub mod error;
 pub mod i18n;
 pub mod journal;
+pub mod log_file;
 pub mod middleware;
 pub mod models;
 pub mod modules;

@@ -1,7 +1,7 @@
 {
     "languages": ["en", "fr"],
     "groups": [
-        { "name": { "en": "Get started", "fr": "Premiers pas" }, "pages": ["introduction", "install", "nixos", "reverse-proxy"] },
+        { "name": { "en": "Get started", "fr": "Premiers pas" }, "pages": ["introduction", "install", "install-linux", "install-windows", "nixos", "reverse-proxy"] },
         { "name": { "en": "Use", "fr": "Utilisation" }, "pages": ["status-page", "services", "incidents", "maintenance", "announcements"] },
         { "name": { "en": "Administer", "fr": "Administration" }, "pages": ["team", "settings", "alerts", "monitoring", "monitoring-tools", "journal"] },
         { "name": { "en": "Operate", "fr": "Exploitation" }, "pages": ["backups", "upgrading", "forgotten-password"] },

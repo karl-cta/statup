@@ -1,0 +1,149 @@
+name: Binaries
+
+# A version tag builds the archives the release page offers: Linux x86_64
+# and aarch64, from the same build as the Docker image, and Windows x86_64.
+# The maintainer attaches them when publishing the release page. The CI run
+# by hand builds them too, to try them from a branch.
+on:
+  push:
+    tags: ["v*"]
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TAILWIND_VERSION: v4.1.18
+  TAILWIND_SHA256: 737becf8d4ad1115ea98df69fa94026d402ca8feb91306a035b5b004167da8dd
+
+jobs:
+  linux:
+    name: Linux ${{ matrix.platform }}
+    strategy:
+      matrix:
+        include:
+          - platform: linux-x86_64
+            docker: linux/amd64
+            runner: ubuntu-24.04
+          - platform: linux-aarch64
+            docker: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      # The stage of the Dockerfile that holds the binary alone, read from
+      # the cache the CI writes on main for the image.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.docker }}
+          target: binary
+          outputs: type=local,dest=out
+          cache-from: type=gha,scope=${{ matrix.runner }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.platform }}
+          path: out/statup
+          if-no-files-found: error
+          retention-days: 7
+
+  windows:
+    name: Windows x86_64
+    runs-on: windows-latest
+    env:
+      # The C runtime inside the binary: a bare Windows Server may not have
+      # the Visual C++ redistributable.
+      RUSTFLAGS: -C target-feature=+crt-static
+    steps:
+      # The templates are compiled into the binary: no Windows line endings.
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      # No other job builds with these flags: a cache saved here is never read.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: false
+      - run: cargo build --release --locked
+      - name: Needs no Visual C++ runtime
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $dumpbin = & $vswhere -latest -find 'VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe' |
+            Select-Object -First 1
+          $imports = & $dumpbin /dependents target\release\statup.exe
+          $imports
+          if ($imports -match 'VCRUNTIME|MSVCP|ucrtbase|api-ms-win-crt') {
+            throw 'statup.exe needs the Visual C++ runtime'
+          }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-x86_64
+          path: target/release/statup.exe
+          if-no-files-found: error
+          retention-days: 7
+
+  package:
+    name: Archives and checksums
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      # One folder per platform, named after its artifact, and none of the
+      # other artifacts of a CI run.
+      - uses: actions/download-artifact@v8
+        with:
+          path: bin
+          pattern: linux-*
+      - uses: actions/download-artifact@v8
+        with:
+          path: bin/windows-x86_64
+          name: windows-x86_64
+      - run: |
+          curl -sSL -o tailwindcss \
+            "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-x64"
+          # The tool runs in the job that writes SHA256SUMS: checked against
+          # the sum Tailwind publishes for this version.
+          echo "${TAILWIND_SHA256}  tailwindcss" | sha256sum -c -
+          chmod +x tailwindcss
+      - run: scripts/build-release.sh --binaries bin
+      - name: Check the binaries and the archives
+        working-directory: dist
+        env:
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: |
+          for binary in ../bin/linux-*/statup; do
+            file "$binary"
+            file "$binary" | grep -q static || { echo "$binary is not static"; exit 1; }
+          done
+          sha256sum -c SHA256SUMS
+          if [ -n "$TAG" ]; then
+            test -f "statup-${TAG#v}-linux-x86_64.tar.gz" || { echo "The archives do not carry the version of $TAG"; exit 1; }
+          fi
+          # What install.sh and install.ps1 rely on: the binary with static/
+          # beside it, in a folder named like the archive.
+          for archive in statup-*; do
+            name="${archive%.tar.gz}"
+            name="${name%.zip}"
+            case "$archive" in
+              *.zip) listing="$(unzip -Z1 "$archive")"; binary=statup.exe ;;
+              *) listing="$(tar -tzf "$archive")"; binary=statup ;;
+            esac
+            for file in "$binary" static/css/style.css; do
+              grep -qx "$name/$file" <<< "$listing" || { echo "$archive lacks $name/$file"; exit 1; }
+            done
+            if grep -q 'input\.css' <<< "$listing"; then
+              echo "$archive holds the stylesheet sources"
+              exit 1
+            fi
+            echo "$archive: layout ok"
+          done
+          tar -xzf statup-*-linux-x86_64.tar.gz -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP"/statup-*-linux-x86_64/statup --help
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7

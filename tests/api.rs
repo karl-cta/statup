@@ -510,14 +510,23 @@ async fn a_body_past_the_limit_is_refused_in_json() {
     let app = TestApp::spawn().await;
     let made = admin_key(&app, "Zabbix").await;
 
-    let resp = app
+    let sent = app
         .client
         .get(app.url(SERVICES))
         .header("Authorization", bearer(&made.key))
         .body(vec![b'a'; 65 * 1024])
         .send()
-        .await
-        .unwrap();
+        .await;
+
+    // The limit answers before the body is read: Windows may then reset the
+    // connection under the upload, and the answer is lost.
+    let resp = match sent {
+        Err(e) if cfg!(windows) => {
+            assert!(e.is_request(), "{e}");
+            return;
+        }
+        sent => sent.unwrap(),
+    };
     let answer = answer(resp).await;
     assert_eq!(answer.status, StatusCode::PAYLOAD_TOO_LARGE);
     assert_eq!(error_code(&answer), "payload_too_large");

@@ -6,7 +6,7 @@ use std::io::IsTerminal;
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 use axum::http::HeaderName;
@@ -14,6 +14,7 @@ use sqlx::sqlite::SqliteConnectOptions;
 use tracing::level_filters::LevelFilter;
 
 use crate::journal::{JournalInbox, journal_layer};
+use crate::log_file::LogFile;
 use crate::middleware::client_ip::{ClientIpSource, X_FORWARDED_FOR};
 
 /// Errors that can occur when loading or validating configuration.
@@ -326,22 +327,32 @@ where
     }
 }
 
-/// Installs the global subscriber. `RUST_LOG`, when it holds a valid filter,
-/// replaces `LOG_LEVEL`, which otherwise applies to every target. Colors
-/// are only written to a terminal, never to a container log. The app's
+/// Installs the global subscriber, which writes to `file` when there is
+/// one, else to the standard output. `RUST_LOG`, when it holds a valid
+/// filter, replaces `LOG_LEVEL`, which otherwise applies to every target.
+/// Colors are only written to a terminal, never to a container log. The app's
 /// warnings and errors are also caught for the journal, whatever the level;
 /// the returned inbox is handed to the journal writer once the database
 /// is open.
-pub fn init_logging(level: LevelFilter) -> JournalInbox {
+pub fn init_logging(level: LevelFilter, file: Option<LogFile>) -> JournalInbox {
+    use tracing_subscriber::fmt::writer::BoxMakeWriter;
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::{EnvFilter, Layer, fmt};
 
     let env_filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(level.to_string()));
+    let (writer, ansi) = match file {
+        Some(file) => (BoxMakeWriter::new(Mutex::new(file)), false),
+        None => (
+            BoxMakeWriter::new(std::io::stdout),
+            std::io::stdout().is_terminal(),
+        ),
+    };
     let output = fmt::layer()
         .with_target(true)
-        .with_ansi(std::io::stdout().is_terminal())
+        .with_ansi(ansi)
+        .with_writer(writer)
         .with_filter(env_filter);
     let (journal, inbox) = journal_layer();
     tracing_subscriber::registry()

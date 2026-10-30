@@ -22,6 +22,7 @@ const USAGE: &str = "Usage:
   statup reset-password <email>   Give an account a temporary password
   statup backup [--output <file>] Write a backup of the data
   statup restore <file> [--yes]   Replace the data with a backup
+  statup service                  Run as a Windows service (Windows only)
 
 Put --env <file> first to read the settings from that file instead of .env.";
 

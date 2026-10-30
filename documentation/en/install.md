@@ -8,7 +8,7 @@ description: "Run Statup with Docker Compose on an x86-64 or ARM server, then cr
 - Docker with Docker Compose 2.24 or newer.
 - A 64-bit server, x86-64 or ARM: the image is published for both.
 
-On NixOS, Statup also runs as a service from its flake: see [NixOS](nixos.md).
+Docker is the main way to install Statup. Without it, Statup runs as a service on [Linux](install-linux.md) and on [Windows Server](install-windows.md), and from its flake on [NixOS](nixos.md).
 
 ## Start Statup
 

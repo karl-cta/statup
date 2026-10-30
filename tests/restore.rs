@@ -56,6 +56,15 @@ async fn send(
     source: &str,
     file: Option<&[u8]>,
 ) -> (StatusCode, String, Option<String>) {
+    try_send(app, token, source, file).await.unwrap()
+}
+
+async fn try_send(
+    app: &TestApp,
+    token: Option<&str>,
+    source: &str,
+    file: Option<&[u8]>,
+) -> reqwest::Result<(StatusCode, String, Option<String>)> {
     let mut body = Vec::new();
     let mut text = |name: &str, value: &str| {
         body.extend(
@@ -82,14 +91,13 @@ async fn send(
         .header("content-type", "multipart/form-data; boundary=statup")
         .body(body)
         .send()
-        .await
-        .unwrap();
+        .await?;
     let status = response.status();
     let location = response
         .headers()
         .get("location")
         .map(|value| value.to_str().unwrap().to_string());
-    (status, response.text().await.unwrap_or_default(), location)
+    Ok((status, response.text().await.unwrap_or_default(), location))
 }
 
 #[tokio::test]
@@ -201,7 +209,7 @@ async fn an_instance_that_got_an_account_meanwhile_is_not_replaced() {
     app.create_user("first@test.com", ADMIN_PASSWORD, "First", Role::Admin)
         .await;
 
-    let (status, page, location) = send(
+    let sent = try_send(
         &app,
         Some(&csrf),
         "",
@@ -209,9 +217,18 @@ async fn an_instance_that_got_an_account_meanwhile_is_not_replaced() {
     )
     .await;
 
-    assert_eq!(status, StatusCode::SEE_OTHER);
-    assert_eq!(location.as_deref(), Some("/login"));
-    assert!(!page.contains("statup-"));
+    // The answer comes before the file is read, so the connection can be
+    // reset under the upload and the answer lost: what counts is that
+    // nothing is replaced.
+    match sent {
+        Err(e) => assert!(e.is_request(), "{e}"),
+        sent => {
+            let (status, page, location) = sent.unwrap();
+            assert_eq!(status, StatusCode::SEE_OTHER);
+            assert_eq!(location.as_deref(), Some("/login"));
+            assert!(!page.contains("statup-"));
+        }
+    }
     let name = SettingsRepository::get(&app.pool, "instance_name")
         .await
         .unwrap();

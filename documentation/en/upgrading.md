@@ -27,3 +27,11 @@ image: ghcr.io/karl-cta/statup:0.10.1
 ```
 
 Every version and what it changed are in the [changelog](https://github.com/karl-cta/statup/blob/main/.github/CHANGELOG.md). Statup is before its 1.0: expect changes between versions, and keep a [copy of the backups](backups.md#keep-a-copy-elsewhere) away from the server.
+
+## Upgrade on Linux
+
+Run the install command again: the script updates Statup and keeps its settings. See [Install on Linux](install-linux.md#upgrade).
+
+## Upgrade on Windows Server
+
+Run the install script again: it updates the service and keeps its settings. See [Install on Windows Server](install-windows.md#upgrade).

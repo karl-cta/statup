@@ -107,6 +107,434 @@ jobs:
             tests/browser/test-results/
           retention-days: 14
 
+  # The lint and the suite on Windows Server, the only place the Windows code
+  # is compiled, then install.ps1 run for real from an archive of this build
+  # served by a local mirror, under Windows PowerShell 5.1 and PowerShell 7:
+  # install, use, a wrong setting, update, an account of its own, uninstall.
+  # Only when the code, the script or this workflow has changed; if the
+  # comparison fails, it runs.
+  windows:
+    name: Windows tests and service
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: windows-latest
+    steps:
+      # The runner checks files out with Windows line endings, which the
+      # documentation test and the rendered templates would carry.
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: changes
+        if: github.event_name != 'workflow_dispatch'
+        shell: bash
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if git diff --quiet "$BASE" HEAD -- src tests Cargo.toml Cargo.lock scripts/install.ps1 .github/workflows/ci.yml; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.changes.outputs.skip != 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - if: steps.changes.outputs.skip != 'true'
+        uses: Swatinem/rust-cache@v2
+      - if: steps.changes.outputs.skip != 'true'
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - if: steps.changes.outputs.skip != 'true'
+        run: cargo test --locked --no-fail-fast
+      - name: Package this build as a release archive
+        if: steps.changes.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          # The statup.exe that cargo test built.
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"$').Matches[0].Groups[1].Value
+          $name = "statup-$version-windows-x86_64"
+          $stage = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\pack\$name"
+          Copy-Item target\debug\statup.exe, README.md, LICENSE, THIRD_PARTY_NOTICES.md $stage
+          Copy-Item static "$stage\static" -Recurse
+          # The release files served as GitHub serves them, and a copy with
+          # one byte changed in the archive.
+          $mirror = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\web\mirror\v$version"
+          $good = "$mirror\$name.zip"
+          Compress-Archive -Path $stage -DestinationPath $good
+          Set-Content "$mirror\SHA256SUMS" "$((Get-FileHash -Algorithm SHA256 $good).Hash.ToLowerInvariant())  $name.zip"
+          $tampered = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\web\tampered\v$version"
+          Copy-Item "$mirror\*" $tampered
+          $changed = "$tampered\$name.zip"
+          $bytes = [IO.File]::ReadAllBytes($changed)
+          $bytes[4096] = $bytes[4096] -bxor 0xFF
+          [IO.File]::WriteAllBytes($changed, $bytes)
+          "VERSION=$version" >> $env:GITHUB_ENV
+          "ARCHIVE=$good" >> $env:GITHUB_ENV
+      - name: Install, use, update and remove Statup
+        if: steps.changes.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          $installer = (Resolve-Path scripts\install.ps1).Path
+          $settings = 'C:\ProgramData\Statup\statup.env'
+          $log = 'C:\StatupData\statup.log'
+          function Assert($ok, $message) { if (-not $ok) { throw $message } }
+          function Wait-Health($port) {
+            foreach ($try in 1..30) {
+              try { Invoke-WebRequest "http://127.0.0.1:$port/health" -UseBasicParsing | Out-Null; return } catch { Start-Sleep 1 }
+            }
+            throw "Statup does not answer on port $port"
+          }
+          function Set-Setting($key, $value) {
+            $lines = (Get-Content $settings) -replace "^$key=.*", "$key=$value"
+            [IO.File]::WriteAllLines($settings, [string[]] $lines)
+          }
+          # Its output to the log, its exit code as the result.
+          function Invoke-WindowsPowerShell {
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer @args | Out-Host
+            $LASTEXITCODE
+          }
+          Start-Process python -ArgumentList '-m', 'http.server', '8000', '--directory', "$env:RUNNER_TEMP\web" -WindowStyle Hidden
+          foreach ($try in 1..20) { try { Invoke-WebRequest "http://127.0.0.1:8000/mirror/v$env:VERSION/SHA256SUMS" -UseBasicParsing | Out-Null; break } catch { Start-Sleep 1 } }
+
+          "--- A changed archive is refused, and nothing is installed"
+          $code = Invoke-WindowsPowerShell -Mirror http://127.0.0.1:8000/tampered -Version $env:VERSION -Unattended
+          Assert ($code -ne 0) 'the changed archive was installed'
+          Assert (-not (Get-Service Statup -ErrorAction SilentlyContinue)) 'a service was created'
+
+          "--- A port already taken: the install is undone"
+          $blocker = Start-Process python -ArgumentList '-m', 'http.server', '3999', '--bind', '0.0.0.0' -WindowStyle Hidden -PassThru
+          $code = Invoke-WindowsPowerShell -Archive $env:ARCHIVE -Unattended -Port 3999
+          Stop-Process -Id $blocker.Id
+          Assert ($code -ne 0) 'Statup was installed on a port another program holds'
+          Assert (-not (Get-Service Statup -ErrorAction SilentlyContinue)) 'the service of a failed install is still there'
+          Assert (-not (Test-Path $settings)) 'the settings of a failed install are still there'
+
+          "--- Without a console nor -Unattended, it asks nothing and stops"
+          $null | powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Archive $env:ARCHIVE | Out-Host
+          Assert ($LASTEXITCODE -ne 0) 'it went on without a console'
+
+          "--- Install under Windows PowerShell 5.1, with chosen folders and port"
+          $code = Invoke-WindowsPowerShell -Mirror http://127.0.0.1:8000/mirror -Version $env:VERSION -Unattended `
+            -InstallDir C:\StatupCI -DataDir C:\StatupData -BackupDir C:\StatupBackups -Port 3100 -Listen local
+          Assert ($code -eq 0) 'the install failed'
+          $service = Get-CimInstance Win32_Service -Filter "Name='Statup'"
+          Assert ($service.StartName -eq 'NT SERVICE\Statup') "the service runs as $($service.StartName)"
+          Assert ($service.StartMode -eq 'Auto') "the service starts $($service.StartMode)"
+          Wait-Health 3100
+          $outside = @(Get-NetTCPConnection -LocalPort 3100 -State Listen | Where-Object LocalAddress -ne '127.0.0.1')
+          Assert ($outside.Count -eq 0) 'Statup listens beyond this machine'
+          Assert (Test-Path $log) 'no statup.log next to the database'
+          $readers = (Get-Acl $settings).Access | ForEach-Object {
+            try { $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value } catch { $_.IdentityReference.Value }
+          }
+          Assert ('S-1-5-32-545' -notin $readers) 'every user can read the settings'
+
+          "--- Another port, then a restart"
+          Set-Setting PORT 3200
+          Restart-Service Statup
+          Wait-Health 3200
+
+          "--- Backup, then restore with Statup stopped"
+          & C:\StatupCI\statup.exe --env $settings backup
+          Assert ($LASTEXITCODE -eq 0) 'the backup failed'
+          $backup = Get-ChildItem C:\StatupBackups -Filter 'statup-backup-*' | Select-Object -First 1
+          Stop-Service Statup
+          & C:\StatupCI\statup.exe --env $settings restore $backup.FullName --yes
+          Assert ($LASTEXITCODE -eq 0) 'the restore failed'
+          Start-Service Statup
+          Wait-Health 3200
+
+          "--- A wrong setting: the error is in statup.log, and Windows sees the service stop on an error"
+          Set-Setting PORT abc
+          Restart-Service Statup
+          $logged = $false
+          foreach ($try in 1..20) {
+            if (Select-String -Path $log -Pattern 'invalid value for PORT' -Quiet) { $logged = $true; break }
+            Start-Sleep 1
+          }
+          Assert $logged 'the wrong setting is not in statup.log'
+          # Windows records the stop a moment after the log line is written.
+          $recorded = $false
+          foreach ($try in 1..30) {
+            $events = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; Id = 7024 } -MaxEvents 20 -ErrorAction SilentlyContinue |
+              Where-Object Message -match 'Statup')
+            if ($events.Count -gt 0) { $recorded = $true; break }
+            Start-Sleep 1
+          }
+          Assert $recorded 'Windows did not record the service stopping on an error'
+          Set-Setting PORT 3200
+          Restart-Service Statup
+          Wait-Health 3200
+
+          "--- Run again in PowerShell 7, as irm | iex runs it: an update that keeps the settings"
+          & ([scriptblock]::Create((Get-Content -Raw $installer))) -Archive $env:ARCHIVE -Unattended
+          Wait-Health 3200
+          Assert ((Get-Content $settings) -contains 'PORT=3200') 'the update changed the settings'
+          Assert ((Get-Content C:\StatupCI\VERSION) -eq $env:VERSION) 'the version is not written'
+
+          "--- Uninstall: the program goes, the data and settings stay"
+          $code = Invoke-WindowsPowerShell -Uninstall -Unattended
+          Assert ($code -eq 0) 'the uninstall failed'
+          Assert (-not (Get-Service Statup -ErrorAction SilentlyContinue)) 'the service is still there'
+          Assert (-not (Test-Path C:\StatupCI)) 'the program folder is still there'
+          Assert (Test-Path C:\StatupData\statup.db) 'the data is gone'
+          Assert (Test-Path $settings) 'the settings are gone'
+
+          "--- Reinstall under 5.1 with the kept settings, an account of its own and the firewall"
+          Set-Setting HOST 0.0.0.0
+          $account = "$env:COMPUTERNAME\statupsvc"
+          $password = [guid]::NewGuid().ToString() + 'Aa1!'
+          powershell.exe -NoProfile -Command "New-LocalUser statupsvc -Password (ConvertTo-SecureString '$password' -AsPlainText -Force) -PasswordNeverExpires | Out-Null"
+          Assert ($LASTEXITCODE -eq 0) 'cannot create the local account'
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& { `$secret = ConvertTo-SecureString '$password' -AsPlainText -Force; `$credential = New-Object pscredential '$account', `$secret; & '$installer' -Archive '$env:ARCHIVE' -Unattended -ServiceAccount '$account' -Credential `$credential -Firewall }" | Out-Host
+          Assert ($LASTEXITCODE -eq 0) 'the install with an account failed'
+          $service = Get-CimInstance Win32_Service -Filter "Name='Statup'"
+          Assert ($service.StartName -in @('.\statupsvc', $account)) "the service runs as $($service.StartName)"
+          Wait-Health 3200
+          $rule = Get-NetFirewallRule -Name Statup | Get-NetFirewallPortFilter
+          Assert ($rule.LocalPort -eq '3200') "the firewall opens $($rule.LocalPort)"
+
+          "--- Uninstall in PowerShell 7: the firewall rule goes too"
+          pwsh -NoProfile -File $installer -Uninstall -Unattended | Out-Host
+          Assert ($LASTEXITCODE -eq 0) 'the uninstall failed'
+          Assert (-not (Get-NetFirewallRule -Name Statup -ErrorAction SilentlyContinue)) 'the firewall rule is still there'
+      # Statup behind IIS for HTTPS, as the reverse proxy page sets it up:
+      # URL Rewrite and Application Request Routing from Microsoft, a test
+      # certificate, then the health page, a large upload, a first account
+      # and an error page, all through HTTPS. Run by hand only: installing
+      # IIS takes minutes.
+      - name: Behind IIS
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          function Assert($ok, $message) { if (-not $ok) { throw $message } }
+          $settings = 'C:\ProgramData\Statup\statup.env'
+          $appcmd = "$env:windir\system32\inetsrv\appcmd.exe"
+          $site = 'https://status.example.test'
+
+          "--- Statup on this machine only, with the two settings of a reverse proxy"
+          Remove-Item C:\StatupData, C:\StatupBackups, C:\ProgramData\Statup -Recurse -Force -ErrorAction SilentlyContinue
+          & ([scriptblock]::Create((Get-Content -Raw scripts\install.ps1))) -Archive $env:ARCHIVE -Unattended -Listen local
+          [IO.File]::AppendAllLines($settings, [string[]] @("PUBLIC_URL=$site", 'TRUST_PROXY_HEADERS=true'))
+          Restart-Service Statup
+
+          "--- IIS, URL Rewrite and Application Request Routing"
+          powershell.exe -NoProfile -Command 'Install-WindowsFeature Web-Server | Out-Null'
+          Assert ($LASTEXITCODE -eq 0) 'IIS did not install'
+          $modules = @(
+            'https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi',
+            'https://download.microsoft.com/download/E/9/8/E9849D6A-020E-47E4-9FD0-A023E99B54EB/requestRouter_amd64.msi'
+          )
+          foreach ($url in $modules) {
+            $msi = Join-Path $env:RUNNER_TEMP (Split-Path -Leaf $url)
+            Invoke-WebRequest $url -OutFile $msi
+            $setup = Start-Process msiexec.exe -ArgumentList '/i', $msi, '/qn', '/norestart' -Wait -PassThru
+            Assert ($setup.ExitCode -in 0, 3010) "$msi did not install: $($setup.ExitCode)"
+          }
+
+          "--- The proxy turned on, the scheme header allowed, the site and its HTTPS binding"
+          & $appcmd set config -section:system.webServer/proxy /enabled:True /commit:apphost
+          & $appcmd set config -section:system.webServer/rewrite/allowedServerVariables "/+[name='HTTP_X_FORWARDED_PROTO']" /commit:apphost
+          $certificate = New-SelfSignedCertificate -DnsName status.example.test -CertStoreLocation Cert:\LocalMachine\My
+          & $appcmd set site 'Default Web Site' "/+bindings.[protocol='https',bindingInformation='*:443:']"
+          netsh http add sslcert ipport=0.0.0.0:443 certhash=$($certificate.Thumbprint) "appid={4dc3e181-e14b-4a21-b022-59fc669b0914}"
+          # The web.config of the documentation, word for word.
+          $page = Get-Content -Raw documentation\en\reverse-proxy.md
+          Assert ($page -match '(?s)## IIS.*?```xml\r?\n(.*?)\r?\n```') 'no web.config in the reverse proxy page'
+          [IO.File]::WriteAllText('C:\inetpub\wwwroot\web.config', $Matches[1])
+          Add-Content "$env:windir\System32\drivers\etc\hosts" "127.0.0.1 status.example.test"
+          & $appcmd stop site 'Default Web Site'
+          & $appcmd start site 'Default Web Site'
+
+          "--- The health page through HTTPS"
+          $answer = $null
+          foreach ($try in 1..30) {
+            try { $answer = Invoke-WebRequest "$site/health" -SkipCertificateCheck; break } catch { Start-Sleep 1 }
+          }
+          Assert ($answer -and $answer.Content -match '"ok"') 'Statup does not answer through IIS'
+
+          "--- A 40 MB file sent to the restore page goes through, past the 30 MB IIS takes by default"
+          $page = Invoke-WebRequest "$site/restore" -SkipCertificateCheck -SessionVariable visitor
+          Assert ($page.Content -match 'name="csrf_token" value="([^"]+)"') 'no form on the restore page'
+          $head = [Text.Encoding]::ASCII.GetBytes(
+            "--statup`r`nContent-Disposition: form-data; name=`"csrf_token`"`r`n`r`n$($Matches[1])`r`n" +
+            "--statup`r`nContent-Disposition: form-data; name=`"source`"`r`n`r`n`r`n" +
+            "--statup`r`nContent-Disposition: form-data; name=`"file`"; filename=`"big.db`"`r`nContent-Type: application/octet-stream`r`n`r`n")
+          $tail = [Text.Encoding]::ASCII.GetBytes("`r`n--statup--`r`n")
+          $body = New-Object byte[] ($head.Length + 40MB + $tail.Length)
+          [Array]::Copy($head, 0, $body, 0, $head.Length)
+          [Array]::Copy($tail, 0, $body, $head.Length + 40MB, $tail.Length)
+          $sent = Invoke-WebRequest "$site/restore" -Method Post -Body $body -ContentType 'multipart/form-data; boundary=statup' `
+            -WebSession $visitor -SkipCertificateCheck -SkipHttpErrorCheck
+          Assert ($sent.StatusCode -eq 200 -and $sent.Content -match 'sauvegarde de Statup') "the upload stopped at IIS: $($sent.StatusCode)"
+
+          "--- The first account through HTTPS: a secure cookie and HSTS"
+          $page = Invoke-WebRequest "$site/register" -SkipCertificateCheck -SessionVariable admin
+          Assert ($page.Content -match 'name="csrf_token" value="([^"]+)"') 'no form on the first page'
+          $form = @{ csrf_token = $Matches[1]; display_name = 'Ada'; email = 'ada@example.test'; password = [guid]::NewGuid().ToString() + 'Aa1!'; time_zone = 'UTC' }
+          $created = Invoke-WebRequest "$site/register" -Method Post -Body $form -WebSession $admin -SkipCertificateCheck
+          $landed = $created.BaseResponse.RequestMessage.RequestUri
+          # A first account leads on to the first setup screen.
+          Assert ($landed.AbsolutePath -eq '/setup/page') "the account was not created: the form led to $landed"
+          $cookies = @($admin.Cookies.GetCookies([uri] $site))
+          Assert ($cookies.Count -gt 0) 'no session cookie'
+          Assert (-not ($cookies | Where-Object { -not $_.Secure })) 'a cookie is not marked Secure'
+          Assert ($created.Headers['Strict-Transport-Security']) 'no HSTS header behind IIS'
+
+          "--- An error page of Statup, not of IIS"
+          $missing = Invoke-WebRequest "$site/no-such-page" -SkipCertificateCheck -SkipHttpErrorCheck
+          Assert ($missing.StatusCode -eq 404 -and $missing.Content -match 'statup') "IIS answered the error itself: $($missing.StatusCode)"
+      - if: steps.changes.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          if (-not (Get-Module -ListAvailable PSScriptAnalyzer)) { Install-Module PSScriptAnalyzer -Force -Scope CurrentUser }
+          $found = Invoke-ScriptAnalyzer -Path scripts\install.ps1 -Severity Warning, Error -ExcludeRule PSAvoidUsingWriteHost, PSUseShouldProcessForStateChangingFunctions
+          $found | Format-Table -AutoSize Line, RuleName, Message -Wrap
+          if ($found) { throw 'PSScriptAnalyzer has remarks on install.ps1' }
+      - if: failure()
+        shell: pwsh
+        run: |
+          Get-Content C:\StatupData\statup.log -Tail 60 -ErrorAction SilentlyContinue
+          Get-CimInstance Win32_Service -Filter "Name='Statup'" | Format-List Name, State, StartName, PathName, ExitCode, ServiceSpecificExitCode
+          Get-Content C:\ProgramData\Statup\statup.env -ErrorAction SilentlyContinue
+
+  # install.sh run for real on Ubuntu with systemd, from a release archive of
+  # this build served by a local mirror: install with chosen folders,
+  # account and port, use, update, uninstall. Only when the script, the
+  # code or this workflow has changed; if the comparison fails, it runs.
+  install-linux:
+    name: Linux install script
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: changes
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if git diff --quiet "$BASE" HEAD -- src Cargo.toml Cargo.lock scripts/install.sh scripts/build-release.sh .github/workflows/ci.yml; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.changes.outputs.skip != 'true'
+        run: shellcheck --shell=sh scripts/install.sh
+      - if: steps.changes.outputs.skip != 'true'
+        uses: dtolnay/rust-toolchain@stable
+      - if: steps.changes.outputs.skip != 'true'
+        uses: Swatinem/rust-cache@v2
+      - name: Package this build as a release archive
+        if: steps.changes.outputs.skip != 'true'
+        run: |
+          cargo build --locked
+          curl -sSL -o tailwindcss \
+            "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-x64"
+          chmod +x tailwindcss
+          mkdir -p bin/linux-x86_64
+          cp target/debug/statup bin/linux-x86_64/
+          scripts/build-release.sh --binaries bin
+      - name: Install, use, update and remove Statup
+        if: steps.changes.outputs.skip != 'true'
+        run: |
+          set -u
+          archive=$(ls dist/statup-*-linux-x86_64.tar.gz)
+          version=$(basename "$archive" .tar.gz)
+          version=${version#statup-}
+          version=${version%-linux-x86_64}
+          health() { curl -fsS --retry 30 --retry-connrefused --retry-delay 1 "http://127.0.0.1:$1/health"; echo; }
+
+          # The release files served as GitHub serves them, and a copy with
+          # one byte changed in the archive.
+          mkdir -p "mirror/v$version" "tampered/v$version"
+          cp dist/* "mirror/v$version/"
+          cp dist/* "tampered/v$version/"
+          python3 - "tampered/v$version/$(basename "$archive")" <<'PY'
+          import sys
+          path = sys.argv[1]
+          data = bytearray(open(path, 'rb').read())
+          data[4096] ^= 0xFF
+          open(path, 'wb').write(data)
+          PY
+          python3 -m http.server 8000 >/dev/null 2>&1 &
+          curl -fsS --retry 10 --retry-connrefused --retry-delay 1 -o /dev/null "http://127.0.0.1:8000/mirror/v$version/SHA256SUMS"
+
+          echo "--- A changed archive is refused, and nothing is installed"
+          if sudo sh scripts/install.sh --mirror "http://127.0.0.1:8000/tampered" --version "$version" --yes; then
+            echo "the changed archive was installed"; exit 1
+          fi
+          test ! -e /etc/systemd/system/statup.service
+
+          echo "--- A port already taken: the install is undone, and the next one starts afresh"
+          python3 -m http.server 3999 --bind 0.0.0.0 >/dev/null 2>&1 &
+          blocker=$!
+          if sudo sh scripts/install.sh --archive "$archive" --yes --port 3999; then
+            echo "Statup was installed on a port another program holds"; exit 1
+          fi
+          kill "$blocker"
+          test ! -e /etc/systemd/system/statup.service
+          test ! -e /etc/statup/statup.env
+          test ! -e /opt/statup/statup
+
+          echo "--- Without a terminal nor --yes, it asks nothing and stops"
+          code=0
+          sudo sh scripts/install.sh --archive "$archive" < /dev/null || code=$?
+          test "$code" = 2
+
+          echo "--- Install through a pipe, with chosen folders, account and port"
+          cat scripts/install.sh | sudo sh -s -- --mirror "http://127.0.0.1:8000/mirror" --version "$version" --yes \
+            --prefix /opt/statup-ci --data-dir /srv/statup --backup-dir /srv/statup-backups \
+            --port 3100 --listen local --user statupd
+          systemctl is-enabled statup
+          health 3100
+          ss -ltnH | grep -q '127.0.0.1:3100'
+          if ss -ltnH | grep -q '0.0.0.0:3100'; then echo "listens on every address"; exit 1; fi
+          test "$(stat -c %U /srv/statup)" = statupd
+          test "$(sudo stat -c %U:%a /etc/statup/statup.env)" = root:640
+
+          echo "--- Port 80, below 1024, then another port"
+          sudo sed -i 's/^PORT=.*/PORT=80/' /etc/statup/statup.env
+          sudo systemctl restart statup
+          health 80
+          sudo sed -i 's/^PORT=.*/PORT=3200/' /etc/statup/statup.env
+          sudo systemctl restart statup
+          health 3200
+
+          echo "--- A backup made as root belongs to the account of the service"
+          sudo statup backup
+          backup=$(sudo ls /srv/statup-backups | grep '^statup-backup-' | head -n 1)
+          test "$(sudo stat -c %U "/srv/statup-backups/$backup")" = statupd
+
+          echo "--- Restore it, Statup stopped"
+          sudo systemctl stop statup
+          sudo statup restore "/srv/statup-backups/$backup" --yes
+          sudo systemctl start statup
+          health 3200
+
+          echo "--- Run again: an update that keeps the settings"
+          sudo sh scripts/install.sh --archive "$archive" --yes
+          health 3200
+          sudo grep -q '^PORT=3200$' /etc/statup/statup.env
+          test "$(cat /opt/statup-ci/VERSION)" = "$version"
+
+          echo "--- Uninstall: the program goes, the data, settings and account stay"
+          sudo sh scripts/install.sh --uninstall --yes
+          test ! -e /etc/systemd/system/statup.service
+          test ! -e /usr/local/bin/statup
+          test ! -e /opt/statup-ci
+          sudo test -f /srv/statup/statup.db
+          sudo test -f /etc/statup/statup.env
+          id statupd
+      - if: failure()
+        run: |
+          sudo systemctl status statup --no-pager || true
+          sudo journalctl -u statup --no-pager | tail -n 60 || true
+          sudo cat /etc/statup/statup.env /etc/systemd/system/statup.service || true
+
+  # Run by hand, the CI also builds the release archives, which a version
+  # tag otherwise builds on its own.
+  binaries:
+    name: Release archives
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/binaries.yml
+
   # Built on each platform the release publishes, on a runner of its kind,
   # with the same cache as the release: once this has run on main, the
   # release build finds every layer ready.
