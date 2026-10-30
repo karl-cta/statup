@@ -182,6 +182,119 @@ jobs:
           if ($service.ExitCode -ne 0) { throw "the service stopped with code $($service.ExitCode)" }
           if ($log -notmatch 'Statup stopped') { throw 'the log does not show a clean stop' }
 
+  # install.sh run for real on Ubuntu with systemd, from a release archive of
+  # this build served by a local mirror: install with chosen folders,
+  # account and port, use, update, uninstall. Only when the script, the
+  # code or this workflow has changed; if the comparison fails, it runs.
+  install-linux:
+    name: Linux install script
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: changes
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if git diff --quiet "$BASE" HEAD -- src Cargo.toml Cargo.lock scripts/install.sh scripts/build-release.sh .github/workflows/ci.yml; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.changes.outputs.skip != 'true'
+        run: shellcheck --shell=sh scripts/install.sh
+      - if: steps.changes.outputs.skip != 'true'
+        uses: dtolnay/rust-toolchain@stable
+      - if: steps.changes.outputs.skip != 'true'
+        uses: Swatinem/rust-cache@v2
+      - name: Package this build as a release archive
+        if: steps.changes.outputs.skip != 'true'
+        run: |
+          cargo build --locked
+          curl -sSL -o tailwindcss \
+            "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-x64"
+          chmod +x tailwindcss
+          mkdir -p bin/linux-x86_64
+          cp target/debug/statup bin/linux-x86_64/
+          scripts/build-release.sh --binaries bin
+      - name: Install, use, update and remove Statup
+        if: steps.changes.outputs.skip != 'true'
+        run: |
+          set -u
+          archive=$(ls dist/statup-*-linux-x86_64.tar.gz)
+          version=$(basename "$archive" .tar.gz)
+          version=${version#statup-}
+          version=${version%-linux-x86_64}
+          health() { curl -fsS --retry 30 --retry-connrefused --retry-delay 1 "http://127.0.0.1:$1/health"; echo; }
+
+          # The release files served as GitHub serves them, and a copy with
+          # one byte changed in the archive.
+          mkdir -p "mirror/v$version" "tampered/v$version"
+          cp dist/* "mirror/v$version/"
+          cp dist/* "tampered/v$version/"
+          printf 'x' | dd of="tampered/v$version/$(basename "$archive")" bs=1 seek=4096 conv=notrunc
+          python3 -m http.server 8000 >/dev/null 2>&1 &
+          curl -fsS --retry 10 --retry-connrefused --retry-delay 1 -o /dev/null "http://127.0.0.1:8000/mirror/v$version/SHA256SUMS"
+
+          echo "--- A changed archive is refused, and nothing is installed"
+          if sudo sh scripts/install.sh --mirror "http://127.0.0.1:8000/tampered" --version "$version" --yes; then
+            echo "the changed archive was installed"; exit 1
+          fi
+          test ! -e /etc/systemd/system/statup.service
+
+          echo "--- Without a terminal nor --yes, it asks nothing and stops"
+          code=0
+          sudo sh scripts/install.sh --archive "$archive" < /dev/null || code=$?
+          test "$code" = 2
+
+          echo "--- Install through a pipe, with chosen folders, account and port"
+          cat scripts/install.sh | sudo sh -s -- --mirror "http://127.0.0.1:8000/mirror" --version "$version" --yes \
+            --prefix /opt/statup-ci --data-dir /srv/statup --backup-dir /srv/statup-backups \
+            --port 3100 --listen local --user statupd
+          systemctl is-enabled statup
+          health 3100
+          ss -ltnH | grep -q '127.0.0.1:3100'
+          if ss -ltnH | grep -q '0.0.0.0:3100'; then echo "listens on every address"; exit 1; fi
+          test "$(stat -c %U /srv/statup)" = statupd
+          test "$(sudo stat -c %U:%a /etc/statup/statup.env)" = root:640
+
+          echo "--- Another port, then a restart"
+          sudo sed -i 's/^PORT=.*/PORT=3200/' /etc/statup/statup.env
+          sudo systemctl restart statup
+          health 3200
+
+          echo "--- A backup made as root belongs to the account of the service"
+          sudo statup backup
+          backup=$(sudo ls /srv/statup-backups | grep '^statup-backup-' | head -n 1)
+          test "$(sudo stat -c %U "/srv/statup-backups/$backup")" = statupd
+
+          echo "--- Restore it, Statup stopped"
+          sudo systemctl stop statup
+          sudo statup restore "/srv/statup-backups/$backup" --yes
+          sudo systemctl start statup
+          health 3200
+
+          echo "--- Run again: an update that keeps the settings"
+          sudo sh scripts/install.sh --archive "$archive" --yes
+          health 3200
+          grep -q '^PORT=3200$' /etc/statup/statup.env
+          test "$(cat /opt/statup-ci/VERSION)" = "$version"
+
+          echo "--- Uninstall: the program goes, the data, settings and account stay"
+          sudo sh scripts/install.sh --uninstall --yes
+          test ! -e /etc/systemd/system/statup.service
+          test ! -e /usr/local/bin/statup
+          test ! -e /opt/statup-ci
+          sudo test -f /srv/statup/statup.db
+          sudo test -f /etc/statup/statup.env
+          id statupd
+      - if: failure()
+        run: |
+          sudo systemctl status statup --no-pager || true
+          sudo journalctl -u statup --no-pager | tail -n 60 || true
+          sudo cat /etc/statup/statup.env /etc/systemd/system/statup.service || true
+
   # Run by hand, the CI also builds the release archives, which a version
   # tag otherwise builds on its own.
   binaries:
