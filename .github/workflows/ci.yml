@@ -278,7 +278,7 @@ jobs:
           echo "--- Run again: an update that keeps the settings"
           sudo sh scripts/install.sh --archive "$archive" --yes
           health 3200
-          grep -q '^PORT=3200$' /etc/statup/statup.env
+          sudo grep -q '^PORT=3200$' /etc/statup/statup.env
           test "$(cat /opt/statup-ci/VERSION)" = "$version"
 
           echo "--- Uninstall: the program goes, the data, settings and account stay"
