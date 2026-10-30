@@ -23,7 +23,7 @@ Administrators see the running version in Settings, and the newer one once it is
 `latest` follows each new version. To upgrade only when you choose, replace `latest` with a version number under `image:` in `docker-compose.yml`:
 
 ```yaml
-image: ghcr.io/karl-cta/statup:0.10.1
+image: ghcr.io/karl-cta/statup:0.11.0
 ```
 
 Every version and what it changed are in the [changelog](https://github.com/karl-cta/statup/blob/main/.github/CHANGELOG.md). Statup is before its 1.0: expect changes between versions, and keep a [copy of the backups](backups.md#keep-a-copy-elsewhere) away from the server.

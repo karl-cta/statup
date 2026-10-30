@@ -94,7 +94,7 @@ Add them from the **Team** page: they open the same address. For HTTPS and a nam
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/roadmap-dark.png">
-  <img src=".github/assets/roadmap.png" alt="Roadmap: shipped are automatic monitoring, notifications, four languages, password reset and clearer incident updates; step 1, the activity log, shipped in 0.6.0; step 2, groups and visibility, shipped in 0.7.0; step 3, email subscriptions, shipped in 0.8.0; step 4, API and monitoring tools, shipped in 0.9.0; steps 5 and 6, recurring maintenance and themes, shipped in 0.10.0; coming next, in order, steps 7 to 9 listed below, then the stable 1.0 release" width="1296">
+  <img src=".github/assets/roadmap.png" alt="Roadmap: shipped are automatic monitoring, notifications, four languages, password reset and clearer incident updates; step 1, the activity log, shipped in 0.6.0; step 2, groups and visibility, shipped in 0.7.0; step 3, email subscriptions, shipped in 0.8.0; step 4, API and monitoring tools, shipped in 0.9.0; steps 5 and 6, recurring maintenance and themes, shipped in 0.10.0; step 7, backup and restore, shipped in 0.11.0; coming next, in order, steps 8 and 9 listed below, then the stable 1.0 release" width="1296">
 </picture>
 
 Planned, in this order, without dates:
@@ -105,7 +105,7 @@ Planned, in this order, without dates:
 4. ~~**API and monitoring tools**: Zabbix, Grafana or a script open and close incidents by themselves.~~ Shipped in 0.9.0, with an import from Uptime Kuma.
 5. ~~**Recurring maintenance**: announce a slot once, and add any maintenance to your calendar.~~ Shipped in 0.10.0.
 6. ~~**Themes** and an accent colour.~~ Shipped in 0.10.0, with twelve colours and four ambiances.
-7. **Backup and restore**, one command each, without stopping Statup.
+7. ~~**Backup and restore**: one command each, without stopping Statup.~~ Shipped in 0.11.0, with installers for Linux and Windows Server.
 8. **Status widget** for your intranet or wiki.
 9. **Hardening**: full testing, a security review and safe upgrades from every version, before 1.0.
 
