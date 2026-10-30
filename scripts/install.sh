@@ -34,7 +34,8 @@ Usage: install.sh [option...]
   --archive <file>      Install from an archive already downloaded
   --mirror <url>        Download from a copy of the release files, served as
                         <url>/v<version>/<file>; needs --version
-  --yes                 Take the default of every question not answered
+  --yes                 Take the default of every question not answered, and
+                        confirm --uninstall
   --uninstall           Remove Statup; keep its data, settings and account
   --help                Show this help
 EOF
@@ -511,7 +512,9 @@ uninstall() {
         read_settings
         kept="the data in $data_dir and $backup_dir, the settings in $SETTINGS, $kept"
     fi
-    confirm "Remove Statup from $prefix? Its data, settings and account stay." n || fail "nothing removed"
+    if [ "$assume_yes" != 1 ]; then
+        confirm "Remove Statup from $prefix? Its data, settings and account stay." n || fail "nothing removed"
+    fi
     systemctl disable --now statup >/dev/null 2>&1 || true
     rm -f "$UNIT" "$WRAPPER"
     systemctl daemon-reload
