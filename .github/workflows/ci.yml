@@ -140,7 +140,7 @@ jobs:
       - if: steps.changes.outputs.skip != 'true'
         run: cargo clippy --all-targets --locked -- -D warnings
       - if: steps.changes.outputs.skip != 'true'
-        run: cargo test --locked
+        run: cargo test --locked --no-fail-fast
       - name: Run as a Windows service
         if: steps.changes.outputs.skip != 'true'
         shell: pwsh
