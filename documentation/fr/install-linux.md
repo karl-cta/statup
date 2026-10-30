@@ -133,7 +133,7 @@ curl -fsSL https://github.com/karl-cta/statup/releases/latest/download/install.s
 curl -fsSL https://github.com/karl-cta/statup/releases/latest/download/install.sh | sudo sh -s -- --uninstall
 ```
 
-Le script demande d'abord confirmation ; `--yes` supprime la question. Il arrête et retire le service, la commande `statup` et les fichiers du programme. Il garde les dossiers des données et des sauvegardes, `/etc/statup/statup.env`, le compte et toute règle de pare-feu. Une nouvelle installation retrouve les réglages et les garde.
+Le script demande d'abord confirmation ; `--yes` supprime la question. Il arrête et retire le service, la commande `statup` et les fichiers du programme. Il garde les dossiers des données et des sauvegardes, `/etc/statup/statup.env`, le compte et toute règle de pare-feu. Une nouvelle installation avec le même compte retrouve les réglages et les garde.
 
 ## Sans accès à GitHub
 
