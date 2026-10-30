@@ -147,7 +147,7 @@ jobs:
         if: steps.changes.outputs.skip != 'true'
         shell: pwsh
         run: |
-          cargo build --locked
+          # The statup.exe that cargo test built.
           $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"$').Matches[0].Groups[1].Value
           $name = "statup-$version-windows-x86_64"
           $stage = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\pack\$name"
@@ -155,14 +155,13 @@ jobs:
           Copy-Item static "$stage\static" -Recurse
           # The release files served as GitHub serves them, and a copy with
           # one byte changed in the archive.
-          foreach ($copy in 'mirror', 'tampered') {
-            $folder = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\web\$copy\v$version"
-            Compress-Archive -Path $stage -DestinationPath "$folder\$name.zip"
-          }
-          $good = "$env:RUNNER_TEMP\web\mirror\v$version\$name.zip"
-          $sum = "$((Get-FileHash -Algorithm SHA256 $good).Hash.ToLowerInvariant())  $name.zip"
-          foreach ($copy in 'mirror', 'tampered') { Set-Content "$env:RUNNER_TEMP\web\$copy\v$version\SHA256SUMS" $sum }
-          $changed = "$env:RUNNER_TEMP\web\tampered\v$version\$name.zip"
+          $mirror = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\web\mirror\v$version"
+          $good = "$mirror\$name.zip"
+          Compress-Archive -Path $stage -DestinationPath $good
+          Set-Content "$mirror\SHA256SUMS" "$((Get-FileHash -Algorithm SHA256 $good).Hash.ToLowerInvariant())  $name.zip"
+          $tampered = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\web\tampered\v$version"
+          Copy-Item "$mirror\*" $tampered
+          $changed = "$tampered\$name.zip"
           $bytes = [IO.File]::ReadAllBytes($changed)
           $bytes[4096] = $bytes[4096] -bxor 0xFF
           [IO.File]::WriteAllBytes($changed, $bytes)

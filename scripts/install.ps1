@@ -194,16 +194,14 @@ function Read-StatupSetting {
     foreach ($line in [IO.File]::ReadAllLines($Path)) {
         if ($line -match "^$Key=(.*)$") { $value = $Matches[1].Trim() }
     }
-    if ($value -and $value.Length -ge 2 -and $value.StartsWith("'") -and $value.EndsWith("'")) {
-        $value = $value.Substring(1, $value.Length - 2)
-    }
+    if ($value -match '^([''"])(.*)\1$') { $value = $Matches[2] }
     return $value
 }
 
 function Read-StatupSettingFile {
     param([hashtable] $Choices, [string] $Path)
     $database = Read-StatupSetting $Path 'DATABASE_URL'
-    $database = $database -replace '^sqlite:(//)?', ''
+    $database = $database -replace '^sqlite:(//)?', '' -replace '\?.*$', ''
     $Choices.DataDir = Split-Path -Parent $database
     $Choices.BackupDir = Read-StatupSetting $Path 'BACKUP_DIR'
     if (-not $Choices.BackupDir) { $Choices.BackupDir = [IO.Path]::Combine($Choices.DataDir, 'backups') }
@@ -324,6 +322,11 @@ function Expand-StatupArchive {
     return $folder.FullName
 }
 
+# The documents an archive holds beside the program.
+function Get-StatupDocument {
+    @('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md')
+}
+
 function Install-StatupProgram {
     param([string] $Source, [string] $Folder, [string] $Release)
     New-Item -ItemType Directory -Force -Path $Folder | Out-Null
@@ -331,7 +334,7 @@ function Install-StatupProgram {
     $static = [IO.Path]::Combine($Folder, 'static')
     if (Test-Path $static) { Remove-Item $static -Recurse -Force }
     Copy-Item ([IO.Path]::Combine($Source, 'static')) $static -Recurse
-    foreach ($file in @('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md')) {
+    foreach ($file in Get-StatupDocument) {
         Copy-Item ([IO.Path]::Combine($Source, $file)) $Folder -Force
     }
     [IO.File]::WriteAllText(([IO.Path]::Combine($Folder, 'VERSION')), "$Release`r`n")
@@ -340,7 +343,7 @@ function Install-StatupProgram {
 # Only the files this script installed leave the program folder.
 function Remove-StatupProgram {
     param([string] $Folder)
-    foreach ($item in @('statup.exe', 'static', 'VERSION', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md')) {
+    foreach ($item in @('statup.exe', 'static', 'VERSION') + (Get-StatupDocument)) {
         Remove-Item ([IO.Path]::Combine($Folder, $item)) -Recurse -Force -ErrorAction SilentlyContinue
     }
     if (-not (Get-ChildItem $Folder -Force -ErrorAction SilentlyContinue)) {

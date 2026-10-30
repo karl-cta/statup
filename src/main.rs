@@ -2,7 +2,6 @@
 
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
-use std::fs::File;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
@@ -16,6 +15,7 @@ use tokio::task::{AbortHandle, JoinError};
 use statup::config::{Config, init_logging};
 use statup::db::{self, DbPool};
 use statup::journal::spawn_journal_writer;
+use statup::log_file::LogFile;
 use statup::middleware::rate_limit::RateLimit;
 use statup::routes::create_router;
 use statup::services::backup;
@@ -54,7 +54,7 @@ fn main() -> anyhow::Result<()> {
 /// Serves until `shutdown` completes, with its log lines in `log_file`, or
 /// on the standard output when there is none.
 async fn run_server(
-    log_file: Option<File>,
+    log_file: Option<LogFile>,
     shutdown: impl Future<Output = ()>,
 ) -> anyhow::Result<()> {
     let config = Config::from_env().context("invalid configuration")?;

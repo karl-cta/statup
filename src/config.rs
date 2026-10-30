@@ -2,7 +2,6 @@
 
 use std::env;
 use std::fmt::Display;
-use std::fs::File;
 use std::io::IsTerminal;
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::{Path, PathBuf};
@@ -15,6 +14,7 @@ use sqlx::sqlite::SqliteConnectOptions;
 use tracing::level_filters::LevelFilter;
 
 use crate::journal::{JournalInbox, journal_layer};
+use crate::log_file::LogFile;
 use crate::middleware::client_ip::{ClientIpSource, X_FORWARDED_FOR};
 
 /// Errors that can occur when loading or validating configuration.
@@ -334,7 +334,7 @@ where
 /// warnings and errors are also caught for the journal, whatever the level;
 /// the returned inbox is handed to the journal writer once the database
 /// is open.
-pub fn init_logging(level: LevelFilter, file: Option<File>) -> JournalInbox {
+pub fn init_logging(level: LevelFilter, file: Option<LogFile>) -> JournalInbox {
     use tracing_subscriber::fmt::writer::BoxMakeWriter;
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;

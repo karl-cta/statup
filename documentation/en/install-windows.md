@@ -107,7 +107,7 @@ The script opens the port in a rule named `Statup`, for the profiles of the netw
 
 - The data, uploads and backup folders, and the folder of the settings, are open to the administrators, to the system and to the service account, and to nobody else. `ProgramData` would let every user read them.
 - Windows restarts the service after a failure: twice after 5 seconds, then after a minute. The count starts again after a day.
-- `statup.log`, next to the database, holds the log of the server. Above 10 MB, it is set aside as `statup.log.1` at the next start, which replaces the previous one.
+- `statup.log`, next to the database, holds the log of the server. Above 10 MB, it is set aside as `statup.log.1`, which replaces the previous one, and a new file starts.
 - The service is managed with `Get-Service Statup`, `Stop-Service Statup` and `Start-Service Statup`.
 
 ## Change a setting

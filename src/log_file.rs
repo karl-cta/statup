@@ -11,7 +11,7 @@ use crate::config::database_file;
 
 const FILE_NAME: &str = "statup.log";
 
-/// Above this size, the file is set aside at the next start.
+/// Above this size, the file is set aside.
 const SET_ASIDE_ABOVE: u64 = 10 * 1024 * 1024;
 
 /// `statup.log` in the folder of the database, or in the working folder for
@@ -23,20 +23,68 @@ pub fn path_for(database_url: &str) -> PathBuf {
         .join(FILE_NAME)
 }
 
-/// Opens the file at `path` to add to it. A file above 10 MB is first
-/// renamed with a `.1` suffix, which replaces the one set aside before.
+/// The log file. Once above 10 MB, it is renamed with a `.1` suffix, which
+/// replaces the one set aside before, and a new file is started: at the
+/// opening, and while it is written.
+pub struct LogFile {
+    path: PathBuf,
+    limit: u64,
+    file: File,
+    size: u64,
+}
+
+/// Opens the file at `path` to add to it.
 ///
 /// # Errors
 ///
 /// The error of the rename or of the opening.
-pub fn open(path: &Path) -> io::Result<File> {
-    open_below(path, SET_ASIDE_ABOVE)
+pub fn open(path: &Path) -> io::Result<LogFile> {
+    LogFile::open_below(path, SET_ASIDE_ABOVE)
 }
 
-fn open_below(path: &Path, limit: u64) -> io::Result<File> {
-    if fs::metadata(path).is_ok_and(|meta| meta.len() > limit) {
-        fs::rename(path, set_aside(path))?;
+impl LogFile {
+    fn open_below(path: &Path, limit: u64) -> io::Result<Self> {
+        let size = fs::metadata(path).map_or(0, |meta| meta.len());
+        let mut log = Self {
+            path: path.to_path_buf(),
+            limit,
+            file: append_to(path)?,
+            size,
+        };
+        if log.size > limit {
+            log.set_aside()?;
+        }
+        Ok(log)
     }
+
+    // Rust opens files with FILE_SHARE_DELETE on Windows, so the file can
+    // be renamed while it is open.
+    fn set_aside(&mut self) -> io::Result<()> {
+        fs::rename(&self.path, set_aside(&self.path))?;
+        self.file = append_to(&self.path)?;
+        self.size = 0;
+        Ok(())
+    }
+}
+
+impl Write for LogFile {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        // A rename that fails keeps the lines in the current file, and is
+        // tried again after another limit's worth of them.
+        if self.size > self.limit && self.set_aside().is_err() {
+            self.size = 0;
+        }
+        let written = self.file.write(buf)?;
+        self.size += written as u64;
+        Ok(written)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.file.flush()
+    }
+}
+
+fn append_to(path: &Path) -> io::Result<File> {
     OpenOptions::new().create(true).append(true).open(path)
 }
 
@@ -96,7 +144,7 @@ mod tests {
         let folder = Folder::new();
         let path = folder.0.join(FILE_NAME);
         fs::write(&path, "first\n").unwrap();
-        writeln!(open_below(&path, 1024).unwrap(), "second").unwrap();
+        writeln!(LogFile::open_below(&path, 1024).unwrap(), "second").unwrap();
 
         assert_eq!(fs::read_to_string(&path).unwrap(), "first\nsecond\n");
         assert!(!set_aside(&path).exists());
@@ -108,10 +156,25 @@ mod tests {
         let path = folder.0.join(FILE_NAME);
         fs::write(set_aside(&path), "oldest").unwrap();
         fs::write(&path, "older").unwrap();
-        writeln!(open_below(&path, 4).unwrap(), "new").unwrap();
+        writeln!(LogFile::open_below(&path, 4).unwrap(), "new").unwrap();
 
         assert_eq!(fs::read_to_string(set_aside(&path)).unwrap(), "older");
         assert_eq!(fs::read_to_string(&path).unwrap(), "new\n");
+    }
+
+    #[test]
+    fn a_file_that_grows_past_the_limit_is_set_aside_while_written() {
+        let folder = Folder::new();
+        let path = folder.0.join(FILE_NAME);
+        let mut log = LogFile::open_below(&path, 8).unwrap();
+        writeln!(log, "first line").unwrap();
+        writeln!(log, "second").unwrap();
+
+        assert_eq!(
+            fs::read_to_string(set_aside(&path)).unwrap(),
+            "first line\n"
+        );
+        assert_eq!(fs::read_to_string(&path).unwrap(), "second\n");
     }
 
     #[test]

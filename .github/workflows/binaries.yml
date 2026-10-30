@@ -60,7 +60,10 @@ jobs:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
+      # No other job builds with these flags: a cache saved here is never read.
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: false
       - run: cargo build --release --locked
       - name: Needs no Visual C++ runtime
         shell: pwsh

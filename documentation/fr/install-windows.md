@@ -107,7 +107,7 @@ Le script ouvre le port dans une règle nommée `Statup`, pour les profils des r
 
 - Les dossiers des données, des fichiers envoyés et des sauvegardes, et le dossier des réglages, sont ouverts aux administrateurs, au système et au compte du service, et à personne d'autre. `ProgramData` laisserait tout utilisateur les lire.
 - Windows redémarre le service après un échec : deux fois après 5 secondes, puis après une minute. Le compte repart de zéro après un jour.
-- `statup.log`, à côté de la base, contient le journal du serveur. Au-delà de 10 Mo, il est mis de côté sous le nom `statup.log.1` au démarrage suivant, à la place du précédent.
+- `statup.log`, à côté de la base, contient le journal du serveur. Au-delà de 10 Mo, il est mis de côté sous le nom `statup.log.1`, à la place du précédent, et un nouveau fichier commence.
 - Le service se gère avec `Get-Service Statup`, `Stop-Service Statup` et `Start-Service Statup`.
 
 ## Changer un réglage

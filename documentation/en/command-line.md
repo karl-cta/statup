@@ -82,7 +82,7 @@ Windows only. Runs Statup as a Windows service: the Windows service manager star
 ```
 
 - It works from the folder of `statup.exe`, which holds the `static` folder. Give `--env` a full path.
-- Its log goes to `statup.log`, in the folder of the database. Above 10 MB, the file is renamed `statup.log.1` at the next start, which replaces the previous one.
+- Its log goes to `statup.log`, in the folder of the database. Above 10 MB, the file is renamed `statup.log.1`, which replaces the previous one, and a new file starts.
 - Stopping the service lets open requests finish, as Ctrl+C does for the server.
 - A failure is written to `statup.log`, and Windows records that the service stopped on an error.
 

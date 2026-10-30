@@ -82,7 +82,7 @@ Windows seulement. Fait tourner Statup comme service Windows : c'est le gestion
 ```
 
 - Il travaille depuis le dossier de `statup.exe`, qui contient le dossier `static`. Donnez à `--env` un chemin complet.
-- Son journal va dans `statup.log`, dans le dossier de la base. Au-delà de 10 Mo, le fichier est renommé `statup.log.1` au démarrage suivant, à la place du précédent.
+- Son journal va dans `statup.log`, dans le dossier de la base. Au-delà de 10 Mo, le fichier est renommé `statup.log.1`, à la place du précédent, et un nouveau fichier commence.
 - Arrêter le service laisse les requêtes en cours se terminer, comme Ctrl+C pour le serveur.
 - Un échec est écrit dans `statup.log`, et Windows note que le service s'est arrêté sur une erreur.
 

@@ -13,6 +13,8 @@ SETTINGS_DIR=/etc/statup
 SETTINGS=$SETTINGS_DIR/statup.env
 UNIT=/etc/systemd/system/statup.service
 WRAPPER=/usr/local/bin/statup
+# The documents an archive holds beside the program.
+DOCUMENTS='README.md LICENSE THIRD_PARTY_NOTICES.md'
 
 usage() {
     cat <<'EOF'
@@ -256,10 +258,14 @@ install_program() {
     [ ! -d "$prefix/static" ] || mv "$prefix/static" "$prefix/static.old"
     mv "$prefix/static.new" "$prefix/static"
     rm -rf "$prefix/static.old"
-    cp "$unpacked/README.md" "$unpacked/LICENSE" "$unpacked/THIRD_PARTY_NOTICES.md" "$prefix/"
+    for document in $DOCUMENTS; do
+        cp "$unpacked/$document" "$prefix/"
+    done
     printf '%s\n' "$version" >"$prefix/VERSION"
     chown -R root:root "$prefix/static"
-    chown root:root "$prefix/statup" "$prefix/VERSION" "$prefix/README.md" "$prefix/LICENSE" "$prefix/THIRD_PARTY_NOTICES.md"
+    for file in statup VERSION $DOCUMENTS; do
+        chown root:root "$prefix/$file"
+    done
 }
 
 create_account() {
@@ -297,9 +303,10 @@ EOF
     chmod 640 "$SETTINGS"
 }
 
-# setting <KEY>: its value in the settings file, the last one when repeated.
+# setting <KEY>: its value in the settings file, the last one when repeated,
+# without the quotes it may be written between.
 setting() {
-    sed -n "s/^$1=//p" "$SETTINGS" | tail -n 1
+    sed -n "s/^$1=//p" "$SETTINGS" | tail -n 1 | sed "s/^'\(.*\)'\$/\1/; s/^\"\(.*\)\"\$/\1/"
 }
 
 read_settings() {
@@ -308,6 +315,7 @@ read_settings() {
     database=$(setting DATABASE_URL)
     database=${database#sqlite://}
     database=${database#sqlite:}
+    database=${database%%\?*}
     data_dir=$(dirname "$database")
     backup_dir=$(setting BACKUP_DIR)
     [ -n "$backup_dir" ] || backup_dir=$data_dir/backups
@@ -517,7 +525,9 @@ remove_program() {
     rm -f "$UNIT" "$WRAPPER"
     systemctl daemon-reload
     rm -rf "$prefix/static" "$prefix/static.new" "$prefix/static.old"
-    rm -f "$prefix/statup" "$prefix/statup.new" "$prefix/VERSION" "$prefix/README.md" "$prefix/LICENSE" "$prefix/THIRD_PARTY_NOTICES.md"
+    for file in statup statup.new VERSION $DOCUMENTS; do
+        rm -f "${prefix:?}/$file"
+    done
     rmdir "$prefix" 2>/dev/null || true
 }
 
