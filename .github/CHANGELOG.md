@@ -5,6 +5,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 ## Unreleased
 
 - **Backups**: Statup backs itself up every night at 03:00 and before each upgrade, keeping the latest seven, without stopping. **Settings › Backups** sets when (every day, every week or never), at what time and how many are kept, lists the backups with **Download**, and downloads a new one on the spot. On a new server, **Restore a backup** on the first screen brings an instance back from a file of this computer or from the backups already on the server. `statup backup` and `statup restore` do the same on the command line, and `--env <file>` reads the settings from a file of your choice. A backup is one SQLite file, written to `BACKUP_DIR`, a `backups` folder next to the database by default.
+- **Archives**: each release ships ready-to-run archives for Linux (x86_64 and aarch64) and Windows (x86_64), with their SHA-256 checksums.
 
 ## 0.10.1, 2026-10-28
 

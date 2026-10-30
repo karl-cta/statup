@@ -33,6 +33,11 @@ COPY migrations ./migrations
 # Newer than the stub, so cargo rebuilds the crate itself.
 RUN touch src/main.rs src/lib.rs && cargo build --release --locked
 
+# The binary alone, exported for the release archives (binaries.yml).
+FROM scratch AS binary
+
+COPY --from=builder /app/target/release/statup /statup
+
 # Stylesheet, built apart so a change in static/ does not rebuild the binary
 FROM alpine:3.24 AS styles
 
