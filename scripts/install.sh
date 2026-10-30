@@ -151,7 +151,9 @@ check_choices() {
     case $port in
         '' | *[!0-9]*) usage_error "port $port: give a number" ;;
     esac
-    [ "$port" -ge 1 ] && [ "$port" -le 65535 ] || usage_error "port $port: give a number from 1 to 65535"
+    if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        usage_error "port $port: give a number from 1 to 65535"
+    fi
     case $listen in
         all) host=0.0.0.0 ;;
         local) host=127.0.0.1 ;;
@@ -365,7 +367,9 @@ active_firewall() {
 }
 
 open_port() {
-    [ "$host" != 127.0.0.1 ] && [ "$host" != ::1 ] || return 0
+    case $host in
+        127.0.0.1 | ::1) return 0 ;;
+    esac
     firewall=$(active_firewall)
     if [ -z "$firewall" ]; then
         [ "${open_firewall:-}" != yes ] || say "No active firewall: nothing to open"
@@ -459,12 +463,16 @@ install() {
 installed_choices() {
     prefix=$(sed -n 's/^WorkingDirectory=//p' "$UNIT")
     user=$(sed -n 's/^User=//p' "$UNIT")
-    [ -n "$prefix" ] && [ -n "$user" ] || fail "$UNIT was not written by this script"
+    if [ -z "$prefix" ] || [ -z "$user" ]; then
+        fail "$UNIT was not written by this script"
+    fi
 }
 
 refuse_downgrade() {
     installed=$(cat "$prefix/VERSION" 2>/dev/null) || installed=
-    [ -n "$installed" ] && [ "$installed" != "$version" ] || return 0
+    if [ -z "$installed" ] || [ "$installed" = "$version" ]; then
+        return 0
+    fi
     oldest=$(printf '%s\n%s\n' "$installed" "$version" | sort -V | head -n 1)
     [ "$oldest" = "$version" ] || return 0
     confirm "Statup $installed is installed: install the older $version? Its database may be too new for it." n ||
