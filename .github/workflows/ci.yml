@@ -364,7 +364,8 @@ jobs:
           $form = @{ csrf_token = $Matches[1]; display_name = 'Ada'; email = 'ada@example.test'; password = [guid]::NewGuid().ToString() + 'Aa1!'; time_zone = 'UTC' }
           $created = Invoke-WebRequest "$site/register" -Method Post -Body $form -WebSession $admin -SkipCertificateCheck
           $landed = $created.BaseResponse.RequestMessage.RequestUri
-          Assert ($landed.AbsolutePath -eq '/') "the account was not created: the form led to $landed"
+          # A first account leads on to the first setup screen.
+          Assert ($landed.AbsolutePath -eq '/setup/page') "the account was not created: the form led to $landed"
           $cookies = @($admin.Cookies.GetCookies([uri] $site))
           Assert ($cookies.Count -gt 0) 'no session cookie'
           Assert (-not ($cookies | Where-Object { -not $_.Secure })) 'a cookie is not marked Secure'
