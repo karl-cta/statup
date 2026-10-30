@@ -456,7 +456,10 @@ jobs:
           test "$(stat -c %U /srv/statup)" = statupd
           test "$(sudo stat -c %U:%a /etc/statup/statup.env)" = root:640
 
-          echo "--- Another port, then a restart"
+          echo "--- Port 80, below 1024, then another port"
+          sudo sed -i 's/^PORT=.*/PORT=80/' /etc/statup/statup.env
+          sudo systemctl restart statup
+          health 80
           sudo sed -i 's/^PORT=.*/PORT=3200/' /etc/statup/statup.env
           sudo systemctl restart statup
           health 3200

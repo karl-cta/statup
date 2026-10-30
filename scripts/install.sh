@@ -347,6 +347,10 @@ WorkingDirectory=$prefix
 ExecStart=$prefix/statup --env $SETTINGS
 Restart=on-failure
 RestartSec=5s
+# Ports below 1024 need this, whatever port the settings name now: it is
+# the only power of root the service keeps.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict

@@ -74,7 +74,7 @@ curl -fsSL https://github.com/karl-cta/statup/releases/latest/download/install.s
 | Service | `/etc/systemd/system/statup.service`, activé et démarré. |
 | Commande | `/usr/local/bin/statup`, pour lancer les [commandes](command-line.md) de Statup. |
 
-Le service démarre après le réseau, redémarre après un échec et se limite à ce dont il a besoin : aucun nouveau privilège, un `/tmp` privé, le système de fichiers en lecture seule sauf les dossiers des données et des sauvegardes, et les dossiers personnels masqués, ou en lecture seule quand l'un des deux dossiers est sous `/home`.
+Le service démarre après le réseau, redémarre après un échec et se limite à ce dont il a besoin : des pouvoirs de `root`, seulement celui d'écouter sur un port inférieur à 1024, aucun nouveau privilège, un `/tmp` privé, le système de fichiers en lecture seule sauf les dossiers des données et des sauvegardes, et les dossiers personnels masqués, ou en lecture seule quand l'un des deux dossiers est sous `/home`.
 
 Les logs vont dans le journal : `journalctl -u statup`.
 
