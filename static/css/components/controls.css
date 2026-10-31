@@ -399,6 +399,33 @@
         white-space: nowrap;
     }
 
+    /* A fitted select (data-fit) is as wide as its longest option: each
+       one lies unseen in the cell of the one shown. */
+    .cs-fitted {
+        width: max-content;
+        max-width: 100%;
+    }
+
+    .cs-fit {
+        display: grid;
+        grid-template-columns: minmax(0, max-content);
+        min-width: 0;
+    }
+
+    .cs-fit > * {
+        grid-area: 1 / 1;
+    }
+
+    .cs-fit-ghost {
+        overflow: hidden;
+        white-space: nowrap;
+        visibility: hidden;
+    }
+
+    .cs-fit-ghost::before {
+        content: attr(data-label);
+    }
+
     .cs-caret {
         display: inline-flex;
         flex: 0 0 12px;

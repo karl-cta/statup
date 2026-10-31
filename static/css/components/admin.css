@@ -823,6 +823,25 @@
         font-size: var(--text-xs);
     }
 
+    /* Beside the row from 720px: the state, at the width of its words,
+       against the pencil. */
+    @media (min-width: 720px) {
+        .status-cell {
+            align-items: flex-end;
+            text-align: right;
+        }
+
+        .status-shown-state,
+        .status-cell .confirm,
+        .status-cell .receipt {
+            justify-content: flex-end;
+        }
+
+        .status-shown-by {
+            margin-left: 0;
+        }
+    }
+
     /* An account state, not a service status: words without a dot, the
        exception in ink. */
     /* A disabled account says so after its name, in ink. */

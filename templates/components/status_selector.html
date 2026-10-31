@@ -18,7 +18,7 @@
           data-status-form>
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <label for="status-{{ service.id }}" class="sr-only">{{ i18n.t("services.status_of") }} {{ service.name }}</label>
-        <select id="status-{{ service.id }}" name="status" class="input" data-custom-select data-committed="{{ service.manual_status.as_str() }}">
+        <select id="status-{{ service.id }}" name="status" class="input" data-custom-select data-fit data-committed="{{ service.manual_status.as_str() }}">
             {% for status in crate::models::ServiceStatus::ALL %}
             <option value="{{ status.as_str() }}" data-tone="{{ status.tone().as_str() }}"{% if service.manual_status == status %} selected{% endif %}{% if status.is_outage() %} data-guarded{% endif %}>{{ i18n.t(status.i18n_key()) }}</option>
             {% endfor %}

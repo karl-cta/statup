@@ -28,6 +28,23 @@
         return parts;
     }
 
+    // A select marked data-fit is as wide as its longest option: every
+    // option lies unseen in the cell of the one shown, so the box keeps its
+    // width whatever the choice.
+    function fittedLabel(native, label) {
+        const cell = document.createElement("span");
+        cell.className = "cs-fit";
+        cell.append(label);
+        for (const option of native.options) {
+            const ghost = document.createElement("span");
+            ghost.className = "cs-fit-ghost";
+            ghost.dataset.label = option.textContent;
+            ghost.setAttribute("aria-hidden", "true");
+            cell.append(ghost);
+        }
+        return cell;
+    }
+
     function buildTrigger(listId) {
         const trigger = document.createElement("button");
         trigger.type = "button";
@@ -85,6 +102,8 @@
             this.typedTimer = 0;
             this.wrap = document.createElement("div");
             this.wrap.className = "cs-wrap";
+            this.fit = "fit" in native.dataset;
+            if (this.fit) this.wrap.classList.add("cs-fitted");
             const { trigger, face } = buildTrigger(`${native.id}-list`);
             this.trigger = trigger;
             this.face = face;
@@ -140,7 +159,9 @@
 
         sync() {
             const option = this.native.options[this.native.selectedIndex];
-            this.face.replaceChildren(...(option ? optionContent(option) : []));
+            const parts = option ? optionContent(option) : [];
+            if (this.fit && parts.length) parts.push(fittedLabel(this.native, parts.pop()));
+            this.face.replaceChildren(...parts);
             this.items().forEach((item) => {
                 item.setAttribute("aria-selected", String(item.dataset.value === this.native.value));
             });
