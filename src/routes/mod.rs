@@ -76,7 +76,7 @@ pub(crate) use page::{Frame, members_only, render};
 /// Forms carry text only.
 const FORM_BODY_LIMIT: usize = 64 * 1024;
 
-/// An icon file (256 KB after checks) plus the multipart envelope, with room
+/// An icon file (1 MB after checks) plus the multipart envelope, with room
 /// for the handler to say the file is too large.
 const UPLOAD_BODY_LIMIT: usize = 2 * 1024 * 1024;
 

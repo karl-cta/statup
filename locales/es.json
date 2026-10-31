@@ -1059,7 +1059,7 @@
   "icons.choose": "Elegir un icono",
   "icons.current": "(actual: {name})",
   "icons.change": "Cambiar el icono",
-  "units.kb": "KB",
+  "units.mb": "MB",
   "subscribe.title": "Recibir avisos",
   "subscribe.heading": "Recibir avisos de las actualizaciones",
   "subscribe.back": "Panel",

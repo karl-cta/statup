@@ -28,7 +28,7 @@ Pour créer d'un coup les services d'une page d'état d'Uptime Kuma, sous les no
 ## Icônes
 
 - 24 icônes fournies, de Serveur à Impression.
-- **Envoyer une icône**, dans l'en-tête de la carte **Vos icônes** de la page de la bibliothèque d'icônes : PNG, JPG, WebP ou SVG, jusqu'à 256 Ko. Les images de plus de 128 pixels sont réduites ; un SVG est débarrassé de tout ce qui pourrait exécuter ou charger quelque chose.
+- **Envoyer une icône**, dans l'en-tête de la carte **Vos icônes** de la page de la bibliothèque d'icônes : PNG, JPG, WebP ou SVG, jusqu'à 1 Mo. Les images de plus de 128 pixels sont réduites ; un SVG est débarrassé de tout ce qui pourrait exécuter ou charger quelque chose.
 - Les icônes envoyées forment une seule bibliothèque, partagée par les services, les événements et les modèles, accessible par **Gérer vos icônes** dans le choix d'icône d'un service. Une icône encore utilisée ne peut pas être supprimée.
 
 ## Visibilité

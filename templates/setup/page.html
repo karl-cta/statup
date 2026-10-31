@@ -25,7 +25,7 @@
                 </span>
                 <span class="setup-logo-copy">
                     <span class="setup-logo-cta" data-setup-logo-cta>{% if preview.logo_url.is_some() %}{{ i18n.t("admin.logo_replace") }}{% else %}{{ i18n.t("admin.logo_upload") }}{% endif %}</span>
-                    <span class="setup-logo-hint">{{ i18n.t("icons.upload_hint_short") }} {{ crate::models::MAX_ICON_SIZE / 1024 }}&nbsp;{{ i18n.t("units.kb") }}</span>
+                    <span class="setup-logo-hint">{{ i18n.t("icons.upload_hint_short") }} {{ crate::models::MAX_ICON_SIZE_MB }}&nbsp;{{ i18n.t("units.mb") }}</span>
                 </span>
             </label>
         </div>

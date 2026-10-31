@@ -1059,7 +1059,7 @@
   "icons.choose": "Choose an icon",
   "icons.current": "(current: {name})",
   "icons.change": "Change the icon",
-  "units.kb": "KB",
+  "units.mb": "MB",
   "subscribe.title": "Get notified",
   "subscribe.heading": "Get notified of updates",
   "subscribe.back": "Dashboard",

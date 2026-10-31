@@ -1059,7 +1059,7 @@
   "icons.choose": "Choisir une icône",
   "icons.current": "(actuelle : {name})",
   "icons.change": "Changer d'icône",
-  "units.kb": "Ko",
+  "units.mb": "Mo",
   "subscribe.title": "S'abonner",
   "subscribe.heading": "S'abonner aux mises à jour",
   "subscribe.back": "Tableau de bord",

@@ -1059,7 +1059,7 @@
   "icons.choose": "Symbol wählen",
   "icons.current": "(aktuell: {name})",
   "icons.change": "Symbol ändern",
-  "units.kb": "KB",
+  "units.mb": "MB",
   "subscribe.title": "Benachrichtigt werden",
   "subscribe.heading": "Über Updates benachrichtigt werden",
   "subscribe.back": "Übersicht",

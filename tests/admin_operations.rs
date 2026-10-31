@@ -7,7 +7,7 @@ mod common;
 use reqwest::StatusCode;
 
 use common::{Options, TestApp, extract_csrf_token};
-use statup::models::Role;
+use statup::models::{MAX_ICON_SIZE, Role};
 use statup::repositories::{FolderRepository, ServiceRepository, UserRepository};
 
 /// The instance name lives in process memory: the tests that set it or read
@@ -770,7 +770,7 @@ async fn an_oversized_icon_is_refused_in_the_page() {
     let (app, _) = spawn_with_admin().await;
     let csrf = app.csrf_from("/icons").await;
     let mut png = vec![0x89, 0x50, 0x4E, 0x47];
-    png.resize(300 * 1024, 0);
+    png.resize(MAX_ICON_SIZE + 1, 0);
 
     let resp = upload_icon(&app, icon_upload_body(&csrf, "big.png", "image/png", &png)).await;
     assert_eq!(resp.status(), StatusCode::OK, "said on the page");

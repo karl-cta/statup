@@ -57,7 +57,7 @@
                     </div>
                     <label class="icon-upload-field">
                         <span class="icon-upload-cta">{{ i18n.t("icons.upload") }}</span>
-                        <span class="icon-upload-hint">{{ i18n.t("icons.upload_hint_short") }} {{ crate::models::MAX_ICON_SIZE / 1024 }}&nbsp;{{ i18n.t("units.kb") }}</span>
+                        <span class="icon-upload-hint">{{ i18n.t("icons.upload_hint_short") }} {{ crate::models::MAX_ICON_SIZE_MB }}&nbsp;{{ i18n.t("units.mb") }}</span>
                         <input type="file" name="file" class="sr-only" accept="image/png,image/jpeg,image/webp,image/svg+xml"
                                hx-post="/icons/upload-picker" hx-target="#custom-icons-grid" hx-swap="outerHTML"
                                hx-trigger="change" hx-encoding="multipart/form-data" hx-params="file,csrf_token"

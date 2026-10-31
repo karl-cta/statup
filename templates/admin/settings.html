@@ -117,7 +117,7 @@
                         </span>
                         <label class="set-logo-pick">
                             <span class="set-logo-cta" data-file-name>{% if crate::instance_logo_url().is_some() %}{{ i18n.t("admin.logo_replace") }}{% else %}{{ i18n.t("admin.logo_upload") }}{% endif %}</span>
-                            <span class="set-logo-hint">{{ i18n.t("icons.upload_hint_short") }} {{ crate::models::MAX_ICON_SIZE / 1024 }}&nbsp;{{ i18n.t("units.kb") }}</span>
+                            <span class="set-logo-hint">{{ i18n.t("icons.upload_hint_short") }} {{ crate::models::MAX_ICON_SIZE_MB }}&nbsp;{{ i18n.t("units.mb") }}</span>
                             <input type="file" name="file" class="sr-only" accept="image/png,image/jpeg,image/webp,image/svg+xml">
                         </label>
                         {% if crate::instance_logo_url().is_some() %}

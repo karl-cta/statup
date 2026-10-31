@@ -43,8 +43,11 @@ location / {
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    client_max_body_size 256m;
 }
 ```
+
+`client_max_body_size` lets an icon of 1 MB and a backup of up to 256 MB through to [Restore a backup](backups.md#restore-a-backup): nginx refuses a request above 1 MB on its own.
 
 ## Caddy
 

@@ -28,7 +28,7 @@ To create at once the services of an Uptime Kuma status page, under the names of
 ## Icons
 
 - 24 built-in icons, from Server to Printing.
-- **Upload an icon**, in the head of the **Your icons** card on the icon library page: PNG, JPG, WebP or SVG, up to 256 KB. Images larger than 128 pixels are reduced; an SVG is cleaned of anything that could run or load something.
+- **Upload an icon**, in the head of the **Your icons** card on the icon library page: PNG, JPG, WebP or SVG, up to 1 MB. Images larger than 128 pixels are reduced; an SVG is cleaned of anything that could run or load something.
 - Uploaded icons form one library, shared by services, events and templates, reached by **Manage your icons** in a service's icon choice. An icon still in use cannot be deleted.
 
 ## Visibility

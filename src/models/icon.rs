@@ -2,8 +2,11 @@
 
 use chrono::{DateTime, Utc};
 
-/// Maximum icon file size: 256 KB.
-pub const MAX_ICON_SIZE: usize = 256 * 1024;
+/// Maximum icon file size, in megabytes as the pages say it.
+pub const MAX_ICON_SIZE_MB: usize = 1;
+
+/// Maximum icon file size: 1 MB.
+pub const MAX_ICON_SIZE: usize = MAX_ICON_SIZE_MB * 1024 * 1024;
 
 /// Maximum icon dimension (width or height) after resize.
 pub const MAX_ICON_DIMENSION: u32 = 128;

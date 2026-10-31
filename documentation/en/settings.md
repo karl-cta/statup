@@ -19,7 +19,7 @@ One form, saved with one **Save** button. Every field is checked before any is w
 | Field | Description |
 |---|---|
 | **Page name** | Shown instead of Statup in the header and the browser tab. Up to 40 characters; empty shows Statup. |
-| **Logo** | Takes the place of the Statup mark in the header; "Powered by Statup" stays at the foot. PNG, JPG, WebP or SVG, up to 256 KB. An image larger than 256 pixels is reduced. **Remove the logo** brings the mark back at once. |
+| **Logo** | Takes the place of the Statup mark in the header; "Powered by Statup" stays at the foot. PNG, JPG, WebP or SVG, up to 1 MB. An image larger than 256 pixels is reduced. **Remove the logo** brings the mark back at once. |
 | **Colour** | Colours the main buttons, the ticked boxes, the chosen options, the line under the header and under the current tab, and the dot and last letter of the Statup mark when no logo is chosen, on every page and for every reader. Twelve colours: **Ink** (the default), **Navy**, **Cobalt**, **Teal**, **Pine**, **Rose**, **Violet**, **Burgundy**, **Brick**, **Copper**, **Cocoa** and **Slate**, each drawn for the light and the dark theme. The colours of the states never change. |
 | **Ambiance** | The ground and the cards of every page: **Sand** (the default, a white page with cream cards), **Mist** (tinted blue), **Paper** (cream) or **Pebble** (a grey page with white cards), each with its own dark version. Every reader keeps the light or dark switch of the header. |
 | **Time zone** | Times on the page, on events and on maintenance are shown and typed in it. |
