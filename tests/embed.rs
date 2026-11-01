@@ -105,7 +105,7 @@ async fn a_members_only_page_shows_no_state_without_its_link() {
             assert!(!body.contains(title), "{query}: {title}");
         }
         assert!(
-            body.contains("Lien de l&#39;encart à recopier depuis Statup"),
+            body.contains("Lien du widget à recopier depuis Statup"),
             "{query}"
         );
     }
