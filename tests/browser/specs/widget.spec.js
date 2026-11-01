@@ -9,11 +9,21 @@ test.skip(({ isMobile }) => isMobile, "the same page on a phone, checked once");
 
 const ADDRESS = /^https?:\/\/[^/]+\/embed\?key=([A-Za-z0-9]{32})&lang=fr(&theme=(dark|auto))?$/;
 
+// An intranet page at an address of its own: `frame-ancestors *` admits
+// http and https pages, not the null origin of an empty page.
+const INTRANET = "http://intranet.test/";
+
 async function framedWidget(context, address) {
     const page = await context.newPage();
     // Escaped like the code the page offers to paste.
     const src = address.replaceAll("&", "&amp;");
-    await page.setContent(`<iframe src="${src}" title="Widget" width="600" height="68"></iframe>`);
+    await page.route(INTRANET, (route) =>
+        route.fulfill({
+            contentType: "text/html",
+            body: `<!doctype html><title>Intranet</title><iframe src="${src}" title="Widget" width="600" height="68"></iframe>`,
+        }),
+    );
+    await page.goto(INTRANET);
     return page.frameLocator("iframe").locator("a.embed");
 }
 
