@@ -35,7 +35,9 @@ async function cacheControl(page, address) {
 }
 
 test("an admin copies the widget address, frames it, then changes the link", async ({ page, context }) => {
-    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    // Chrome asks before a page it takes for public frames a local address,
+    // and the test instance listens on 127.0.0.1.
+    await context.grantPermissions(["clipboard-read", "clipboard-write", "local-network-access"]);
 
     await page.goto("/admin/settings");
     await page.getByRole("link", { name: /^Widget/ }).click();
