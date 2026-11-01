@@ -185,6 +185,7 @@
   "embed.preview": "Preview",
   "embed.theme_device": "Match the device",
   "embed.to_paste": "To paste",
+  "embed.where_link": "Where to paste it",
   "embed.address": "Address",
   "embed.height": "Suggested height: {px} px",
   "embed.code": "HTML code",

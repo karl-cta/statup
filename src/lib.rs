@@ -102,16 +102,18 @@ pub enum Doc {
     Webhook,
     MailServer,
     Api,
+    Widget,
     KumaAlerts,
 }
 
 impl Doc {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Home,
         Self::ResetFromServer,
         Self::Webhook,
         Self::MailServer,
         Self::Api,
+        Self::Widget,
         Self::KumaAlerts,
     ];
 
@@ -124,6 +126,7 @@ impl Doc {
             Self::Webhook => ("webhook", ""),
             Self::MailServer => ("configuration", "email"),
             Self::Api => ("api", ""),
+            Self::Widget => ("widget", ""),
             Self::KumaAlerts => ("monitoring-tools", "uptime-kuma"),
         }
     }

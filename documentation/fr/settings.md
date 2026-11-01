@@ -3,10 +3,11 @@ title: Paramètres
 description: "Le nom, le logo, les couleurs, le fuseau horaire et le public de la page, la version, et l'organisation du tableau de bord."
 ---
 
-La page **Paramètres**, réservée aux administrateurs, liste six pages sous **Gestion**, à côté de la carte **Général** sur un grand écran, au-dessus sinon :
+La page **Paramètres**, réservée aux administrateurs, liste sept pages sous **Gestion**, à côté de la carte **Général** sur un grand écran, au-dessus sinon :
 
 - **Équipe** : les membres et leurs rôles. Voir [Équipe et rôles](team.md).
 - **Alertes** : les canaux qui reçoivent les nouvelles. Voir [Alertes](alerts.md).
+- **Widget** : le widget d'état à coller dans un intranet ou un wiki. Voir [Widget d'état](widget.md).
 - **API** : les clés des scripts et des outils qui utilisent l'API. Voir [API](api.md#keys).
 - **Journal** : ce qui s'est passé sur l'instance. Voir [Journal](journal.md).
 - **Sauvegardes** : l'horaire des sauvegardes automatiques, et les sauvegardes du serveur. Voir [Sauvegardes](backups.md).
