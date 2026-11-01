@@ -135,8 +135,10 @@
         border: 1px solid var(--line);
     }
 
+    /* The tint lies over the box's own ground, so it reads the same in the
+       frame and in the settings' preview, whatever is behind. */
     .embed-alert {
-        background: var(--tone-soft);
+        background: linear-gradient(var(--tone-soft) 0 0), var(--card);
         border-color: var(--tone-border);
     }
 

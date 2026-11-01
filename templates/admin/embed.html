@@ -1,0 +1,78 @@
+{% extends "_layout.html" %}
+{% import "components/macros.html" as ui %}
+
+{% block title %}{{ i18n.t("embed.title") }} | {{ crate::brand_name() }}{% endblock %}
+{% block section %}admin{% endblock %}
+
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <a href="/admin/settings" class="back-link">{% call ui::arrow_left() %}{% endcall %}{{ i18n.t("admin.back_to_settings") }}</a>
+            <h1 class="page-title">{{ i18n.t("embed.title") }}</h1>
+        </div>
+    </header>
+
+    {% if changed %}
+    <div class="form-notice mb-5" data-replace-url="/admin/embed" role="status"><p>{{ i18n.t("embed.changed_notice") }}</p></div>
+    {% endif %}
+
+    {# The embed as a member sees it, in the theme of the code below; the
+       theme is chosen by address, so the page needs no script for it. #}
+    <div class="card-grid">
+    <section class="card" aria-labelledby="preview-title">
+        <header class="card-head">
+            <h2 id="preview-title" class="card-title">{{ i18n.t("embed.preview") }}</h2>
+            <nav class="segmented embed-themes" aria-label="{{ i18n.t("nav.theme") }}">
+                {% for choice in self.theme_choices() %}
+                <a class="choice" href="{{ choice.href }}"{% if choice.current %} aria-current="true"{% endif %}>{{ choice.label }}</a>
+                {% endfor %}
+            </nav>
+        </header>
+        <div class="card-body embed-preview{% if self.is_dark() %} dark{% endif %}">
+            {% include "components/embed_box.html" %}
+        </div>
+    </section>
+
+    <section class="card" aria-labelledby="paste-title">
+        <header class="card-head">
+            <h2 id="paste-title" class="card-title">{{ i18n.t("embed.to_paste") }}</h2>
+        </header>
+        <div class="card-body stack">
+            <div class="field">
+                <label for="embed-address" class="field-label">{{ i18n.t("embed.address") }}</label>
+                <div class="embed-copy-row">
+                    <input id="embed-address" class="input" type="text" value="{{ address }}" readonly spellcheck="false" data-select-on-focus>
+                    <button type="button" class="btn btn-ghost" data-copy="#embed-address" data-copied="{{ i18n.t("banner.address_copied") }}">{{ i18n.t("banner.copy_address") }}</button>
+                </div>
+                <p class="field-hint">{{ self.height_hint() }}</p>
+            </div>
+            <div class="field">
+                <label for="embed-code" class="field-label">{{ i18n.t("embed.code") }}</label>
+                <div class="embed-copy-row">
+                    <textarea id="embed-code" class="input embed-code" rows="3" readonly spellcheck="false" data-select-on-focus>{{ code }}</textarea>
+                    <button type="button" class="btn btn-ghost" data-copy="#embed-code" data-copied="{{ i18n.t("embed.code_copied") }}">{{ i18n.t("embed.copy_code") }}</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    </div>
+
+    <section class="card danger-zone" aria-labelledby="change-title">
+        <div class="danger-zone-text">
+            <h2 id="change-title" class="card-title">{{ i18n.t("embed.change_title") }}</h2>
+            <p class="field-hint">{{ i18n.t("embed.change_consequence") }}</p>
+        </div>
+        <form method="post" action="/admin/embed/link" data-confirm>
+            <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+            <button type="button" class="btn btn-danger" data-confirm-open>{{ i18n.t("embed.change") }}</button>
+            <div class="confirm" role="group" aria-label="{{ i18n.t("embed.confirm_change_aria") }}" aria-describedby="change-q" data-confirm-box hidden>
+                <span id="change-q" class="confirm-text">{{ i18n.t("common.question_open") }}{{ i18n.t("embed.change_title") }}{{ i18n.t("common.question_mark") }}</span>
+                <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
+                <button type="submit" class="confirm-go" data-danger>{{ i18n.t("embed.change") }}</button>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}

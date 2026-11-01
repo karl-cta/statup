@@ -7,17 +7,25 @@ use std::collections::HashSet;
 
 use askama::Template;
 use axum::extract::{Query, State};
-use axum::http::HeaderValue;
 use axum::http::header::{CACHE_CONTROL, VARY};
-use axum::response::Response;
+use axum::http::{HeaderMap, HeaderValue};
+use axum::response::{Redirect, Response};
 use serde::Deserialize;
 
-use super::page::render;
+use super::dashboard::origin;
+use super::{Frame, render};
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
+use crate::middleware::headers::no_store;
+use crate::middleware::{CsrfToken, RequireAdmin};
+use crate::models::{JournalKind, Scope};
 use crate::modules::status_banner::{BannerRow, PageState};
-use crate::services::{EmbedService, member_scope, scope_of};
+use crate::repositories::NewJournalEntry;
+use crate::services::{EmbedService, member_scope, page_address, scope_of};
 use crate::state::AppState;
+
+/// The height of the frame, in pixels, in the code to paste: two lines.
+const EMBED_HEIGHT: u32 = 68;
 
 #[derive(Deserialize)]
 pub struct EmbedQuery {
@@ -35,11 +43,30 @@ enum EmbedTheme {
 }
 
 impl EmbedTheme {
+    const ALL: [Self; 3] = [Self::Light, Self::Dark, Self::Device];
+
     fn parse(value: Option<&str>) -> Self {
         match value {
             Some("dark") => Self::Dark,
             Some("auto") => Self::Device,
             _ => Self::Light,
+        }
+    }
+
+    /// The value in an address; light is the default and needs none.
+    fn query(self) -> Option<&'static str> {
+        match self {
+            Self::Light => None,
+            Self::Dark => Some("dark"),
+            Self::Device => Some("auto"),
+        }
+    }
+
+    fn label_key(self) -> &'static str {
+        match self {
+            Self::Light => "nav.theme_light",
+            Self::Dark => "nav.theme_dark",
+            Self::Device => "embed.theme_device",
         }
     }
 }
@@ -81,19 +108,12 @@ pub async fn show(
         Some(sent) => EmbedService::grants(&state.pool, sent).await?,
         None => false,
     };
-    let scope = if keyed {
-        Some(member_scope(&state.pool).await?)
+    let view = if keyed {
+        load_view(&state, &member_scope(&state.pool).await?, &i18n).await?
     } else if state.is_public_mode() {
-        Some(scope_of(&state.pool, None).await?)
+        load_view(&state, &scope_of(&state.pool, None).await?, &i18n).await?
     } else {
-        None
-    };
-    let view = match scope {
-        Some(scope) => view_of(
-            PageState::load(&state.pool, &scope, &i18n, false).await?,
-            &i18n,
-        ),
-        None => locked(&i18n),
+        locked(&i18n)
     };
     let template = EmbedTemplate {
         view,
@@ -101,6 +121,119 @@ pub async fn show(
         i18n,
     };
     Ok(with_cache_headers(render(&template)?, keyed))
+}
+
+#[derive(Template)]
+#[template(path = "admin/embed.html")]
+struct EmbedSettingsTemplate {
+    frame: Frame,
+    view: EmbedView,
+    theme: EmbedTheme,
+    address: String,
+    code: String,
+    changed: bool,
+    i18n: I18n,
+}
+
+/// One segment of the theme choice: a link to the page with that theme.
+struct ThemeChoice {
+    label: String,
+    href: String,
+    current: bool,
+}
+
+impl EmbedSettingsTemplate {
+    fn is_dark(&self) -> bool {
+        self.theme == EmbedTheme::Dark
+    }
+
+    fn height_hint(&self) -> String {
+        self.i18n
+            .tf("embed.height", &[("px", &EMBED_HEIGHT.to_string())])
+    }
+
+    fn theme_choices(&self) -> Vec<ThemeChoice> {
+        EmbedTheme::ALL
+            .into_iter()
+            .map(|theme| ThemeChoice {
+                label: self.i18n.t(theme.label_key()).to_string(),
+                href: theme.query().map_or_else(
+                    || "/admin/embed".to_string(),
+                    |q| format!("/admin/embed?theme={q}"),
+                ),
+                current: theme == self.theme,
+            })
+            .collect()
+    }
+}
+
+#[derive(Deserialize)]
+pub struct SettingsQuery {
+    theme: Option<String>,
+    changed: Option<String>,
+}
+
+/// The embed as the intranet will show it, and what to paste there. The
+/// page carries the private link, so no cache keeps it.
+pub async fn settings(
+    RequireAdmin(admin): RequireAdmin,
+    State(state): State<AppState>,
+    CsrfToken(csrf_token): CsrfToken,
+    Locale(i18n): Locale,
+    headers: HeaderMap,
+    Query(query): Query<SettingsQuery>,
+) -> Result<Response, AppError> {
+    let theme = EmbedTheme::parse(query.theme.as_deref());
+    let key = EmbedService::key(&state.pool).await?;
+    let base = match page_address(&state.pool, state.public_url.as_deref()).await? {
+        Some(address) => address,
+        None => origin(&state, &headers),
+    };
+    let address = embed_address(&base, &key, theme);
+    let code = format!(
+        r#"<iframe src="{}" title="{}" width="100%" height="{EMBED_HEIGHT}" style="border:0"></iframe>"#,
+        address.replace('&', "&amp;"),
+        i18n.t("dashboard.title"),
+    );
+    let view = load_view(&state, &member_scope(&state.pool).await?, &i18n).await?;
+    let frame = Frame::load(&state.pool, Some(&admin), csrf_token, &i18n).await?;
+    Ok(no_store(render(&EmbedSettingsTemplate {
+        frame,
+        view,
+        theme,
+        address,
+        code,
+        changed: query.changed.is_some(),
+        i18n,
+    })?))
+}
+
+/// A new private link: every embed pasted with the old one stops showing
+/// the state at once.
+pub async fn change_link(
+    RequireAdmin(admin): RequireAdmin,
+    State(state): State<AppState>,
+) -> Result<Redirect, AppError> {
+    EmbedService::regenerate(&state.pool).await?;
+    NewJournalEntry::new(JournalKind::EmbedLinkChanged)
+        .by(&admin)
+        .record(&state.pool)
+        .await;
+    Ok(Redirect::to("/admin/embed?changed=1"))
+}
+
+fn embed_address(base: &str, key: &str, theme: EmbedTheme) -> String {
+    match theme.query() {
+        Some(theme) => format!("{base}/embed?key={key}&theme={theme}"),
+        None => format!("{base}/embed?key={key}"),
+    }
+}
+
+async fn load_view(state: &AppState, scope: &Scope, i18n: &I18n) -> Result<EmbedView, AppError> {
+    Ok(view_of(
+        PageState::load(&state.pool, scope, i18n, false).await?,
+        i18n,
+    ))
 }
 
 /// Each refresh asks the server again; what the private link opens stays in

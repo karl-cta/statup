@@ -78,6 +78,8 @@ pub enum JournalKind {
     ApiKeyRegenerated,
     /// An administrator revoked an API key.
     ApiKeyRevoked,
+    /// An administrator gave the status embed a new private link.
+    EmbedLinkChanged,
     /// A member added someone to the team.
     MemberAdded,
     /// A member changed the role of someone.
@@ -262,6 +264,7 @@ impl JournalKind {
             Self::ApiKeyCreated => row(Cat::Members, true, Level::INFO, Tone::Neutral, "API key created", "journal.api_key_created"),
             Self::ApiKeyRegenerated => row(Cat::Members, true, Level::INFO, Tone::Neutral, "API key regenerated", "journal.api_key_regenerated"),
             Self::ApiKeyRevoked => row(Cat::Members, true, Level::INFO, Tone::Neutral, "API key revoked", "journal.api_key_revoked"),
+            Self::EmbedLinkChanged => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Embed link changed", "journal.embed_link_changed"),
             Self::MemberAdded => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Member added", "journal.member_added"),
             Self::MemberRoleChanged => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Member role changed", "journal.member_role_changed"),
             Self::MemberDisabled => row(Cat::Members, true, Level::INFO, Tone::Neutral, "Member disabled", "journal.member_disabled"),

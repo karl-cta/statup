@@ -328,6 +328,8 @@ fn admin_routes() -> Router<AppState> {
         .route("/setup/done", get(setup::done))
         .route("/admin/settings", get(admin::settings_page))
         .route("/admin/settings/logo/remove", post(admin::remove_logo))
+        .route("/admin/embed", get(embed::settings))
+        .route("/admin/embed/link", post(embed::change_link))
         .route("/admin/journal", get(journal::page))
         .route("/admin/journal/export", get(journal::export))
         .route("/admin/journal/settings", post(journal::save_settings))

@@ -187,3 +187,84 @@ async fn the_theme_follows_the_link_and_the_words_the_reader() {
         .unwrap();
     assert!(english.contains("View<svg"), "{english}");
 }
+
+async fn admin(app: &TestApp) {
+    app.create_user(
+        "karl@acme.fr",
+        "a long enough passphrase",
+        "Karl",
+        Role::Admin,
+    )
+    .await;
+    app.login("karl@acme.fr", "a long enough passphrase").await;
+}
+
+#[tokio::test]
+async fn the_settings_give_the_address_and_the_code_with_the_private_link() {
+    let app = TestApp::spawn_with(common::Options {
+        public_url: Some("https://status.acme.fr"),
+        ..common::Options::default()
+    })
+    .await;
+    admin(&app).await;
+    let (status, settings) = app.get("/admin/settings").await;
+    assert_eq!(status, reqwest::StatusCode::OK);
+    assert!(settings.contains(r#"href="/admin/embed""#));
+
+    let resp = app.get_response("/admin/embed").await;
+    assert_eq!(resp.headers()["cache-control"], "no-store");
+    let page = resp.text().await.unwrap();
+    let key = EmbedService::key(&app.pool).await.unwrap();
+    let address = format!("https://status.acme.fr/embed?key={key}");
+    assert!(page.contains(&format!(r#"value="{address}""#)), "{page}");
+    assert!(
+        page.contains("height=&#34;68&#34;"),
+        "the code says the height"
+    );
+    assert!(page.contains(r#"aria-current="true">Clair<"#));
+
+    let (_, dark) = app.get("/admin/embed?theme=dark").await;
+    assert!(
+        dark.contains(&format!(r#"value="{address}&#38;theme=dark""#)),
+        "{dark}"
+    );
+    assert!(dark.contains(r#"class="card-body embed-preview dark""#));
+}
+
+#[tokio::test]
+async fn only_an_administrator_opens_the_embed_settings() {
+    let app = TestApp::spawn().await;
+    app.create_user(
+        "lea@acme.fr",
+        "a long enough passphrase",
+        "Léa",
+        Role::Publisher,
+    )
+    .await;
+    app.login("lea@acme.fr", "a long enough passphrase").await;
+    let resp = app.get_response("/admin/embed").await;
+    assert_ne!(resp.status(), reqwest::StatusCode::OK);
+}
+
+#[tokio::test]
+async fn changing_the_link_stops_the_old_one_and_is_journaled() {
+    let app = TestApp::spawn().await;
+    admin(&app).await;
+    let csrf = app.csrf_from("/admin/embed").await;
+    let old = EmbedService::key(&app.pool).await.unwrap();
+
+    let (status, _, location) = app.post_form("/admin/embed/link", &csrf, &[]).await;
+    assert_eq!(status, reqwest::StatusCode::SEE_OTHER);
+    assert_eq!(location.as_deref(), Some("/admin/embed?changed=1"));
+    assert!(!EmbedService::grants(&app.pool, &old).await.unwrap());
+    let (_, page) = app.get("/admin/embed?changed=1").await;
+    assert!(page.contains("Lien changé."));
+
+    let journaled: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM journal_entries WHERE kind = 'embed_link_changed'",
+    )
+    .fetch_one(&app.pool)
+    .await
+    .unwrap();
+    assert_eq!(journaled, 1);
+}
