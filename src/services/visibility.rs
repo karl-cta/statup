@@ -13,10 +13,22 @@ pub async fn scope_of(pool: &DbPool, user: Option<&User>) -> Result<Scope, sqlx:
         return Ok(Scope::All);
     }
     let (ids, total) = ServiceRepository::visible_ids(pool, user.map(|user| user.id)).await?;
+    Ok(narrowed(ids, total))
+}
+
+/// What every signed-in reader sees, whatever their groups: the services
+/// open to everyone and to members. The status embed reads the page this
+/// way when it holds its private link.
+pub async fn member_scope(pool: &DbPool) -> Result<Scope, sqlx::Error> {
+    let (ids, total) = ServiceRepository::member_visible_ids(pool).await?;
+    Ok(narrowed(ids, total))
+}
+
+fn narrowed(ids: Vec<i64>, total: usize) -> Scope {
     if ids.len() == total {
-        return Ok(Scope::All);
+        return Scope::All;
     }
-    Ok(Scope::visible(ids))
+    Scope::visible(ids)
 }
 
 #[cfg(test)]
@@ -94,6 +106,21 @@ mod tests {
         assert_eq!(scope_of(&pool, Some(&inside)).await.unwrap(), Scope::All);
         assert_eq!(
             scope_of(&pool, Some(&outside)).await.unwrap(),
+            Scope::visible(vec![open, members])
+        );
+    }
+
+    #[tokio::test]
+    async fn the_member_scope_never_opens_a_group() {
+        let pool = test_pool().await;
+        let group = GroupRepository::create(&pool, "Support").await.unwrap();
+        let open = service(&pool, "Open", Visibility::Everyone, &[]).await;
+        let members = service(&pool, "Members", Visibility::Members, &[]).await;
+        assert_eq!(member_scope(&pool).await.unwrap(), Scope::All);
+
+        service(&pool, "Grouped", Visibility::Groups, &[group]).await;
+        assert_eq!(
+            member_scope(&pool).await.unwrap(),
             Scope::visible(vec![open, members])
         );
     }

@@ -25,6 +25,21 @@ impl SettingsRepository {
         .await?;
         Ok(())
     }
+
+    /// Insert a setting unless it exists, which keeps the first of two
+    /// concurrent writes.
+    pub async fn insert_if_absent(
+        pool: &DbPool,
+        key: &str,
+        value: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING")
+            .bind(key)
+            .bind(value)
+            .execute(pool)
+            .await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

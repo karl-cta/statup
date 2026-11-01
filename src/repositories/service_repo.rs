@@ -319,12 +319,17 @@ impl ServiceRepository {
         .bind(reader_id)
         .fetch_all(pool)
         .await?;
-        let total = rows.len();
-        let visible = rows
-            .into_iter()
-            .filter_map(|(id, visible)| visible.then_some(id))
-            .collect();
-        Ok((visible, total))
+        Ok(split_visible(rows))
+    }
+
+    /// The ids of the services open to everyone or to members, with the
+    /// count of all services: what any reader sees without a group.
+    pub async fn member_visible_ids(pool: &DbPool) -> Result<(Vec<i64>, usize), sqlx::Error> {
+        let rows: Vec<(i64, bool)> =
+            sqlx::query_as("SELECT id, visibility IN ('everyone', 'members') FROM services")
+                .fetch_all(pool)
+                .await?;
+        Ok(split_visible(rows))
     }
 
     /// Saves who sees the service. The grants only count for
@@ -380,6 +385,16 @@ impl ServiceRepository {
             .await?;
         Ok(())
     }
+}
+
+/// The ids marked visible, with the count of all the rows.
+fn split_visible(rows: Vec<(i64, bool)>) -> (Vec<i64>, usize) {
+    let total = rows.len();
+    let visible = rows
+        .into_iter()
+        .filter_map(|(id, visible)| visible.then_some(id))
+        .collect();
+    (visible, total)
 }
 
 #[cfg(test)]
