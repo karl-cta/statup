@@ -110,6 +110,110 @@
         transform: translateX(2px);
     }
 
+    /* The status embed: the banner, small, in a frame of a fixed height on
+       another site. The whole box is the link to the page. */
+    html:has(.embed-body) {
+        overflow: hidden;
+        scrollbar-gutter: auto;
+        background: var(--card);
+    }
+
+    .embed-body {
+        margin: 0;
+    }
+
+    .embed {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-content: center;
+        gap: 2px 10px;
+        box-sizing: border-box;
+        height: 100vh;
+        padding: 0 16px;
+        color: var(--ink);
+        background: var(--card);
+        border: 1px solid var(--line);
+    }
+
+    .embed-alert {
+        background: var(--tone-soft);
+        border-color: var(--tone-border);
+    }
+
+    .embed .ring-dot {
+        grid-row: 1;
+        align-self: center;
+    }
+
+    .embed-alert .ring-dot {
+        --dot: var(--tone-text);
+    }
+
+    .embed:focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: -2px;
+    }
+
+    .embed-title {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        min-width: 0;
+        font-size: var(--text-md);
+        font-weight: 600;
+        line-height: 1.35;
+    }
+
+    .embed-more {
+        flex: none;
+        font-size: var(--text-xs);
+        font-weight: 400;
+        font-variant-numeric: tabular-nums;
+        color: var(--ink-soft);
+    }
+
+    .embed-details {
+        grid-column: 2;
+        grid-row: 2;
+        font-size: var(--text-xs);
+        line-height: 1.4;
+        color: var(--ink-soft);
+    }
+
+    .embed-clip {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .embed-open {
+        grid-column: 3;
+        grid-row: 1 / span 2;
+        align-self: center;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: var(--text-sm);
+        font-weight: 600;
+    }
+
+    .embed-open svg {
+        width: 13px;
+        height: 13px;
+        transition: transform 150ms var(--ease-out);
+    }
+
+    .embed:hover .embed-open svg {
+        transform: translateX(2px);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .embed-open svg {
+            transition: none;
+        }
+    }
+
     .hero-list {
         margin: 16px 0 0;
         padding: 0;

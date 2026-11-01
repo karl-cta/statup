@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+{% let host = crate::instance_theme() -%}
+<html lang="{{ i18n.locale() }}"
+    {%- if self.is_dark() %} class="dark"{% endif %}
+    {%- if let Some(accent) = host.accent.attribute() %} data-accent="{{ accent }}"{% endif %}
+    {%- if let Some(ambiance) = host.ambiance.attribute() %} data-ambiance="{{ ambiance }}"{% endif %}>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    {# Kept fresh without a script, which some intranets forbid in a frame. #}
+    <meta http-equiv="refresh" content="60">
+    <title>{{ i18n.t("dashboard.title") }}</title>
+    <link rel="preload" href="/static/fonts/hanken-grotesk-variable.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="{{ crate::asset("css/style.css") }}">
+    {% if self.follows_device() %}<script src="{{ crate::asset("js/embed-theme.js") }}"></script>{% endif %}
+</head>
+<body class="embed-body">
+    <a class="embed{% if view.alert %} embed-alert{% endif %}" href="/" target="_blank" rel="noopener" data-tone="{{ view.tone }}">
+        <span class="ring-dot" data-tone="{{ view.tone }}" aria-hidden="true"></span>
+        <span class="embed-title"><span class="embed-clip">{{ view.title }}</span>{% if let Some(more) = view.more %}<span class="embed-more">{{ more }}</span>{% endif %}</span>
+        {%- if !view.details.is_empty() %}
+        <span class="embed-details embed-clip">{% for part in view.details %}{% if !loop.first %}&nbsp;<span aria-hidden="true">·</span> {% endif %}{{ part }}{% endfor %}</span>
+        {%- endif %}
+        <span class="embed-open">{{ i18n.t("embed.open") }}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg></span>
+    </a>
+</body>
+</html>

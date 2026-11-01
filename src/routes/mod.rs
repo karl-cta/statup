@@ -13,6 +13,7 @@ mod backups;
 mod checks;
 mod dashboard;
 mod dashboard_layout;
+mod embed;
 mod events;
 mod feed;
 mod folders;
@@ -94,6 +95,10 @@ const RESTORE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 /// picked at first launch show before it is uploaded.
 const APP_CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'";
 
+/// The status embed is framed by other sites. It holds a single link and no
+/// form, so there is nothing to trick a reader into doing there.
+const EMBED_CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors *";
+
 const PERMISSIONS_POLICY: &str = "camera=(), microphone=(), geolocation=(), interest-cohort=()";
 
 /// Builds the application router. The session layer is added by the caller.
@@ -107,7 +112,9 @@ pub fn create_router(state: AppState, rate_limit: &RateLimit) -> Router {
         .merge(files)
         .nest("/api", api::api_routes(rate_limit))
         .layer(access_log())
-        .route("/health", get(health::check));
+        .route("/health", get(health::check))
+        .layer(overriding(X_FRAME_OPTIONS, "DENY"))
+        .merge(embed_routes());
     with_security_headers(app, serves_https)
         .layer(compression())
         .with_state(state)
@@ -141,6 +148,15 @@ fn dynamic_routes(state: &AppState, rate_limit: &RateLimit) -> Router<AppState> 
             CACHE_CONTROL,
             HeaderValue::from_static(DYNAMIC_CACHE_CONTROL),
         ))
+}
+
+/// The only page another site may frame. Outside the access log and the
+/// shared rate limit: every reader of an intranet asks for it each minute,
+/// often from one company address, and it costs a few reads.
+fn embed_routes() -> Router<AppState> {
+    Router::new()
+        .route("/embed", get(embed::show))
+        .layer(overriding(CONTENT_SECURITY_POLICY, EMBED_CSP))
 }
 
 /// Inside the body limit: the CSRF check reads form bodies, then the
@@ -474,7 +490,6 @@ fn request_span(request: &Request<Body>) -> Span {
 fn with_security_headers(router: Router<AppState>, serves_https: bool) -> Router<AppState> {
     let router = router
         .layer(overriding(X_CONTENT_TYPE_OPTIONS, "nosniff"))
-        .layer(overriding(X_FRAME_OPTIONS, "DENY"))
         .layer(overriding(
             REFERRER_POLICY,
             "strict-origin-when-cross-origin",
