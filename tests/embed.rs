@@ -162,7 +162,7 @@ async fn a_calm_page_says_so_and_links_to_the_page() {
 }
 
 #[tokio::test]
-async fn the_theme_follows_the_link_and_the_words_the_reader() {
+async fn the_theme_and_the_language_follow_the_link_then_the_reader() {
     let app = TestApp::spawn_public().await;
     service(&app, "Wiki", Visibility::Everyone).await;
 
@@ -186,6 +186,17 @@ async fn the_theme_follows_the_link_and_the_words_the_reader() {
         .await
         .unwrap();
     assert!(english.contains("View<svg"), "{english}");
+
+    let (_, chosen) = embed(&app, "?lang=en").await;
+    assert!(
+        chosen.contains("View<svg"),
+        "the address's language wins over the reader's"
+    );
+    let (_, unknown) = embed(&app, "?lang=xx").await;
+    assert!(
+        unknown.contains("Voir<svg"),
+        "an unknown language falls back to the reader's"
+    );
 }
 
 async fn admin(app: &TestApp) {
@@ -215,7 +226,7 @@ async fn the_settings_give_the_address_and_the_code_with_the_private_link() {
     assert_eq!(resp.headers()["cache-control"], "no-store");
     let page = resp.text().await.unwrap();
     let key = EmbedService::key(&app.pool).await.unwrap();
-    let address = format!("https://status.acme.fr/embed?key={key}");
+    let address = format!("https://status.acme.fr/embed?key={key}&#38;lang=fr");
     assert!(page.contains(&format!(r#"value="{address}""#)), "{page}");
     assert!(
         page.contains("height=&#34;68&#34;"),

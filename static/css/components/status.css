@@ -128,7 +128,10 @@
         align-content: center;
         gap: 2px 10px;
         box-sizing: border-box;
+        /* Its frame's height, up to the 68px of the code to paste: a tool
+           with a taller minimum keeps the box at the top, not stretched. */
         height: 100vh;
+        max-height: 68px;
         padding: 0 16px;
         color: var(--ink);
         background: var(--card);

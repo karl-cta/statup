@@ -32,10 +32,12 @@ The address starts with [`PUBLIC_URL`](configuration.md#public_url) when it is s
 A page that accepts HTML takes the **HTML code**:
 
 ```html
-<iframe src="https://status.example.com/embed?key=YOUR-PRIVATE-KEY" title="Service status" width="100%" height="68" style="border:0"></iframe>
+<iframe src="https://status.example.com/embed?key=YOUR-PRIVATE-KEY&amp;lang=en" title="Service status" width="100%" height="68" style="border:0"></iframe>
 ```
 
 A tool that asks for an address and a height, such as an iframe block of a wiki, takes the **Address** and 68 px.
+
+In Notion, type `/embed`, choose **Embed**, paste the **Address** and confirm with **Embed link**. Notion keeps its blocks taller than the widget, which stays at the top of its block. Choose **Match the device** before copying, so the widget follows Notion's dark mode.
 
 Only the widget can be shown inside another site: every other page of Statup refuses to be framed.
 
@@ -54,4 +56,4 @@ The intranet where the widget is pasted is usually behind the company sign-in, s
 
 The theme is part of the address: `theme=dark` for **Dark**, `theme=auto` for **Match the device**, nothing for **Light**.
 
-The widget speaks the language of the reader's browser. It never sees the reader's Statup sign-in, so it does not follow the language chosen in the profile.
+The address also carries the language Statup was in when it was copied, `lang=en` for example, and the widget speaks it in every tool. To paste it in another language, switch Statup to that language before copying. Without `lang`, the widget speaks the language the reader's browser asks for.

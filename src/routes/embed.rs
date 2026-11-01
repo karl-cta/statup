@@ -15,7 +15,7 @@ use serde::Deserialize;
 use super::dashboard::origin;
 use super::{Frame, render};
 use crate::error::AppError;
-use crate::i18n::{I18n, Locale};
+use crate::i18n::{I18n, Locale, language};
 use crate::middleware::headers::no_store;
 use crate::middleware::{CsrfToken, RequireAdmin};
 use crate::models::{JournalKind, Scope};
@@ -31,6 +31,9 @@ const EMBED_HEIGHT: u32 = 68;
 pub struct EmbedQuery {
     key: Option<String>,
     theme: Option<String>,
+    /// The language chosen when the address was copied: some tools frame
+    /// the widget with a language of their own, not the reader's.
+    lang: Option<String>,
 }
 
 /// Light unless asked otherwise: most intranets are light, and the frame
@@ -104,6 +107,11 @@ pub async fn show(
     Locale(i18n): Locale,
     Query(query): Query<EmbedQuery>,
 ) -> Result<Response, AppError> {
+    let i18n = query
+        .lang
+        .as_deref()
+        .filter(|code| language(code).is_some())
+        .map_or(i18n, I18n::new);
     let keyed = match query.key.as_deref() {
         Some(sent) => EmbedService::grants(&state.pool, sent).await?,
         None => false,
@@ -189,7 +197,7 @@ pub async fn settings(
         Some(address) => address,
         None => origin(&state, &headers),
     };
-    let address = embed_address(&base, &key, theme);
+    let address = embed_address(&base, &key, i18n.locale(), theme);
     let code = format!(
         r#"<iframe src="{}" title="{}" width="100%" height="{EMBED_HEIGHT}" style="border:0"></iframe>"#,
         address.replace('&', "&amp;"),
@@ -222,10 +230,11 @@ pub async fn change_link(
     Ok(Redirect::to("/admin/embed?changed=1"))
 }
 
-fn embed_address(base: &str, key: &str, theme: EmbedTheme) -> String {
+fn embed_address(base: &str, key: &str, lang: &str, theme: EmbedTheme) -> String {
+    let address = format!("{base}/embed?key={key}&lang={lang}");
     match theme.query() {
-        Some(theme) => format!("{base}/embed?key={key}&theme={theme}"),
-        None => format!("{base}/embed?key={key}"),
+        Some(theme) => format!("{address}&theme={theme}"),
+        None => address,
     }
 }
 

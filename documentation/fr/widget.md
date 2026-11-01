@@ -32,10 +32,12 @@ L'adresse commence par [`PUBLIC_URL`](configuration.md#public_url) quand il est 
 Une page qui accepte du HTML prend le **Code HTML** :
 
 ```html
-<iframe src="https://status.example.com/embed?key=YOUR-PRIVATE-KEY" title="Service status" width="100%" height="68" style="border:0"></iframe>
+<iframe src="https://status.example.com/embed?key=YOUR-PRIVATE-KEY&amp;lang=en" title="Service status" width="100%" height="68" style="border:0"></iframe>
 ```
 
 Un outil qui demande une adresse et une hauteur, comme le bloc iframe d'un wiki, prend l'**Adresse** et 68 px.
+
+Dans Notion, tapez `/integrer`, choisissez **Intégrer**, collez l'**Adresse** et validez par **Intégrer le lien**. Notion garde ses blocs plus hauts que le widget, qui reste en haut de son bloc. Choisissez **Selon l'appareil** avant de copier, pour que le widget suive le mode sombre de Notion.
 
 Seul le widget peut s'afficher dans un autre site : toutes les autres pages de Statup refusent de s'afficher dans un cadre.
 
@@ -54,4 +56,4 @@ L'intranet où le widget est collé est en général derrière la connexion de l
 
 Le thème fait partie de l'adresse : `theme=dark` pour **Sombre**, `theme=auto` pour **Selon l'appareil**, rien pour **Clair**.
 
-Le widget parle la langue du navigateur du lecteur. Il ne voit jamais la connexion du lecteur à Statup, donc il ne suit pas la langue choisie dans le profil.
+L'adresse porte aussi la langue de Statup au moment de la copie, `lang=fr` par exemple, et le widget la parle dans tous les outils. Pour le coller dans une autre langue, passez Statup dans cette langue avant de copier. Sans `lang`, le widget parle la langue que demande le navigateur du lecteur.
