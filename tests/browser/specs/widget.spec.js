@@ -3,27 +3,29 @@
 // would. Changing the link gives a new address, and the old one stops being
 // the members' view. The test changes the one link of the shared instance, so
 // it runs once, not on a phone too.
+import { createServer } from "node:http";
+
 import { expect, test } from "../fixtures.js";
 
 test.skip(({ isMobile }) => isMobile, "the same page on a phone, checked once");
 
 const ADDRESS = /^https?:\/\/[^/]+\/embed\?key=([A-Za-z0-9]{32})&lang=fr(&theme=(dark|auto))?$/;
 
-// An intranet page at an address of its own: `frame-ancestors *` admits
-// http and https pages, not the null origin of an empty page.
-const INTRANET = "http://intranet.test/";
-
+// An intranet page served by another site on this machine: Chrome blocks a
+// page it takes for public from framing a local address, so the page that
+// frames the widget is local too, at another origin.
 async function framedWidget(context, address) {
-    const page = await context.newPage();
     // Escaped like the code the page offers to paste.
     const src = address.replaceAll("&", "&amp;");
-    await page.route(INTRANET, (route) =>
-        route.fulfill({
-            contentType: "text/html",
-            body: `<!doctype html><title>Intranet</title><iframe src="${src}" title="Widget" width="600" height="68"></iframe>`,
-        }),
-    );
-    await page.goto(INTRANET);
+    const body = `<!doctype html><title>Intranet</title><iframe src="${src}" title="Widget" width="600" height="68"></iframe>`;
+    const server = createServer((_, response) => {
+        response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+        response.end(body);
+    });
+    await new Promise((ready) => server.listen(0, "127.0.0.1", ready));
+    const page = await context.newPage();
+    await page.goto(`http://localhost:${server.address().port}/`);
+    page.on("close", () => server.close());
     return page.frameLocator("iframe").locator("a.embed");
 }
 
@@ -35,9 +37,7 @@ async function cacheControl(page, address) {
 }
 
 test("an admin copies the widget address, frames it, then changes the link", async ({ page, context }) => {
-    // Chrome asks before a page it takes for public frames a local address,
-    // and the test instance listens on 127.0.0.1.
-    await context.grantPermissions(["clipboard-read", "clipboard-write", "local-network-access"]);
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 
     await page.goto("/admin/settings");
     await page.getByRole("link", { name: /^Widget/ }).click();
