@@ -159,7 +159,7 @@ async fn the_private_link_shows_what_a_member_sees_and_never_a_group() {
         body.contains("1\u{a0}autre"),
         "the other visible incident is counted, not the hidden one"
     );
-    assert_eq!(headers["cache-control"], "private, no-cache");
+    assert_eq!(headers["cache-control"], "no-cache, private");
 
     EmbedService::regenerate(&app.pool).await.unwrap();
     let (_, body) = embed(&app, &format!("?key={key}")).await;
@@ -264,6 +264,16 @@ async fn the_settings_give_the_address_and_the_code_with_the_private_link() {
         page.contains("height=&#34;68&#34;"),
         "the code says the height"
     );
+    assert!(
+        page.contains("&#38;amp;lang=fr"),
+        "the code keeps the entity an administrator reads"
+    );
+    assert!(
+        page.contains(&format!(
+            r#"<iframe class="embed-frame" src="/embed?key={key}&#38;lang=fr""#
+        )),
+        "the preview is the embed itself"
+    );
     assert!(page.contains(r#"aria-current="true">Clair<"#));
 
     let (_, dark) = app.get("/admin/embed?theme=dark").await;
@@ -271,7 +281,9 @@ async fn the_settings_give_the_address_and_the_code_with_the_private_link() {
         dark.contains(&format!(r#"value="{address}&#38;theme=dark""#)),
         "{dark}"
     );
-    assert!(dark.contains(r#"class="card-body embed-preview dark""#));
+    assert!(dark.contains(&format!(
+        r#"src="/embed?key={key}&#38;lang=fr&#38;theme=dark""#
+    )));
 }
 
 #[tokio::test]

@@ -16,7 +16,7 @@ use super::dashboard::origin;
 use super::{Frame, render};
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale, language};
-use crate::middleware::headers::no_store;
+use crate::middleware::headers::{DYNAMIC_CACHE_CONTROL, no_store};
 use crate::middleware::{CsrfToken, RequireAdmin};
 use crate::models::{JournalKind, Scope};
 use crate::modules::status_banner::{BannerRow, PageState};
@@ -65,6 +65,14 @@ impl EmbedTheme {
         }
     }
 
+    fn is_dark(self) -> bool {
+        self == Self::Dark
+    }
+
+    fn follows_device(self) -> bool {
+        self == Self::Device
+    }
+
     fn label_key(self) -> &'static str {
         match self {
             Self::Light => "nav.theme_light",
@@ -77,8 +85,6 @@ impl EmbedTheme {
 /// What the embed says: one line of state, one line of detail.
 struct EmbedView {
     tone: &'static str,
-    /// The banner's tint, while a service is disrupted or under maintenance.
-    alert: bool,
     title: String,
     more: Option<String>,
     details: Vec<String>,
@@ -92,13 +98,10 @@ struct EmbedTemplate {
     i18n: I18n,
 }
 
-impl EmbedTemplate {
-    fn is_dark(&self) -> bool {
-        self.theme == EmbedTheme::Dark
-    }
-
-    fn follows_device(&self) -> bool {
-        self.theme == EmbedTheme::Device
+impl EmbedView {
+    /// The banner's tint, while a service is disrupted or under maintenance.
+    fn alert(&self) -> bool {
+        !matches!(self.tone, "ok" | "neutral")
     }
 }
 
@@ -135,24 +138,15 @@ pub async fn show(
 #[template(path = "admin/embed.html")]
 struct EmbedSettingsTemplate {
     frame: Frame,
-    view: EmbedView,
     theme: EmbedTheme,
+    /// The embed itself, framed in the page: the preview is what the
+    /// intranet shows, colours and night variants included.
+    preview: String,
+    height: u32,
     address: String,
     code: String,
     changed: bool,
     i18n: I18n,
-}
-
-/// The HTML to paste, escaped like any template whatever the address holds.
-#[derive(Template)]
-#[template(
-    source = r#"<iframe src="{{ src }}" title="{{ title }}" width="100%" height="{{ height }}" style="border:0"></iframe>"#,
-    ext = "html"
-)]
-struct EmbedCode<'a> {
-    src: &'a str,
-    title: &'a str,
-    height: u32,
 }
 
 /// One segment of the theme choice: a link to the page with that theme.
@@ -163,10 +157,6 @@ struct ThemeChoice {
 }
 
 impl EmbedSettingsTemplate {
-    fn is_dark(&self) -> bool {
-        self.theme == EmbedTheme::Dark
-    }
-
     fn height_hint(&self) -> String {
         self.i18n
             .tf("embed.height", &[("px", &EMBED_HEIGHT.to_string())])
@@ -210,19 +200,17 @@ pub async fn settings(
         None => origin(&state, &headers),
     };
     let address = embed_address(&base, &key, i18n.locale(), theme);
-    let code = EmbedCode {
-        src: &address,
-        title: i18n.t("dashboard.title"),
-        height: EMBED_HEIGHT,
-    }
-    .render()
-    .map_err(|e| AppError::Internal(anyhow::anyhow!("template render error: {e}")))?;
-    let view = load_view(&state, &member_scope(&state.pool).await?, &i18n).await?;
+    let code = format!(
+        r#"<iframe src="{}" title="{}" width="100%" height="{EMBED_HEIGHT}" style="border:0"></iframe>"#,
+        attribute(&address),
+        attribute(i18n.t("dashboard.title")),
+    );
     let frame = Frame::load(&state.pool, Some(&admin), csrf_token, &i18n).await?;
     Ok(no_store(render(&EmbedSettingsTemplate {
         frame,
-        view,
         theme,
+        preview: embed_address("", &key, i18n.locale(), theme),
+        height: EMBED_HEIGHT,
         address,
         code,
         changed: query.changed.is_some(),
@@ -244,6 +232,15 @@ pub async fn change_link(
     Ok(Redirect::to("/admin/embed?changed=1"))
 }
 
+/// A value for an attribute of the code to paste, with the named entities
+/// an administrator reads at a glance.
+fn attribute(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
+}
+
 fn embed_address(base: &str, key: &str, lang: &str, theme: EmbedTheme) -> String {
     let address = format!("{base}/embed?key={key}&lang={lang}");
     match theme.query() {
@@ -263,7 +260,7 @@ async fn load_view(state: &AppState, scope: &Scope, i18n: &I18n) -> Result<Embed
 /// the reader's own cache. The words follow the reader's language.
 fn with_cache_headers(mut response: Response, keyed: bool) -> Response {
     let cache = if keyed {
-        "private, no-cache"
+        DYNAMIC_CACHE_CONTROL
     } else {
         "no-cache"
     };
@@ -278,7 +275,6 @@ fn with_cache_headers(mut response: Response, keyed: bool) -> Response {
 fn locked(i18n: &I18n) -> EmbedView {
     EmbedView {
         tone: "neutral",
-        alert: false,
         title: i18n.t("dashboard.title").to_string(),
         more: None,
         details: vec![i18n.t("embed.relink").to_string()],
@@ -294,7 +290,6 @@ fn view_of(state: PageState, i18n: &I18n) -> EmbedView {
         };
         return EmbedView {
             tone: "neutral",
-            alert: false,
             title: i18n.t(key).to_string(),
             more: None,
             details: Vec::new(),
@@ -314,7 +309,6 @@ fn calm(state: PageState, i18n: &I18n) -> EmbedView {
     };
     EmbedView {
         tone: "ok",
-        alert: false,
         title: state.headline,
         more: None,
         details,
@@ -335,7 +329,6 @@ fn troubled(state: &PageState, first: &BannerRow, i18n: &I18n) -> EmbedView {
     details.extend(freshness(first, i18n));
     EmbedView {
         tone: state.tone.as_str(),
-        alert: true,
         title: first
             .cause
             .as_ref()

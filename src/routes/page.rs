@@ -120,10 +120,12 @@ impl Frame {
 }
 
 pub fn render(template: &impl Template) -> Result<Response, AppError> {
-    let html = template
-        .render()
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("template render error: {e}")))?;
+    let html = template.render().map_err(|e| render_error(&e))?;
     Ok(Html(html).into_response())
+}
+
+pub fn render_error(e: &askama::Error) -> AppError {
+    AppError::Internal(anyhow::anyhow!("template render error: {e}"))
 }
 
 /// A run of a title, marked when it matches the search.

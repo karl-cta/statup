@@ -25,10 +25,8 @@ impl EmbedService {
 
     /// A new key: every embed pasted with the old one stops showing the
     /// state at once.
-    pub async fn regenerate(pool: &DbPool) -> Result<String, sqlx::Error> {
-        let key = new_secret();
-        SettingsRepository::set(pool, EMBED_KEY_SETTING, &key).await?;
-        Ok(key)
+    pub async fn regenerate(pool: &DbPool) -> Result<(), sqlx::Error> {
+        SettingsRepository::set(pool, EMBED_KEY_SETTING, &new_secret()).await
     }
 
     /// Whether the key an embed sent is the current one. Nothing is made
@@ -65,7 +63,8 @@ mod tests {
         assert!(EmbedService::grants(&pool, &old).await.unwrap());
         assert!(!EmbedService::grants(&pool, &old[..31]).await.unwrap());
 
-        let new = EmbedService::regenerate(&pool).await.unwrap();
+        EmbedService::regenerate(&pool).await.unwrap();
+        let new = EmbedService::key(&pool).await.unwrap();
         assert_ne!(new, old);
         assert!(!EmbedService::grants(&pool, &old).await.unwrap());
         assert!(EmbedService::grants(&pool, &new).await.unwrap());

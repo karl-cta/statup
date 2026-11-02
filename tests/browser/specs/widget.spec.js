@@ -51,12 +51,14 @@ test("an admin copies the widget address, frames it, then changes the link", asy
 
     const themes = page.getByRole("navigation", { name: "Thème" });
     await expect(themes.getByRole("link", { name: "Clair" })).toHaveAttribute("aria-current", "true");
-    await expect(page.locator(".embed-preview")).not.toHaveClass(/\bdark\b/);
+    const preview = page.frameLocator("iframe.embed-frame");
+    await expect(preview.locator("a.embed"), "the preview is the widget itself").toBeVisible();
+    await expect(preview.locator("html")).not.toHaveClass(/\bdark\b/);
 
     await themes.getByRole("link", { name: "Sombre" }).click();
     await expect(page).toHaveURL(/\/admin\/embed\?theme=dark$/);
     await expect(themes.getByRole("link", { name: "Sombre" })).toHaveAttribute("aria-current", "true");
-    await expect(page.locator(".embed-preview")).toHaveClass(/\bdark\b/);
+    await expect(preview.locator("html")).toHaveClass(/\bdark\b/);
     await expect(address).toHaveValue(`${light}&theme=dark`);
     await expect(page.locator("#embed-code")).toHaveValue(/<iframe src=".*&amp;theme=dark" title="État des services"/);
 
@@ -73,7 +75,7 @@ test("an admin copies the widget address, frames it, then changes the link", asy
     const widget = await framedWidget(context, copied);
     await expect(widget, "the widget shows in a frame of another page").toBeVisible();
     await expect(widget).toContainText("Voir");
-    expect(await cacheControl(page, copied), "the old link is a private one").toBe("private, no-cache");
+    expect(await cacheControl(page, copied), "the old link is a private one").toBe("no-cache, private");
 
     await page.getByRole("button", { name: "Changer", exact: true }).click();
     const confirmation = page.getByRole("group", { name: "Confirmer le changement du lien" });
@@ -89,7 +91,7 @@ test("an admin copies the widget address, frames it, then changes the link", asy
 
     const fresh = await framedWidget(context, renewed);
     await expect(fresh).toContainText("Voir");
-    expect(await cacheControl(page, renewed), "the new link is a private one").toBe("private, no-cache");
+    expect(await cacheControl(page, renewed), "the new link is a private one").toBe("no-cache, private");
 
     // The instance is open to everyone, so the old address still shows a
     // widget, the visitor's: it is no longer the members' view.

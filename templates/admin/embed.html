@@ -17,8 +17,8 @@
     <div class="form-notice mb-5" data-replace-url="/admin/embed" role="status"><p>{{ i18n.t("embed.changed_notice") }}</p></div>
     {% endif %}
 
-    {# The embed as a member sees it, in the theme of the code below; the
-       theme is chosen by address, so the page needs no script for it. #}
+    {# The embed itself as a member sees it, in the theme of the code below;
+       the theme is chosen by address, so the page needs no script for it. #}
     <div class="card-grid">
     <section class="card" aria-labelledby="preview-title">
         <header class="card-head">
@@ -29,8 +29,8 @@
                 {% endfor %}
             </nav>
         </header>
-        <div class="card-body embed-preview{% if self.is_dark() %} dark{% endif %}">
-            {% include "components/embed_box.html" %}
+        <div class="card-body">
+            <iframe class="embed-frame" src="{{ preview }}" title="{{ i18n.t("embed.preview") }}" height="{{ height }}"></iframe>
         </div>
     </section>
 

@@ -114,6 +114,7 @@
     }
 
     .segmented .choice:has(:checked),
+    .segmented .choice[aria-current],
     .segmented .choice:has(:focus-visible) {
         position: relative;
         z-index: 1;
@@ -1120,17 +1121,9 @@
         min-width: 0;
     }
 
-    /* The status embed's page: the box at the height of its frame, the
-       theme chosen by address in a segmented control, then what to paste. */
-    .segmented .choice[aria-current] {
-        position: relative;
-        z-index: 1;
-        color: var(--on-primary);
-        background: var(--primary);
-        border-color: var(--primary);
-    }
-
-    /* On a phone the three themes take a row of their own under the title. */
+    /* The status embed's page: the theme chosen by address in a segmented
+       control, the embed itself framed, then what to paste. On a phone the
+       three themes take a row of their own under the title. */
     @media (max-width: 560px) {
         .card-head:has(> .embed-themes) {
             flex-wrap: wrap;
@@ -1142,9 +1135,11 @@
         }
     }
 
-    .embed-preview .embed {
+    .embed-frame {
+        display: block;
+        width: 100%;
         max-width: 560px;
-        height: 68px;
+        border: 0;
     }
 
     .embed-copy-row {

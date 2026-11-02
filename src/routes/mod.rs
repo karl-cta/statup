@@ -72,7 +72,7 @@ use crate::middleware::load_session_user;
 use crate::middleware::rate_limit::RateLimit;
 use crate::state::AppState;
 
-pub(crate) use page::{Frame, members_only, render};
+pub(crate) use page::{Frame, members_only, render, render_error};
 
 /// Forms carry text only.
 const FORM_BODY_LIMIT: usize = 64 * 1024;
@@ -92,8 +92,9 @@ const RESTORE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
 /// No inline script, handler or style anywhere: behavior lives in
 /// `static/js`, presentation in the stylesheet. `blob:` images let a logo
-/// picked at first launch show before it is uploaded.
-const APP_CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'";
+/// picked at first launch show before it is uploaded. `frame-src 'self'`
+/// lets the widget settings frame the widget, the only page that allows it.
+const APP_CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-src 'self'; frame-ancestors 'none'";
 
 /// The status embed is framed by other sites. It holds a single link and no
 /// form, so there is nothing to trick a reader into doing there.
@@ -150,9 +151,8 @@ fn dynamic_routes(state: &AppState, rate_limit: &RateLimit) -> Router<AppState> 
         ))
 }
 
-/// The only page another site may frame. Outside the access log and the
-/// shared rate limit, behind a larger one of its own: every reader of an
-/// intranet asks for it each minute, often from one company address.
+/// The only page another site may frame, outside the access log and behind
+/// a rate limit of its own.
 fn embed_routes(rate_limit: &RateLimit) -> Router<AppState> {
     Router::new()
         .route("/embed", get(embed::show))

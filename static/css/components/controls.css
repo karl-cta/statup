@@ -681,7 +681,8 @@
         border-color: var(--focus);
     }
 
-    .choice:has(:checked) {
+    .choice:has(:checked),
+    .choice[aria-current] {
         color: var(--on-primary);
         background: var(--primary);
         border-color: var(--primary);
