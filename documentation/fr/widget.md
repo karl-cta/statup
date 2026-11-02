@@ -46,6 +46,11 @@ Seul le widget peut s'afficher dans un autre site : toutes les autres pages de 
 > [!NOTE]
 > Certains intranets n'affichent un cadre que depuis une adresse que leur administrateur a autorisée. Si le widget reste vide, demandez-lui d'autoriser l'adresse de Statup.
 
+Un intranet sur Internet, comme Notion, avec Statup sur le réseau de l'entreprise :
+
+- Donnez à Statup une adresse en `https` : une page servie en `https` refuse un cadre en `http`.
+- Chrome et Edge traitent le widget comme une requête vers le réseau local. Ils peuvent demander à chaque lecteur de l'autoriser, et le widget reste vide tant qu'il ne l'a pas fait. Un administrateur l'autorise pour tous les lecteurs avec la stratégie [`LocalNetworkAccessAllowedForUrls`](https://chromeenterprise.google/policies/local-network-access-allowed-for-urls/), réglée sur l'adresse de l'intranet.
+
 ## Le lien privé
 
 L'adresse et le code portent toujours le lien privé de l'instance, la `key` de l'adresse. Avec lui, le widget montre ce que voit n'importe quel membre : les services ouverts à tous et aux membres, jamais un service restreint à des groupes.

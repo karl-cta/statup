@@ -46,6 +46,11 @@ Only the widget can be shown inside another site: every other page of Statup ref
 > [!NOTE]
 > Some intranets only show a frame from an address their administrator allowed. If the widget stays blank, ask them to allow the Statup address.
 
+An intranet on the internet, such as Notion, with Statup on the company network:
+
+- Give Statup an `https` address: a page served in `https` refuses a frame in `http`.
+- Chrome and Edge treat the widget as a request to the local network. They can ask each reader to allow it, and the widget stays blank until they do. An administrator allows it for every reader with the [`LocalNetworkAccessAllowedForUrls`](https://chromeenterprise.google/policies/local-network-access-allowed-for-urls/) policy, set to the address of the intranet.
+
 ## The private link
 
 The address and the code always carry the private link of the instance, the `key` of the address. With it the widget shows what any member sees: the services open to everyone and to members, and never a service restricted to groups.
