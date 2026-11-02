@@ -143,6 +143,18 @@ struct EmbedSettingsTemplate {
     i18n: I18n,
 }
 
+/// The HTML to paste, escaped like any template whatever the address holds.
+#[derive(Template)]
+#[template(
+    source = r#"<iframe src="{{ src }}" title="{{ title }}" width="100%" height="{{ height }}" style="border:0"></iframe>"#,
+    ext = "html"
+)]
+struct EmbedCode<'a> {
+    src: &'a str,
+    title: &'a str,
+    height: u32,
+}
+
 /// One segment of the theme choice: a link to the page with that theme.
 struct ThemeChoice {
     label: String,
@@ -198,11 +210,13 @@ pub async fn settings(
         None => origin(&state, &headers),
     };
     let address = embed_address(&base, &key, i18n.locale(), theme);
-    let code = format!(
-        r#"<iframe src="{}" title="{}" width="100%" height="{EMBED_HEIGHT}" style="border:0"></iframe>"#,
-        address.replace('&', "&amp;"),
-        i18n.t("dashboard.title"),
-    );
+    let code = EmbedCode {
+        src: &address,
+        title: i18n.t("dashboard.title"),
+        height: EMBED_HEIGHT,
+    }
+    .render()
+    .map_err(|e| AppError::Internal(anyhow::anyhow!("template render error: {e}")))?;
     let view = load_view(&state, &member_scope(&state.pool).await?, &i18n).await?;
     let frame = Frame::load(&state.pool, Some(&admin), csrf_token, &i18n).await?;
     Ok(no_store(render(&EmbedSettingsTemplate {

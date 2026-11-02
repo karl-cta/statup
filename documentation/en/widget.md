@@ -17,6 +17,8 @@ The widget repeats the banner of the [status page](status-page.md), with the sam
 
 The widget refreshes itself every minute, without any script. In a narrow column the text is cut with an ellipsis; **+ 1 more** and **View** stay.
 
+The widget has a request limit of its own, apart from the pages: 6,000 a minute from one address, enough for a whole office behind one company address to keep it open.
+
 ## Get the code
 
 **Settings**, **Widget**, has three parts:

@@ -17,6 +17,8 @@ Le widget reprend le bandeau de la [page d'état](status-page.md), avec les mêm
 
 Le widget se rafraîchit seul chaque minute, sans aucun script. Dans une colonne étroite, le texte est coupé par des points de suspension ; **+ 1 autre** et **Voir** restent.
 
+Le widget a sa propre limite de requêtes, à part de celle des pages : 6 000 par minute depuis une même adresse, de quoi le laisser ouvert dans tout un bureau derrière une seule adresse d'entreprise.
+
 ## Obtenir le code
 
 **Paramètres**, **Widget**, comporte trois parties :

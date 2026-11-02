@@ -114,7 +114,7 @@ pub fn create_router(state: AppState, rate_limit: &RateLimit) -> Router {
         .layer(access_log())
         .route("/health", get(health::check))
         .layer(overriding(X_FRAME_OPTIONS, "DENY"))
-        .merge(embed_routes());
+        .merge(embed_routes(rate_limit));
     with_security_headers(app, serves_https)
         .layer(compression())
         .with_state(state)
@@ -151,11 +151,12 @@ fn dynamic_routes(state: &AppState, rate_limit: &RateLimit) -> Router<AppState> 
 }
 
 /// The only page another site may frame. Outside the access log and the
-/// shared rate limit: every reader of an intranet asks for it each minute,
-/// often from one company address, and it costs a few reads.
-fn embed_routes() -> Router<AppState> {
+/// shared rate limit, behind a larger one of its own: every reader of an
+/// intranet asks for it each minute, often from one company address.
+fn embed_routes(rate_limit: &RateLimit) -> Router<AppState> {
     Router::new()
         .route("/embed", get(embed::show))
+        .layer(rate_limit.embed_layer())
         .layer(overriding(CONTENT_SECURITY_POLICY, EMBED_CSP))
 }
 
