@@ -7,7 +7,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 - An icon or a logo can weigh up to 1 MB, instead of 256 KB. Behind nginx, `client_max_body_size` lets it through, as the reverse proxy page now shows.
 - On the **Services** page, the state menu of a service is as wide as its longest state, no wider.
 - **Status widget**: a small box to paste into an intranet or a wiki, which repeats the banner of the page (everything works, the worst open incident, maintenance under way or announced) and refreshes itself every minute. **Settings › Widget** shows it in light, dark or following the device, gives the address and the HTML code to paste, and changes its private link, which shows what a member sees and never a service restricted to a group.
-- On Windows, `install.ps1 -Uninstall` waits until Windows has really removed the service, so an install right after it finds none.
+- On Windows, `install.ps1 -Uninstall` waits up to 30 seconds for Windows to remove the service, so an install right after it usually finds none, and says so when another program still holds the service open.
 
 ## 0.11.0, 2026-10-30
 
