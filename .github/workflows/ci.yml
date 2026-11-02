@@ -190,20 +190,35 @@ jobs:
             powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer @args | Out-Host
             $LASTEXITCODE
           }
+          # Windows drops a deleted service only once no program holds it
+          # open, and this process would hold it until the step ends: every
+          # command that opens the service runs in a process of its own.
+          function Invoke-ServiceCommand($command) {
+            pwsh -NoProfile -NonInteractive -Command $command | Out-Host
+            Assert ($LASTEXITCODE -eq 0) "failed: $command"
+          }
+          function Get-ServiceConfig {
+            pwsh -NoProfile -NonInteractive -Command { Get-CimInstance Win32_Service -Filter "Name='Statup'" | Select-Object StartName, StartMode }
+          }
+          # sc.exe holds nothing once it has answered.
+          function Test-Service {
+            & sc.exe query Statup | Out-Null
+            $LASTEXITCODE -ne 1060
+          }
           Start-Process python -ArgumentList '-m', 'http.server', '8000', '--directory', "$env:RUNNER_TEMP\web" -WindowStyle Hidden
           foreach ($try in 1..20) { try { Invoke-WebRequest "http://127.0.0.1:8000/mirror/v$env:VERSION/SHA256SUMS" -UseBasicParsing | Out-Null; break } catch { Start-Sleep 1 } }
 
           "--- A changed archive is refused, and nothing is installed"
           $code = Invoke-WindowsPowerShell -Mirror http://127.0.0.1:8000/tampered -Version $env:VERSION -Unattended
           Assert ($code -ne 0) 'the changed archive was installed'
-          Assert (-not (Get-Service Statup -ErrorAction SilentlyContinue)) 'a service was created'
+          Assert (-not (Test-Service)) 'a service was created'
 
           "--- A port already taken: the install is undone"
           $blocker = Start-Process python -ArgumentList '-m', 'http.server', '3999', '--bind', '0.0.0.0' -WindowStyle Hidden -PassThru
           $code = Invoke-WindowsPowerShell -Archive $env:ARCHIVE -Unattended -Port 3999
           Stop-Process -Id $blocker.Id
           Assert ($code -ne 0) 'Statup was installed on a port another program holds'
-          Assert (-not (Get-Service Statup -ErrorAction SilentlyContinue)) 'the service of a failed install is still there'
+          Assert (-not (Test-Service)) 'the service of a failed install is still there'
           Assert (-not (Test-Path $settings)) 'the settings of a failed install are still there'
 
           "--- Without a console nor -Unattended, it asks nothing and stops"
@@ -214,7 +229,7 @@ jobs:
           $code = Invoke-WindowsPowerShell -Mirror http://127.0.0.1:8000/mirror -Version $env:VERSION -Unattended `
             -InstallDir C:\StatupCI -DataDir C:\StatupData -BackupDir C:\StatupBackups -Port 3100 -Listen local
           Assert ($code -eq 0) 'the install failed'
-          $service = Get-CimInstance Win32_Service -Filter "Name='Statup'"
+          $service = Get-ServiceConfig
           Assert ($service.StartName -eq 'NT SERVICE\Statup') "the service runs as $($service.StartName)"
           Assert ($service.StartMode -eq 'Auto') "the service starts $($service.StartMode)"
           Wait-Health 3100
@@ -228,22 +243,22 @@ jobs:
 
           "--- Another port, then a restart"
           Set-Setting PORT 3200
-          Restart-Service Statup
+          Invoke-ServiceCommand 'Restart-Service Statup'
           Wait-Health 3200
 
           "--- Backup, then restore with Statup stopped"
           & C:\StatupCI\statup.exe --env $settings backup
           Assert ($LASTEXITCODE -eq 0) 'the backup failed'
           $backup = Get-ChildItem C:\StatupBackups -Filter 'statup-backup-*' | Select-Object -First 1
-          Stop-Service Statup
+          Invoke-ServiceCommand 'Stop-Service Statup'
           & C:\StatupCI\statup.exe --env $settings restore $backup.FullName --yes
           Assert ($LASTEXITCODE -eq 0) 'the restore failed'
-          Start-Service Statup
+          Invoke-ServiceCommand 'Start-Service Statup'
           Wait-Health 3200
 
           "--- A wrong setting: the error is in statup.log, and Windows sees the service stop on an error"
           Set-Setting PORT abc
-          Restart-Service Statup
+          Invoke-ServiceCommand 'Restart-Service Statup'
           $logged = $false
           foreach ($try in 1..20) {
             if (Select-String -Path $log -Pattern 'invalid value for PORT' -Quiet) { $logged = $true; break }
@@ -260,11 +275,11 @@ jobs:
           }
           Assert $recorded 'Windows did not record the service stopping on an error'
           Set-Setting PORT 3200
-          Restart-Service Statup
+          Invoke-ServiceCommand 'Restart-Service Statup'
           Wait-Health 3200
 
           "--- Run again in PowerShell 7, as irm | iex runs it: an update that keeps the settings"
-          & ([scriptblock]::Create((Get-Content -Raw $installer))) -Archive $env:ARCHIVE -Unattended
+          Invoke-ServiceCommand "& ([scriptblock]::Create((Get-Content -Raw '$installer'))) -Archive '$env:ARCHIVE' -Unattended"
           Wait-Health 3200
           Assert ((Get-Content $settings) -contains 'PORT=3200') 'the update changed the settings'
           Assert ((Get-Content C:\StatupCI\VERSION) -eq $env:VERSION) 'the version is not written'
@@ -272,7 +287,7 @@ jobs:
           "--- Uninstall: the program goes, the data and settings stay"
           $code = Invoke-WindowsPowerShell -Uninstall -Unattended
           Assert ($code -eq 0) 'the uninstall failed'
-          Assert (-not (Get-Service Statup -ErrorAction SilentlyContinue)) 'the service is still there'
+          Assert (-not (Test-Service)) 'the service is still there'
           Assert (-not (Test-Path C:\StatupCI)) 'the program folder is still there'
           Assert (Test-Path C:\StatupData\statup.db) 'the data is gone'
           Assert (Test-Path $settings) 'the settings are gone'
@@ -285,7 +300,7 @@ jobs:
           Assert ($LASTEXITCODE -eq 0) 'cannot create the local account'
           powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& { `$secret = ConvertTo-SecureString '$password' -AsPlainText -Force; `$credential = New-Object pscredential '$account', `$secret; & '$installer' -Archive '$env:ARCHIVE' -Unattended -ServiceAccount '$account' -Credential `$credential -Firewall }" | Out-Host
           Assert ($LASTEXITCODE -eq 0) 'the install with an account failed'
-          $service = Get-CimInstance Win32_Service -Filter "Name='Statup'"
+          $service = Get-ServiceConfig
           Assert ($service.StartName -in @('.\statupsvc', $account)) "the service runs as $($service.StartName)"
           Wait-Health 3200
           $rule = Get-NetFirewallRule -Name Statup | Get-NetFirewallPortFilter
