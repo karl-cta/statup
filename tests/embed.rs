@@ -95,30 +95,26 @@ async fn any_site_may_frame_the_embed_and_only_the_embed() {
     assert!(policy.contains("frame-ancestors 'none'"), "{policy}");
 }
 
-/// The test instance allows 100 page requests a minute, so the embed 1000.
+/// Two page requests a minute, so twenty for the embed, given back one every
+/// three seconds: the burst outlasts nothing, even on a slow machine.
 #[tokio::test]
 async fn the_embed_has_a_larger_limit_of_its_own() {
-    let app = TestApp::spawn_public().await;
-    let in_flight = std::sync::Arc::new(tokio::sync::Semaphore::new(16));
-    let mut requests = tokio::task::JoinSet::new();
-    for _ in 0..1100 {
-        let request = app.client.get(app.url("/embed"));
-        let in_flight = std::sync::Arc::clone(&in_flight);
-        requests.spawn(async move {
-            let _slot = in_flight.acquire_owned().await.expect("semaphore closed");
-            request.send().await.expect("GET failed").status()
-        });
-    }
+    let app = TestApp::spawn_with(common::Options {
+        public_mode: true,
+        requests_per_minute: Some(2),
+        ..common::Options::default()
+    })
+    .await;
     let mut served = 0;
     let mut refused = 0;
-    while let Some(status) = requests.join_next().await {
-        match status.expect("request task failed") {
+    for _ in 0..30 {
+        match app.get_response("/embed").await.status() {
             reqwest::StatusCode::OK => served += 1,
             reqwest::StatusCode::TOO_MANY_REQUESTS => refused += 1,
             other => panic!("unexpected {other}"),
         }
     }
-    assert!(served >= 1000, "{served} served, past the pages' budget");
+    assert!(served >= 20, "{served} served, past the pages' budget");
     assert!(refused > 0, "a flood is limited all the same");
     assert_eq!(
         app.get_response("/").await.status(),

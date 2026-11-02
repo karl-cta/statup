@@ -43,6 +43,8 @@ pub struct Options {
     /// A database file, as in production, rather than one in memory: a
     /// backup of a database in memory stays in memory.
     pub file_database: bool,
+    /// The page budget a minute per address, 100 unless set.
+    pub requests_per_minute: Option<u32>,
 }
 
 pub struct TestApp {
@@ -111,8 +113,11 @@ impl TestApp {
         };
         let checks = Arc::clone(&state.checks);
         // A small budget, so a test can exhaust it with a short burst.
-        let rate_limit = RateLimit::with_quota(100, client_ip_source(options.trust_proxy_headers))
-            .expect("invalid rate limit quota");
+        let rate_limit = RateLimit::with_quota(
+            options.requests_per_minute.unwrap_or(100),
+            client_ip_source(options.trust_proxy_headers),
+        )
+        .expect("invalid rate limit quota");
         let secure = state.serves_https();
         let sessions = session::session_layer(store, Duration::from_secs(3600), secure);
         let app = create_router(state, &rate_limit).layer(sessions);
