@@ -27,6 +27,10 @@ use crate::i18n::I18n;
 /// Requests a minute per client address, also the size of the burst
 /// allowed before the limit bites.
 pub const DEFAULT_PER_MINUTE: u32 = 600;
+/// The status embed gets this many times the budget of the pages: every
+/// reader of an intranet asks for it each minute, often from one company
+/// address, and a flood still stops before the database.
+const EMBED_FACTOR: u32 = 10;
 const CLEANUP_PERIOD: Duration = Duration::from_secs(60);
 
 type Config = GovernorConfig<ClientIpKeyExtractor, NoOpMiddleware>;
@@ -51,10 +55,12 @@ impl KeyExtractor for ClientIpKeyExtractor {
     }
 }
 
-/// The request rate limiter and its per-address state.
+/// The request rate limiters and their per-address state: one shared by
+/// the pages and the API, one for the status embed.
 #[derive(Clone)]
 pub struct RateLimit {
     config: Arc<Config>,
+    embed: Arc<Config>,
 }
 
 impl RateLimit {
@@ -71,36 +77,52 @@ impl RateLimit {
     ///
     /// Returns an error when `per_minute` is zero.
     pub fn with_quota(per_minute: u32, source: ClientIpSource) -> anyhow::Result<Self> {
-        let replenish_every_ms = 60_000 / u64::from(per_minute.max(1));
-        let config = GovernorConfigBuilder::default()
-            .key_extractor(ClientIpKeyExtractor { source })
-            .per_millisecond(replenish_every_ms)
-            .burst_size(per_minute)
-            .finish()
-            .ok_or_else(|| anyhow::anyhow!("invalid rate limit quota"))?;
         Ok(Self {
-            config: Arc::new(config),
+            config: Arc::new(quota(per_minute, source.clone())?),
+            embed: Arc::new(quota(per_minute.saturating_mul(EMBED_FACTOR), source)?),
         })
     }
 
     pub fn layer(&self) -> GovernorLayer<ClientIpKeyExtractor, NoOpMiddleware, Body> {
-        GovernorLayer::new(Arc::clone(&self.config)).error_handler(|error| limit_response(&error))
+        limiter_layer(&self.config)
+    }
+
+    pub fn embed_layer(&self) -> GovernorLayer<ClientIpKeyExtractor, NoOpMiddleware, Body> {
+        limiter_layer(&self.embed)
     }
 
     /// Forgets the addresses whose budget is full again, every minute, so
     /// the state does not grow with every address ever seen.
     pub fn spawn_cleanup_task(&self) -> AbortHandle {
-        let limiter = Arc::clone(self.config.limiter());
+        let limiters = [&self.config, &self.embed].map(|config| Arc::clone(config.limiter()));
         let task = tokio::spawn(async move {
             let mut interval = tokio::time::interval(CLEANUP_PERIOD);
             loop {
                 interval.tick().await;
-                limiter.retain_recent();
-                limiter.shrink_to_fit();
+                for limiter in &limiters {
+                    limiter.retain_recent();
+                    limiter.shrink_to_fit();
+                }
             }
         });
         task.abort_handle()
     }
+}
+
+fn quota(per_minute: u32, source: ClientIpSource) -> anyhow::Result<Config> {
+    let replenish_every_ms = 60_000 / u64::from(per_minute.max(1));
+    GovernorConfigBuilder::default()
+        .key_extractor(ClientIpKeyExtractor { source })
+        .per_millisecond(replenish_every_ms)
+        .burst_size(per_minute)
+        .finish()
+        .ok_or_else(|| anyhow::anyhow!("invalid rate limit quota"))
+}
+
+fn limiter_layer(
+    config: &Arc<Config>,
+) -> GovernorLayer<ClientIpKeyExtractor, NoOpMiddleware, Body> {
+    GovernorLayer::new(Arc::clone(config)).error_handler(|error| limit_response(&error))
 }
 
 /// Marks a rate limited response for `render_error_pages`, which knows the

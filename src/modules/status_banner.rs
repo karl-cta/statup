@@ -15,9 +15,12 @@ use askama::Template;
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 
+use crate::db::DbPool;
 use crate::error::AppError;
 use crate::i18n::I18n;
-use crate::models::{EventSummary, Kind, Lifecycle, Service, ServiceStatus, Tone, split_duration};
+use crate::models::{
+    EventSummary, Kind, Lifecycle, Scope, Service, ServiceStatus, Tone, split_duration,
+};
 use crate::repositories::{EventRepository, OutageRepository, ServiceRepository};
 
 use super::{ColumnWidth, Module, ModuleRenderContext, render_template};
@@ -132,40 +135,72 @@ impl Module for StatusBannerModule {
     }
 
     async fn render(&self, ctx: &ModuleRenderContext<'_>) -> Result<String, AppError> {
-        let services = ServiceRepository::list_visible(ctx.pool, ctx.scope).await?;
-        let any_service = !services.is_empty() || ServiceRepository::any(ctx.pool).await?;
-        let events = EventRepository::list_open_for_banner(ctx.pool, ctx.scope).await?;
-        let maintenance = EventRepository::list_open_maintenance(ctx.pool, ctx.scope).await?;
+        let state = PageState::load(ctx.pool, ctx.scope, ctx.i18n, ctx.can_publish()).await?;
+        let template = StatusBannerTemplate {
+            has_services: state.has_services,
+            nothing_visible: state.nothing_visible.then_some(ctx.user.is_some()),
+            tone: state.tone.as_str(),
+            headline: state.headline,
+            rows: state.rows,
+            next_maintenance: state.next_maintenance,
+            can_publish: ctx.can_publish(),
+            first_steps: first_steps(ctx, !state.has_services),
+            i18n: ctx.i18n.clone(),
+        };
+        render_template(self.id(), &template)
+    }
+}
+
+/// What the page says about itself right now, read once for the banner and
+/// for anything that repeats it elsewhere, so both always agree.
+pub struct PageState {
+    pub has_services: bool,
+    /// The instance has services, but none this reader may see.
+    pub nothing_visible: bool,
+    pub tone: Tone,
+    pub headline: String,
+    pub rows: Vec<BannerRow>,
+    pub next_maintenance: Option<NextMaintenance>,
+}
+
+impl PageState {
+    /// `can_publish` only fills in the links offered to those who may
+    /// declare an incident.
+    pub async fn load(
+        pool: &DbPool,
+        scope: &Scope,
+        i18n: &I18n,
+        can_publish: bool,
+    ) -> Result<Self, AppError> {
+        let services = ServiceRepository::list_visible(pool, scope).await?;
+        let any_service = !services.is_empty() || ServiceRepository::any(pool).await?;
+        let events = EventRepository::list_open_for_banner(pool, scope).await?;
+        let maintenance = EventRepository::list_open_maintenance(pool, scope).await?;
         // Only a service the checks found down has an outage to date.
         let outage_starts = if services.iter().any(|s| s.detected_status.is_some()) {
-            OutageRepository::open_starts(ctx.pool).await?
+            OutageRepository::open_starts(pool).await?
         } else {
             HashMap::new()
         };
         let sources = RowSources {
             events: &events,
             outage_starts: &outage_starts,
-            can_publish: ctx.can_publish(),
+            can_publish,
         };
-        let i18n = ctx.i18n;
         let affected = affected_services(&services);
         let mut rows: Vec<BannerRow> = affected
             .iter()
             .map(|service| row(service, &sources, i18n))
             .collect();
         keep_each_update_once(&mut rows);
-        let template = StatusBannerTemplate {
+        Ok(Self {
             has_services: !services.is_empty(),
-            nothing_visible: (any_service && services.is_empty()).then_some(ctx.user.is_some()),
-            tone: banner_tone(&affected).as_str(),
+            nothing_visible: any_service && services.is_empty(),
+            tone: banner_tone(&affected),
             headline: headline(&affected, i18n),
             rows,
             next_maintenance: next_maintenance(&services, &maintenance, i18n),
-            can_publish: ctx.can_publish(),
-            first_steps: first_steps(ctx, services.is_empty()),
-            i18n: i18n.clone(),
-        };
-        render_template(self.id(), &template)
+        })
     }
 }
 

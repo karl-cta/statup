@@ -11,6 +11,7 @@ use axum::response::{IntoResponse, Redirect, Response};
 use chrono::{DateTime, NaiveDateTime, Utc};
 
 use super::dashboard::origin;
+use super::render_error;
 use crate::error::AppError;
 use crate::i18n::{I18n, Locale};
 use crate::middleware::OptionalUser;
@@ -186,10 +187,6 @@ fn group_by_event(updates: Vec<EventUpdateWithAuthor>) -> HashMap<i64, Vec<Event
         grouped.entry(update.event_id).or_default().push(update);
     }
     grouped
-}
-
-fn render_error(e: &askama::Error) -> AppError {
-    AppError::Internal(anyhow::anyhow!("template render error: {e}"))
 }
 
 #[cfg(test)]

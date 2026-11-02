@@ -382,6 +382,15 @@ function Remove-StatupService {
     Stop-Service Statup -ErrorAction SilentlyContinue
     & sc.exe delete Statup | Out-Null
     Get-NetFirewallRule -Name 'Statup' -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+    # Windows only marks the service for deletion, and drops it once nothing
+    # holds it open: wait, so an install right after finds no service. Asked
+    # through sc.exe, which holds nothing in this session.
+    foreach ($try in 1..30) {
+        & sc.exe query Statup | Out-Null
+        if ($LASTEXITCODE -eq 1060) { return }
+        Start-Sleep 1
+    }
+    Write-Warning 'Windows removes the Statup service once every program that has it open is closed'
 }
 
 # Administrators and the system in full, the service account with $Right,

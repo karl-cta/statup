@@ -13,6 +13,7 @@ mod backups;
 mod checks;
 mod dashboard;
 mod dashboard_layout;
+mod embed;
 mod events;
 mod feed;
 mod folders;
@@ -71,7 +72,7 @@ use crate::middleware::load_session_user;
 use crate::middleware::rate_limit::RateLimit;
 use crate::state::AppState;
 
-pub(crate) use page::{Frame, members_only, render};
+pub(crate) use page::{Frame, members_only, render, render_error};
 
 /// Forms carry text only.
 const FORM_BODY_LIMIT: usize = 64 * 1024;
@@ -91,8 +92,13 @@ const RESTORE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
 /// No inline script, handler or style anywhere: behavior lives in
 /// `static/js`, presentation in the stylesheet. `blob:` images let a logo
-/// picked at first launch show before it is uploaded.
-const APP_CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'";
+/// picked at first launch show before it is uploaded. `frame-src 'self'`
+/// lets the widget settings frame the widget, the only page that allows it.
+const APP_CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-src 'self'; frame-ancestors 'none'";
+
+/// The status embed is framed by other sites. It holds a single link and no
+/// form, so there is nothing to trick a reader into doing there.
+const EMBED_CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors *";
 
 const PERMISSIONS_POLICY: &str = "camera=(), microphone=(), geolocation=(), interest-cohort=()";
 
@@ -107,7 +113,9 @@ pub fn create_router(state: AppState, rate_limit: &RateLimit) -> Router {
         .merge(files)
         .nest("/api", api::api_routes(rate_limit))
         .layer(access_log())
-        .route("/health", get(health::check));
+        .route("/health", get(health::check))
+        .layer(overriding(X_FRAME_OPTIONS, "DENY"))
+        .merge(embed_routes(rate_limit));
     with_security_headers(app, serves_https)
         .layer(compression())
         .with_state(state)
@@ -141,6 +149,15 @@ fn dynamic_routes(state: &AppState, rate_limit: &RateLimit) -> Router<AppState> 
             CACHE_CONTROL,
             HeaderValue::from_static(DYNAMIC_CACHE_CONTROL),
         ))
+}
+
+/// The only page another site may frame, outside the access log and behind
+/// a rate limit of its own.
+fn embed_routes(rate_limit: &RateLimit) -> Router<AppState> {
+    Router::new()
+        .route("/embed", get(embed::show))
+        .layer(rate_limit.embed_layer())
+        .layer(overriding(CONTENT_SECURITY_POLICY, EMBED_CSP))
 }
 
 /// Inside the body limit: the CSRF check reads form bodies, then the
@@ -312,6 +329,8 @@ fn admin_routes() -> Router<AppState> {
         .route("/setup/done", get(setup::done))
         .route("/admin/settings", get(admin::settings_page))
         .route("/admin/settings/logo/remove", post(admin::remove_logo))
+        .route("/admin/embed", get(embed::settings))
+        .route("/admin/embed/link", post(embed::change_link))
         .route("/admin/journal", get(journal::page))
         .route("/admin/journal/export", get(journal::export))
         .route("/admin/journal/settings", post(journal::save_settings))
@@ -474,7 +493,6 @@ fn request_span(request: &Request<Body>) -> Span {
 fn with_security_headers(router: Router<AppState>, serves_https: bool) -> Router<AppState> {
     let router = router
         .layer(overriding(X_CONTENT_TYPE_OPTIONS, "nosniff"))
-        .layer(overriding(X_FRAME_OPTIONS, "DENY"))
         .layer(overriding(
             REFERRER_POLICY,
             "strict-origin-when-cross-origin",

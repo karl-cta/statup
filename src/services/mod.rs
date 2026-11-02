@@ -4,6 +4,7 @@ mod api_key_service;
 mod auth_service;
 pub mod backup;
 mod dashboard_layout_service;
+mod embed_service;
 mod event_service;
 mod event_template_service;
 mod icon_service;
@@ -27,6 +28,7 @@ mod visibility;
 pub use api_key_service::*;
 pub use auth_service::*;
 pub use dashboard_layout_service::*;
+pub use embed_service::*;
 pub use event_service::*;
 pub use event_template_service::*;
 pub use icon_service::*;
@@ -47,4 +49,4 @@ pub use subscription_service::*;
 pub use update_check::{
     CURRENT_VERSION, NewerRelease, RELEASES_PAGE, UpdateStatus, spawn_update_check,
 };
-pub use visibility::scope_of;
+pub use visibility::{member_scope, scope_of};

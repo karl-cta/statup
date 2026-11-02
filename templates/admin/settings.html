@@ -52,6 +52,13 @@
                     </a>
                 </li>
                 <li>
+                    <a href="/admin/embed" class="manage-tile">
+                        <span class="manage-tile-name">{{ i18n.t("embed.title") }}{% call ui::chevron_right() %}{% endcall %}</span>
+                        <span class="manage-tile-meta">{{ i18n.t("embed.tile_meta") }}</span>
+                        <span class="manage-tile-action">{{ i18n.t("embed.manage") }}</span>
+                    </a>
+                </li>
+                <li>
                     <a href="/admin/api-keys" class="manage-tile">
                         <span class="manage-tile-name">{{ i18n.t("api_keys.title") }}{% call ui::chevron_right() %}{% endcall %}</span>
                         <span class="manage-tile-meta">{{ self.api_keys_label() }}</span>
