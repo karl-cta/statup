@@ -22,9 +22,10 @@ use statup::middleware::client_ip::{ClientIpSource, X_FORWARDED_FOR};
 use statup::middleware::rate_limit::RateLimit;
 use statup::models::Role;
 use statup::routes::create_router;
+use statup::services::backup;
 use statup::services::{
     AuthService, DashboardLayoutService, LastChecks, LoginRateLimiter, NewAccount, Notifier,
-    UpdateStatus,
+    SettingsService, UpdateStatus,
 };
 use statup::session;
 use statup::state::AppState;
@@ -45,6 +46,9 @@ pub struct Options {
     pub file_database: bool,
     /// The page budget a minute per address, 100 unless set.
     pub requests_per_minute: Option<u32>,
+    /// A database an older release left, as SQL: written to a file before
+    /// the server starts on it, as after an upgrade.
+    pub seed: Option<&'static str>,
 }
 
 pub struct TestApp {
@@ -75,21 +79,37 @@ impl TestApp {
     pub async fn spawn_with(options: Options) -> Self {
         let upload_dir = std::env::temp_dir().join(format!("statup-test-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(upload_dir.join("icons")).expect("failed to create upload dir");
-        let database_url = if options.file_database {
+        let database_url = if options.file_database || options.seed.is_some() {
             format!("sqlite://{}", upload_dir.join("statup.db").display())
         } else {
             "sqlite::memory:".to_string()
         };
+        if let Some(dump) = options.seed {
+            write_dump(&database_url, dump).await;
+        }
         let pool = db::create_pool(&database_url, 1)
             .await
             .expect("failed to create test pool");
+        let backup_dir = upload_dir.join("backups");
+        // As `open_database` in `src/main.rs` prepares the database.
+        backup::back_up_before_upgrade(&pool, &upload_dir.to_string_lossy(), &backup_dir).await;
         db::run_migrations(&pool)
             .await
             .expect("failed to run migrations");
-        // As at start: every module the binary ships has its layout row.
+        db::optimize(&pool)
+            .await
+            .expect("failed to update planner statistics");
         DashboardLayoutService::reconcile(&pool)
             .await
             .expect("failed to reconcile the layout");
+        // The access an older release stored wins, as at start. Only then:
+        // the name, zone and theme it also loads are shared by the process.
+        let public_mode = match options.seed {
+            Some(_) => SettingsService::load(&pool, options.public_mode)
+                .await
+                .expect("failed to load the settings"),
+            None => options.public_mode,
+        };
         let store = session::create_session_store(&pool)
             .await
             .expect("failed to create the session store");
@@ -99,8 +119,8 @@ impl TestApp {
             pool: pool.clone(),
             login_limiter: Arc::new(LoginRateLimiter::default()),
             upload_dir: upload_dir.to_string_lossy().to_string(),
-            backup_dir: upload_dir.join("backups"),
-            public_mode: Arc::new(AtomicBool::new(options.public_mode)),
+            backup_dir,
+            public_mode: Arc::new(AtomicBool::new(public_mode)),
             trust_proxy_headers: options.trust_proxy_headers,
             client_ip_source: client_ip_source(options.trust_proxy_headers),
             public_url: options.public_url.map(ToOwned::to_owned),
@@ -348,6 +368,19 @@ impl Drop for TestApp {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.upload_dir);
     }
+}
+
+/// Through a connection of its own, closed after: the dump turns foreign keys
+/// off for the connection that reads it, and the server migrates with them on.
+async fn write_dump(database_url: &str, dump: &str) {
+    let pool = db::create_pool(database_url, 1)
+        .await
+        .expect("failed to create the database");
+    sqlx::raw_sql(dump)
+        .execute(&pool)
+        .await
+        .expect("failed to load the dump");
+    pool.close().await;
 }
 
 fn local_mail_server(port: u16) -> SmtpConfig {
