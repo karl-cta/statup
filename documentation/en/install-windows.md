@@ -178,13 +178,13 @@ Download `install.ps1`, `statup-<version>-windows-x86_64.zip` and `SHA256SUMS` f
 The script does not check an archive it is given. Compare the hash of the archive with its line in `SHA256SUMS`, then install it:
 
 ```powershell
-(Get-FileHash -Algorithm SHA256 statup-0.11.0-windows-x86_64.zip).Hash
-Select-String statup-0.11.0-windows-x86_64.zip SHA256SUMS
-powershell -ExecutionPolicy Bypass -File install.ps1 -Archive statup-0.11.0-windows-x86_64.zip
+(Get-FileHash -Algorithm SHA256 statup-0.12.0-windows-x86_64.zip).Hash
+Select-String statup-0.12.0-windows-x86_64.zip SHA256SUMS
+powershell -ExecutionPolicy Bypass -File install.ps1 -Archive statup-0.12.0-windows-x86_64.zip
 ```
 
 To serve the files from your own server, copy the archive and `SHA256SUMS` under `<url>/v<version>/`. The script downloads them from there and refuses an archive whose checksum differs.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File install.ps1 -Mirror https://files.example.com/statup -Version 0.11.0
+powershell -ExecutionPolicy Bypass -File install.ps1 -Mirror https://files.example.com/statup -Version 0.12.0
 ```

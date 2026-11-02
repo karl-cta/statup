@@ -143,11 +143,11 @@ Le script ne vérifie pas une archive qu'on lui donne. Vérifiez-la vous-même, 
 
 ```bash
 sha256sum -c SHA256SUMS --ignore-missing
-sudo sh install.sh --archive statup-0.11.0-linux-x86_64.tar.gz
+sudo sh install.sh --archive statup-0.12.0-linux-x86_64.tar.gz
 ```
 
 Pour servir les fichiers depuis votre propre serveur, copiez l'archive et `SHA256SUMS` sous `<url>/v<version>/`, et `install.sh` là où vous rangez vos scripts. Le script les télécharge de là et refuse une archive dont la somme de contrôle diffère.
 
 ```bash
-sudo sh install.sh --mirror https://files.example.com/statup --version 0.11.0
+sudo sh install.sh --mirror https://files.example.com/statup --version 0.12.0
 ```
