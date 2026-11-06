@@ -2,6 +2,10 @@
 
 All notable changes to Statup are listed here. The project is pre-v1: until 1.0, a minor version may change the interface or the database, and the README asks you to back up before upgrading.
 
+## Unreleased
+
+- The choices of a drop-down menu show the hand pointer on hover, like every other button.
+
 ## 0.12.0, 2026-11-02
 
 - An icon or a logo can weigh up to 1 MB, instead of 256 KB. Behind nginx, `client_max_body_size` lets it through, as the reverse proxy page now shows.

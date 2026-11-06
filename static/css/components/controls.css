@@ -463,6 +463,7 @@
         font-size: var(--text-sm);
         color: var(--ink);
         border-radius: 4px;
+        cursor: pointer;
     }
 
     .cs-option.cs-active {
