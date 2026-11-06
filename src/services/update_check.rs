@@ -8,6 +8,8 @@ use std::time::Duration;
 use serde::Deserialize;
 use tokio::task::AbortHandle;
 
+use super::probe::read_within;
+
 /// The version this binary was built as.
 pub const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -20,6 +22,8 @@ const PERIOD: Duration = Duration::from_secs(24 * 60 * 60);
 /// A restart loop must not turn into a request loop.
 const FIRST_DELAY: Duration = Duration::from_secs(60);
 const TIMEOUT: Duration = Duration::from_secs(10);
+/// Far above what GitHub answers for one release, assets listed.
+const MAX_RELEASE_BYTES: usize = 1024 * 1024;
 
 /// A published version newer than this one.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -97,7 +101,7 @@ async fn latest_tag(client: &reqwest::Client) -> Option<String> {
         .await
         .and_then(reqwest::Response::error_for_status);
     let body = match answer {
-        Ok(response) => response.bytes().await.ok()?,
+        Ok(response) => read_within(response, MAX_RELEASE_BYTES).await.ok()??,
         Err(e) => {
             tracing::debug!(error = %e, "Update check failed");
             return None;
