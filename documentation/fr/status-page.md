@@ -9,7 +9,7 @@ Chaque lecteur ne voit que les services que leur [visibilité](services.md#visib
 
 ## Le tableau de bord
 
-La page s'actualise d'elle-même chaque minute tant qu'elle est ouverte, et quand le lecteur revient sur son onglet. Si la connexion tombe, elle indique « Connexion perdue, nouvelle tentative en cours. »
+La page s'actualise d'elle-même chaque minute tant qu'elle est ouverte, et quand le lecteur revient sur son onglet une minute ou plus après la dernière actualisation. Si la connexion tombe, elle indique « Connexion perdue, nouvelle tentative en cours. »
 
 Les administrateurs choisissent ses blocs et leur disposition : voir [Paramètres](settings.md#arrange-the-dashboard). Les membres connectés trouvent un lien **Documentation** au pied de chaque page, vers ces pages.
 

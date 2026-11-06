@@ -14,7 +14,7 @@ Every tool posts to one address, `/api/v1/reports` on the address of your page, 
 - **Up**: the outage ends and the state set by hand comes back.
 - A service that an open incident covers sends no alert. Services reported down together in one message are told in one alert per channel.
 
-A report is ignored, and a line written in the [Journal](journal.md), for a service Statup does not know, a service Statup checks itself (its own checks would undo the report the next minute), and a service reported down during a maintenance under way that names it.
+A report is ignored, and a line written in the [Journal](journal.md), for a service Statup does not know, a service Statup checks itself (its own checks would undo the report the next minute), and a service reported down during a maintenance under way that names it, unless that maintenance is marked **No downtime**.
 
 > [!IMPORTANT]
 > A tool does not send again a report refused during a maintenance: a service still down when the maintenance ends would show as working. Schedule the same window in the tool, ending no earlier than Statup's: a maintenance in Uptime Kuma or Zabbix, a silence in Alertmanager or Grafana. Once its window is over, the tool reports a service still down after its usual delay: the next check in Uptime Kuma, about a minute in Zabbix, the group interval in Alertmanager and Grafana (5 minutes by default).
@@ -56,7 +56,7 @@ A report answers 200 with what it changed and what it left:
 | `unchanged` | The service is already down, or already up. |
 | `unknown_service` | No service has this name or slug. |
 | `monitored_by_statup` | Statup checks this service itself. |
-| `under_maintenance` | A maintenance under way covers the service. |
+| `under_maintenance` | A maintenance under way covers the service, and is not marked **No downtime**. |
 | `no_service_label` | An Alertmanager or Grafana alert without a `service` label. |
 | `no_monitor_name` | An Uptime Kuma heartbeat whose monitor has no name. |
 | `not_down_or_up` | A state that is neither, such as pending. |

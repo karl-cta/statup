@@ -49,11 +49,11 @@ Ce qui s'est produit : `opened`, `updated`, `rescheduled`, `started`, `closed`,
 - `category` : `changelog` ou `info`, pour une annonce.
 - `state` : l'état vers lequel l'événement est passé.
 
-`event` vaut `null` pour une panne trouvée par les vérifications. Le corps porte alors, à son premier niveau à côté de `service`, une liste `services` avec une entrée par service de cette vague : `[{"name": "Mail", "down_since": "2026-10-07T08:57:00Z"}]`. Le corps d'un événement n'a pas cette liste : ses services sont les noms de `event.services`.
+`event` vaut `null` pour une panne trouvée par les vérifications ou signalée par un outil de supervision, et pour `test`, dont le corps n'a pas de liste `services` et un `service` à `null`. Le corps d'une panne porte alors, à son premier niveau à côté de `service`, une liste `services` avec une entrée par service de cette vague : `[{"name": "Mail", "down_since": "2026-10-07T08:57:00Z"}]`. Le corps d'un événement n'a pas cette liste : ses services sont les noms de `event.services`.
 
 ### `service`
 
-Quand une panne trouvée par les vérifications ne concerne qu'un seul service, `service` contient cette même entrée. Il vaut `null` pour une vague de plusieurs services, et dans le corps d'un événement, comme dans l'exemple ci-dessus.
+Quand une telle panne ne concerne qu'un seul service, `service` contient cette même entrée. Il vaut `null` pour une vague de plusieurs services, et dans le corps d'un événement, comme dans l'exemple ci-dessus.
 
 ### `message`
 

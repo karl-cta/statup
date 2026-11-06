@@ -81,4 +81,4 @@ The language is chosen from the language switch, and is kept on the account. The
 
 ## Sessions
 
-Ticking **Stay signed in for 30 days** at sign-in keeps the session 30 days without a visit; otherwise it ends after 24 hours.
+Ticking **Stay signed in for 30 days** at sign-in keeps the session 30 days without a visit; otherwise it ends after 24 hours without a visit.

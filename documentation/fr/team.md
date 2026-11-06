@@ -81,4 +81,4 @@ La langue se choisit avec le sélecteur de langue, et reste enregistrée sur le 
 
 ## Sessions
 
-Cocher **Rester connecté 30 jours** à la connexion garde la session 30 jours sans visite ; sinon, elle prend fin au bout de 24 heures.
+Cocher **Rester connecté 30 jours** à la connexion garde la session 30 jours sans visite ; sinon, elle prend fin au bout de 24 heures sans visite.

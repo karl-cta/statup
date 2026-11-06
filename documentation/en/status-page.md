@@ -9,7 +9,7 @@ Each reader sees only the services their [visibility](services.md#visibility) al
 
 ## The dashboard
 
-The page refreshes itself every minute while it is open, and when the reader comes back to its tab. If the connection drops, it says "Connection lost, trying again."
+The page refreshes itself every minute while it is open, and when the reader comes back to its tab a minute or more after the last refresh. If the connection drops, it says "Connection lost, trying again."
 
 Administrators choose its blocks and their layout: see [Settings](settings.md#arrange-the-dashboard). Signed-in members find a **Documentation** link at the foot of every page, to these pages.
 

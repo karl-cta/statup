@@ -14,8 +14,9 @@ The Journal lists what happened on the instance, day by day. Administrators open
 - services added, changed or deleted, the settings, the alert channels, email subscribers removed and visitor subscriptions opened or closed;
 - members added, their role or their account changed, an event deleted;
 - groups and folders created, renamed or deleted, the members of a group, the services of a folder, and who sees a service or a folder;
-- an outage detected and its end, a message to an alert channel given up;
-- sign-ins blocked after too many attempts, and the app's errors.
+- an outage detected, ended or erased, a report from a monitoring tool ignored, the checks paused when Statup is off the network or a round ignored, and messages to an alert channel or emails to subscribers given up or on hold;
+- the API keys, the widget link, the backup schedule, a backup downloaded or restored, an automatic backup failed, and a repeating maintenance stopped or changed with the following ones;
+- sign-ins, checks of the current password and reset requests blocked after too many attempts, a reset email not sent, and the app's errors.
 
 **Detailed** keeps every action from the moment it is turned on: sign-ins and refused attempts, password resets, events published and updated, each failed check, each message sent.
 

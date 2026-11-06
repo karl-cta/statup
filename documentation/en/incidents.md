@@ -57,7 +57,7 @@ Each update shows its time. The name of its author is shown to signed-in members
 
 Announcing when the next update will come tells readers when to look again.
 
-- A delay: `30`, `30 min`, `1 h`, `1h30`, up to 4 hours.
+- A delay: `30`, `30 min`, `1 h`, `1h30`. Written in hours, a delay goes up to `4h59`: from `5h` on, it reads as a time of day. Written in minutes, up to `999`.
 - A time of day: `14:30`, `14h30`, `9h`. It means the next time that hour comes, today or tomorrow, in the instance's time zone.
 
 The banner then says "update due at 14:30", and "update due 5 min ago" once it is late. The incident's page says "last update 9 min ago, next due at 14:30".

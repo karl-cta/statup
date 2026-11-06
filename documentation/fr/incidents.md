@@ -57,7 +57,7 @@ Chaque mise à jour affiche son heure. Le nom de son auteur n'est montré qu'aux
 
 Annoncer l'heure de la prochaine mise à jour indique aux lecteurs quand revenir voir.
 
-- Un délai : `30`, `30 min`, `1 h`, `1h30`, jusqu'à 4 heures.
+- Un délai : `30`, `30 min`, `1 h`, `1h30`. Écrit en heures, un délai va jusqu'à `4h59` : à partir de `5h`, il se lit comme une heure. Écrit en minutes, jusqu'à `999`.
 - Une heure : `14:30`, `14h30`, `9h`. Elle désigne le prochain passage à cette heure, aujourd'hui ou demain, dans le fuseau horaire de l'instance.
 
 Le bandeau indique alors « mise à jour prévue à 14:30 », puis « mise à jour attendue depuis 5 min » une fois en retard. La page de l'incident indique « dernière mise à jour il y a 9 min, prochaine prévue à 14:30 ».

@@ -49,11 +49,11 @@ What took place: `opened`, `updated`, `rescheduled`, `started`, `closed`, `publi
 - `category`: `changelog` or `info`, for an announcement.
 - `state`: the state the event moved to.
 
-`event` is `null` for an outage the checks found. The body then carries, at its top level beside `service`, a `services` list with one entry for each service of that wave: `[{"name": "Mail", "down_since": "2026-10-07T08:57:00Z"}]`. The body of an event has no such list: its services are the names in `event.services`.
+`event` is `null` for an outage the checks found or a monitoring tool reported, and for `test`, whose body has no `services` list and a `null` `service`. The body of an outage then carries, at its top level beside `service`, a `services` list with one entry for each service of that wave: `[{"name": "Mail", "down_since": "2026-10-07T08:57:00Z"}]`. The body of an event has no such list: its services are the names in `event.services`.
 
 ### `service`
 
-When an outage the checks found is about one service alone, `service` holds that same entry. It is `null` for a wave of several services, and in the body of an event, as in the example above.
+When such an outage is about one service alone, `service` holds that same entry. It is `null` for a wave of several services, and in the body of an event, as in the example above.
 
 ### `message`
 

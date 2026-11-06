@@ -151,7 +151,7 @@ curl "https://status.example.com/api/v1/events?kind=incident&open=true" \
 
 ### Publish an event
 
-`POST /api/v1/events` publishes at once, with the same alerts as the page. It answers 201 with the event.
+`POST /api/v1/events` publishes at once, with the same alerts as the page. It answers 201 with the event and its `updates`, as reading it does.
 
 ```bash
 curl https://status.example.com/api/v1/events \

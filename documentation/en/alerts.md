@@ -7,6 +7,8 @@ Statup posts each incident, maintenance and announcement where people already re
 
 In the app, **Notifications** is the bell in the header; **Alerts** are the messages sent to other tools.
 
+The bell is for editors and administrators. It lists the six latest notifications, and **All notifications** those of the last 30 days. An outage detected reaches every editor and administrator, a channel whose waiting messages were given up reaches the administrators, and an incident update that is overdue reaches the member who announced it.
+
 ## Add a channel
 
 **New channel**, at the head of the **Channels** card, opens the form:
@@ -50,7 +52,7 @@ Email channels need an SMTP server: set [`SMTP_HOST`](configuration.md#smtp_host
 - A channel that does not answer is tried again after 30 seconds, 2, 10 and 30 minutes. After that, or at once when the service refuses the URL (404, 401), its waiting messages are given up.
 - The list of channels says, for each one, when it last sent, when it tries again and why, or when it failed and why.
 
-Outages found by [monitoring](monitoring.md), or reported by a [monitoring tool](monitoring-tools.md), at the same minute are grouped in one message per channel, and their return in one more.
+Outages found in the same round of [monitoring](monitoring.md), or reported in one message by a [monitoring tool](monitoring-tools.md), are grouped in one message per channel, and their return in one more.
 
 ## Email subscribers
 
