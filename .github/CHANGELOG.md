@@ -10,6 +10,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 - A new service shown to members only or to a group is restricted from its first instant: it is no longer public for a moment while it is saved, nor left public when saving fails halfway.
 - A line Statup cannot read in its settings file is named by its key in the error, no longer printed whole: a value with a missing quote, a password included, stays out of the logs.
 - The pages that show the address of an alert channel are no longer kept in the browser's cache, since that address can hold a secret.
+- On Linux, a backup file can be read by its owner only, and the temporary copies of a backup or a restore sit in a folder only Statup opens, since a backup holds every password hash and channel address.
 
 ## 0.12.0, 2026-11-02
 

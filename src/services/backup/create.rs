@@ -56,12 +56,16 @@ async fn write_backup(
     let target = path
         .to_str()
         .ok_or_else(|| AppError::internal("the backup path is not valid UTF-8"))?;
+    create_private(path)
+        .await
+        .map_err(|e| AppError::internal(format!("cannot create {}: {e}", path.display())))?;
     sqlx::query("VACUUM INTO ?")
         .bind(target)
         .execute(pool)
         .await?;
     // The copy of a database in memory stays in memory, without an error.
-    if !tokio::fs::try_exists(path).await.unwrap_or(false) {
+    let written = tokio::fs::metadata(path).await.map_or(0, |file| file.len());
+    if written == 0 {
         return Err(AppError::internal(
             "the database is in memory: there is no file to back up",
         ));
@@ -73,6 +77,16 @@ async fn write_backup(
     attach_uploads(&mut copy, Path::new(upload_dir)).await?;
     copy.close().await?;
     Ok(info)
+}
+
+/// An empty file that only its owner reads, for `VACUUM INTO` to fill: a
+/// backup holds every password hash and channel address.
+async fn create_private(path: &Path) -> std::io::Result<()> {
+    let mut options = tokio::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    options.open(path).await.map(drop)
 }
 
 /// What the copy holds: its last migration and the instance's name.
@@ -277,6 +291,26 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(sessions, 0);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn only_its_owner_reads_a_backup() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let scratch = Scratch::new();
+        let pool = file_pool(&scratch.path("statup.db")).await;
+        let destination = scratch.path("backup.db");
+        create_backup(&pool, &scratch.uploads(), &destination)
+            .await
+            .unwrap();
+        let staging = crate::services::backup::TempFolder::new("mode")
+            .await
+            .unwrap();
+
+        let mode = |path: &Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&destination), 0o600);
+        assert_eq!(mode(staging.path()), 0o700);
     }
 
     #[tokio::test]

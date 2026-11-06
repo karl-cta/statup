@@ -143,14 +143,18 @@ pub async fn find_backup(dir: &Path, name: &str) -> Option<PathBuf> {
         .then_some(path)
 }
 
-/// A private folder in the system temporary folder, removed with its
-/// content when it goes out of scope.
+/// A folder in the system temporary folder that only its owner opens,
+/// removed with its content when it goes out of scope.
 pub(crate) struct TempFolder(PathBuf);
 
 impl TempFolder {
     pub(crate) async fn new(prefix: &str) -> Result<Self, AppError> {
         let dir = std::env::temp_dir().join(format!("statup-{prefix}-{}", uuid::Uuid::new_v4()));
-        tokio::fs::create_dir_all(&dir)
+        let mut builder = tokio::fs::DirBuilder::new();
+        #[cfg(unix)]
+        builder.mode(0o700);
+        builder
+            .create(&dir)
             .await
             .map_err(|e| AppError::internal(format!("cannot create a temporary folder: {e}")))?;
         Ok(Self(dir))
