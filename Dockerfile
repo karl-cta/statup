@@ -45,14 +45,16 @@ FROM alpine:3.24 AS styles
 # It links the C++ runtime dynamically.
 RUN apk add --no-cache libstdc++ libgcc
 
+# Checked against the sums Tailwind published for this version.
 ARG TARGETARCH
 RUN case "${TARGETARCH:-amd64}" in \
-      amd64) TW_ARCH=x64 ;; \
-      arm64) TW_ARCH=arm64 ;; \
+      amd64) TW_ARCH=x64; TW_SHA256=23ccf6c95db9161e4dbff19b5a2d4bb3be12d40067e2d0463ba794b0d9d1bd66 ;; \
+      arm64) TW_ARCH=arm64; TW_SHA256=d91db14d9fd70292cc4b924e26242499219d998c2e8ee57aaafbd75edb0602f7 ;; \
       *) echo "unsupported arch: ${TARGETARCH}" && exit 1 ;; \
     esac && \
     wget -O /usr/local/bin/tailwindcss \
       "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.18/tailwindcss-linux-${TW_ARCH}-musl" && \
+    echo "${TW_SHA256}  /usr/local/bin/tailwindcss" | sha256sum -c - && \
     chmod +x /usr/local/bin/tailwindcss
 
 WORKDIR /app
