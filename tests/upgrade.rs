@@ -7,6 +7,7 @@ mod common;
 
 use common::{Options, TestApp};
 use reqwest::StatusCode;
+use statup::services::backup;
 
 /// The accounts every fixture holds, with this test password.
 const PASSWORD: &str = "Fixture-Upgrade-2026!";
@@ -53,7 +54,8 @@ async fn upgrades(dump: &'static str, visitors: Visitors) {
     })
     .await;
     assert_every_migration_applied(&app).await;
-    assert_backed_up_before(&app);
+    assert_backed_up_before(&app).await;
+    assert_backs_up(&app).await;
     assert_visitor_view(&app, visitors).await;
 
     app.login(ADMIN, PASSWORD).await;
@@ -109,14 +111,33 @@ async fn assert_visitor_view(app: &TestApp, visitors: Visitors) {
     }
 }
 
-fn assert_backed_up_before(app: &TestApp) {
-    let backups: Vec<String> = std::fs::read_dir(app.backup_dir())
+/// One backup taken before the migrations, which a restore would accept.
+async fn assert_backed_up_before(app: &TestApp) {
+    let backups: Vec<std::path::PathBuf> = std::fs::read_dir(app.backup_dir())
         .expect("no backup folder: nothing was backed up before the upgrade")
         .filter_map(Result::ok)
-        .map(|entry| entry.file_name().to_string_lossy().into_owned())
-        .filter(|name| name.starts_with("statup-before-") && !name.contains("restore"))
+        .map(|entry| entry.path())
+        .filter(|path| {
+            let name = path.file_name().unwrap_or_default().to_string_lossy();
+            name.starts_with("statup-before-") && !name.contains("restore")
+        })
         .collect();
     assert_eq!(backups.len(), 1, "{backups:?}");
+    backup::read_info(&backups[0])
+        .await
+        .expect("the backup taken before the upgrade is refused");
+}
+
+/// A backup of the upgraded database, which a restore would accept.
+async fn assert_backs_up(app: &TestApp) {
+    let uploads = app.backup_dir().with_file_name("");
+    let path = app.backup_dir().join("after-upgrade.db");
+    backup::create_backup(&app.pool, &uploads.to_string_lossy(), &path)
+        .await
+        .expect("the upgraded database cannot be backed up");
+    backup::read_info(&path)
+        .await
+        .expect("a backup of the upgraded database is refused");
 }
 
 /// The edit page of every service and event, and the page of every group

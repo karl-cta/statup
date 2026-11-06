@@ -22,6 +22,7 @@ pub use schedule::{
     spawn_backup_schedule,
 };
 
+use crate::db::written_by_migrations;
 use crate::error::AppError;
 use crate::services::CURRENT_VERSION;
 
@@ -194,6 +195,7 @@ const UPLOAD_FOLDERS: [&str; 2] = ["icons", "brand"];
 /// `statup_backup` row: it is not a Statup backup.
 pub async fn read_info(path: &Path) -> Result<BackupInfo, sqlx::Error> {
     let mut connection = open_file(path, false).await?;
+    check_shape(&mut connection).await?;
     let row: (String, i64, DateTime<Utc>, String) = sqlx::query_as(&format!(
         "SELECT app_version, migration, created_at, instance_name FROM {INFO_TABLE}"
     ))
@@ -206,6 +208,31 @@ pub async fn read_info(path: &Path) -> Result<BackupInfo, sqlx::Error> {
         created_at: row.2,
         instance_name: row.3,
     })
+}
+
+/// Refuses a file whose two backup tables are not plain tables, or whose
+/// views, triggers or virtual tables Statup's migrations did not write:
+/// reading such a file runs what it holds, an endless query included.
+async fn check_shape(connection: &mut SqliteConnection) -> Result<(), sqlx::Error> {
+    let objects: Vec<(String, String, Option<String>)> =
+        sqlx::query_as("SELECT type, name, sql FROM sqlite_schema")
+            .fetch_all(&mut *connection)
+            .await?;
+    let trusted = objects.iter().all(|(kind, name, sql)| {
+        let sql = sql.as_deref().unwrap_or_default();
+        let runs_code =
+            matches!(kind.as_str(), "view" | "trigger") || sql.starts_with("CREATE VIRTUAL TABLE");
+        if [INFO_TABLE, FILES_TABLE].contains(&name.as_str()) {
+            kind == "table" && !runs_code
+        } else {
+            !runs_code || written_by_migrations(sql)
+        }
+    });
+    if trusted {
+        Ok(())
+    } else {
+        Err(sqlx::Error::Protocol("not a Statup backup".into()))
+    }
 }
 
 /// Removes the sign-ins of the copy: a session id is the cookie itself,

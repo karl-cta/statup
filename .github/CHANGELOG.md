@@ -6,6 +6,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 
 - Password reset and subscription links are checked against a fast hash of their long random secret: a flood of made-up links can no longer keep the server busy while sign-ins wait. A link sent before the upgrade has to be asked for again.
 - On Windows, `install.ps1` refuses a folder that another account made or that holds a link, and closes the program folder before copying Statup into it.
+- A backup that holds a view, a trigger or a virtual table Statup did not write is refused before anything in it is read, so a crafted file can no longer hang the server during a restore.
 
 ## 0.12.0, 2026-11-02
 

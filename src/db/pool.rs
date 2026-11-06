@@ -88,6 +88,11 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), MigrateError> {
     MIGRATOR.run(pool).await
 }
 
+/// Whether this statement is, word for word, part of one of the migrations.
+pub fn written_by_migrations(sql: &str) -> bool {
+    MIGRATOR.iter().any(|migration| migration.sql.contains(sql))
+}
+
 /// The version of the newest migration this binary carries.
 pub fn latest_migration() -> i64 {
     MIGRATOR.iter().map(|m| m.version).max().unwrap_or(0)

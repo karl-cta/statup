@@ -310,6 +310,46 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_backup_holding_a_trigger_statup_did_not_write_is_refused() {
+        let scratch = Scratch::new();
+        let pool = file_pool(&scratch.path("statup.db")).await;
+        crate::session::create_session_store(&pool).await.unwrap();
+        let destination = scratch.path("backup.db");
+        create_backup(&pool, &scratch.uploads(), &destination)
+            .await
+            .unwrap();
+        let mut copy = open_file(&destination, true).await.unwrap();
+        sqlx::query("CREATE TRIGGER spin BEFORE DELETE ON tower_sessions BEGIN SELECT 1; END")
+            .execute(&mut copy)
+            .await
+            .unwrap();
+        copy.close().await.unwrap();
+
+        assert!(read_info(&destination).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn a_backup_whose_info_is_a_view_is_refused() {
+        let scratch = Scratch::new();
+        let path = scratch.path("view.db");
+        let options = sqlx::sqlite::SqliteConnectOptions::new()
+            .filename(&path)
+            .create_if_missing(true);
+        let mut file = SqliteConnection::connect_with(&options).await.unwrap();
+        sqlx::raw_sql(
+            "CREATE VIEW statup_backup AS SELECT '0.12.0' AS app_version, 1 AS migration, \
+             '2026-11-01T00:00:00Z' AS created_at, 'Acme' AS instance_name; \
+             CREATE TABLE statup_backup_files (path TEXT PRIMARY KEY NOT NULL, content BLOB NOT NULL);",
+        )
+        .execute(&mut file)
+        .await
+        .unwrap();
+        file.close().await.unwrap();
+
+        assert!(read_info(&path).await.is_err());
+    }
+
+    #[tokio::test]
     async fn a_database_that_is_not_a_backup_is_told_apart() {
         let scratch = Scratch::new();
         let _pool = file_pool(&scratch.path("statup.db")).await;
