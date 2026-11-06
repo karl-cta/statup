@@ -26,6 +26,7 @@ pub(crate) const CHOSEN_ORDER: &str = "s.folder_id IS NOT NULL, \
      s.folder_id, s.position, s.name COLLATE NOCASE, s.id";
 
 impl ServiceRepository {
+    /// A public service.
     pub async fn create(
         pool: &DbPool,
         name: &str,
@@ -34,9 +35,25 @@ impl ServiceRepository {
         icon_id: Option<i64>,
         icon_name: Option<&str>,
     ) -> Result<Service, sqlx::Error> {
-        sqlx::query_as::<_, Service>(
-            "INSERT INTO services (name, slug, description, icon_id, icon_name, position) \
-             VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM services)) \
+        let audience = (Visibility::Everyone, Grants::default());
+        Self::create_for(pool, name, slug, description, icon_id, icon_name, audience).await
+    }
+
+    /// A service seen by `audience` from its first instant: written with
+    /// its grants in one transaction, so it is never public on the way.
+    pub async fn create_for(
+        pool: &DbPool,
+        name: &str,
+        slug: &str,
+        description: Option<&str>,
+        icon_id: Option<i64>,
+        icon_name: Option<&str>,
+        (visibility, grants): (Visibility, Grants<'_>),
+    ) -> Result<Service, sqlx::Error> {
+        let mut tx = pool.begin().await?;
+        let service = sqlx::query_as::<_, Service>(
+            "INSERT INTO services (name, slug, description, icon_id, icon_name, position, visibility) \
+             VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM services), ?) \
              RETURNING *",
         )
         .bind(name)
@@ -44,8 +61,19 @@ impl ServiceRepository {
         .bind(description)
         .bind(icon_id)
         .bind(icon_name)
-        .fetch_one(pool)
-        .await
+        .bind(visibility)
+        .fetch_one(&mut *tx)
+        .await?;
+        super::replace_grants(
+            &mut tx,
+            GrantTables::Service,
+            service.id,
+            visibility,
+            grants,
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(service)
     }
 
     pub async fn find_by_id(pool: &DbPool, id: i64) -> Result<Option<Service>, sqlx::Error> {
@@ -912,6 +940,39 @@ mod tests {
         assert!(sees(&pool, &in_group, svc.id).await);
         assert!(sees(&pool, &by_name, svc.id).await);
         assert!(!sees(&pool, &other, svc.id).await);
+    }
+
+    #[tokio::test]
+    async fn a_service_created_for_a_group_is_never_seen_by_others() {
+        let pool = test_pool().await;
+        let group = GroupRepository::create(&pool, "Support").await.unwrap();
+        let in_group = account(&pool, "g@x.com", Role::Reader).await;
+        let other = account(&pool, "o@x.com", Role::Reader).await;
+        GroupRepository::add_members(&pool, group, &[in_group.id])
+            .await
+            .unwrap();
+
+        let grants = Grants {
+            groups: &[group],
+            members: &[],
+        };
+        let svc = ServiceRepository::create_for(
+            &pool,
+            "Paie",
+            "paie",
+            None,
+            None,
+            None,
+            (Visibility::Groups, grants),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(svc.visibility, Visibility::Groups);
+        assert!(sees(&pool, &in_group, svc.id).await);
+        assert!(!sees(&pool, &other, svc.id).await);
+        let (anonymous, _) = ServiceRepository::visible_ids(&pool, None).await.unwrap();
+        assert!(!anonymous.contains(&svc.id));
     }
 
     #[tokio::test]

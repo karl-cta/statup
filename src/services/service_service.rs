@@ -3,7 +3,9 @@
 
 use crate::db::DbPool;
 use crate::error::AppError;
-use crate::models::{CheckKind, Service, ServiceCheck, ServiceStatus, derive_status};
+use crate::models::{
+    CheckKind, Grants, Service, ServiceCheck, ServiceStatus, Visibility, derive_status,
+};
 use crate::repositories::{
     EventRepository, FolderRepository, ServiceRepository, SettingsRepository,
 };
@@ -17,6 +19,7 @@ const PROBLEMS_FIRST_SETTING: &str = "services_problems_first";
 pub struct ServiceService;
 
 impl ServiceService {
+    /// A public service.
     pub async fn create(
         pool: &DbPool,
         name: &str,
@@ -24,13 +27,34 @@ impl ServiceService {
         icon_id: Option<i64>,
         icon_name: Option<&str>,
     ) -> Result<Service, AppError> {
+        let audience = (Visibility::Everyone, Grants::default());
+        Self::create_for(pool, name, description, (icon_id, icon_name), audience).await
+    }
+
+    /// A service seen by `audience` from its first instant.
+    pub async fn create_for(
+        pool: &DbPool,
+        name: &str,
+        description: Option<&str>,
+        (icon_id, icon_name): (Option<i64>, Option<&str>),
+        audience: (Visibility, Grants<'_>),
+    ) -> Result<Service, AppError> {
         let name = name.trim();
         if let Some(key) = service_field_error(name, description) {
             return Err(AppError::validation(key));
         }
         let slug = unique_slug(pool, name).await?;
         let description = clean_description(description);
-        Ok(ServiceRepository::create(pool, name, &slug, description, icon_id, icon_name).await?)
+        Ok(ServiceRepository::create_for(
+            pool,
+            name,
+            &slug,
+            description,
+            icon_id,
+            icon_name,
+            audience,
+        )
+        .await?)
     }
 
     /// Creates a service inside a folder, following it from the start.
