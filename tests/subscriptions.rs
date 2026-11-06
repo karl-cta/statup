@@ -361,7 +361,16 @@ async fn the_answer_is_the_same_whatever_the_state_of_the_address() {
     assert_eq!(status, StatusCode::OK);
     bodies.push(body);
 
-    assert!(bodies.iter().all(|body| *body == bodies[0]));
+    let answers: Vec<&str> = bodies.iter().map(|body| main_of(body)).collect();
+    assert!(answers.iter().all(|answer| *answer == answers[0]));
+}
+
+/// The content of the page, without the masthead, whose clock can turn
+/// between two answers.
+fn main_of(page: &str) -> &str {
+    let start = page.find("<main").expect("a page with a main");
+    let end = page.find("</main>").expect("a page with a main");
+    &page[start..end]
 }
 
 #[tokio::test]
