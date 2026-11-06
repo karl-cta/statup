@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 
 use crate::i18n::I18n;
 use crate::models::{Event, EventUpdateWithAuthor, Kind, Lifecycle, SEPARATOR, Tone, User};
-use crate::services::can_delete_update;
+use crate::services::{can_delete_update, clean_update};
 
 /// A milestone and a message this close are one moment: closing an event
 /// publishes its last word along with the new state.
@@ -190,7 +190,7 @@ fn update_entry(
         can_delete: user.is_some_and(|u| can_delete_update(event, update.author_id, u)),
         author: user.map(|_| update.author_name),
         update_id: Some(update.id),
-        html: update.message,
+        html: clean_update(&update.message),
         ..entry_at(update.created_at, i18n)
     }
 }

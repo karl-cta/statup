@@ -482,9 +482,15 @@ pub fn sanitize_markdown(raw: &str) -> String {
     let parser = Parser::new_ext(raw, Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TABLES);
     let mut rendered = String::new();
     html::push_html(&mut rendered, parser);
+    clean_update(&rendered)
+}
+
+/// An update as stored, already HTML, cleaned again as it is drawn: a fix
+/// in the cleaner then reaches the updates written before it.
+pub fn clean_update(html: &str) -> String {
     ammonia::Builder::default()
         .rm_tags(&["img"])
-        .clean(&rendered)
+        .clean(html)
         .to_string()
 }
 
@@ -675,6 +681,14 @@ mod tests {
         assert!(!result.contains("alert"));
         assert!(!result.contains("<img"));
         assert!(!result.contains("class="));
+    }
+
+    #[test]
+    fn a_stored_update_is_cleaned_again_as_it_is_drawn() {
+        let stored = "<p>Fixed</p><script>alert(1)</script><img src=\"https://x.test/a.png\">";
+
+        assert_eq!(clean_update(stored), "<p>Fixed</p>");
+        assert_eq!(clean_update("<p>Fixed</p>"), "<p>Fixed</p>");
     }
 
     #[test]
