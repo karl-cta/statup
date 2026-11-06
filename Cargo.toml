@@ -46,7 +46,7 @@ askama = { version = "0.16", features = ["serde_json"] }
 argon2 = "0.5"
 subtle = "2"
 sha2 = "0.10"
-tower-sessions = "0.14"
+tower-sessions = "0.15"
 rmp-serde = "1"
 
 # Serialization
