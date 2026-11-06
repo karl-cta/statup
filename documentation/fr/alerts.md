@@ -56,7 +56,7 @@ Les pannes trouvées par la [surveillance](monitoring.md), ou signalées par un 
 
 Les visiteurs et les membres s'abonnent eux-mêmes depuis la page **S'abonner**, décrite dans [la page d'état](status-page.md#get-notified). La carte **Abonnés par e-mail** de la page Alertes les compte et mène à leur liste.
 
-- **Voir les abonnés** liste chaque personne : qui elle est, ce qu'elle reçoit, depuis quand, et comment s'est passé son dernier e-mail, avec la raison s'il a échoué. **Retirer** met fin à un abonnement après une question dans la ligne ; la personne ne reçoit plus rien.
+- **Voir les abonnés** liste chaque personne : qui elle est, ce qu'elle reçoit, depuis quand, et comment s'est passé son dernier e-mail, avec la raison s'il a échoué. **Retirer** met fin à un abonnement après une question sous le bouton ; la personne ne reçoit plus rien.
 - **Les visiteurs peuvent s'abonner** est coché par un administrateur et enregistré avec **Enregistrer**. C'est décoché sur une instance neuve. Le décocher arrête les e-mails aux visiteurs déjà abonnés, qui reviennent quand la case est recochée ; les membres continuent de recevoir les leurs.
 - Rien n'est envoyé sans serveur SMTP ([`SMTP_HOST`](configuration.md#smtp_host)) : la carte le dit alors et ne propose pas d'interrupteur.
 - Le [Journal](journal.md) garde l'adresse d'un abonné qui a confirmé, est parti ou a été retiré, aussi longtemps qu'il garde ses lignes.

@@ -7,7 +7,7 @@ With a key, a script or a tool does what an editor does: read the services and t
 
 ## Keys
 
-In **Settings**, **API**, then **Manage the keys**: **New key**, a name such as `Zabbix`, then **Create the key**. The key is shown once, masked: **Show** reveals it, **Copy** copies it. Statup keeps only a hash of it, so a lost key cannot be shown again: **Regenerate** gives the same key a new secret and stops the old one at once. **Revoke** stops it for good.
+In **Settings**, **API**, then **Manage the keys**: **New key**, a name such as `Zabbix`, then **Create the key**. The key is shown once, masked: **Show** reveals it, **Copy** copies it. Statup keeps only a hash of it, so a lost key cannot be shown again. **Manage**, on the key's row, offers **Regenerate**, which gives the same key a new secret and stops the old one at once, and **Revoke**, which stops it for good.
 
 A key acts as an editor and does nothing of the administration: no team, settings, alerts or keys, no deletion, no change to a closed event. What it writes is signed with its name, in the event's timeline and in the [Journal](journal.md). A key belongs to the instance: it keeps working when the administrator who made it is disabled, and the keys page says **account disabled** next to it, for an administrator to decide.
 

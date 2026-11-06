@@ -703,22 +703,19 @@
 
     }
 
-    /* A member's action, or an API key's revocation, asks first in a panel
+    /* The action of a member, a key or a subscriber asks first in a panel
        under the row's actions, as wide as its question, so the row keeps
        its place. */
     .member-row .admin-row-actions,
-    .key-row .admin-row-actions {
+    .key-row .admin-row-actions,
+    .subscriber-row .admin-row-actions {
         position: relative;
     }
 
     .member-row .member-confirm,
-    .key-row .member-confirm {
+    .key-row .member-confirm,
+    .subscriber-row .member-confirm {
         position: static;
-    }
-
-    /* A key's one action stays on the right of its row. */
-    .key-row .admin-row-actions {
-        grid-column: auto;
     }
 
     /* A key's name is short: its field keeps to the width of a name. */
@@ -867,8 +864,10 @@
         height: 12px;
     }
 
-    /* "Manage" stays on the right of the member, on a phone too. */
-    .member-row .admin-row-actions {
+    /* The one door of a row stays on its right, on a phone too. */
+    .member-row .admin-row-actions,
+    .key-row .admin-row-actions,
+    .subscriber-row .admin-row-actions {
         grid-column: 2;
         align-self: start;
         margin-top: -3px;
@@ -1024,14 +1023,7 @@
         gap: 10px;
     }
 
-    /* How the last message of a destination went: a stamp when it went,
-       a dot and a sentence that wraps when it did not. */
-    .destination-last {
-        margin-top: 4px;
-        font-size: var(--text-xs);
-        color: var(--muted);
-    }
-
+    /* A last message that did not go: a dot and a sentence that wraps. */
     .destination-state {
         display: flex;
         align-items: flex-start;
