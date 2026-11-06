@@ -2,8 +2,11 @@
 //! and the subscription links. A token reads `<id>.<secret>`: the id finds
 //! the stored row, the secret proves the holder got the email.
 
+use std::fmt::Write as _;
+
 use rand::Rng;
 use rand::distributions::Alphanumeric;
+use sha2::{Digest, Sha256};
 
 /// Characters of the secret: about 190 bits, beyond any guessing.
 const SECRET_LENGTH: usize = 32;
@@ -27,6 +30,24 @@ pub(super) fn parse(token: &str) -> Option<(i64, &str)> {
         secret.len() == SECRET_LENGTH && secret.bytes().all(|b| b.is_ascii_alphanumeric());
     well_formed.then_some(())?;
     Some((id.parse().ok()?, secret))
+}
+
+/// The SHA-256 of a random secret, in hexadecimal, as it is stored. A fast
+/// hash is enough: the secret is long and random, so a slow one protects
+/// nothing, and it would let anyone sending made-up links keep the server
+/// hashing while sign-ins wait.
+pub(super) fn secret_hash(secret: &str) -> String {
+    let digest = Sha256::digest(secret.as_bytes());
+    let mut text = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        let _ = write!(text, "{byte:02x}");
+    }
+    text
+}
+
+/// Whether `secret` is the one `stored` was made from.
+pub(super) fn matches(secret: &str, stored: &str) -> bool {
+    same_secret(&secret_hash(secret), stored)
 }
 
 /// Whether two secrets are the same. Every byte is compared whatever the
@@ -97,5 +118,19 @@ mod tests {
         assert!(!same_secret(&secret, &one_off));
         assert!(!same_secret(&secret, &secret[..31]));
         assert!(!same_secret("", &secret));
+    }
+
+    #[test]
+    fn a_secret_matches_only_its_own_hash() {
+        let secret = new_secret();
+        let stored = secret_hash(&secret);
+
+        assert_eq!(stored.len(), 64);
+        assert!(matches(&secret, &stored));
+        assert!(!matches(&new_secret(), &stored));
+        assert!(!matches(
+            &secret,
+            "$argon2id$v=19$m=19456,t=2,p=1$c2FsdA$aGFzaA"
+        ));
     }
 }

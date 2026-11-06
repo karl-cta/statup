@@ -2,6 +2,10 @@
 
 All notable changes to Statup are listed here. The project is pre-v1: until 1.0, a minor version may change the interface or the database, and the README asks you to back up before upgrading.
 
+## Unreleased
+
+- Password reset and subscription links are checked against a fast hash of their long random secret: a flood of made-up links can no longer keep the server busy while sign-ins wait. A link sent before the upgrade has to be asked for again.
+
 ## 0.12.0, 2026-11-02
 
 - An icon or a logo can weigh up to 1 MB, instead of 256 KB. Behind nginx, `client_max_body_size` lets it through, as the reverse proxy page now shows.

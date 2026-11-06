@@ -11,8 +11,7 @@
 //! because each email must repeat it, and it can only end its own
 //! subscription.
 
-use super::AuthService;
-use super::link_token::{new_secret, parse, same_secret, token};
+use super::link_token::{matches, new_secret, parse, same_secret, secret_hash, token};
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::{Choices, Subscriber, SubscriptionRequest};
@@ -57,12 +56,11 @@ impl SubscriptionService {
             per_address: REQUESTS_PER_ADDRESS,
             per_instance: REQUESTS_PER_INSTANCE,
         };
-        // Asked first so that a refused request costs no Argon2 hash.
         if !SubscriptionRequestRepository::within_limits(pool, email, limits).await? {
             return Ok(None);
         }
         let secret = new_secret();
-        let secret_hash = AuthService::hash_password(&secret).await?;
+        let secret_hash = secret_hash(&secret);
         let new = NewSubscriptionRequest {
             email,
             secret_hash: &secret_hash,
@@ -85,10 +83,7 @@ impl SubscriptionService {
         let Some(request) = SubscriptionRequestRepository::find_live(pool, id).await? else {
             return Ok(None);
         };
-        if !AuthService::verify_password(secret, &request.secret_hash).await? {
-            return Ok(None);
-        }
-        Ok(Some(request))
+        Ok(matches(secret, &request.secret_hash).then_some(request))
     }
 
     /// Subscribes the visitor whose link this is. `None` when the link is

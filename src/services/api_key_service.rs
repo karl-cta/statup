@@ -1,13 +1,11 @@
 //! API keys: made once, shown once, then kept only as a hash. A request
 //! proves itself by presenting the key; its hash finds the row.
 
-use std::fmt::Write as _;
-
 use chrono::{DateTime, Utc};
 use rand::Rng;
 use rand::distributions::Alphanumeric;
-use sha2::{Digest, Sha256};
 
+use super::link_token::secret_hash as hash;
 use crate::db::DbPool;
 use crate::error::{AppError, name_taken_on_conflict};
 use crate::models::{API_KEY_PREFIX, ApiKeyHolder, User, check_api_key_name};
@@ -93,17 +91,6 @@ fn well_formed(key: &str) -> bool {
     key.strip_prefix(API_KEY_PREFIX).is_some_and(|secret| {
         secret.len() == SECRET_LENGTH && secret.bytes().all(|b| b.is_ascii_alphanumeric())
     })
-}
-
-/// The SHA-256 of the key, in hexadecimal. A fast hash is enough: the key
-/// is random and long, so there is nothing for a slow hash to protect.
-fn hash(key: &str) -> String {
-    let digest = Sha256::digest(key.as_bytes());
-    let mut text = String::with_capacity(digest.len() * 2);
-    for byte in digest {
-        let _ = write!(text, "{byte:02x}");
-    }
-    text
 }
 
 #[cfg(test)]

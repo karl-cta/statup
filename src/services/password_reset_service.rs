@@ -1,12 +1,12 @@
 //! The link that lets a member who forgot their password choose a new one.
 //!
 //! A link carries `<id>.<secret>` (see `link_token`): the id finds the
-//! stored link, the secret is checked against its Argon2 hash, so a copy of
-//! the database opens no account. Only the newest link of an account works,
+//! stored link, the secret is checked against its SHA-256, so a copy of the
+//! database opens no account. Only the newest link of an account works,
 //! for an hour, once.
 
 use super::AuthService;
-use super::link_token::{new_secret, parse, token};
+use super::link_token::{matches, new_secret, parse, secret_hash, token};
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::User;
@@ -41,7 +41,7 @@ impl PasswordResetService {
             return Ok(LinkRequest::NoAccount);
         };
         let secret = new_secret();
-        let secret_hash = AuthService::hash_password(&secret).await?;
+        let secret_hash = secret_hash(&secret);
         let stored = PasswordResetRepository::insert_within_limit(
             pool,
             user.id,
@@ -65,7 +65,7 @@ impl PasswordResetService {
         let Some(link) = PasswordResetRepository::find_live(pool, id).await? else {
             return Ok(None);
         };
-        if !AuthService::verify_password(secret, &link.secret_hash).await? {
+        if !matches(secret, &link.secret_hash) {
             return Ok(None);
         }
         let user = UserRepository::find_by_id(pool, link.user_id).await?;
@@ -156,6 +156,21 @@ mod tests {
             .unwrap();
 
         assert!(matches!(fourth, LinkRequest::LimitReached));
+    }
+
+    #[tokio::test]
+    async fn a_link_is_kept_as_the_sha256_of_its_secret() {
+        let pool = test_pool().await;
+        member(&pool, "ana@example.com").await;
+
+        let token = link(&pool, "ana@example.com").await;
+        let (id, secret) = parse(&token).unwrap();
+        let stored = PasswordResetRepository::find_live(&pool, id)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(stored.secret_hash, secret_hash(secret));
     }
 
     #[tokio::test]
