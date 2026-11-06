@@ -24,7 +24,7 @@ Une valeur que Statup ne sait pas lire, comme un port à `0` ou un mot à la pla
 - Par défaut : non défini, l'adresse de chaque requête est utilisée
 - Valeurs : une adresse, comme `https://status.example.com`
 
-L'adresse qu'utilisent les visiteurs. Les liens du flux et des alertes s'en servent. Une adresse en `https://` marque le cookie de session `Secure` et active HSTS.
+L'adresse qu'utilisent les visiteurs. Les liens du flux et des alertes s'en servent. Une adresse en `https://` marque le cookie de session `Secure` et active HSTS. Derrière HTTPS, elle est nécessaire : sans elle, le cookie de session n'est pas marqué `Secure`.
 
 ### `TRUST_PROXY_HEADERS`
 

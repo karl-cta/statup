@@ -24,7 +24,7 @@ A value Statup cannot read, such as a port of `0` or a word where a number is ex
 - Default: unset, the address of each request is used
 - Values: an address, such as `https://status.example.com`
 
-The address visitors use. Links in the feed and in the alerts use it. An `https://` address marks the session cookie `Secure` and sends HSTS.
+The address visitors use. Links in the feed and in the alerts use it. An `https://` address marks the session cookie `Secure` and sends HSTS. Behind HTTPS it is needed: without it, the session cookie is not marked `Secure`.
 
 ### `TRUST_PROXY_HEADERS`
 
