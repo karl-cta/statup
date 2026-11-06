@@ -150,6 +150,7 @@ pub(crate) struct TempFolder(PathBuf);
 impl TempFolder {
     pub(crate) async fn new(prefix: &str) -> Result<Self, AppError> {
         let dir = std::env::temp_dir().join(format!("statup-{prefix}-{}", uuid::Uuid::new_v4()));
+        #[cfg_attr(not(unix), expect(unused_mut, reason = "only Unix sets a mode"))]
         let mut builder = tokio::fs::DirBuilder::new();
         #[cfg(unix)]
         builder.mode(0o700);
