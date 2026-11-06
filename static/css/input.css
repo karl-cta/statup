@@ -1,4 +1,6 @@
-@import "tailwindcss";
+/* Classes come from the templates and the scripts only: scanning the rest of
+   the repository would ship utilities that no page uses. */
+@import "tailwindcss" source(none);
 
 @source "../../templates/**/*.html";
 @source "../js/**/*.js";
