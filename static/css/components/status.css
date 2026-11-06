@@ -1135,7 +1135,7 @@
         }
     }
 
-    /* Maintenances card. */
+    /* The banner link and the bars hold still. */
     @media (prefers-reduced-motion: reduce) {
         .hero-link svg,
         .bar,

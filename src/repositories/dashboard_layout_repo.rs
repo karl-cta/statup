@@ -72,7 +72,6 @@ impl DashboardLayoutRepository {
         Ok(())
     }
 
-    /// Stores the width chosen for a module.
     pub async fn set_width(pool: &DbPool, module_id: &str, width: &str) -> Result<(), sqlx::Error> {
         sqlx::query(
             "UPDATE dashboard_layouts \

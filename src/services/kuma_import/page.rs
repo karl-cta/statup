@@ -106,7 +106,7 @@ fn page_of<'a>(segments: &'a [&'a str]) -> Option<(&'a [&'a str], String)> {
         [prefix @ .., "status" | "status-page"] => (prefix, DEFAULT_SLUG.to_string()),
         _ => return None,
     };
-    // Kuma's slugs are letters, digits and dashes: anything else is not one.
+    // Kuma's slugs are letters, digits, dashes and underscores: anything else is not one.
     let valid = slug
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');

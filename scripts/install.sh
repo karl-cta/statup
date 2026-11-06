@@ -13,7 +13,6 @@ SETTINGS_DIR=/etc/statup
 SETTINGS=$SETTINGS_DIR/statup.env
 UNIT=/etc/systemd/system/statup.service
 WRAPPER=/usr/local/bin/statup
-# The documents an archive holds beside the program.
 DOCUMENTS='README.md LICENSE THIRD_PARTY_NOTICES.md'
 
 usage() {

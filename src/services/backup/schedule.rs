@@ -177,10 +177,6 @@ pub fn spawn_backup_schedule(pool: DbPool, upload_dir: String, backup_dir: PathB
 /// Takes the automatic backup when one is due and was not tried since.
 /// Returns the path of the backup written. A failed backup is recorded,
 /// not returned: only reading the schedule fails this function.
-///
-/// # Errors
-///
-/// Returns `sqlx::Error` when the settings cannot be read or written.
 async fn run_due(
     pool: &DbPool,
     upload_dir: &str,
@@ -221,10 +217,6 @@ async fn run_due(
 
 /// When the last automatic backup failed, if the one after has not
 /// succeeded yet.
-///
-/// # Errors
-///
-/// Returns `sqlx::Error` when the settings cannot be read.
 pub async fn last_failure(pool: &DbPool) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
     stored_time(pool, FAILED_SETTING).await
 }

@@ -10,5 +10,4 @@ pub use pool::{
     optimize, run_migrations, written_by_migrations,
 };
 
-/// Type alias for the `SQLite` connection pool.
 pub type DbPool = sqlx::SqlitePool;

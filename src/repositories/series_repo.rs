@@ -117,8 +117,9 @@ impl SeriesRepository {
     }
 
     /// Adds `session`, with the services of the series, and moves the
-    /// series on to `following`, in one transaction. `None`, with nothing written, when the series
-    /// changed since it was read: stopped, edited, or given a session.
+    /// series on to `following`, in one transaction. `None`, with nothing
+    /// written, when the series changed since it was read: stopped, edited,
+    /// or given a session.
     pub async fn add_session(
         pool: &DbPool,
         series: &MaintenanceSeries,

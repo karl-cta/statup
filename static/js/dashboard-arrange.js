@@ -1,8 +1,8 @@
 // Arranging the dashboard on the dashboard itself. An administrator opens
-// the mode, drags a block by its handle (any pointer) or moves it with the
-// arrow keys, picks its width, hides it or adds a hidden one back. Every
-// change shows at once and is saved in the background; a refused save
-// reloads the page, the only way back to a truthful screen.
+// the mode, drags a block (any pointer) or moves it with the arrow keys,
+// picks its width, hides it or adds a hidden one back. Every change shows
+// at once and is saved in the background; a refused save reloads the page,
+// the only way back to a truthful screen.
 (function () {
     "use strict";
 

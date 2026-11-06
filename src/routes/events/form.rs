@@ -305,8 +305,10 @@ impl EventFormData {
         }
     }
 
-    // The template hands a field over by reference.
-    #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "the template hands a field over by reference"
+    )]
     fn follows(&self, id: &i64) -> bool {
         self.follows_event_id == Some(*id)
     }

@@ -125,7 +125,6 @@ impl MemberNoticeRepository {
         Ok(())
     }
 
-    /// Forgets the notices written before `before`.
     pub async fn purge(pool: &DbPool, before: DateTime<Utc>) -> Result<u64, sqlx::Error> {
         let done = sqlx::query("DELETE FROM member_notices WHERE created_at < ?")
             .bind(clock::db(before))

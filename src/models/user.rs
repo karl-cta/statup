@@ -31,12 +31,10 @@ impl Role {
         }
     }
 
-    /// Returns `true` if the role allows publishing events.
     pub fn can_publish(self) -> bool {
         matches!(self, Self::Publisher | Self::Admin)
     }
 
-    /// Returns `true` if the role allows admin operations.
     pub fn can_admin(self) -> bool {
         matches!(self, Self::Admin)
     }

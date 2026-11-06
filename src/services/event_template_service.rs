@@ -1,5 +1,3 @@
-//! Event template rules.
-
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::EventTemplate;

@@ -101,7 +101,7 @@ fn detail_facts(kind: JournalKind, detail: &str, i18n: &I18n) -> Vec<String> {
             // The sentence already says the account is unknown.
             _ => Vec::new(),
         },
-        // The sentence says what was blocked and why.
+        // The sentence says all there is to say.
         K::SignInBlocked
         | K::PasswordCheckBlocked
         | K::PasswordResetBlocked

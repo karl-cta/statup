@@ -862,7 +862,7 @@
         }
     }
 
-    /* Event form. One column: kind, severity, services, then the words. */
+    /* A block of a form, set apart from the one above. */
     .form-block {
         margin-top: 28px;
     }
@@ -1351,7 +1351,7 @@
         display: none;
     }
 
-    /* The caret of every menu that opens, as on the Journal's "Modifier". */
+    /* The caret of every menu that opens, as on the Journal's "Change". */
     .more-options > summary svg {
         width: 16px;
         height: 16px;

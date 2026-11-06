@@ -68,8 +68,10 @@ struct ServiceListTemplate {
 }
 
 impl ServiceListTemplate {
-    // Askama hands a field over by reference.
-    #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "Askama hands a field over by reference"
+    )]
     fn is_saved(&self, id: &i64) -> bool {
         self.saved_id == Some(*id)
     }

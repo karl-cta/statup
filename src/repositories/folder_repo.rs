@@ -96,7 +96,6 @@ impl FolderRepository {
         Ok(usize::try_from(count).unwrap_or(0))
     }
 
-    /// The name of each folder, by its id.
     pub async fn names(pool: &DbPool) -> Result<HashMap<i64, String>, sqlx::Error> {
         let rows: Vec<(i64, String)> = sqlx::query_as("SELECT id, name FROM service_folders")
             .fetch_all(pool)
@@ -169,10 +168,10 @@ impl FolderRepository {
     ///
     /// A service follows the folder when it was visible to everyone or
     /// already had exactly the folder's setting: same visibility, same groups
-    /// and same members. Any other restriction of
-    /// its own is kept, so moving a service into a folder never shows it to
-    /// more people. A follower moved from another folder carries that
-    /// folder's copy, so the same rule applies to it.
+    /// and same members. Any other restriction of its own is kept, so moving
+    /// a service into a folder never shows it to more people. A follower
+    /// moved from another folder carries that folder's copy, so the same
+    /// rule applies to it.
     pub async fn add_services(
         pool: &DbPool,
         folder_id: i64,

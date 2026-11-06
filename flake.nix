@@ -13,7 +13,7 @@
       ];
 
       systems = linuxSystems ++ [
-        "aarch64-darwin" # Apple silicon
+        "aarch64-darwin"
       ];
 
       forAllSystems = nixpkgs.lib.genAttrs systems;
@@ -37,7 +37,6 @@
             pkgs.tailwindcss_4
           ];
 
-          # Generate the stylesheet after Cargo builds the application.
           postBuild = ''
             tailwindcss \
               --input static/css/input.css \

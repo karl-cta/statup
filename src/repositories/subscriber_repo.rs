@@ -170,7 +170,6 @@ impl SubscriberRepository {
         Ok(queued.rows_affected())
     }
 
-    /// How many members and visitors are subscribed.
     pub async fn count(pool: &DbPool) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar("SELECT COUNT(*) FROM subscribers")
             .fetch_one(pool)

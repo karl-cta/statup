@@ -41,21 +41,15 @@ const BACKUP_FOLDER: &str = "backups";
 /// The file chosen with `--env`, read instead of `.env`.
 static ENV_FILE: OnceLock<PathBuf> = OnceLock::new();
 
-/// Application configuration.
 // Each flag is a setting of its own, read from its own variable.
 #[allow(clippy::struct_excessive_bools)]
 pub struct Config {
-    /// `SQLite` database path.
     pub database_url: String,
-    /// Server listen address.
     pub host: IpAddr,
-    /// Server listen port.
     pub port: u16,
     /// Lifetime of a session that nobody signed in with (the sign-in form).
     pub session_expiry: Duration,
-    /// Logging level filter.
     pub log_level: LevelFilter,
-    /// Maximum database connections in the pool.
     pub db_max_connections: u32,
     /// Initial admin email (first run only).
     pub admin_email: Option<String>,
@@ -183,7 +177,6 @@ impl Config {
         Ok(())
     }
 
-    /// Return the full socket address for binding.
     pub fn bind_addr(&self) -> String {
         format!("{}:{}", self.host, self.port)
     }
@@ -381,7 +374,6 @@ pub fn init_logging(level: LevelFilter, file: Option<LogFile>) -> JournalInbox {
     inbox
 }
 
-/// Parse a log level string into a `LevelFilter`.
 fn parse_log_level(s: &str) -> Result<LevelFilter, ConfigError> {
     match s.trim().to_lowercase().as_str() {
         "trace" => Ok(LevelFilter::TRACE),

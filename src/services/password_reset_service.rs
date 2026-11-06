@@ -74,8 +74,9 @@ impl PasswordResetService {
 
     /// Sets the password chosen through the link. A refused password keeps
     /// the link; an accepted one uses up every link of the account in the
-    /// same transaction as the new password. Returns the account as stored now, its new
-    /// password hash included, which the session is tied to next.
+    /// same transaction as the new password. Returns the account as stored
+    /// now, its new password hash included, which the session is tied to
+    /// next.
     pub async fn redeem(
         pool: &DbPool,
         token: &str,

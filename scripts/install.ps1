@@ -376,7 +376,6 @@ function Expand-StatupArchive {
     return $folder.FullName
 }
 
-# The documents an archive holds beside the program.
 function Get-StatupDocument {
     @('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md')
 }

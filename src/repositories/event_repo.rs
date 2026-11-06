@@ -76,10 +76,9 @@ impl EventRepository {
         Ok(event)
     }
 
-    /// Writes a new event and its services inside `tx`, as a session of
-    /// `series_id` when it repeats.
-    /// Inserts an event and links its services. A session of a repeating
-    /// maintenance names its series, and whether the schedule added it.
+    /// Inserts an event and links its services inside `tx`. A session of a
+    /// repeating maintenance names its series, and whether the schedule added
+    /// it.
     pub(crate) async fn insert(
         tx: &mut sqlx::Transaction<'_, Sqlite>,
         input: &CreateEventInput,
@@ -222,7 +221,6 @@ impl EventRepository {
         qb.build_query_scalar::<i64>().fetch_one(pool).await
     }
 
-    /// Latest incidents and announcements; maintenances have their own card.
     /// The latest events of the kinds the activity card shows.
     pub async fn list_recent_activity(
         pool: &DbPool,

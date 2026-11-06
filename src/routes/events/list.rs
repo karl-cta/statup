@@ -145,8 +145,10 @@ impl EventListTemplate {
         self.query.group().is_some_and(|g| g.as_str() == group)
     }
 
-    // Askama hands a field over by reference.
-    #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "Askama hands a field over by reference"
+    )]
     fn service_is(&self, id: &i64) -> bool {
         self.query.service_id == Some(*id)
     }

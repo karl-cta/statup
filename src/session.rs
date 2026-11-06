@@ -15,7 +15,6 @@ use tower_sessions_sqlx_store::SqliteStore;
 use crate::db::DbPool;
 use crate::error::AppError;
 
-/// Session key for the authenticated user ID.
 pub const USER_ID_KEY: &str = "user_id";
 
 /// Session key for the stamp of the password the session was opened with.
@@ -36,11 +35,6 @@ const REFRESH_INTERVAL_SECS: i64 = 60 * 60;
 
 const CLEANUP_PERIOD: std::time::Duration = std::time::Duration::from_secs(60);
 
-/// Reads a session value.
-///
-/// # Errors
-///
-/// Returns `AppError::Internal` when the store cannot load the session.
 pub async fn read_value<T: DeserializeOwned>(
     session: &Session,
     key: &str,
@@ -169,8 +163,6 @@ pub struct SqliteSessionStore {
     pool: DbPool,
 }
 
-/// Create the session store backed by `SQLite`.
-///
 /// Creates the `tower_sessions` table and its expiry index when absent.
 ///
 /// # Errors

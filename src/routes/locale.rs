@@ -14,7 +14,6 @@ use crate::middleware::OptionalUser;
 use crate::repositories::UserRepository;
 use crate::state::AppState;
 
-/// Cookie max-age, one year in seconds.
 const COOKIE_MAX_AGE: u32 = 60 * 60 * 24 * 365;
 
 #[derive(Deserialize)]

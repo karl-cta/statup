@@ -224,9 +224,6 @@ impl AuthService {
         Ok(admin)
     }
 
-    /// Destroy a session (logout).
-    ///
-    /// Flushes all session data and removes the cookie.
     pub async fn logout(session: &tower_sessions::Session) {
         if let Err(e) = session.flush().await {
             tracing::error!("Failed to flush session: {e}");
