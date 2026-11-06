@@ -35,3 +35,7 @@ Relancez la commande d'installation : le script met Statup à jour et garde ses
 ## Mettre à jour sous Windows Server
 
 Relancez le script d'installation : il met le service à jour et garde ses réglages. Voir [Installer sur Windows Server](install-windows.md#upgrade).
+
+## Mettre à jour sous NixOS
+
+Mettez à jour l'entrée du flake et reconstruisez. Voir [NixOS](nixos.md#upgrade).

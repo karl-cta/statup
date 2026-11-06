@@ -40,7 +40,7 @@ Press Enter to take the value in brackets. An option given on the command line a
 - The firewall question is asked only when ufw or firewalld is active and Statup does not listen on this machine only.
 - A folder is a full path of letters, digits, dots, dashes and underscores, and not a system folder such as `/opt` or `/var/lib`. An existing folder that holds files of another account is refused, and so is a program folder inside the data or backup folder, or one that root does not own.
 - The questions need a terminal. Without one, the script stops and asks for `--yes`.
-- When `/etc/statup/statup.env` exists, from an earlier install that was removed, its settings are kept and only the program folder and the account are asked.
+- When `/etc/statup/statup.env` exists, from an earlier install that was removed, its settings are kept, and only the program folder, the account and the firewall question are asked.
 
 ## Other options
 
@@ -67,14 +67,14 @@ curl -fsSL https://github.com/karl-cta/statup/releases/latest/download/install.s
 
 | Item | Where |
 |---|---|
-| Program | `/opt/statup`: `statup`, `static/`, the license files and a `VERSION` file, owned by `root`. |
+| Program | `/opt/statup`: `statup`, `static/`, `README.md`, the license files and a `VERSION` file, owned by `root`. |
 | Data | `/var/lib/statup`: the database, `uploads/` and the backups, owned by the service account, mode `750`. |
 | Account | `statup`, a system account without login, created when it does not exist. |
 | Settings | `/etc/statup/statup.env`, owned by `root` and readable by the service account only. |
 | Service | `/etc/systemd/system/statup.service`, enabled and started. |
 | Command | `/usr/local/bin/statup`, to run the [commands](command-line.md) of Statup. |
 
-The service starts after the network, restarts after a failure and is limited to what it needs: of the powers of `root`, only the one to listen on a port below 1024, no new privileges, a private `/tmp`, the file system read-only except the data and backup folders, and the home folders hidden, or read-only when one of the two folders is under `/home`.
+The service starts after the network, restarts after a failure and is limited to what it needs: of the powers of `root`, only the one to listen on a port below 1024, no new privileges, a private `/tmp`, the file system read-only except the data and backup folders, and the home folders hidden, or read-only when one of the two folders is under `/home`, `/root` or `/run/user`.
 
 Logs go to the journal: `journalctl -u statup`.
 
@@ -87,9 +87,9 @@ sudo nano /etc/statup/statup.env
 sudo systemctl restart statup
 ```
 
-- After a change of `DATABASE_URL`, `UPLOAD_DIR` or `BACKUP_DIR`, run the [install command](install-linux.md#upgrade) again: it creates the new folder and lets the service write to it, which a restart alone does not.
+- After a change of `DATABASE_URL` or `BACKUP_DIR`, run the [install command](install-linux.md#upgrade) again: it creates the new folder and lets the service write to it, which a restart alone does not. Keep `UPLOAD_DIR` inside the data folder: the service can write only to the data and backup folders.
 - The firewall rule opened at install stays on the old port after a change of `PORT`.
-- Keep `DATABASE_URL` a plain path: an [upgrade](install-linux.md#upgrade) finds the data folder from it, and a path with parameters, such as `?mode=rwc`, would mislead it.
+- Keep `DATABASE_URL` a full path, starting with `/`: an [upgrade](install-linux.md#upgrade) finds the data folder from it.
 - The unit file is written again at each upgrade: settings belong in `statup.env`.
 
 ## Maintenance commands
@@ -101,7 +101,7 @@ sudo statup backup
 sudo statup reset-password you@example.com
 ```
 
-[`backup`](command-line.md#backup) writes to the backup folder. With `--output`, the file must be in the data folder or the backup folder: the service account cannot write elsewhere, and the command fails.
+[`backup`](command-line.md#backup) writes to the backup folder. With `--output`, the file must be in a folder the service account can write to, such as the backup folder: elsewhere, the command fails.
 
 To [restore](command-line.md#restore), stop Statup. The command reads the file as the service account, so a file in your own folder is out of its reach: copy it to the backup folder first.
 

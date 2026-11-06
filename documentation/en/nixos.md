@@ -86,11 +86,11 @@ The Statup that the service runs.
 
 ## Data
 
-The database and the uploads live in `/var/lib/statup`, owned by the `statup` user. To [back up](backups.md), stop the service with `sudo systemctl stop statup`, copy `statup.db`, `statup.db-wal`, `statup.db-shm` and `uploads/`, then start it again.
+The database, the uploads and the backups live in `/var/lib/statup`, owned by the `statup` user. The [automatic backups](backups.md#automatic-backups) and those made before an upgrade go to `/var/lib/statup/backups`, and **Settings › Backups** downloads them. A [`BACKUP_DIR`](configuration.md#backup_dir) outside `/var/lib/statup` cannot be written by the service.
 
 ## Upgrade
 
-[Back up](backups.md) first, then update the input and rebuild:
+Statup backs up the database itself before an upgrade changes it, in `/var/lib/statup/backups`. Update the input and rebuild:
 
 ```bash
 nix flake update statup

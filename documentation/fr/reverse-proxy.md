@@ -47,7 +47,7 @@ location / {
 }
 ```
 
-`client_max_body_size` laisse passer une icône de 1 Mo et une sauvegarde jusqu'à 256 Mo pour [Restaurer une sauvegarde](backups.md#restore-a-backup) : nginx refuse de lui-même une requête de plus de 1 Mo.
+`client_max_body_size` laisse passer une icône de 1 Mo et une sauvegarde jusqu'à 256 Mo pour [Restaurer une sauvegarde](backups.md#restore-a-backup) : nginx refuse de lui-même une requête de plus de 1 Mo.
 
 ## Caddy
 

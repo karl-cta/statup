@@ -86,11 +86,11 @@ Le Statup que lance le service.
 
 ## Données
 
-La base de données et les fichiers envoyés vivent dans `/var/lib/statup`, qui appartient à l'utilisateur `statup`. Pour [sauvegarder](backups.md), arrêtez le service avec `sudo systemctl stop statup`, copiez `statup.db`, `statup.db-wal`, `statup.db-shm` et `uploads/`, puis relancez-le.
+La base de données, les fichiers envoyés et les sauvegardes vivent dans `/var/lib/statup`, qui appartient à l'utilisateur `statup`. Les [sauvegardes automatiques](backups.md#automatic-backups) et celles d'avant une mise à jour vont dans `/var/lib/statup/backups`, et **Paramètres › Sauvegardes** les télécharge. Un [`BACKUP_DIR`](configuration.md#backup_dir) hors de `/var/lib/statup` ne peut pas être écrit par le service.
 
 ## Mettre à jour
 
-[Sauvegardez](backups.md) d'abord, puis mettez l'entrée à jour et reconstruisez :
+Statup sauvegarde la base lui-même avant qu'une mise à jour la modifie, dans `/var/lib/statup/backups`. Mettez l'entrée à jour et reconstruisez :
 
 ```bash
 nix flake update statup

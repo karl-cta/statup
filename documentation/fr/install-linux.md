@@ -40,7 +40,7 @@ Appuyez sur Entrée pour prendre la valeur entre crochets. Une option donnée su
 - La question du pare-feu n'est posée que si ufw ou firewalld est actif et que Statup n'écoute pas sur cette machine seulement.
 - Un dossier est un chemin complet de lettres, de chiffres, de points, de tirets et de tirets bas, qui n'est pas un dossier système comme `/opt` ou `/var/lib`. Un dossier existant qui contient des fichiers d'un autre compte est refusé, tout comme un dossier du programme placé dans le dossier des données ou des sauvegardes, ou qui n'appartient pas à root.
 - Les questions demandent un terminal. Sans terminal, le script s'arrête et demande `--yes`.
-- Quand `/etc/statup/statup.env` existe, d'une installation précédente qui a été retirée, ses réglages sont gardés et seuls le dossier du programme et le compte sont demandés.
+- Quand `/etc/statup/statup.env` existe, d'une installation précédente qui a été retirée, ses réglages sont gardés, et seuls le dossier du programme, le compte et la question du pare-feu sont posés.
 
 ## Autres options
 
@@ -67,14 +67,14 @@ curl -fsSL https://github.com/karl-cta/statup/releases/latest/download/install.s
 
 | Élément | Où |
 |---|---|
-| Programme | `/opt/statup` : `statup`, `static/`, les fichiers de licence et un fichier `VERSION`, qui appartiennent à `root`. |
+| Programme | `/opt/statup` : `statup`, `static/`, `README.md`, les fichiers de licence et un fichier `VERSION`, qui appartiennent à `root`. |
 | Données | `/var/lib/statup` : la base de données, `uploads/` et les sauvegardes, qui appartiennent au compte du service, en mode `750`. |
 | Compte | `statup`, un compte système sans connexion, créé s'il n'existe pas. |
 | Réglages | `/etc/statup/statup.env`, qui appartient à `root` et que seul le compte du service peut lire. |
 | Service | `/etc/systemd/system/statup.service`, activé et démarré. |
 | Commande | `/usr/local/bin/statup`, pour lancer les [commandes](command-line.md) de Statup. |
 
-Le service démarre après le réseau, redémarre après un échec et se limite à ce dont il a besoin : des pouvoirs de `root`, seulement celui d'écouter sur un port inférieur à 1024, aucun nouveau privilège, un `/tmp` privé, le système de fichiers en lecture seule sauf les dossiers des données et des sauvegardes, et les dossiers personnels masqués, ou en lecture seule quand l'un des deux dossiers est sous `/home`.
+Le service démarre après le réseau, redémarre après un échec et se limite à ce dont il a besoin : des pouvoirs de `root`, seulement celui d'écouter sur un port inférieur à 1024, aucun nouveau privilège, un `/tmp` privé, le système de fichiers en lecture seule sauf les dossiers des données et des sauvegardes, et les dossiers personnels masqués, ou en lecture seule quand l'un des deux dossiers est sous `/home`, `/root` ou `/run/user`.
 
 Les logs vont dans le journal : `journalctl -u statup`.
 
@@ -87,9 +87,9 @@ sudo nano /etc/statup/statup.env
 sudo systemctl restart statup
 ```
 
-- Après un changement de `DATABASE_URL`, `UPLOAD_DIR` ou `BACKUP_DIR`, relancez la [commande d'installation](install-linux.md#upgrade) : elle crée le nouveau dossier et laisse le service y écrire, ce que ne fait pas un simple redémarrage.
+- Après un changement de `DATABASE_URL` ou de `BACKUP_DIR`, relancez la [commande d'installation](install-linux.md#upgrade) : elle crée le nouveau dossier et laisse le service y écrire, ce que ne fait pas un simple redémarrage. Gardez `UPLOAD_DIR` dans le dossier des données : le service ne peut écrire que dans les dossiers des données et des sauvegardes.
 - La règle de pare-feu ouverte à l'installation reste sur l'ancien port après un changement de `PORT`.
-- Gardez `DATABASE_URL` à l'état de simple chemin : une [mise à jour](install-linux.md#upgrade) en déduit le dossier des données, et un chemin avec des paramètres, comme `?mode=rwc`, la tromperait.
+- Gardez pour `DATABASE_URL` un chemin complet, qui commence par `/` : une [mise à jour](install-linux.md#upgrade) en déduit le dossier des données.
 - Le fichier d'unité est réécrit à chaque mise à jour : les réglages ont leur place dans `statup.env`.
 
 ## Commandes de maintenance
@@ -101,7 +101,7 @@ sudo statup backup
 sudo statup reset-password you@example.com
 ```
 
-[`backup`](command-line.md#backup) écrit dans le dossier des sauvegardes. Avec `--output`, le fichier doit être dans le dossier des données ou celui des sauvegardes : le compte du service ne peut pas écrire ailleurs, et la commande échoue.
+[`backup`](command-line.md#backup) écrit dans le dossier des sauvegardes. Avec `--output`, le fichier doit être dans un dossier où le compte du service peut écrire, comme celui des sauvegardes : ailleurs, la commande échoue.
 
 Pour [restaurer](command-line.md#restore), arrêtez Statup. La commande lit le fichier sous le compte du service, donc un fichier de votre propre dossier lui est inaccessible : copiez-le d'abord dans le dossier des sauvegardes.
 

@@ -35,3 +35,7 @@ Run the install command again: the script updates Statup and keeps its settings.
 ## Upgrade on Windows Server
 
 Run the install script again: it updates the service and keeps its settings. See [Install on Windows Server](install-windows.md#upgrade).
+
+## Upgrade on NixOS
+
+Update the input of the flake and rebuild. See [NixOS](nixos.md#upgrade).
