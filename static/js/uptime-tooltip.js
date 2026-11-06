@@ -52,6 +52,8 @@
     }
 
     document.addEventListener("pointerover", onReveal);
+    // A day of the panel reached by the keyboard shows its tip too.
+    document.addEventListener("focusin", onReveal);
     // Cached widths are in pixels, so a zoom or a font swap invalidates them.
     window.addEventListener("resize", () => {
         widths = Object.create(null);

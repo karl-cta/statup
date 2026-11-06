@@ -58,8 +58,20 @@
         }
         field.querySelector("[data-grant-more]")?.remove();
         for (const tag of field.querySelectorAll(".grant.is-extra")) tag.classList.remove("is-extra");
-        if (panel) panel.open = false;
+        if (panel) {
+            panel.open = false;
+            panel.querySelector("summary").focus();
+        }
         redraw(field);
+    }
+
+    // The removed tag hides its own button: focus goes to the next tag
+    // still shown, else to "Add".
+    function focusAfterRemove(field, tag) {
+        const shown = [...field.querySelectorAll("[data-grant]")].filter((other) => !other.hidden && other.getClientRects().length > 0);
+        const next = shown.find((other) => tag.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) || shown.pop();
+        const target = next ? next.querySelector("[data-grant-remove]") : field.querySelector(".grant-add > summary");
+        if (target) target.focus();
     }
 
     document.addEventListener("click", (event) => {
@@ -69,8 +81,10 @@
         if (!field) return;
         const remove = target.closest("[data-grant-remove]");
         if (remove) {
-            setGranted(field, remove.closest("[data-grant]").dataset.grant, false);
+            const tag = remove.closest("[data-grant]");
+            setGranted(field, tag.dataset.grant, false);
             redraw(field);
+            focusAfterRemove(field, tag);
             return;
         }
         const add = target.closest("[data-grant-add]");
@@ -79,8 +93,11 @@
             return;
         }
         if (target.closest("[data-grant-more]")) {
-            for (const tag of field.querySelectorAll(".grant.is-extra")) tag.classList.remove("is-extra");
+            const extra = [...field.querySelectorAll(".grant.is-extra")];
+            for (const tag of extra) tag.classList.remove("is-extra");
             target.closest("[data-grant-more]").remove();
+            const first = extra[0] && extra[0].querySelector("[data-grant-remove]");
+            if (first) first.focus();
         }
     });
 

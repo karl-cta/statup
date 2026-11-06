@@ -108,6 +108,10 @@
             this.trigger = trigger;
             this.face = face;
             const label = this.labelWith(native.labels && native.labels[0]);
+            // A refused or required choice says so on the control people use.
+            for (const name of ["aria-invalid", "aria-describedby", "aria-required"]) {
+                if (native.hasAttribute(name)) trigger.setAttribute(name, native.getAttribute(name));
+            }
             if (native.disabled) {
                 this.wrap.classList.add("cs-disabled");
                 trigger.disabled = true;

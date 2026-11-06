@@ -245,6 +245,7 @@
   "events.back_to_event": "Zurück zum Ereignis",
   "events.details_label": "Details zum Ereignis",
   "events.drawer_error": "Die Details konnten nicht geladen werden.",
+  "events.update_published": "Aktualisierung veröffentlicht.",
   "events.open_full_page": "Seite öffnen",
   "events.published_notice": "Ereignis veröffentlicht.",
   "events.open_for": "offen seit {duration}",

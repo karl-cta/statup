@@ -1130,7 +1130,7 @@
         color: var(--ink);
         background: none;
         border: 0;
-        outline: none;
+        outline: 2px solid transparent;
     }
 
     .duration-part input::placeholder {

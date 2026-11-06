@@ -96,6 +96,22 @@
         window.htmx.ajax("GET", live.dataset.live, { target: live, swap: "innerHTML" }).catch(reload);
     }
 
+    // The redraw takes away the button that was pressed: once the mode is
+    // shown again on the new blocks, focus goes to the block given, or to
+    // "Done" when none is left, and the save is told.
+    function focusBlockAfterRedraw(moduleId) {
+        live.addEventListener(
+            "htmx:afterSettle",
+            () => {
+                const cell = moduleId && live.querySelector(`.dash-cell[data-module-id="${CSS.escape(moduleId)}"]`);
+                const target = (cell && cell.querySelector("[data-drag-handle]")) || document.querySelector("[data-arrange-done]");
+                if (target) target.focus();
+                announce(page.dataset.saved);
+            },
+            { once: true },
+        );
+    }
+
     // A card's settings: a tick saves at once and redraws the card, its
     // panel open again and the focus back on the same box.
     let openOptions = null;
@@ -163,9 +179,12 @@
             .catch(reload);
     }
 
-    function setShown(moduleId, shown) {
+    function setShown(moduleId, shown, focusId) {
         post(`/admin/dashboard/layout/${moduleId}/toggle`, [["enabled", String(shown)]])
-            .then(refetch)
+            .then(() => {
+                focusBlockAfterRedraw(focusId);
+                return refetch();
+            })
             .catch(reload);
     }
 
@@ -359,7 +378,11 @@
     live.addEventListener("click", (event) => {
         const hide = event.target.closest("[data-hide]");
         if (hide) {
-            setShown(hide.closest(".dash-cell[data-module-id]").dataset.moduleId, false);
+            const cell = hide.closest(".dash-cell[data-module-id]");
+            const cells = [...live.querySelectorAll(".dash-cell[data-module-id]")];
+            const at = cells.indexOf(cell);
+            const neighbour = cells[at + 1] || cells[at - 1];
+            setShown(cell.dataset.moduleId, false, neighbour && neighbour.dataset.moduleId);
             return;
         }
         const optionsToggle = event.target.closest("[data-options-toggle]");
@@ -376,7 +399,7 @@
             return;
         }
         const show = event.target.closest("[data-show]");
-        if (show) setShown(show.dataset.show, true);
+        if (show) setShown(show.dataset.show, true, show.dataset.show);
     });
 
     function finish() {

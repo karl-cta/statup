@@ -71,7 +71,10 @@
         liveBefore.delete(live);
         const now = liveSnapshot(live);
         const hero = live.querySelector(".hero");
-        if (hero && now.headline !== before.headline) flash(hero);
+        if (hero && now.headline !== before.headline) {
+            flash(hero);
+            announce(now.headline);
+        }
         live.querySelectorAll(".hero-item, .log-row").forEach((row) => {
             if (!before.rows.has(rowKey(row))) flash(row);
         });
@@ -222,6 +225,10 @@
         if (!button || !menu) return;
         menu.hidden = !open;
         button.setAttribute("aria-expanded", String(open));
+        // On a phone the menu covers the page: what lies under it is out of
+        // reach of the keyboard too.
+        const covered = open && isPhoneLayout();
+        for (const part of document.querySelectorAll("main, .foot")) part.inert = covered;
     }
 
     function menuIsOpen() {
@@ -314,6 +321,7 @@
             return box;
         }
         box.className = "drawer-error";
+        box.setAttribute("role", "alert");
         const text = document.createElement("p");
         text.textContent = panel.dataset.error || "";
         const retry = document.createElement("button");
@@ -343,6 +351,7 @@
         if (!title) return;
         title.setAttribute("tabindex", "-1");
         panel.setAttribute("aria-labelledby", title.id);
+        if (document.activeElement === panel) title.focus({ preventScroll: true });
     }
 
     function openDrawer(url, opener) {
@@ -391,26 +400,36 @@
         panel.classList.remove("is-open");
         overlay.classList.remove("is-open");
         panel.setAttribute("inert", "");
-        if (drawer.opener && document.contains(drawer.opener)) {
-            drawer.opener.focus({ preventScroll: true });
-        }
+        const opener = drawer.opener;
+        if (opener && document.contains(opener)) opener.focus({ preventScroll: true });
         drawer.opener = null;
-        if (drawer.changed) redrawAfterPanel();
+        if (drawer.changed) redrawAfterPanel(opener && opener.getAttribute("data-drawer"));
     }
 
-    function redrawAfterPanel() {
+    // The page behind is drawn again, which replaces the link that opened
+    // the panel: its new copy takes the focus back.
+    function redrawAfterPanel(openerUrl) {
         drawer.changed = false;
         const live = document.querySelector("[data-live]");
-        if (live && window.htmx) {
-            window.htmx.ajax("GET", live.dataset.live, { target: live, swap: "innerHTML" }).catch(() => {});
-        } else {
+        if (!live || !window.htmx) {
             window.location.reload();
+            return;
         }
+        window.htmx
+            .ajax("GET", live.dataset.live, { target: live, swap: "innerHTML" })
+            .then(() => {
+                if (!openerUrl || document.activeElement !== document.body) return;
+                const again = live.querySelector(`[data-drawer="${CSS.escape(openerUrl)}"]`);
+                if (again) again.focus({ preventScroll: true });
+            })
+            .catch(() => {});
     }
 
     function trapDrawerFocus(event) {
         const { panel } = drawerParts();
-        const items = Array.from(panel.querySelectorAll(FOCUSABLE));
+        // Folded forms and hidden questions cannot take focus: counted, they
+        // would leave the trap without a last stop.
+        const items = Array.from(panel.querySelectorAll(FOCUSABLE)).filter((item) => item.getClientRects().length > 0);
         if (items.length === 0) {
             event.preventDefault();
             panel.focus();
@@ -454,7 +473,9 @@
     function cancelQuestion(target) {
         const box = target.closest("[data-confirm-box], [data-status-confirm]");
         const cancel = box && box.querySelector("[data-confirm-cancel], [data-status-cancel]");
-        if (cancel) cancel.click();
+        if (!cancel) return false;
+        cancel.click();
+        return true;
     }
 
     function copyValue(button) {
@@ -662,28 +683,37 @@
     // upright, closes rather than filling the screen.
     window.addEventListener("resize", () => {
         if (drawerIsOpen() && isPhoneLayout()) closeDrawer();
+        if (menuIsOpen() && !isPhoneLayout()) setMenu(false);
     });
+
+    function closeInnermost(target) {
+        const inQuestion = target instanceof Element && target.closest(".confirm, [data-status-confirm]");
+        if (inQuestion) return cancelQuestion(target);
+        const more = [...document.querySelectorAll("details[data-more-actions][open]")].pop();
+        if (more) {
+            more.open = false;
+            more.querySelector("summary").focus();
+            return true;
+        }
+        if (drawerIsOpen()) {
+            closeDrawer();
+            return true;
+        }
+        if (menuIsOpen()) {
+            setMenu(false);
+            const button = document.querySelector("[data-menu-toggle]");
+            if (button) button.focus();
+            return true;
+        }
+        return target instanceof Element && cancelQuestion(target);
+    }
 
     document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
-            if (drawerIsOpen()) {
-                closeDrawer();
-                return;
-            }
-            if (menuIsOpen()) {
-                setMenu(false);
-                const button = document.querySelector("[data-menu-toggle]");
-                if (button) button.focus();
-                return;
-            }
-            // The innermost open menu closes first, then the one around it.
-            const more = [...document.querySelectorAll("details[data-more-actions][open]")].pop();
-            if (more && !(event.target instanceof Element && event.target.closest(".confirm"))) {
-                more.open = false;
-                more.querySelector("summary").focus();
-                return;
-            }
-            if (event.target instanceof Element) cancelQuestion(event.target);
+            // The innermost thing open closes first: a question asked in
+            // place, a menu, then the side panel, then the phone menu. A key
+            // used here is marked, so the page scripts leave it alone.
+            if (closeInnermost(event.target)) event.preventDefault();
             return;
         }
         if (event.key === "Tab" && drawerIsOpen()) trapDrawerFocus(event);
@@ -844,6 +874,24 @@
         });
     }
 
+    // The form posted from the panel is drawn anew, its button gone: focus
+    // goes to the refused message, or to the panel's title, and a published
+    // update is told.
+    function focusPanelAfterPost(content, path) {
+        const refused = content.querySelector(".composer.is-open textarea");
+        if (refused && content.querySelector(".composer [role='alert']")) {
+            refused.focus({ preventScroll: true });
+            return;
+        }
+        const title = content.querySelector("#drawer-title");
+        if (title) {
+            title.setAttribute("tabindex", "-1");
+            title.focus({ preventScroll: true });
+        }
+        const { panel } = drawerParts();
+        if (path.endsWith("/panel-updates") && panel) announce(panel.dataset.published || "");
+    }
+
     document.body.addEventListener("htmx:afterSettle", (event) => {
         const settled = event.target;
         if (!(settled instanceof Element)) return;
@@ -859,12 +907,13 @@
         if (settled.id === "drawer-content" && verb === "post") {
             const newest = settled.querySelector(".timeline .moment");
             if (newest) flash(newest);
+            focusPanelAfterPost(settled, event.detail.requestConfig.path);
         }
         const message = settled.matches("[data-announce]") ? settled : settled.querySelector("[data-announce]");
         if (message) announce(message.textContent.replace(/\s+/g, " ").trim());
-        // The events list announces its new count after a filter change.
-        if (settled.id !== "events-results") return;
-        const form = document.querySelector("[data-results-live]");
+        // A filtered list (events, journal) announces its new count.
+        if (!settled.id) return;
+        const form = document.querySelector(`[data-results-live][hx-target="#${CSS.escape(settled.id)}"]`);
         const region = form ? document.querySelector(form.dataset.resultsLive) : null;
         const count = settled.querySelector("[data-results-count]");
         if (region) region.textContent = count ? count.textContent.trim() : "";

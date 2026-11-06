@@ -821,7 +821,8 @@
         left: var(--tt-x, 0);
     }
 
-    .svc-bars .bar:hover::after {
+    .svc-bars .bar:hover::after,
+    .svc-bars .bar:focus-visible::after {
         opacity: 1;
     }
 
