@@ -23,7 +23,7 @@ const MAX_ATTEMPTS_PER_ADDRESS: u32 = 30;
 const MAX_RESET_REQUESTS_PER_ADDRESS: u32 = 10;
 /// Subscription requests allowed per address, all email addresses together.
 const MAX_SUBSCRIBE_REQUESTS_PER_ADDRESS: u32 = 10;
-const WINDOW: Duration = Duration::from_secs(15 * 60);
+const WINDOW: Duration = Duration::from_mins(15);
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct Key {

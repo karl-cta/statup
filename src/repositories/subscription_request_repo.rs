@@ -1,5 +1,7 @@
 //! The requests of visitors who asked to subscribe, until they confirm.
 
+use sqlx::AssertSqlSafe;
+
 use crate::db::DbPool;
 use crate::models::{Choices, SubscriptionRequest};
 
@@ -40,11 +42,11 @@ impl SubscriptionRequestRepository {
         request: &NewSubscriptionRequest<'_>,
         limits: RequestLimits,
     ) -> Result<Option<i64>, sqlx::Error> {
-        sqlx::query_scalar(&format!(
+        sqlx::query_scalar(AssertSqlSafe(format!(
             "INSERT INTO subscription_requests (email, secret_hash, locale, on_incidents, \
              on_maintenances, on_publications, expires_at) \
              SELECT ?, ?, ?, ?, ?, ?, datetime('now', ?) WHERE {UNDER_LIMITS} RETURNING id"
-        ))
+        )))
         .bind(request.email)
         .bind(request.secret_hash)
         .bind(request.locale)
@@ -67,7 +69,7 @@ impl SubscriptionRequestRepository {
         email: &str,
         limits: RequestLimits,
     ) -> Result<bool, sqlx::Error> {
-        sqlx::query_scalar(&format!("SELECT {UNDER_LIMITS}"))
+        sqlx::query_scalar(AssertSqlSafe(format!("SELECT {UNDER_LIMITS}")))
             .bind(email)
             .bind(limits.per_address)
             .bind(limits.per_instance)

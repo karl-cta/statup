@@ -9,7 +9,7 @@ COPY Cargo.toml Cargo.lock ./
 RUN sed -i '/^name = "statup"$/,/^version = /s/^version = .*/version = "0.0.0"/' Cargo.toml Cargo.lock
 
 # Binary
-FROM rust:1.93-alpine AS builder
+FROM rust:1.99-alpine AS builder
 
 RUN apk add --no-cache musl-dev
 

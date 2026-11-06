@@ -99,7 +99,7 @@ impl JournalRepository {
     }
 }
 
-fn push_filters(query: &mut QueryBuilder<'_, Sqlite>, filters: &JournalFilters) {
+fn push_filters(query: &mut QueryBuilder<Sqlite>, filters: &JournalFilters) {
     query.push(" WHERE 1 = 1");
     if let Some(category) = filters.category {
         query.push(" AND category = ").push_bind(category);

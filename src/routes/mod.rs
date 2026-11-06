@@ -88,7 +88,7 @@ const RESTORE_BODY_LIMIT: usize = 256 * 1024 * 1024;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Sending a backup of the largest size over a slow link.
-const RESTORE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+const RESTORE_TIMEOUT: Duration = Duration::from_mins(15);
 
 /// No inline script, handler or style anywhere: behavior lives in
 /// `static/js`, presentation in the stylesheet. `blob:` images let a logo

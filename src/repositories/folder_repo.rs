@@ -7,6 +7,7 @@
 
 use std::collections::HashMap;
 
+use sqlx::AssertSqlSafe;
 use sqlx::Sqlite;
 
 use super::GrantTables;
@@ -79,10 +80,12 @@ impl FolderRepository {
     }
 
     pub async fn find(pool: &DbPool, id: i64) -> Result<Option<ServiceFolder>, sqlx::Error> {
-        sqlx::query_as::<_, ServiceFolder>(&format!("{FOLDER_COLUMNS} WHERE f.id = ?"))
-            .bind(id)
-            .fetch_optional(pool)
-            .await
+        sqlx::query_as::<_, ServiceFolder>(AssertSqlSafe(format!(
+            "{FOLDER_COLUMNS} WHERE f.id = ?"
+        )))
+        .bind(id)
+        .fetch_optional(pool)
+        .await
     }
 
     /// How many services follow the folder.
@@ -105,9 +108,9 @@ impl FolderRepository {
 
     /// Every folder in the chosen order.
     pub async fn list(pool: &DbPool) -> Result<Vec<ServiceFolder>, sqlx::Error> {
-        sqlx::query_as::<_, ServiceFolder>(&format!(
+        sqlx::query_as::<_, ServiceFolder>(AssertSqlSafe(format!(
             "{FOLDER_COLUMNS} ORDER BY f.position, f.name COLLATE NOCASE, f.id"
-        ))
+        )))
         .fetch_all(pool)
         .await
     }
@@ -184,7 +187,7 @@ impl FolderRepository {
             same_set("service_member_access", "folder_member_access", "user_id"),
         ]
         .join(" AND ");
-        let joined = sqlx::query_as::<_, Joined>(&format!(
+        let joined = sqlx::query_as::<_, Joined>(AssertSqlSafe(format!(
             "UPDATE services SET \
                  follows_folder = CASE \
                      WHEN visibility = 'everyone' THEN 1 \
@@ -198,7 +201,7 @@ impl FolderRepository {
                  AND folder_id IS NOT ?1 \
                  AND EXISTS (SELECT 1 FROM service_folders WHERE id = ?1) \
              RETURNING name, follows_folder AS follows"
-        ))
+        )))
         .bind(folder_id)
         .bind(&ids)
         .fetch_all(&mut *tx)
@@ -319,10 +322,10 @@ async fn copy_setting(
     only: Option<i64>,
 ) -> Result<(), sqlx::Error> {
     const FOLLOWERS: &str = "folder_id = ?1 AND follows_folder = 1 AND (?2 IS NULL OR id = ?2)";
-    sqlx::query(&format!(
+    sqlx::query(AssertSqlSafe(format!(
         "UPDATE services SET visibility = (SELECT visibility FROM service_folders WHERE id = ?1) \
          WHERE {FOLLOWERS}"
-    ))
+    )))
     .bind(folder_id)
     .bind(only)
     .execute(&mut **tx)
@@ -332,19 +335,19 @@ async fn copy_setting(
         ("service_member_access", "folder_member_access", "user_id"),
     ];
     for (copy, source, grantee) in copies {
-        sqlx::query(&format!(
+        sqlx::query(AssertSqlSafe(format!(
             "DELETE FROM {copy} WHERE service_id IN (SELECT id FROM services WHERE {FOLLOWERS})"
-        ))
+        )))
         .bind(folder_id)
         .bind(only)
         .execute(&mut **tx)
         .await?;
-        sqlx::query(&format!(
+        sqlx::query(AssertSqlSafe(format!(
             "INSERT INTO {copy} (service_id, {grantee}) \
              SELECT s.id, a.{grantee} FROM services s \
              JOIN {source} a ON a.folder_id = s.folder_id \
              WHERE s.id IN (SELECT id FROM services WHERE {FOLLOWERS})"
-        ))
+        )))
         .bind(folder_id)
         .bind(only)
         .execute(&mut **tx)

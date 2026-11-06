@@ -2,6 +2,8 @@
 
 use chrono::{DateTime, Utc};
 
+use sqlx::AssertSqlSafe;
+
 use crate::clock;
 use crate::db::DbPool;
 use crate::models::{
@@ -19,9 +21,9 @@ pub struct SubscriberRepository;
 
 impl SubscriberRepository {
     pub async fn find(pool: &DbPool, id: i64) -> Result<Option<Subscriber>, sqlx::Error> {
-        sqlx::query_as::<_, Subscriber>(&format!(
+        sqlx::query_as::<_, Subscriber>(AssertSqlSafe(format!(
             "SELECT {SUBSCRIBER_COLUMNS} FROM subscribers WHERE id = ?"
-        ))
+        )))
         .bind(id)
         .fetch_optional(pool)
         .await
@@ -31,9 +33,9 @@ impl SubscriberRepository {
         pool: &DbPool,
         user_id: i64,
     ) -> Result<Option<Subscriber>, sqlx::Error> {
-        sqlx::query_as::<_, Subscriber>(&format!(
+        sqlx::query_as::<_, Subscriber>(AssertSqlSafe(format!(
             "SELECT {SUBSCRIBER_COLUMNS} FROM subscribers WHERE user_id = ?"
-        ))
+        )))
         .bind(user_id)
         .fetch_optional(pool)
         .await
@@ -157,7 +159,7 @@ impl SubscriberRepository {
                                    WHERE mu.is_active = 1 AND m.{column} = 1 \
                                    AND s.email = mu.email)))"
         );
-        let queued = sqlx::query(&sql)
+        let queued = sqlx::query(AssertSqlSafe(sql))
             .bind(notification.happening)
             .bind(event_id)
             .bind(notification.update_id)
@@ -265,7 +267,7 @@ mod tests {
     }
 
     async fn count(pool: &DbPool, table: &str) -> i64 {
-        sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table}"))
+        sqlx::query_scalar(AssertSqlSafe(format!("SELECT COUNT(*) FROM {table}")))
             .fetch_one(pool)
             .await
             .unwrap()

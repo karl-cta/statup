@@ -31,7 +31,7 @@ In the `flake.nix` of your system, add Statup as an input and its module to your
 }
 ```
 
-Statup is built with the Rust and the Tailwind CSS of your nixpkgs: it needs Rust 1.88 or newer.
+Statup is built with the Rust and the Tailwind CSS of your nixpkgs: it needs Rust 1.94 or newer.
 
 ## Enable the service
 

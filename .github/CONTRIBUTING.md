@@ -13,7 +13,7 @@ third-party call at runtime needs a strong case.
 
 ## Setting up
 
-Rust 1.88 or newer and the
+Rust 1.94 or newer and the
 [Tailwind CSS standalone CLI](https://github.com/tailwindlabs/tailwindcss/releases)
 v4.1.18, saved at the repository root as `tailwindcss`. Then:
 
@@ -71,8 +71,8 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 ```
 
-Continuous integration also runs the tests on Rust 1.88, the dependency
-advisories, the stylesheet build, the Docker build and the browser tests.
+Continuous integration also checks that Statup builds on Rust 1.94, and runs
+the dependency advisories, the Docker build and the browser tests.
 
 Add or adjust tests with the change. Integration tests in `tests/` run the
 real router over TCP; unit tests sit next to the code they cover.

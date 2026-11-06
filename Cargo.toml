@@ -2,7 +2,7 @@
 name = "statup"
 version = "0.12.0"
 edition = "2024"
-rust-version = "1.88"
+rust-version = "1.94"
 description = "Self-hosted status page for outages, maintenance and news"
 authors = ["Karl"]
 license = "AGPL-3.0-or-later"
@@ -34,10 +34,10 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 lettre = { version = "0.11", default-features = false, features = ["builder", "hostname", "pool", "smtp-transport", "tokio1-rustls-tls"] }
 
 # Database
-sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono", "time"] }
+sqlx = { version = "0.9", features = ["runtime-tokio", "sqlite", "chrono", "time"] }
 # The version sqlx links: restoring a backup calls SQLite's online backup
 # API on sqlx's raw handles. Upgrade both together.
-libsqlite3-sys = { version = "=0.30.1", default-features = false }
+libsqlite3-sys = { version = "=0.37.0", default-features = false }
 
 # Templates
 askama = { version = "0.16", features = ["serde_json"] }

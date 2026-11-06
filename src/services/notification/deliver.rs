@@ -34,7 +34,7 @@ pub(super) const RETRY_DELAYS: [Duration; 4] = [
     Duration::from_secs(30),
     Duration::from_secs(120),
     Duration::from_secs(600),
-    Duration::from_secs(1800),
+    Duration::from_mins(30),
 ];
 /// A tool that asks for a longer wait than this is not obeyed.
 const LONGEST_ASKED_WAIT: Duration = Duration::from_secs(600);

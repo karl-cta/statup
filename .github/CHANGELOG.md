@@ -15,6 +15,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 - Changing the language on the API keys, Widget, Journal, Backups, group, folder, notices and import pages now stays on that page instead of going back to the dashboard.
 - **My profile** asks for the current password before a new email address is saved: the password reset links go to it, so a session left open is no longer enough to take an account.
 - The choices of a drop-down menu show the hand pointer on hover, like every other button.
+- Statup now embeds SQLite 3.51.3 instead of 3.46.0, which fixes a flaw a crafted backup could reach during a restore (CVE-2025-7709). Building Statup from source needs Rust 1.94 or newer.
 
 ## 0.12.0, 2026-11-02
 

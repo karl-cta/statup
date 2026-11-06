@@ -2,6 +2,7 @@
 //! own, and the services their sessions concern.
 
 use chrono::{DateTime, TimeDelta, Utc};
+use sqlx::AssertSqlSafe;
 use sqlx::{Sqlite, Transaction};
 
 use super::EventRepository;
@@ -98,19 +99,20 @@ impl SeriesRepository {
     }
 
     pub async fn find(pool: &DbPool, id: i64) -> Result<Option<MaintenanceSeries>, sqlx::Error> {
-        let row: Option<SeriesRow> = sqlx::query_as(&format!("{SERIES_COLUMNS} WHERE id = ?"))
-            .bind(id)
-            .fetch_optional(pool)
-            .await?;
+        let row: Option<SeriesRow> =
+            sqlx::query_as(AssertSqlSafe(format!("{SERIES_COLUMNS} WHERE id = ?")))
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
         row.map(MaintenanceSeries::try_from).transpose()
     }
 
     /// Series still repeating with no session to come: the one ahead has
     /// begun, or was cancelled or deleted.
     pub async fn awaiting_session(pool: &DbPool) -> Result<Vec<MaintenanceSeries>, sqlx::Error> {
-        let rows: Vec<SeriesRow> = sqlx::query_as(&format!(
+        let rows: Vec<SeriesRow> = sqlx::query_as(AssertSqlSafe(format!(
             "{SERIES_COLUMNS} WHERE stopped_at IS NULL AND {NOTHING_SCHEDULED} ORDER BY id"
-        ))
+        )))
         .fetch_all(pool)
         .await?;
         rows.into_iter().map(MaintenanceSeries::try_from).collect()
@@ -127,10 +129,10 @@ impl SeriesRepository {
         following: DateTime<Utc>,
     ) -> Result<Option<Event>, sqlx::Error> {
         let mut tx = pool.begin().await?;
-        let moved_on = sqlx::query(&format!(
+        let moved_on = sqlx::query(AssertSqlSafe(format!(
             "UPDATE maintenance_series SET next_start = ? \
              WHERE id = ? AND next_start = ? AND stopped_at IS NULL AND {NOTHING_SCHEDULED}"
-        ))
+        )))
         .bind(clock::db(following))
         .bind(series.id)
         .bind(clock::db(series.next_start))

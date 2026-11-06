@@ -376,7 +376,7 @@ async fn write_dump(database_url: &str, dump: &str) {
     let pool = db::create_pool(database_url, 1)
         .await
         .expect("failed to create the database");
-    sqlx::raw_sql(dump)
+    sqlx::raw_sql(sqlx::AssertSqlSafe(dump.to_owned()))
         .execute(&pool)
         .await
         .expect("failed to load the dump");

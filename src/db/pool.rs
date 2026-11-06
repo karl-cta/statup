@@ -64,7 +64,7 @@ fn pool_options(max_connections: u32) -> SqlitePoolOptions {
         .min_connections(1)
         .acquire_timeout(ACQUIRE_TIMEOUT)
         .idle_timeout(Duration::from_secs(600))
-        .max_lifetime(Duration::from_secs(1800))
+        .max_lifetime(Duration::from_mins(30))
 }
 
 pub async fn run_migrations(pool: &SqlitePool) -> Result<(), MigrateError> {
@@ -73,7 +73,9 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), MigrateError> {
 
 /// Whether this statement is, word for word, part of one of the migrations.
 pub fn written_by_migrations(sql: &str) -> bool {
-    MIGRATOR.iter().any(|migration| migration.sql.contains(sql))
+    MIGRATOR
+        .iter()
+        .any(|migration| migration.sql.as_str().contains(sql))
 }
 
 /// The version of the newest migration this binary carries.

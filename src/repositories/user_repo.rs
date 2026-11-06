@@ -316,6 +316,7 @@ mod tests {
     use super::*;
     use crate::repositories::GroupRepository;
     use crate::test_helpers::test_pool;
+    use sqlx::AssertSqlSafe;
 
     fn new_user(email: &str, role: Role) -> NewUser<'_> {
         NewUser {
@@ -556,7 +557,11 @@ mod tests {
     /// a visit, and returns the stored value.
     async fn visit_after(pool: &DbPool, user_id: i64, previous_visit: &str) -> Option<String> {
         let set = format!("UPDATE users SET last_seen_at = {previous_visit} WHERE id = ?");
-        sqlx::query(&set).bind(user_id).execute(pool).await.unwrap();
+        sqlx::query(AssertSqlSafe(set))
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .unwrap();
         UserRepository::update_last_seen(pool, user_id)
             .await
             .unwrap();

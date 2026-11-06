@@ -18,7 +18,7 @@ const LATEST_RELEASE: &str = "https://api.github.com/repos/karl-cta/statup/relea
 /// is known.
 pub const RELEASES_PAGE: &str = "https://github.com/karl-cta/statup/releases";
 const RELEASES: &str = "https://github.com/karl-cta/statup/releases/tag";
-const PERIOD: Duration = Duration::from_secs(24 * 60 * 60);
+const PERIOD: Duration = Duration::from_hours(24);
 /// A restart loop must not turn into a request loop.
 const FIRST_DELAY: Duration = Duration::from_secs(60);
 const TIMEOUT: Duration = Duration::from_secs(10);

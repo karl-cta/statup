@@ -12,7 +12,7 @@ use crate::db::DbPool;
 use crate::repositories::{JournalRepository, NewJournalEntry};
 
 const BATCH: usize = 64;
-const PURGE_INTERVAL: Duration = Duration::from_secs(60 * 60);
+const PURGE_INTERVAL: Duration = Duration::from_hours(1);
 
 pub fn spawn_journal_writer(pool: DbPool, inbox: JournalInbox) -> AbortHandle {
     tokio::spawn(run(pool, inbox)).abort_handle()

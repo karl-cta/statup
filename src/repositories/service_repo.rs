@@ -6,6 +6,8 @@ use chrono::{DateTime, Utc};
 
 use super::GrantTables;
 use super::outage_repo::{OutageCause, close_outage, delete_open_outage, open_outage};
+use sqlx::AssertSqlSafe;
+
 use crate::db::DbPool;
 use crate::models::{
     CheckedService, Grants, Scope, Service, ServiceCheck, ServiceStatus, Visibility,
@@ -77,7 +79,7 @@ impl ServiceRepository {
     }
 
     pub async fn find_by_id(pool: &DbPool, id: i64) -> Result<Option<Service>, sqlx::Error> {
-        sqlx::query_as::<_, Service>(&format!("{WITH_ICON} WHERE s.id = ?"))
+        sqlx::query_as::<_, Service>(AssertSqlSafe(format!("{WITH_ICON} WHERE s.id = ?")))
             .bind(id)
             .fetch_optional(pool)
             .await
@@ -99,9 +101,11 @@ impl ServiceRepository {
 
     /// Every service with its uploaded icon, in the chosen order.
     pub async fn list_all(pool: &DbPool) -> Result<Vec<Service>, sqlx::Error> {
-        sqlx::query_as::<_, Service>(&format!("{WITH_ICON} ORDER BY {CHOSEN_ORDER}"))
-            .fetch_all(pool)
-            .await
+        sqlx::query_as::<_, Service>(AssertSqlSafe(format!(
+            "{WITH_ICON} ORDER BY {CHOSEN_ORDER}"
+        )))
+        .fetch_all(pool)
+        .await
     }
 
     /// The names of the services among `ids`.

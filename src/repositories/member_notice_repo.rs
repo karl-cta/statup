@@ -3,6 +3,8 @@
 
 use chrono::{DateTime, Utc};
 
+use sqlx::AssertSqlSafe;
+
 use crate::clock;
 use crate::db::DbPool;
 use crate::models::{MemberNotice, NoticeKind, NoticeSubject, Role};
@@ -90,13 +92,13 @@ impl MemberNoticeRepository {
         user_id: i64,
         limit: i64,
     ) -> Result<Vec<MemberNotice>, sqlx::Error> {
-        sqlx::query_as::<_, MemberNotice>(&format!(
+        sqlx::query_as::<_, MemberNotice>(AssertSqlSafe(format!(
             "SELECT {NOTICE_COLUMNS} FROM member_notices n \
              LEFT JOIN events e ON e.id = n.event_id \
              LEFT JOIN services s ON s.id = n.service_id \
              LEFT JOIN notification_channels c ON c.id = n.channel_id \
              WHERE n.user_id = ? ORDER BY n.created_at DESC, n.id DESC LIMIT ?"
-        ))
+        )))
         .bind(user_id)
         .bind(limit)
         .fetch_all(pool)

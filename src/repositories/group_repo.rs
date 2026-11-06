@@ -1,5 +1,7 @@
 //! Group repository: named sets of members, used to choose who sees a service.
 
+use sqlx::AssertSqlSafe;
+
 use crate::db::DbPool;
 use crate::models::{GroupMember, MemberGroup};
 
@@ -58,13 +60,15 @@ impl GroupRepository {
 
     /// Every group by name, with its count of active members.
     pub async fn list(pool: &DbPool) -> Result<Vec<MemberGroup>, sqlx::Error> {
-        sqlx::query_as::<_, MemberGroup>(&format!("{GROUP_COLUMNS} ORDER BY g.name COLLATE NOCASE"))
-            .fetch_all(pool)
-            .await
+        sqlx::query_as::<_, MemberGroup>(AssertSqlSafe(format!(
+            "{GROUP_COLUMNS} ORDER BY g.name COLLATE NOCASE"
+        )))
+        .fetch_all(pool)
+        .await
     }
 
     pub async fn find(pool: &DbPool, id: i64) -> Result<Option<MemberGroup>, sqlx::Error> {
-        sqlx::query_as::<_, MemberGroup>(&format!("{GROUP_COLUMNS} WHERE g.id = ?"))
+        sqlx::query_as::<_, MemberGroup>(AssertSqlSafe(format!("{GROUP_COLUMNS} WHERE g.id = ?")))
             .bind(id)
             .fetch_optional(pool)
             .await
@@ -312,7 +316,7 @@ mod tests {
     }
 
     async fn count(pool: &DbPool, table: &str) -> i64 {
-        sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table}"))
+        sqlx::query_scalar(AssertSqlSafe(format!("SELECT COUNT(*) FROM {table}")))
             .fetch_one(pool)
             .await
             .unwrap()

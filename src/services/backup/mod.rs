@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use chrono::{DateTime, NaiveDateTime, Utc};
+use sqlx::AssertSqlSafe;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
 use sqlx::{Connection, SqliteConnection};
 
@@ -201,9 +202,9 @@ const UPLOAD_FOLDERS: [&str; 2] = ["icons", "brand"];
 pub async fn read_info(path: &Path) -> Result<BackupInfo, sqlx::Error> {
     let mut connection = open_file(path, false).await?;
     check_shape(&mut connection).await?;
-    let row: (String, i64, DateTime<Utc>, String) = sqlx::query_as(&format!(
+    let row: (String, i64, DateTime<Utc>, String) = sqlx::query_as(AssertSqlSafe(format!(
         "SELECT app_version, migration, created_at, instance_name FROM {INFO_TABLE}"
-    ))
+    )))
     .fetch_one(&mut connection)
     .await?;
     connection.close().await?;

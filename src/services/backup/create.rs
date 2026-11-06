@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use chrono::Utc;
+use sqlx::AssertSqlSafe;
 use sqlx::{Connection, SqliteConnection};
 
 use super::{BackupInfo, FILES_TABLE, INFO_TABLE, UPLOAD_FOLDERS, forget_sessions, open_file};
@@ -108,16 +109,16 @@ async fn describe(copy: &mut SqliteConnection) -> Result<BackupInfo, AppError> {
 }
 
 async fn record_info(copy: &mut SqliteConnection, info: &BackupInfo) -> Result<(), AppError> {
-    sqlx::query(&format!(
+    sqlx::query(AssertSqlSafe(format!(
         "CREATE TABLE {INFO_TABLE} (app_version TEXT NOT NULL, migration INTEGER NOT NULL, \
          created_at TEXT NOT NULL, instance_name TEXT NOT NULL)"
-    ))
+    )))
     .execute(&mut *copy)
     .await?;
-    sqlx::query(&format!(
+    sqlx::query(AssertSqlSafe(format!(
         "INSERT INTO {INFO_TABLE} (app_version, migration, created_at, instance_name) \
          VALUES (?, ?, ?, ?)"
-    ))
+    )))
     .bind(&info.app_version)
     .bind(info.migration)
     .bind(info.created_at)
@@ -130,16 +131,16 @@ async fn record_info(copy: &mut SqliteConnection, info: &BackupInfo) -> Result<(
 /// Copies the logo and the icons into the backup, each under its path
 /// relative to the upload directory.
 async fn attach_uploads(copy: &mut SqliteConnection, upload_dir: &Path) -> Result<(), AppError> {
-    sqlx::query(&format!(
+    sqlx::query(AssertSqlSafe(format!(
         "CREATE TABLE {FILES_TABLE} (path TEXT PRIMARY KEY NOT NULL, content BLOB NOT NULL)"
-    ))
+    )))
     .execute(&mut *copy)
     .await?;
     let mut transaction = copy.begin().await?;
     for (path, content) in uploaded_files(upload_dir).await? {
-        sqlx::query(&format!(
+        sqlx::query(AssertSqlSafe(format!(
             "INSERT INTO {FILES_TABLE} (path, content) VALUES (?, ?)"
-        ))
+        )))
         .bind(path)
         .bind(content)
         .execute(&mut *transaction)
