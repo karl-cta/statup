@@ -347,11 +347,17 @@
             window.htmx.process(content);
             window.htmx.trigger(content, "htmx:load", { elt: content });
         }
-        const title = content.querySelector("#drawer-title");
+        const title = drawerTitle(content);
         if (!title) return;
-        title.setAttribute("tabindex", "-1");
         panel.setAttribute("aria-labelledby", title.id);
         if (document.activeElement === panel) title.focus({ preventScroll: true });
+    }
+
+    // The panel's title, made able to take the focus.
+    function drawerTitle(content) {
+        const title = content.querySelector("#drawer-title");
+        if (title) title.setAttribute("tabindex", "-1");
+        return title;
     }
 
     function openDrawer(url, opener) {
@@ -403,23 +409,31 @@
         const opener = drawer.opener;
         if (opener && document.contains(opener)) opener.focus({ preventScroll: true });
         drawer.opener = null;
-        if (drawer.changed) redrawAfterPanel(opener && opener.getAttribute("data-drawer"));
+        if (drawer.changed) redrawAfterPanel(opener);
+    }
+
+    function copiesOf(scope, url) {
+        return [...scope.querySelectorAll(`[data-drawer="${CSS.escape(url)}"]`)];
     }
 
     // The page behind is drawn again, which replaces the link that opened
-    // the panel: its new copy takes the focus back.
-    function redrawAfterPanel(openerUrl) {
+    // the panel: its new copy takes the focus back. The same event can be
+    // linked from several blocks, so the copy at the same rank is the one.
+    function redrawAfterPanel(opener) {
         drawer.changed = false;
         const live = document.querySelector("[data-live]");
         if (!live || !window.htmx) {
             window.location.reload();
             return;
         }
+        const url = opener && opener.getAttribute("data-drawer");
+        const rank = url ? Math.max(copiesOf(live, url).indexOf(opener), 0) : 0;
         window.htmx
             .ajax("GET", live.dataset.live, { target: live, swap: "innerHTML" })
             .then(() => {
-                if (!openerUrl || document.activeElement !== document.body) return;
-                const again = live.querySelector(`[data-drawer="${CSS.escape(openerUrl)}"]`);
+                if (!url || document.activeElement !== document.body) return;
+                const copies = copiesOf(live, url);
+                const again = copies[rank] || copies[0];
                 if (again) again.focus({ preventScroll: true });
             })
             .catch(() => {});
@@ -705,7 +719,7 @@
             if (button) button.focus();
             return true;
         }
-        return target instanceof Element && cancelQuestion(target);
+        return false;
     }
 
     document.addEventListener("keydown", (event) => {
@@ -883,11 +897,8 @@
             refused.focus({ preventScroll: true });
             return;
         }
-        const title = content.querySelector("#drawer-title");
-        if (title) {
-            title.setAttribute("tabindex", "-1");
-            title.focus({ preventScroll: true });
-        }
+        const title = drawerTitle(content);
+        if (title) title.focus({ preventScroll: true });
         const { panel } = drawerParts();
         if (path.endsWith("/panel-updates") && panel) announce(panel.dataset.published || "");
     }

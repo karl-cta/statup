@@ -744,17 +744,9 @@ async fn opening_only_ever_opens_what_is_restricted_with_its_own_setting() {
     let follower = follower_of(&app, folder, "Notes Beta").await;
     let public = plain_service(&app, "Wiki Gamma").await;
     let members = plain_service(&app, "Annuaire Delta").await;
-    ServiceRepository::set_visibility(
-        &app.pool,
-        members,
-        Visibility::Members,
-        Grants {
-            groups: &[],
-            ..Default::default()
-        },
-    )
-    .await
-    .unwrap();
+    ServiceRepository::set_visibility(&app.pool, members, Visibility::Members, Grants::default())
+        .await
+        .unwrap();
 
     let (status, location) = open_access(&app, compta, &[], &[public, members, follower]).await;
 

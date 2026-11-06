@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use rand::Rng;
 use rand::distributions::Alphanumeric;
 
-use super::link_token::secret_hash as hash;
+use super::link_token::secret_hash;
 use crate::db::DbPool;
 use crate::error::{AppError, name_taken_on_conflict};
 use crate::models::{API_KEY_PREFIX, ApiKeyHolder, User, check_api_key_name};
@@ -34,9 +34,15 @@ impl ApiKeyService {
             return Err(AppError::validation(NAME_TAKEN));
         }
         let key = new_key();
-        ApiKeyRepository::create(pool, &name, &key[..SHOWN_LENGTH], &hash(&key), creator.id)
-            .await
-            .map_err(|e| name_taken_on_conflict(e, NAME_TAKEN))?;
+        ApiKeyRepository::create(
+            pool,
+            &name,
+            &key[..SHOWN_LENGTH],
+            &secret_hash(&key),
+            creator.id,
+        )
+        .await
+        .map_err(|e| name_taken_on_conflict(e, NAME_TAKEN))?;
         Ok(NewApiKey { name, key })
     }
 
@@ -44,9 +50,10 @@ impl ApiKeyService {
     /// stops working at once.
     pub async fn regenerate(pool: &DbPool, id: i64) -> Result<NewApiKey, AppError> {
         let key = new_key();
-        let name = ApiKeyRepository::replace_secret(pool, id, &key[..SHOWN_LENGTH], &hash(&key))
-            .await?
-            .ok_or(AppError::NotFound)?;
+        let name =
+            ApiKeyRepository::replace_secret(pool, id, &key[..SHOWN_LENGTH], &secret_hash(&key))
+                .await?
+                .ok_or(AppError::NotFound)?;
         Ok(NewApiKey { name, key })
     }
 
@@ -59,7 +66,7 @@ impl ApiKeyService {
         if !well_formed(presented) {
             return Ok(None);
         }
-        Ok(ApiKeyRepository::find_by_hash(pool, &hash(presented)).await?)
+        Ok(ApiKeyRepository::find_by_hash(pool, &secret_hash(presented)).await?)
     }
 
     /// Records that the key was used, when the last use is old enough to be
@@ -128,7 +135,7 @@ mod tests {
     #[test]
     fn the_hash_is_the_hexadecimal_sha256() {
         assert_eq!(
-            hash("abc"),
+            secret_hash("abc"),
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
     }
@@ -149,7 +156,7 @@ mod tests {
                 .await
                 .unwrap();
         assert_eq!(stored.0, made.key[..8]);
-        assert_eq!(stored.1, hash(&made.key));
+        assert_eq!(stored.1, secret_hash(&made.key));
         assert!(!stored.1.contains(&made.key[4..]));
 
         let holder = ApiKeyService::holder_of(&pool, &made.key)

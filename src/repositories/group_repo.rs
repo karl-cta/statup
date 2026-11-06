@@ -602,25 +602,14 @@ mod tests {
             folder,
             "Finances",
             Visibility::Groups,
-            Grants {
-                groups: &[],
-                ..Default::default()
-            },
+            Grants::default(),
         )
         .await
         .unwrap();
         let svc = service(pool, "Wiki").await;
-        ServiceRepository::set_visibility(
-            pool,
-            svc,
-            Visibility::Groups,
-            Grants {
-                groups: &[],
-                ..Default::default()
-            },
-        )
-        .await
-        .unwrap();
+        ServiceRepository::set_visibility(pool, svc, Visibility::Groups, Grants::default())
+            .await
+            .unwrap();
         (folder, svc)
     }
 

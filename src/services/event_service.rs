@@ -1,6 +1,7 @@
 //! Event rules: creation, edits, updates, state changes and the maintenance
 //! schedule.
 
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
@@ -488,10 +489,12 @@ pub fn sanitize_markdown(raw: &str) -> String {
 /// An update as stored, already HTML, cleaned again as it is drawn: a fix
 /// in the cleaner then reaches the updates written before it.
 pub fn clean_update(html: &str) -> String {
-    ammonia::Builder::default()
-        .rm_tags(&["img"])
-        .clean(html)
-        .to_string()
+    static CLEANER: LazyLock<ammonia::Builder<'static>> = LazyLock::new(|| {
+        let mut cleaner = ammonia::Builder::default();
+        cleaner.rm_tags(&["img"]);
+        cleaner
+    });
+    CLEANER.clean(html).to_string()
 }
 
 #[cfg(test)]
