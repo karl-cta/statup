@@ -10,9 +10,6 @@
     <h1 class="setup-title">{{ i18n.t("auth.welcome_heading") }}</h1>
     <p class="setup-lede">{{ i18n.t("setup.account_lede") }}</p>
     <div class="setup-body">
-        {% if let Some(message) = errors.form %}
-        <div id="form-error" class="form-error" role="alert"><p>{{ message }}</p></div>
-        {% endif %}
         <div class="field">
             <label for="display_name" class="field-label">{{ i18n.t("auth.display_name") }}</label>
             <input id="display_name" name="display_name" type="text" class="input" required maxlength="100" autocomplete="username" placeholder="{{ i18n.t("setup.name_placeholder") }}" value="{{ display_name }}"{% if errors.name.is_some() %} aria-invalid="true" aria-describedby="name-error"{% endif %}{% if errors.focus() == "display_name" %} autofocus{% endif %}>

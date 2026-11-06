@@ -90,19 +90,10 @@ impl NotificationRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    /// Queues `notification` for every destination that receives its part of
-    /// the page. A service coming back is only told where its outage was.
-    /// Returns how many messages were queued.
-    pub async fn enqueue(
-        pool: &DbPool,
-        notification: &Notification,
-        now: DateTime<Utc>,
-    ) -> Result<u64, sqlx::Error> {
-        Self::enqueue_after(pool, notification, now, now).await
-    }
-
     /// Queues a message that happened at `now` and leaves no sooner than
-    /// `send_at`.
+    /// `send_at`, for every destination that receives its part of the page. A
+    /// service coming back is only told where its outage was. Returns how many
+    /// messages were queued.
     pub async fn enqueue_after(
         pool: &DbPool,
         notification: &Notification,
@@ -445,7 +436,7 @@ mod tests {
 
         let mut notification = about_event(Happening::Closed, event);
         notification.lifecycle = Some(Lifecycle::Resolved);
-        let count = NotificationRepository::enqueue(&pool, &notification, at(0))
+        let count = NotificationRepository::enqueue_after(&pool, &notification, at(0), at(0))
             .await
             .unwrap();
 
@@ -465,18 +456,20 @@ mod tests {
             .await
             .unwrap();
         let early = channel(&pool, "early", true, false).await;
-        NotificationRepository::enqueue(
+        NotificationRepository::enqueue_after(
             &pool,
             &about_service(Happening::ServiceDown, service.id),
+            at(0),
             at(0),
         )
         .await
         .unwrap();
         channel(&pool, "late", true, false).await;
 
-        NotificationRepository::enqueue(
+        NotificationRepository::enqueue_after(
             &pool,
             &about_service(Happening::ServiceUp, service.id),
+            at(5),
             at(5),
         )
         .await
@@ -499,9 +492,10 @@ mod tests {
         let second = channel(&pool, "second", true, false).await;
         let event = incident(&pool).await;
         for minute in [0, 1] {
-            NotificationRepository::enqueue(
+            NotificationRepository::enqueue_after(
                 &pool,
                 &about_event(Happening::Updated, event),
+                at(minute),
                 at(minute),
             )
             .await
@@ -537,9 +531,14 @@ mod tests {
         let failing = channel(&pool, "failing", true, false).await;
         let fine = channel(&pool, "fine", true, false).await;
         let event = incident(&pool).await;
-        NotificationRepository::enqueue(&pool, &about_event(Happening::Opened, event), at(0))
-            .await
-            .unwrap();
+        NotificationRepository::enqueue_after(
+            &pool,
+            &about_event(Happening::Opened, event),
+            at(0),
+            at(0),
+        )
+        .await
+        .unwrap();
         let heads = NotificationRepository::due(&pool, at(0)).await.unwrap();
         let head = heads.iter().find(|d| d.channel_id == failing).unwrap();
         NotificationRepository::retry_later(&pool, head.id, "status_503", at(1))
@@ -563,9 +562,10 @@ mod tests {
         let alive = channel(&pool, "alive", true, false).await;
         let event = incident(&pool).await;
         for minute in [0, 1, 2] {
-            NotificationRepository::enqueue(
+            NotificationRepository::enqueue_after(
                 &pool,
                 &about_event(Happening::Updated, event),
+                at(minute),
                 at(minute),
             )
             .await
@@ -598,9 +598,10 @@ mod tests {
         let id = channel(&pool, "team", true, false).await;
         let event = incident(&pool).await;
         for minute in [0, 1, 2] {
-            NotificationRepository::enqueue(
+            NotificationRepository::enqueue_after(
                 &pool,
                 &about_event(Happening::Updated, event),
+                at(minute),
                 at(minute),
             )
             .await
@@ -630,9 +631,14 @@ mod tests {
         let pool = test_pool().await;
         channel(&pool, "team", true, false).await;
         let event = incident(&pool).await;
-        NotificationRepository::enqueue(&pool, &about_event(Happening::Opened, event), at(0))
-            .await
-            .unwrap();
+        NotificationRepository::enqueue_after(
+            &pool,
+            &about_event(Happening::Opened, event),
+            at(0),
+            at(0),
+        )
+        .await
+        .unwrap();
 
         EventRepository::delete(&pool, event).await.unwrap();
 
@@ -645,9 +651,10 @@ mod tests {
         let id = channel(&pool, "team", true, false).await;
         let event = incident(&pool).await;
         for minute in [0, 1] {
-            NotificationRepository::enqueue(
+            NotificationRepository::enqueue_after(
                 &pool,
                 &about_event(Happening::Updated, event),
+                at(minute),
                 at(minute),
             )
             .await

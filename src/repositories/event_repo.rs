@@ -17,9 +17,9 @@ use crate::models::{
 };
 use crate::repositories::service_repo::CHOSEN_ORDER;
 
-const SUMMARY_COLUMNS: &str = "e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
+const SUMMARY_COLUMNS: &str = "e.id, e.kind, e.severity, e.lifecycle, e.category, \
      e.title, e.description, e.planned_start, e.planned_end, e.started_at, e.ended_at, \
-     e.keeps_services_up, e.next_update_at, e.created_at, e.updated_at, e.author_id, \
+     e.keeps_services_up, e.next_update_at, e.created_at, e.updated_at, \
      e.series_id, EXISTS (SELECT 1 FROM event_reviews r WHERE r.event_id = e.id) AS has_review, \
      COALESCE((SELECT GROUP_CONCAT(s.name, char(31) ORDER BY s.position, s.name COLLATE NOCASE, s.id) \
                FROM event_services es JOIN services s ON s.id = es.service_id \
@@ -1206,7 +1206,12 @@ mod tests {
         let by_member = EventRepository::create(&pool, &incident("VPN down", uid, vec![sid]))
             .await
             .unwrap();
-        assert_eq!(by_key.author_id, uid, "the key's creator stays the author");
+        let author: i64 = sqlx::query_scalar("SELECT author_id FROM events WHERE id = ?")
+            .bind(by_key.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(author, uid, "the key's creator stays the author");
         let signed = |id| EventRepository::author_name(&pool, id);
         assert_eq!(signed(by_key.id).await.unwrap().as_deref(), Some("Zabbix"));
         assert_eq!(

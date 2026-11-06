@@ -41,11 +41,9 @@ pub struct NoticeSubject {
 /// A notice as the bell lists it, with the names of what it is about.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct MemberNotice {
-    pub id: i64,
     pub kind: NoticeKind,
     pub event_id: Option<i64>,
     pub service_id: Option<i64>,
-    pub channel_id: Option<i64>,
     pub due_at: Option<DateTime<Utc>>,
     pub others: i64,
     pub created_at: DateTime<Utc>,

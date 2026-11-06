@@ -17,7 +17,7 @@
             {% endif %}
             <label class="choice"><input type="radio" name="visibility" value="groups" class="sr-only"{% if access.is("groups") %} checked{% endif %}><span>{{ i18n.t("services.visibility_groups") }}</span></label>
         </div>
-        <div class="access-grants" role="list" data-access-grants aria-label="{{ i18n.t("services.access_granted") }}">
+        <div class="access-grants" role="list" aria-label="{{ i18n.t("services.access_granted") }}">
             {% for tag in access.tags() %}
             <span class="grant{% if tag.extra %} is-extra{% endif %}" role="listitem" data-grant="{{ tag.field }}:{{ tag.choice.id }}"{% if !tag.choice.granted %} hidden{% endif %}>
                 {% if tag.is_group %}{% call ui::group_icon() %}{% endcall %}{% else %}{% call ui::person_icon() %}{% endcall %}{% endif %}
@@ -40,7 +40,7 @@
                     <p class="picker-note">{{ i18n.t("services.access_none") }}</p>
                     {% else %}
                     {% if !access.groups.is_empty() %}
-                    <p class="grant-section" data-grant-section>{{ i18n.t("services.access_groups") }}</p>
+                    <p class="grant-section">{{ i18n.t("services.access_groups") }}</p>
                     <div class="picker-list" role="group" aria-label="{{ i18n.t("services.access_groups") }}">
                         {% for g in access.groups %}
                         <label class="svc-pick" data-choice-text="{{ g.name }}"{% if !g.granted %} data-filter-text="{{ g.name }}"{% endif %} data-grant-choice="group_ids:{{ g.id }}"{% if g.granted %} hidden{% endif %}><input type="checkbox" name="group_ids" value="{{ g.id }}" class="checkbox"><span class="svc-pick-name">{{ g.name }}</span><span class="picker-email{% if g.is_empty_group() %} is-empty{% endif %}">{{ g.meta }}</span></label>
@@ -48,7 +48,7 @@
                     </div>
                     {% endif %}
                     {% if !access.members.is_empty() %}
-                    <p class="grant-section" data-grant-section>{{ i18n.t("services.access_members") }}</p>
+                    <p class="grant-section">{{ i18n.t("services.access_members") }}</p>
                     <div class="picker-list" role="group" aria-label="{{ i18n.t("services.access_members") }}">
                         {% for m in access.members %}
                         <label class="svc-pick" data-choice-text="{{ m.name }} {{ m.meta }}"{% if !m.granted %} data-filter-text="{{ m.name }} {{ m.meta }}"{% endif %} data-grant-choice="member_ids:{{ m.id }}"{% if m.granted %} hidden{% endif %}><input type="checkbox" name="member_ids" value="{{ m.id }}" class="checkbox"><span class="svc-pick-name">{{ m.name }}</span>{% if !m.meta.is_empty() %}<span class="picker-email">{{ m.meta }}</span>{% endif %}</label>

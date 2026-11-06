@@ -68,7 +68,7 @@ impl JournalRepository {
         filters: &JournalFilters,
     ) -> Result<Vec<JournalEntry>, sqlx::Error> {
         let mut query = QueryBuilder::<Sqlite>::new(
-            "SELECT id, kind, actor_name, subject, detail, ip, created_at \
+            "SELECT kind, actor_name, subject, detail, ip, created_at \
              FROM journal_entries",
         );
         push_filters(&mut query, filters);

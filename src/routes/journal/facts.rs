@@ -347,7 +347,6 @@ mod tests {
 
     fn entry(kind: JournalKind, detail: &str) -> JournalEntry {
         JournalEntry {
-            id: 1,
             kind,
             actor_name: None,
             subject: None,

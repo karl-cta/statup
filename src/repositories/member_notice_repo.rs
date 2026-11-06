@@ -7,7 +7,7 @@ use crate::clock;
 use crate::db::DbPool;
 use crate::models::{MemberNotice, NoticeKind, NoticeSubject, Role};
 
-const NOTICE_COLUMNS: &str = "n.id, n.kind, n.event_id, n.service_id, n.channel_id, n.due_at, \
+const NOTICE_COLUMNS: &str = "n.kind, n.event_id, n.service_id, n.due_at, \
      n.others, n.created_at, n.read_at, e.title AS event_title, s.name AS service_name, \
      c.name AS channel_name";
 

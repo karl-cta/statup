@@ -179,12 +179,9 @@ pub struct Event {
     pub ended_at: Option<DateTime<Utc>>,
     /// When the service came back, while the team may still be watching.
     pub restored_at: Option<DateTime<Utc>>,
-    pub author_id: i64,
     pub previous_lifecycle: Option<Lifecycle>,
     /// The maintenance this announcement follows.
     pub follows_event_id: Option<i64>,
-    /// Maintenance its services stay up through.
-    pub keeps_services_up: bool,
     /// When the team said its next update is due.
     pub next_update_at: Option<DateTime<Utc>>,
     /// The delay that time was given as, offered again with the next update.
@@ -321,7 +318,6 @@ pub struct EventSummary {
     pub id: i64,
     pub kind: Kind,
     pub severity: Option<Severity>,
-    pub planned: bool,
     pub lifecycle: Option<Lifecycle>,
     pub category: Option<Category>,
     pub title: String,
@@ -334,7 +330,6 @@ pub struct EventSummary {
     pub next_update_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    pub author_id: i64,
     /// The repeating maintenance this session belongs to.
     pub series_id: Option<i64>,
     /// A review was published for it.
@@ -500,13 +495,6 @@ impl EventSummary {
     pub fn chip_label(&self, i18n: &I18n) -> String {
         i18n.t(chip_key(self.kind, self.severity, self.category))
             .to_string()
-    }
-
-    pub fn countdown(&self) -> Option<Countdown> {
-        (self.lifecycle == Some(Lifecycle::Scheduled))
-            .then_some(self.planned_start)
-            .flatten()
-            .and_then(countdown_to)
     }
 
     /// "open for 3 h", "started 3 h ago", while the work is open.

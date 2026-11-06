@@ -16,7 +16,7 @@ use tokio::sync::Semaphore;
 use tokio::task::{AbortHandle, JoinSet};
 use tokio::time::{MissedTickBehavior, interval, sleep};
 
-use super::deliver::{RETRY_DELAYS, Reading, load_event, retry_at};
+use super::deliver::{KEEP_HISTORY, RETRY_DELAYS, Reading, load_event, retry_at};
 use super::{
     Facts, Failure, Notice, Notifier, Origin, SubscriberEmail, SubscriberSender, Unsubscribe,
     page_address,
@@ -44,7 +44,6 @@ const SENDS_PER_ROUND: usize = 600;
 /// News still waiting after this long is given up: that late, it would
 /// mislead more than it informs.
 const KEEP_WAITING: chrono::Duration = chrono::Duration::hours(48);
-const KEEP_HISTORY: chrono::Duration = chrono::Duration::days(30);
 
 /// Why an email was left out: the page or the subscriptions of visitors are
 /// closed, the member's account is disabled, or the event is not theirs to
@@ -649,9 +648,17 @@ mod tests {
             .await
             .unwrap()
             .id;
-        ServiceRepository::set_visibility(pool, id, visibility, Grants::groups(&[]))
-            .await
-            .unwrap();
+        ServiceRepository::set_visibility(
+            pool,
+            id,
+            visibility,
+            Grants {
+                groups: &[],
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
         id
     }
 

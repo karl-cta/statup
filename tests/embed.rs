@@ -19,9 +19,17 @@ async fn service(app: &TestApp, name: &str, visibility: Visibility) -> i64 {
         .await
         .unwrap()
         .id;
-    ServiceRepository::set_visibility(&app.pool, id, visibility, Grants::groups(&[]))
-        .await
-        .unwrap();
+    ServiceRepository::set_visibility(
+        &app.pool,
+        id,
+        visibility,
+        Grants {
+            groups: &[],
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
     id
 }
 

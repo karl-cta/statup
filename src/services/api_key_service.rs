@@ -21,7 +21,6 @@ const NAME_TAKEN: &str = "validation.api_key_name_taken";
 
 /// A key just made: its row and the only copy of the key itself.
 pub struct NewApiKey {
-    pub id: i64,
     pub name: String,
     pub key: String,
 }
@@ -35,11 +34,10 @@ impl ApiKeyService {
             return Err(AppError::validation(NAME_TAKEN));
         }
         let key = new_key();
-        let id =
-            ApiKeyRepository::create(pool, &name, &key[..SHOWN_LENGTH], &hash(&key), creator.id)
-                .await
-                .map_err(|e| name_taken_on_conflict(e, NAME_TAKEN))?;
-        Ok(NewApiKey { id, name, key })
+        ApiKeyRepository::create(pool, &name, &key[..SHOWN_LENGTH], &hash(&key), creator.id)
+            .await
+            .map_err(|e| name_taken_on_conflict(e, NAME_TAKEN))?;
+        Ok(NewApiKey { name, key })
     }
 
     /// A new secret for a key in use, under the same name: the old secret
@@ -49,7 +47,7 @@ impl ApiKeyService {
         let name = ApiKeyRepository::replace_secret(pool, id, &key[..SHOWN_LENGTH], &hash(&key))
             .await?
             .ok_or(AppError::NotFound)?;
-        Ok(NewApiKey { id, name, key })
+        Ok(NewApiKey { name, key })
     }
 
     /// The key in use that a request presents. A malformed key is refused
@@ -145,8 +143,8 @@ mod tests {
         assert_eq!(made.name, "Zabbix");
 
         let stored: (String, String) =
-            sqlx::query_as("SELECT prefix, secret_hash FROM api_keys WHERE id = ?")
-                .bind(made.id)
+            sqlx::query_as("SELECT prefix, secret_hash FROM api_keys WHERE name = ?")
+                .bind(&made.name)
                 .fetch_one(&pool)
                 .await
                 .unwrap();
@@ -158,7 +156,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!((holder.id, holder.created_by), (made.id, creator.id));
+        assert_eq!((holder.name, holder.created_by), (made.name, creator.id));
         let other = format!("stp_{}", "a".repeat(SECRET_LENGTH));
         assert!(
             ApiKeyService::holder_of(&pool, &other)

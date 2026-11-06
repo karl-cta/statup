@@ -725,7 +725,6 @@ fn test_message(channel: &Channel, page: String) -> (Notice, Facts) {
 
 /// The destination of a test, never saved.
 fn trial_channel(form: &DestinationForm, kind: ChannelKind, target: String) -> Channel {
-    let now = Utc::now();
     Channel {
         id: 0,
         name: form.name.trim().to_string(),
@@ -736,8 +735,6 @@ fn trial_channel(form: &DestinationForm, kind: ChannelKind, target: String) -> C
         on_maintenances: true,
         on_publications: true,
         on_detected: true,
-        created_at: now,
-        updated_at: now,
     }
 }
 

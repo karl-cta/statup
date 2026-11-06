@@ -515,9 +515,7 @@ mod tests {
             started_at: None,
             ended_at: None,
             restored_at: None,
-            author_id: 1,
             previous_lifecycle: None,
-            keeps_services_up: false,
             follows_event_id: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -539,8 +537,6 @@ mod tests {
             last_seen_at: None,
             preferred_locale: None,
             must_change_password: false,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
         }
     }
 

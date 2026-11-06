@@ -292,7 +292,7 @@ mod tests {
     use super::*;
     use crate::models::{Grants, Role, Visibility};
     use crate::repositories::UserRepository;
-    use crate::services::{KumaGroup, KumaMonitor};
+    use crate::services::kuma_import::page::KumaMonitor;
     use crate::test_helpers::test_pool;
 
     fn page(groups: &[(&str, &[&str])]) -> KumaPage {
@@ -470,9 +470,15 @@ mod tests {
         let pool = test_pool().await;
         let user = editor(&pool).await;
         let folder = FolderRepository::create(&pool, "Paie").await.unwrap();
-        FolderRepository::set_visibility(&pool, folder, Visibility::Members, Grants::default())
-            .await
-            .unwrap();
+        FolderRepository::save_settings(
+            &pool,
+            folder,
+            "Paie",
+            Visibility::Members,
+            Grants::default(),
+        )
+        .await
+        .unwrap();
         let kuma = page(&[("paie", &["Bulletins"])]);
         let imported = import_groups(&pool, &kuma, &["paie".to_string()], &user)
             .await

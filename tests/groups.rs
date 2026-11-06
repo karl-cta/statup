@@ -352,7 +352,10 @@ async fn deleting_a_group_names_what_it_closes_and_clears_its_traces() {
         &app.pool,
         only_paie.id,
         Visibility::Groups,
-        Grants::groups(&[paie]),
+        Grants {
+            groups: &[paie],
+            ..Default::default()
+        },
     )
     .await
     .unwrap();
@@ -363,7 +366,10 @@ async fn deleting_a_group_names_what_it_closes_and_clears_its_traces() {
         &app.pool,
         shared.id,
         Visibility::Groups,
-        Grants::groups(&[paie, compta]),
+        Grants {
+            groups: &[paie, compta],
+            ..Default::default()
+        },
     )
     .await
     .unwrap();
@@ -505,7 +511,10 @@ async fn a_group_page_lists_the_restricted_services_it_opens() {
         &app.pool,
         ids[0],
         Visibility::Groups,
-        Grants::groups(&[compta]),
+        Grants {
+            groups: &[compta],
+            ..Default::default()
+        },
     )
     .await
     .unwrap();
@@ -513,18 +522,25 @@ async fn a_group_page_lists_the_restricted_services_it_opens() {
         &app.pool,
         ids[3],
         Visibility::Groups,
-        Grants::groups(&[lyon]),
+        Grants {
+            groups: &[lyon],
+            ..Default::default()
+        },
     )
     .await
     .unwrap();
     let folder = FolderRepository::create(&app.pool, "Finances")
         .await
         .unwrap();
-    FolderRepository::set_visibility(
+    FolderRepository::save_settings(
         &app.pool,
         folder,
+        "Finances",
         Visibility::Groups,
-        Grants::groups(&[compta]),
+        Grants {
+            groups: &[compta],
+            ..Default::default()
+        },
     )
     .await
     .unwrap();
@@ -590,9 +606,18 @@ async fn restricted_folder(app: &TestApp, name: &str, groups: &[i64]) -> i64 {
     let id = FolderRepository::create(&app.pool, name)
         .await
         .expect("failed to create folder");
-    FolderRepository::set_visibility(&app.pool, id, Visibility::Groups, Grants::groups(groups))
-        .await
-        .expect("failed to restrict the folder");
+    FolderRepository::save_settings(
+        &app.pool,
+        id,
+        name,
+        Visibility::Groups,
+        Grants {
+            groups,
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("failed to restrict the folder");
     id
 }
 
@@ -605,9 +630,17 @@ async fn plain_service(app: &TestApp, name: &str) -> i64 {
 
 async fn restricted_service(app: &TestApp, name: &str, groups: &[i64]) -> i64 {
     let id = plain_service(app, name).await;
-    ServiceRepository::set_visibility(&app.pool, id, Visibility::Groups, Grants::groups(groups))
-        .await
-        .expect("failed to restrict the service");
+    ServiceRepository::set_visibility(
+        &app.pool,
+        id,
+        Visibility::Groups,
+        Grants {
+            groups,
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("failed to restrict the service");
     id
 }
 
@@ -711,9 +744,17 @@ async fn opening_only_ever_opens_what_is_restricted_with_its_own_setting() {
     let follower = follower_of(&app, folder, "Notes Beta").await;
     let public = plain_service(&app, "Wiki Gamma").await;
     let members = plain_service(&app, "Annuaire Delta").await;
-    ServiceRepository::set_visibility(&app.pool, members, Visibility::Members, Grants::groups(&[]))
-        .await
-        .unwrap();
+    ServiceRepository::set_visibility(
+        &app.pool,
+        members,
+        Visibility::Members,
+        Grants {
+            groups: &[],
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
 
     let (status, location) = open_access(&app, compta, &[], &[public, members, follower]).await;
 

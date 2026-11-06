@@ -44,7 +44,7 @@
     <div class="field{% if !found.is_empty() %} restore-file-under{% endif %}" data-restore-file{% if !found.is_empty() && !sent_chosen %} hidden{% endif %}>
         {% if found.is_empty() %}<span class="field-label" aria-hidden="true">{{ i18n.t("restore.file") }}</span>{% endif %}
         <label class="restore-file">
-            <input type="file" name="file" class="sr-only" accept=".db" aria-label="{{ i18n.t("restore.file") }}" data-restore-input>
+            <input type="file" name="file" class="sr-only" accept=".db" aria-label="{{ i18n.t("restore.file") }}">
             <span class="link restore-file-cta" data-file-name>{{ i18n.t("restore.choose") }}</span>
         </label>
     </div>

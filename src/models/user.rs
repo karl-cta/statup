@@ -67,8 +67,6 @@ pub struct User {
     pub role: Role,
     pub is_active: bool,
     pub last_seen_at: Option<chrono::DateTime<chrono::Utc>>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
     pub preferred_locale: Option<String>,
     pub must_change_password: bool,
 }

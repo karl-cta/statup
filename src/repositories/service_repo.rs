@@ -829,7 +829,10 @@ mod tests {
             &pool,
             svc.id,
             Visibility::Groups,
-            Grants::groups(&[group, 999]),
+            Grants {
+                groups: &[group, 999],
+                ..Default::default()
+            },
         )
         .await
         .unwrap();
@@ -850,13 +853,24 @@ mod tests {
                 &pool,
                 svc.id,
                 Visibility::Groups,
-                Grants::groups(&[group]),
+                Grants {
+                    groups: &[group],
+                    ..Default::default()
+                },
             )
             .await
             .unwrap();
-            ServiceRepository::set_visibility(&pool, svc.id, visibility, Grants::groups(&[group]))
-                .await
-                .unwrap();
+            ServiceRepository::set_visibility(
+                &pool,
+                svc.id,
+                visibility,
+                Grants {
+                    groups: &[group],
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
             assert!(
                 ServiceRepository::group_ids_of(&pool, svc.id)
                     .await

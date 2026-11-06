@@ -452,8 +452,8 @@
 
     // Escape answers "Cancel" to any question asked in place.
     function cancelQuestion(target) {
-        const box = target.closest("[data-confirm-box], [data-status-confirm], [data-role-confirm]");
-        const cancel = box && box.querySelector("[data-confirm-cancel], [data-status-cancel], [data-role-cancel]");
+        const box = target.closest("[data-confirm-box], [data-status-confirm]");
+        const cancel = box && box.querySelector("[data-confirm-cancel], [data-status-cancel]");
         if (cancel) cancel.click();
     }
 

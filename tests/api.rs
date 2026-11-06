@@ -47,6 +47,14 @@ async fn admin_key(app: &TestApp, name: &str) -> NewApiKey {
         .expect("the key is made")
 }
 
+async fn key_id(app: &TestApp, key: &NewApiKey) -> i64 {
+    sqlx::query_scalar("SELECT id FROM api_keys WHERE name = ?")
+        .bind(&key.name)
+        .fetch_one(&app.pool)
+        .await
+        .unwrap()
+}
+
 async fn call(app: &TestApp, path: &str, authorization: Option<&str>) -> Answer {
     let mut request = app.client.get(app.url(path));
     if let Some(value) = authorization {
@@ -429,7 +437,7 @@ async fn a_key_in_the_address_is_never_read() {
 async fn a_revoked_or_replaced_key_stops_at_once() {
     let app = TestApp::spawn().await;
     let revoked = admin_key(&app, "Zabbix").await;
-    ApiKeyRepository::revoke(&app.pool, revoked.id, Utc::now())
+    ApiKeyRepository::revoke(&app.pool, key_id(&app, &revoked).await, Utc::now())
         .await
         .unwrap();
     assert_refused(&call(&app, SERVICES, Some(&bearer(&revoked.key))).await);
@@ -441,7 +449,9 @@ async fn a_revoked_or_replaced_key_stops_at_once() {
     let old = ApiKeyService::create(&app.pool, "Grafana", &creator)
         .await
         .unwrap();
-    let new = ApiKeyService::regenerate(&app.pool, old.id).await.unwrap();
+    let new = ApiKeyService::regenerate(&app.pool, key_id(&app, &old).await)
+        .await
+        .unwrap();
     assert_refused(&call(&app, SERVICES, Some(&bearer(&old.key))).await);
     let answer = call(&app, SERVICES, Some(&bearer(&new.key))).await;
     assert_eq!(answer.status, StatusCode::OK);
@@ -923,7 +933,7 @@ async fn a_key_publishes_an_incident_as_the_screen_does_signed_with_its_name() {
             .fetch_one(&app.pool)
             .await
             .unwrap();
-    assert_eq!(signature, (creator.id, Some(made.id)));
+    assert_eq!(signature, (creator.id, Some(key_id(&app, &made).await)));
     let service = ServiceRepository::find_by_id(&app.pool, mail.id)
         .await
         .unwrap()

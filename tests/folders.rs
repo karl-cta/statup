@@ -63,18 +63,35 @@ async fn create_group(app: &TestApp, name: &str) -> i64 {
 /// A folder opened to these groups only.
 async fn create_guarded_folder(app: &TestApp, name: &str, groups: &[i64]) -> i64 {
     let id = create_folder(app, name).await;
-    FolderRepository::set_visibility(&app.pool, id, Visibility::Groups, Grants::groups(groups))
-        .await
-        .expect("failed to set the folder visibility");
+    FolderRepository::save_settings(
+        &app.pool,
+        id,
+        name,
+        Visibility::Groups,
+        Grants {
+            groups,
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("failed to set the folder visibility");
     id
 }
 
 /// A service with its own restriction to these groups.
 async fn create_restricted_service(app: &TestApp, name: &str, groups: &[i64]) -> i64 {
     let id = create_service(app, name).await;
-    ServiceRepository::set_visibility(&app.pool, id, Visibility::Groups, Grants::groups(groups))
-        .await
-        .expect("failed to restrict the service");
+    ServiceRepository::set_visibility(
+        &app.pool,
+        id,
+        Visibility::Groups,
+        Grants {
+            groups,
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("failed to restrict the service");
     id
 }
 
@@ -419,9 +436,10 @@ async fn a_member_who_is_no_longer_a_reader_does_not_make_a_rename_a_visibility_
         .create_user(READER_EMAIL, READER_PASSWORD, "Ann", Role::Reader)
         .await;
     let folder = create_folder(&app, "Network").await;
-    FolderRepository::set_visibility(
+    FolderRepository::save_settings(
         &app.pool,
         folder,
+        "Network",
         Visibility::Groups,
         Grants {
             groups: &[group],

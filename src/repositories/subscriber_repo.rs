@@ -12,7 +12,7 @@ use crate::models::{
 /// Absent means closed.
 pub const VISITORS_SETTING: &str = "visitor_subscriptions";
 
-const SUBSCRIBER_COLUMNS: &str = "id, user_id, email, locale, on_incidents, on_maintenances, \
+const SUBSCRIBER_COLUMNS: &str = "id, user_id, email, on_incidents, on_maintenances, \
      on_publications, unsubscribe_secret, created_at";
 
 pub struct SubscriberRepository;
@@ -308,6 +308,14 @@ mod tests {
         .is_ok()
     }
 
+    async fn stored_locale(pool: &DbPool, id: i64) -> String {
+        sqlx::query_scalar("SELECT locale FROM subscribers WHERE id = ?")
+            .bind(id)
+            .fetch_one(pool)
+            .await
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn confirming_subscribes_the_visitor_with_their_choices() {
         let pool = test_pool().await;
@@ -320,7 +328,7 @@ mod tests {
             .unwrap();
         assert_eq!(subscriber.email.as_deref(), Some("ana@example.com"));
         assert_eq!(subscriber.user_id, None);
-        assert_eq!(subscriber.locale, "fr");
+        assert_eq!(stored_locale(&pool, id).await, "fr");
         assert_eq!(subscriber.choices, ONLY_INCIDENTS);
         assert_eq!(subscriber.unsubscribe_secret, "secret");
         assert_eq!(count(&pool, "subscription_requests").await, 0);
@@ -377,7 +385,7 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(subscriber.email, None);
-        assert_eq!(subscriber.locale, "en");
+        assert_eq!(stored_locale(&pool, subscriber.id).await, "en");
         assert_eq!(subscriber.choices, ONLY_INCIDENTS);
         assert_eq!(subscriber.unsubscribe_secret, "s1");
     }

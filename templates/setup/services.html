@@ -10,7 +10,7 @@
 {% endblock %}
 
 {% block step %}
-<form method="post" action="/setup/services" class="setup-form" data-setup-services>
+<form method="post" action="/setup/services" class="setup-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <h1 class="setup-title">{{ i18n.t("setup.services_title") }}</h1>
     <p class="setup-lede">{{ i18n.t("setup.services_lede") }}</p>

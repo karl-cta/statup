@@ -147,12 +147,6 @@ impl UserRepository {
         .await
     }
 
-    pub async fn active_reader_count(pool: &DbPool) -> Result<i64, sqlx::Error> {
-        sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE role = 'reader' AND is_active = 1")
-            .fetch_one(pool)
-            .await
-    }
-
     /// How many active readers the grants open a service to, counting a
     /// reader once however many ways lead to them.
     pub async fn readers_reached(pool: &DbPool, grants: Grants<'_>) -> Result<i64, sqlx::Error> {
@@ -629,7 +623,6 @@ mod tests {
 
         let names: Vec<&str> = readers.iter().map(|r| r.display_name.as_str()).collect();
         assert_eq!(names, vec!["Ann", "zoe"]);
-        assert_eq!(UserRepository::active_reader_count(&pool).await.unwrap(), 2);
     }
 
     #[tokio::test]
@@ -656,7 +649,10 @@ mod tests {
         let none = UserRepository::readers_reached(&pool, Grants::default());
         assert_eq!(none.await.unwrap(), 0);
         let both_groups = [g1, g2];
-        let groups = Grants::groups(&both_groups);
+        let groups = Grants {
+            groups: &both_groups,
+            ..Default::default()
+        };
         assert_eq!(
             UserRepository::readers_reached(&pool, groups)
                 .await

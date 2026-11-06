@@ -120,8 +120,6 @@ mod tests {
 
         assert_eq!(icon.filename, "abc.png");
         assert_eq!(icon.original_name, "logo.png");
-        assert_eq!(icon.mime_type, "image/png");
-        assert_eq!(icon.size_bytes, 1024);
 
         let found = IconRepository::find_by_id(&pool, icon.id).await.unwrap();
         assert!(found.is_some());

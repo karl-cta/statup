@@ -1,7 +1,5 @@
 //! Icon model for the shared icon library.
 
-use chrono::{DateTime, Utc};
-
 /// Maximum icon file size, in megabytes as the pages say it.
 pub const MAX_ICON_SIZE_MB: usize = 1;
 
@@ -17,10 +15,6 @@ pub struct Icon {
     pub id: i64,
     pub filename: String,
     pub original_name: String,
-    pub mime_type: String,
-    pub size_bytes: i64,
-    pub uploaded_by: i64,
-    pub created_at: DateTime<Utc>,
 }
 
 impl Icon {
@@ -40,10 +34,6 @@ mod tests {
             id: 1,
             filename: "abc-123.png".to_string(),
             original_name: "logo.png".to_string(),
-            mime_type: "image/png".to_string(),
-            size_bytes: 1024,
-            uploaded_by: 1,
-            created_at: Utc::now(),
         };
         assert_eq!(icon.url(), "/uploads/icons/abc-123.png");
     }

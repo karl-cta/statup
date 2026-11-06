@@ -81,10 +81,6 @@ impl ActivityKind {
         }
     }
 
-    pub fn parse(s: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|k| k.as_str() == s)
-    }
-
     pub fn label_key(self) -> &'static str {
         match self {
             Self::MinorIncidents => "modules.recent_activity.show_incident_minor",

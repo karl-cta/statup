@@ -218,7 +218,12 @@ mod tests {
         assert_eq!(pending.locale, "fr");
         assert_eq!(pending.choices, ONLY_INCIDENTS);
         assert_eq!(subscriber.email.as_deref(), Some("ana@example.com"));
-        assert_eq!(subscriber.locale, "fr");
+        let locale: String = sqlx::query_scalar("SELECT locale FROM subscribers WHERE id = ?")
+            .bind(subscriber.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(locale, "fr");
         assert_eq!(subscriber.choices, ONLY_INCIDENTS);
         assert!(again.is_none());
         assert_eq!(subscriber_count(&pool).await, 1);
