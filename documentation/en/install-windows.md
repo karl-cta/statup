@@ -50,7 +50,7 @@ Press Enter to take the value in brackets. A parameter given on the command line
 | Firewall profiles | `-FirewallProfile` | the profiles of the networks of the machine |
 
 - `-Listen` takes `all` (every address), `local` (this machine only, for a [reverse proxy](reverse-proxy.md) on it) or an IP address.
-- A folder is a full path such as `C:\Statup`, without a quote, and not a system folder such as `C:\Windows` or `C:\ProgramData`. The data folder is on this machine. The backup folder may be a share: see [Backups on a share](install-windows.md#backups-on-a-share). An existing folder that holds other files is refused.
+- A folder is a full path such as `C:\Statup`, without a quote, and not a system folder such as `C:\Windows` or `C:\ProgramData`. The data folder is on this machine. The backup folder may be a share: see [Backups on a share](install-windows.md#backups-on-a-share). An existing folder that holds other files, that another account made, or that holds a link is refused.
 - The firewall profiles are `Domain`, `Private` and `Public`, one or more.
 - The questions need a console. Without one, the script stops and asks for `-Unattended`.
 - When `C:\ProgramData\Statup\statup.env` exists, from an earlier install that was removed, its settings are kept and only the program folder and the account are asked.

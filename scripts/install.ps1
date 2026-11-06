@@ -252,9 +252,35 @@ function Read-StatupInstallChoice {
 
 # An existing folder with files that are not Statup's is not taken over:
 # its owner and who may use it would be reset.
+# A folder made before the install by another account could hold a link
+# that the access rules, set as administrator, would follow out of it.
+function Test-StatupFolderTrusted {
+    param([string] $Path)
+    $me = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    $owner = (Get-Acl $Path).GetOwner([Security.Principal.SecurityIdentifier]).Value
+    if ($owner -notin @('S-1-5-32-544', 'S-1-5-18', $me)) {
+        throw "$Path was made by another account: remove it or choose another folder"
+    }
+    $pending = New-Object System.Collections.Generic.Queue[string]
+    $pending.Enqueue($Path)
+    while ($pending.Count -gt 0) {
+        $folder = Get-Item -LiteralPath $pending.Dequeue() -Force
+        if ($folder.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+            throw "$($folder.FullName) is a link: Statup needs a plain folder"
+        }
+        foreach ($item in Get-ChildItem -LiteralPath $folder.FullName -Force) {
+            if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                throw "$($item.FullName) is a link: Statup needs a plain folder"
+            }
+            if ($item.PSIsContainer) { $pending.Enqueue($item.FullName) }
+        }
+    }
+}
+
 function Test-StatupFolderFree {
     param([string] $Path, [string] $Marker)
     if ($Path.StartsWith('\\') -or -not (Test-Path $Path)) { return }
+    Test-StatupFolderTrusted $Path
     $items = @(Get-ChildItem $Path -Force)
     if ($items.Count -eq 0 -or ($items | Where-Object { $_.Name -like $Marker })) { return }
     throw "$Path already holds other files: choose a new folder, or empty it"
@@ -268,6 +294,8 @@ function Test-StatupInstallChoice {
     Test-StatupFolderFree $Choices.InstallDir 'statup.exe'
     Test-StatupFolderFree $Choices.DataDir 'statup*'
     Test-StatupFolderFree $Choices.BackupDir 'statup-*'
+    $settingsFolder = Split-Path -Parent (Get-StatupSettingsPath)
+    if (Test-Path $settingsFolder) { Test-StatupFolderTrusted $settingsFolder }
     $number = 0
     if (-not [int]::TryParse($Choices.Port, [ref] $number) -or $number -lt 1 -or $number -gt 65535) {
         throw "port $($Choices.Port): give a number from 1 to 65535"
@@ -588,6 +616,9 @@ function Install-Statup {
     Write-Host "Installing Statup $($release.Version) in $($choices.InstallDir)"
     $newSettings = -not (Test-Path (Get-StatupSettingsPath))
     try {
+        # Closed before statup.exe lands, so nobody swaps it before the
+        # service account, made with the service, gets its access.
+        Set-StatupFolderAccess $choices.InstallDir 'LocalSystem' 'RX'
         Install-StatupProgram $source $choices.InstallDir $release.Version
         New-StatupService $choices
         Set-StatupAccess $choices
