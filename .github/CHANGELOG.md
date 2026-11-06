@@ -17,6 +17,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 - The choices of a drop-down menu show the hand pointer on hover, like every other button.
 - On the **API** page, each key shows its details on one line and its actions under **Manage**. The email subscribers show on one line too, and **Remove** asks under its button. The type and language menus of an alert channel, and the state menu of an update, are as wide as their longest choice.
 - Keyboard and screen readers: the side panel keeps the focus, and Escape closes the innermost menu or question first. The focus stays in place after posting an update, hiding or adding a block, or removing an access. Fields and menus show their focus in Windows high contrast, and a changed page state, the count of a filtered Journal and a published update are read out.
+- `statup restore` says when the file it is given does not exist, instead of calling it not a Statup backup. The example of the command from source names the `backups` folder.
 - Statup now embeds SQLite 3.51.3 instead of 3.46.0, which fixes a flaw a crafted backup could reach during a restore (CVE-2025-7709). Building Statup from source needs Rust 1.94 or newer.
 
 ## 0.12.0, 2026-11-02
