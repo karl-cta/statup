@@ -159,10 +159,25 @@ check_not_taken() {
     fi
 }
 
+# Root writes the program folder at each update: inside a folder the
+# account writes, or owned by another account, it could hold a link that
+# root would follow.
+check_prefix() {
+    for folder in "$data_dir" "$backup_dir"; do
+        case $prefix in
+            "$folder" | "$folder"/*) usage_error "$prefix: the program folder cannot be inside $folder" ;;
+        esac
+    done
+    if [ -e "$prefix" ] && [ "$(stat -c %u "$prefix")" != 0 ]; then
+        usage_error "$prefix belongs to an account other than root: choose another folder"
+    fi
+}
+
 check_choices() {
     for folder in "$prefix" "$data_dir" "$backup_dir"; do
         check_folder "$folder"
     done
+    check_prefix
     check_not_taken "$data_dir"
     check_not_taken "$backup_dir"
     case $port in
@@ -534,6 +549,7 @@ update() {
     for folder in "$data_dir" "$backup_dir"; do
         check_folder "$folder"
     done
+    check_prefix
     say "Updating Statup in $prefix, with its settings"
     fetch_archive
     unpack_archive

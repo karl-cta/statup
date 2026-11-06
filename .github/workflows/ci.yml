@@ -518,6 +518,13 @@ jobs:
           sudo sh scripts/install.sh --archive "$archive" < /dev/null || code=$?
           test "$code" = 2
 
+          echo "--- A program folder inside the data folder is refused"
+          code=0
+          sudo sh scripts/install.sh --archive "$archive" --yes --data-dir /srv/statup-trap --prefix /srv/statup-trap/app || code=$?
+          test "$code" = 2
+          test ! -e /etc/systemd/system/statup.service
+          test ! -e /srv/statup-trap/app/statup
+
           echo "--- Install through a pipe, with chosen folders, account and port"
           cat scripts/install.sh | sudo sh -s -- --mirror "http://127.0.0.1:8000/mirror" --version "$version" --yes \
             --prefix /opt/statup-ci --data-dir /srv/statup --backup-dir /srv/statup-backups \
