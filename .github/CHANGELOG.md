@@ -12,6 +12,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 - The pages that show the address of an alert channel are no longer kept in the browser's cache, since that address can hold a secret.
 - On Linux, a backup file can be read by its owner only, and the temporary copies of a backup or a restore sit in a folder only Statup opens, since a backup holds every password hash and channel address.
 - On Linux, `install.sh` refuses a program folder inside the data or backup folder, or not owned by root, since it writes there as root at each update.
+- Changing the language on the API keys, Widget, Journal, Backups, group, folder, notices and import pages now stays on that page instead of going back to the dashboard.
 
 ## 0.12.0, 2026-11-02
 
