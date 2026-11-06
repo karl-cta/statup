@@ -228,12 +228,31 @@ pub fn use_env_file(path: PathBuf) {
 /// exists but cannot be read or parsed.
 pub fn load_dotenv() -> Result<(), ConfigError> {
     if let Some(path) = ENV_FILE.get() {
-        return dotenvy::from_path(path)
-            .map_err(|e| invalid("--env", &format!("{}: {e}", path.display())));
+        return dotenvy::from_path(path).map_err(|e| {
+            invalid(
+                "--env",
+                &format!("{}: {}", path.display(), dotenv_error(&e)),
+            )
+        });
     }
     match dotenvy::from_path(".env") {
-        Err(e) if !e.not_found() => Err(invalid(".env", &e.to_string())),
+        Err(e) if !e.not_found() => Err(invalid(".env", &dotenv_error(&e))),
         _ => Ok(()),
+    }
+}
+
+/// What went wrong in a settings file, without the line itself: an
+/// unclosed quote would otherwise print its value, a password included.
+fn dotenv_error(error: &dotenvy::Error) -> String {
+    let dotenvy::Error::LineParse(line, _) = error else {
+        return error.to_string();
+    };
+    let key = line.split_once('=').map_or("", |(key, _)| key.trim());
+    let key = key.strip_prefix("export ").unwrap_or(key).trim();
+    if !key.is_empty() && key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+        format!("cannot read the value of {key}")
+    } else {
+        "a line is not written KEY=value".to_string()
     }
 }
 
@@ -381,6 +400,18 @@ fn parse_log_level(s: &str) -> Result<LevelFilter, ConfigError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_broken_settings_line_is_named_by_its_key_not_shown() {
+        let unclosed = dotenvy::Error::LineParse("SMTP_PASSWORD=\"s3cret".into(), 14);
+        let shapeless = dotenvy::Error::LineParse("s3cret".into(), 0);
+
+        assert_eq!(
+            dotenv_error(&unclosed),
+            "cannot read the value of SMTP_PASSWORD"
+        );
+        assert_eq!(dotenv_error(&shapeless), "a line is not written KEY=value");
+    }
 
     #[test]
     fn session_cookie_is_secure_only_behind_an_https_address() {

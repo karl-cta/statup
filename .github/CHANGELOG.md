@@ -8,6 +8,7 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 - On Windows, `install.ps1` refuses a folder that another account made or that holds a link, and closes the program folder before copying Statup into it.
 - A backup that holds a view, a trigger or a virtual table Statup did not write is refused before anything in it is read, so a crafted file can no longer hang the server during a restore.
 - A new service shown to members only or to a group is restricted from its first instant: it is no longer public for a moment while it is saved, nor left public when saving fails halfway.
+- A line Statup cannot read in its settings file is named by its key in the error, no longer printed whole: a value with a missing quote, a password included, stays out of the logs.
 
 ## 0.12.0, 2026-11-02
 
