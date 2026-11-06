@@ -132,9 +132,10 @@ fn is_page(segments: &[&str]) -> bool {
     match segments {
         [
             "" | "events" | "services" | "icons" | "subscribe" | "unsubscribe" | "login"
-            | "register" | "profile" | "notices",
+            | "register" | "restore" | "profile" | "notices",
         ]
         | ["events" | "services" | "password", "new"]
+        | ["password", "forgot" | "reset"]
         | ["services", "import"]
         | [
             "admin",
@@ -246,9 +247,21 @@ mod tests {
             "/services/folders/4",
             "/services/import",
             "/notices",
+            "/password/forgot",
+            "/password/reset",
+            "/restore",
         ] {
             assert_eq!(canonical_page(path), path);
         }
+    }
+
+    #[test]
+    fn the_reset_link_keeps_its_token_across_a_language_change() {
+        let page = same_site_page(
+            "https://status.example.com/password/reset?token=7.abc",
+            "status.example.com",
+        );
+        assert_eq!(page.as_deref(), Some("/password/reset?token=7.abc"));
     }
 
     #[test]

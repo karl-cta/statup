@@ -140,7 +140,7 @@ check_folder() {
         *[!A-Za-z0-9/._-]*) usage_error "$1: use letters, digits, dots, dashes and underscores only" ;;
     esac
     case $1 in
-        */ | */./* | */../* | */. | */..) usage_error "$1: give the folder without a trailing /, and without . or .." ;;
+        */ | *//* | */./* | */../* | */. | */..) usage_error "$1: give the folder without a trailing / or a doubled /, and without . or .." ;;
     esac
     case $1 in
         /bin | /boot | /dev | /etc | /home | /lib | /lib64 | /mnt | /media | /opt | /proc | /root | /run | /sbin | /srv | /sys | /tmp | /usr | /usr/bin | /usr/local | /usr/local/bin | /usr/sbin | /var | /var/lib | /var/log | /var/tmp)

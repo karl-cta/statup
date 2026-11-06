@@ -6,7 +6,10 @@ use chrono::Utc;
 use sqlx::AssertSqlSafe;
 use sqlx::{Connection, SqliteConnection};
 
-use super::{BackupInfo, FILES_TABLE, INFO_TABLE, UPLOAD_FOLDERS, forget_sessions, open_file};
+use super::{
+    BackupInfo, FILES_SCHEMA, FILES_TABLE, INFO_SCHEMA, INFO_TABLE, UPLOAD_FOLDERS,
+    forget_sessions, open_file,
+};
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::services::CURRENT_VERSION;
@@ -109,12 +112,7 @@ async fn describe(copy: &mut SqliteConnection) -> Result<BackupInfo, AppError> {
 }
 
 async fn record_info(copy: &mut SqliteConnection, info: &BackupInfo) -> Result<(), AppError> {
-    sqlx::query(AssertSqlSafe(format!(
-        "CREATE TABLE {INFO_TABLE} (app_version TEXT NOT NULL, migration INTEGER NOT NULL, \
-         created_at TEXT NOT NULL, instance_name TEXT NOT NULL)"
-    )))
-    .execute(&mut *copy)
-    .await?;
+    sqlx::query(INFO_SCHEMA).execute(&mut *copy).await?;
     sqlx::query(AssertSqlSafe(format!(
         "INSERT INTO {INFO_TABLE} (app_version, migration, created_at, instance_name) \
          VALUES (?, ?, ?, ?)"
@@ -131,11 +129,7 @@ async fn record_info(copy: &mut SqliteConnection, info: &BackupInfo) -> Result<(
 /// Copies the logo and the icons into the backup, each under its path
 /// relative to the upload directory.
 async fn attach_uploads(copy: &mut SqliteConnection, upload_dir: &Path) -> Result<(), AppError> {
-    sqlx::query(AssertSqlSafe(format!(
-        "CREATE TABLE {FILES_TABLE} (path TEXT PRIMARY KEY NOT NULL, content BLOB NOT NULL)"
-    )))
-    .execute(&mut *copy)
-    .await?;
+    sqlx::query(FILES_SCHEMA).execute(&mut *copy).await?;
     let mut transaction = copy.begin().await?;
     for (path, content) in uploaded_files(upload_dir).await? {
         sqlx::query(AssertSqlSafe(format!(
@@ -374,6 +368,29 @@ mod tests {
         sqlx::raw_sql(
             "CREATE VIEW statup_backup AS SELECT '0.12.0' AS app_version, 1 AS migration, \
              '2026-11-01T00:00:00Z' AS created_at, 'Acme' AS instance_name; \
+             CREATE TABLE statup_backup_files (path TEXT PRIMARY KEY NOT NULL, content BLOB NOT NULL);",
+        )
+        .execute(&mut file)
+        .await
+        .unwrap();
+        file.close().await.unwrap();
+
+        assert!(read_info(&path).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn a_backup_whose_info_computes_a_column_is_refused() {
+        let scratch = Scratch::new();
+        let path = scratch.path("computed.db");
+        let options = sqlx::sqlite::SqliteConnectOptions::new()
+            .filename(&path)
+            .create_if_missing(true);
+        let mut file = SqliteConnection::connect_with(&options).await.unwrap();
+        sqlx::raw_sql(
+            "CREATE TABLE statup_backup (app_version TEXT GENERATED ALWAYS AS (hex(zeroblob(8))), \
+             migration INTEGER NOT NULL, created_at TEXT NOT NULL, instance_name TEXT NOT NULL); \
+             INSERT INTO statup_backup (migration, created_at, instance_name) \
+             VALUES (1, '2026-11-01T00:00:00Z', 'Acme'); \
              CREATE TABLE statup_backup_files (path TEXT PRIMARY KEY NOT NULL, content BLOB NOT NULL);",
         )
         .execute(&mut file)
