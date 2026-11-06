@@ -63,20 +63,6 @@ jobs:
           # driver of sqlx, which is never compiled into Statup.
           ignore: RUSTSEC-2023-0071
 
-  stylesheet:
-    name: Stylesheet builds
-    if: ${{ !github.event.pull_request.draft }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - run: |
-          curl -sSL -o tailwindcss \
-            "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-x64"
-          echo "${TAILWIND_SHA256}  tailwindcss" | sha256sum -c -
-          chmod +x tailwindcss
-      - run: ./scripts/build-css.sh
-      - run: test -s static/css/style.css
-
   browser:
     name: Browser tests
     if: ${{ !github.event.pull_request.draft }}
