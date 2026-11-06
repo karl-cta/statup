@@ -54,15 +54,6 @@ pub struct Grants<'a> {
     pub members: &'a [i64],
 }
 
-impl<'a> Grants<'a> {
-    pub fn groups(ids: &'a [i64]) -> Self {
-        Self {
-            groups: ids,
-            members: &[],
-        }
-    }
-}
-
 /// The services one viewer may see.
 ///
 /// There is deliberately no `Default`: a query that forgets to take a scope

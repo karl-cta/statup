@@ -63,7 +63,7 @@ docker compose start statup
 Depuis les sources, serveur arrêté :
 
 ```bash
-./target/release/statup restore statup-backup-2026-10-29-163045.db
+./target/release/statup restore backups/statup-backup-2026-10-29-163045.db
 ```
 
 - La commande affiche le nom de l'instance, la date et la version de Statup de la sauvegarde, puis demande `Restore it? [y/N]`. `--yes` supprime la question ; sans terminal, il est obligatoire.

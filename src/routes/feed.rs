@@ -17,7 +17,7 @@ use crate::i18n::{I18n, Locale};
 use crate::middleware::OptionalUser;
 use crate::models::{EventSummary, EventUpdateWithAuthor};
 use crate::repositories::EventRepository;
-use crate::services::{sanitize_markdown, scope_of};
+use crate::services::{clean_update, sanitize_markdown, scope_of};
 use crate::state::AppState;
 
 const FEED_SIZE: i64 = 50;
@@ -166,7 +166,13 @@ fn render_entry(
         event,
         description_html: sanitize_markdown(&event.description),
         review_html: review.map(sanitize_markdown),
-        updates,
+        updates: updates
+            .into_iter()
+            .map(|mut update| {
+                update.message = clean_update(&update.message);
+                update
+            })
+            .collect(),
         i18n,
     }
     .render()

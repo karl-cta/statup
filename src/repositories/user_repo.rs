@@ -19,7 +19,6 @@ pub struct NewUser<'a> {
     pub must_change_password: bool,
 }
 
-/// Encapsulates all user-related database queries.
 pub struct UserRepository;
 
 impl UserRepository {
@@ -42,7 +41,6 @@ impl UserRepository {
         Self::insert(pool, &user).await
     }
 
-    /// Insert an account and return the created record.
     pub async fn insert(pool: &DbPool, user: &NewUser<'_>) -> Result<User, sqlx::Error> {
         sqlx::query_as::<_, User>(
             "INSERT INTO users (email, password_hash, display_name, role, must_change_password, \
@@ -98,7 +96,6 @@ impl UserRepository {
             .await
     }
 
-    /// Find a user by ID.
     pub async fn find_by_id(pool: &DbPool, id: i64) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
             .bind(id)
@@ -128,7 +125,6 @@ impl UserRepository {
         Ok(())
     }
 
-    /// List all users ordered by creation date.
     pub async fn list_all(pool: &DbPool) -> Result<Vec<User>, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users ORDER BY created_at DESC")
             .fetch_all(pool)
@@ -145,12 +141,6 @@ impl UserRepository {
         )
         .fetch_all(pool)
         .await
-    }
-
-    pub async fn active_reader_count(pool: &DbPool) -> Result<i64, sqlx::Error> {
-        sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE role = 'reader' AND is_active = 1")
-            .fetch_one(pool)
-            .await
     }
 
     /// How many active readers the grants open a service to, counting a
@@ -212,7 +202,6 @@ impl UserRepository {
         Ok(result.rows_affected() == 1)
     }
 
-    /// Update a user's display name and email.
     pub async fn update_profile(
         pool: &DbPool,
         user_id: i64,
@@ -228,7 +217,7 @@ impl UserRepository {
         Ok(())
     }
 
-    /// Update a user's preferred UI locale. Pass `None` to clear it.
+    /// Pass `None` to clear it.
     pub async fn update_preferred_locale(
         pool: &DbPool,
         user_id: i64,
@@ -296,7 +285,6 @@ impl UserRepository {
         .map(|expired| expired.unwrap_or(false))
     }
 
-    /// Check if an email is already used by another user.
     pub async fn email_taken_by_other(
         pool: &DbPool,
         email: &str,
@@ -309,14 +297,13 @@ impl UserRepository {
             .await
     }
 
-    /// Count total users in the database.
     pub async fn count_all(pool: &DbPool) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar("SELECT COUNT(*) FROM users")
             .fetch_one(pool)
             .await
     }
 
-    /// Count active users with the admin role.
+    /// Disabled administrators are not counted.
     pub async fn count_admins(pool: &DbPool) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = 1")
             .fetch_one(pool)
@@ -329,6 +316,7 @@ mod tests {
     use super::*;
     use crate::repositories::GroupRepository;
     use crate::test_helpers::test_pool;
+    use sqlx::AssertSqlSafe;
 
     fn new_user(email: &str, role: Role) -> NewUser<'_> {
         NewUser {
@@ -569,7 +557,11 @@ mod tests {
     /// a visit, and returns the stored value.
     async fn visit_after(pool: &DbPool, user_id: i64, previous_visit: &str) -> Option<String> {
         let set = format!("UPDATE users SET last_seen_at = {previous_visit} WHERE id = ?");
-        sqlx::query(&set).bind(user_id).execute(pool).await.unwrap();
+        sqlx::query(AssertSqlSafe(set))
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .unwrap();
         UserRepository::update_last_seen(pool, user_id)
             .await
             .unwrap();
@@ -629,7 +621,6 @@ mod tests {
 
         let names: Vec<&str> = readers.iter().map(|r| r.display_name.as_str()).collect();
         assert_eq!(names, vec!["Ann", "zoe"]);
-        assert_eq!(UserRepository::active_reader_count(&pool).await.unwrap(), 2);
     }
 
     #[tokio::test]
@@ -656,7 +647,10 @@ mod tests {
         let none = UserRepository::readers_reached(&pool, Grants::default());
         assert_eq!(none.await.unwrap(), 0);
         let both_groups = [g1, g2];
-        let groups = Grants::groups(&both_groups);
+        let groups = Grants {
+            groups: &both_groups,
+            ..Default::default()
+        };
         assert_eq!(
             UserRepository::readers_reached(&pool, groups)
                 .await

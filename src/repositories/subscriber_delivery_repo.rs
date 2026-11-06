@@ -2,6 +2,8 @@
 
 use chrono::{DateTime, Utc};
 
+use sqlx::AssertSqlSafe;
+
 use crate::clock;
 use crate::db::DbPool;
 use crate::models::SubscriberMessage;
@@ -34,14 +36,14 @@ impl SubscriberDeliveryRepository {
         now: DateTime<Utc>,
         limit: i64,
     ) -> Result<Vec<SubscriberMessage>, sqlx::Error> {
-        sqlx::query_as::<_, SubscriberMessage>(&format!(
+        sqlx::query_as::<_, SubscriberMessage>(AssertSqlSafe(format!(
             "SELECT {MESSAGE_COLUMNS} FROM subscriber_deliveries d \
              JOIN subscribers s ON s.id = d.subscriber_id \
              WHERE d.status = 'pending' AND d.next_attempt_at <= ? \
                AND d.id = (SELECT MIN(p.id) FROM subscriber_deliveries p \
                            WHERE p.subscriber_id = d.subscriber_id AND p.status = 'pending') \
              ORDER BY d.id LIMIT ?"
-        ))
+        )))
         .bind(clock::db(now))
         .bind(limit)
         .fetch_all(pool)
@@ -168,7 +170,9 @@ impl SubscriberDeliveryRepository {
         if queued_before.is_some() {
             sql.push_str(" AND created_at < ?");
         }
-        let query = sqlx::query(&sql).bind(failure).bind(clock::db(now));
+        let query = sqlx::query(AssertSqlSafe(sql))
+            .bind(failure)
+            .bind(clock::db(now));
         let query = match queued_before {
             Some(before) => query.bind(clock::db(before)),
             None => query,
@@ -179,10 +183,10 @@ impl SubscriberDeliveryRepository {
     /// Forgets the finished emails queued before `before`, except the last
     /// one of each subscriber, which the list of subscribers shows.
     pub async fn purge(pool: &DbPool, before: DateTime<Utc>) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query(&format!(
+        let result = sqlx::query(AssertSqlSafe(format!(
             "DELETE FROM subscriber_deliveries \
              WHERE status != 'pending' AND created_at < ? AND id NOT IN ({LATEST_OUTCOMES})"
-        ))
+        )))
         .bind(clock::db(before))
         .execute(pool)
         .await?;

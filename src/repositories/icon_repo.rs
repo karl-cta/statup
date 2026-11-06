@@ -1,5 +1,7 @@
 //! Icon repository: SQL queries on the uploaded icon library.
 
+use sqlx::AssertSqlSafe;
+
 use crate::db::DbPool;
 use crate::models::Icon;
 use crate::repositories::service_repo::CHOSEN_ORDER;
@@ -46,10 +48,10 @@ impl IconRepository {
     /// Every (icon id, service name) pair, so the library can say which
     /// service wears which icon.
     pub async fn service_names_by_icon(pool: &DbPool) -> Result<Vec<(i64, String)>, sqlx::Error> {
-        sqlx::query_as(&format!(
+        sqlx::query_as(AssertSqlSafe(format!(
             "SELECT s.icon_id, s.name FROM services s WHERE s.icon_id IS NOT NULL \
              ORDER BY {CHOSEN_ORDER}"
-        ))
+        )))
         .fetch_all(pool)
         .await
     }
@@ -120,8 +122,6 @@ mod tests {
 
         assert_eq!(icon.filename, "abc.png");
         assert_eq!(icon.original_name, "logo.png");
-        assert_eq!(icon.mime_type, "image/png");
-        assert_eq!(icon.size_bytes, 1024);
 
         let found = IconRepository::find_by_id(&pool, icon.id).await.unwrap();
         assert!(found.is_some());

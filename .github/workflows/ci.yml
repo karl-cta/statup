@@ -17,6 +17,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   TAILWIND_VERSION: v4.1.18
+  TAILWIND_SHA256: 737becf8d4ad1115ea98df69fa94026d402ca8feb91306a035b5b004167da8dd
 
 jobs:
   checks:
@@ -39,9 +40,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
-          toolchain: "1.88"
+          toolchain: "1.94"
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --all-targets --locked
 
@@ -58,22 +59,6 @@ jobs:
       - uses: rustsec/audit-check@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          # RUSTSEC-2023-0071, rsa: listed in the lock file by the MySQL
-          # driver of sqlx, which is never compiled into Statup.
-          ignore: RUSTSEC-2023-0071
-
-  stylesheet:
-    name: Stylesheet builds
-    if: ${{ !github.event.pull_request.draft }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - run: |
-          curl -sSL -o tailwindcss \
-            "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-x64"
-          chmod +x tailwindcss
-      - run: ./scripts/build-css.sh
-      - run: test -s static/css/style.css
 
   browser:
     name: Browser tests
@@ -91,6 +76,7 @@ jobs:
       - run: |
           curl -sSL -o tailwindcss \
             "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-x64"
+          echo "${TAILWIND_SHA256}  tailwindcss" | sha256sum -c -
           chmod +x tailwindcss
       - run: npm ci
         working-directory: tests/browser
@@ -225,6 +211,27 @@ jobs:
           $null | powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Archive $env:ARCHIVE | Out-Host
           Assert ($LASTEXITCODE -ne 0) 'it went on without a console'
 
+          "--- A data folder holding a link is refused, and the folder it points to keeps its access"
+          $target = New-Item -ItemType Directory -Force C:\StatupTarget
+          $before = (Get-Acl $target).Sddl
+          $trap = New-Item -ItemType Directory -Force C:\StatupTrap
+          New-Item -ItemType File "$trap\statup.db" | Out-Null
+          New-Item -ItemType Junction -Path "$trap\uploads" -Target $target.FullName | Out-Null
+          $code = Invoke-WindowsPowerShell -Archive $env:ARCHIVE -Unattended -DataDir $trap.FullName -Port 3998
+          Assert ($code -ne 0) 'a data folder holding a link was accepted'
+          Assert (-not (Test-Service)) 'a service was created'
+          Assert ((Get-Acl $target).Sddl -eq $before) 'the access of the linked folder changed'
+          cmd /c rmdir "$trap\uploads"
+          Remove-Item $trap -Recurse -Force
+
+          "--- A data folder another account made is refused"
+          $foreign = New-Item -ItemType Directory -Force C:\StatupForeign
+          & icacls.exe $foreign.FullName /setowner '*S-1-5-32-545' /Q | Out-Null
+          $code = Invoke-WindowsPowerShell -Archive $env:ARCHIVE -Unattended -DataDir $foreign.FullName -Port 3998
+          Assert ($code -ne 0) 'a data folder made by another account was accepted'
+          Assert (-not (Test-Service)) 'a service was created'
+          Remove-Item $foreign -Recurse -Force
+
           "--- Install under Windows PowerShell 5.1, with chosen folders and port"
           $code = Invoke-WindowsPowerShell -Mirror http://127.0.0.1:8000/mirror -Version $env:VERSION -Unattended `
             -InstallDir C:\StatupCI -DataDir C:\StatupData -BackupDir C:\StatupBackups -Port 3100 -Listen local
@@ -240,6 +247,10 @@ jobs:
             try { $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value } catch { $_.IdentityReference.Value }
           }
           Assert ('S-1-5-32-545' -notin $readers) 'every user can read the settings'
+          $programUsers = (Get-Acl C:\StatupCI).Access | ForEach-Object {
+            try { $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value } catch { $_.IdentityReference.Value }
+          }
+          Assert (-not ($programUsers | Where-Object { $_ -in @('S-1-5-32-545', 'S-1-5-11') })) 'users can change the program folder'
 
           "--- Another port, then a restart"
           Set-Setting PORT 3200
@@ -442,6 +453,7 @@ jobs:
           cargo build --locked
           curl -sSL -o tailwindcss \
             "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-x64"
+          echo "${TAILWIND_SHA256}  tailwindcss" | sha256sum -c -
           chmod +x tailwindcss
           mkdir -p bin/linux-x86_64
           cp target/debug/statup bin/linux-x86_64/
@@ -492,6 +504,13 @@ jobs:
           code=0
           sudo sh scripts/install.sh --archive "$archive" < /dev/null || code=$?
           test "$code" = 2
+
+          echo "--- A program folder inside the data folder is refused"
+          code=0
+          sudo sh scripts/install.sh --archive "$archive" --yes --data-dir /srv/statup-trap --prefix /srv/statup-trap/app || code=$?
+          test "$code" = 2
+          test ! -e /etc/systemd/system/statup.service
+          test ! -e /srv/statup-trap/app/statup
 
           echo "--- Install through a pipe, with chosen folders, account and port"
           cat scripts/install.sh | sudo sh -s -- --mirror "http://127.0.0.1:8000/mirror" --version "$version" --yes \

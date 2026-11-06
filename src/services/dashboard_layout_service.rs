@@ -36,7 +36,6 @@ impl DashboardLayoutService {
         Ok(())
     }
 
-    /// Saves the order the administrator left the modules in.
     pub async fn save_order(pool: &DbPool, module_ids: &[String]) -> Result<(), AppError> {
         DashboardLayoutRepository::save_order(pool, module_ids).await?;
         Ok(())

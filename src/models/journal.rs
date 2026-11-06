@@ -386,7 +386,6 @@ impl JournalCategory {
 /// A line as the Journal page lists it.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct JournalEntry {
-    pub id: i64,
     pub kind: JournalKind,
     pub actor_name: Option<String>,
     pub subject: Option<String>,

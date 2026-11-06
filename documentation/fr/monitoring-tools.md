@@ -14,7 +14,7 @@ Chaque outil envoie à une seule adresse, `/api/v1/reports` sur l'adresse de vot
 - **Rétabli** : la panne se termine et l'état réglé à la main revient.
 - Un service couvert par un incident ouvert n'envoie pas d'alerte. Les services signalés en panne ensemble dans un même message partent dans une seule alerte par canal.
 
-Un signalement est ignoré, et une ligne écrite dans le [Journal](journal.md), pour un service que Statup ne connaît pas, un service que Statup vérifie lui-même (sa propre vérification annulerait le signalement la minute suivante), et un service signalé en panne pendant une maintenance en cours qui le cite.
+Un signalement est ignoré, et une ligne écrite dans le [Journal](journal.md), pour un service que Statup ne connaît pas, un service que Statup vérifie lui-même (sa propre vérification annulerait le signalement la minute suivante), et un service signalé en panne pendant une maintenance en cours qui le cite, sauf si elle est marquée **Sans interruption**.
 
 > [!IMPORTANT]
 > Un outil ne renvoie pas un signalement refusé pendant une maintenance : un service encore en panne à la fin de la maintenance paraîtrait en état de marche. Planifiez la même fenêtre dans l'outil, sans la finir avant celle de Statup : une maintenance dans Uptime Kuma ou Zabbix, un silence dans Alertmanager ou Grafana. Une fois sa fenêtre passée, l'outil signale un service encore en panne après son délai habituel : la vérification suivante dans Uptime Kuma, environ une minute dans Zabbix, l'intervalle de groupe dans Alertmanager et Grafana (5 minutes par défaut).
@@ -56,7 +56,7 @@ Un signalement répond 200 avec ce qu'il a changé et ce qu'il a laissé :
 | `unchanged` | Le service est déjà en panne, ou déjà rétabli. |
 | `unknown_service` | Aucun service n'a ce nom ni ce slug. |
 | `monitored_by_statup` | Statup vérifie ce service lui-même. |
-| `under_maintenance` | Une maintenance en cours couvre le service. |
+| `under_maintenance` | Une maintenance en cours couvre le service, et n'est pas marquée **Sans interruption**. |
 | `no_service_label` | Une alerte d'Alertmanager ou de Grafana sans étiquette `service`. |
 | `no_monitor_name` | Un battement d'Uptime Kuma dont la sonde n'a pas de nom. |
 | `not_down_or_up` | Un état qui n'est ni l'un ni l'autre, comme en attente. |

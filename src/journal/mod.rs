@@ -3,7 +3,7 @@
 //!
 //! What a member does or what the app finds is recorded on purpose by
 //! [`record`]; the errors and warnings the app logs anywhere else are
-//! caught by [`JournalLayer`].
+//! caught by `JournalLayer`.
 
 mod layer;
 mod writer;
@@ -16,11 +16,11 @@ use crate::error::AppError;
 use crate::models::{ApiKeyHolder, JournalKind, User, excerpt};
 use crate::repositories::{JournalRepository, NewJournalEntry, SettingsRepository};
 
-pub use layer::{JournalInbox, JournalLayer, journal_layer};
+pub use layer::{JournalInbox, journal_layer};
 pub use writer::spawn_journal_writer;
 
 /// The target of the lines [`record`] writes to the server output, which
-/// [`JournalLayer`] leaves alone so that nothing is kept twice.
+/// `JournalLayer` leaves alone so that nothing is kept twice.
 pub const TARGET: &str = "statup::journal";
 
 /// A detail longer than this is cut.

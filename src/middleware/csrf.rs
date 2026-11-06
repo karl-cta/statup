@@ -22,16 +22,12 @@ use super::body::buffer_body;
 use crate::error::AppError;
 use crate::session::{USER_ID_KEY, read_value, write_value};
 
-/// Session key for the CSRF token.
 const CSRF_SESSION_KEY: &str = "csrf_token";
 
-/// Length of the generated CSRF token (alphanumeric characters).
 const TOKEN_LENGTH: usize = 64;
 
-/// Header name for CSRF token submission (used by HTMX/AJAX).
 const CSRF_HEADER: &str = "x-csrf-token";
 
-/// Form field name for CSRF token submission.
 const CSRF_FORM_FIELD: &str = "csrf_token";
 
 /// The session's CSRF token, for templates. Empty for a visitor who is not
@@ -167,7 +163,6 @@ pub async fn csrf_middleware(
     Ok(next.run(request).await)
 }
 
-/// Generate a cryptographically random alphanumeric token.
 fn generate_token() -> String {
     rand::thread_rng()
         .sample_iter(&Alphanumeric)
@@ -176,7 +171,6 @@ fn generate_token() -> String {
         .collect()
 }
 
-/// Returns `true` for methods that mutate server state.
 fn is_state_changing(method: &Method) -> bool {
     matches!(
         *method,
@@ -232,7 +226,6 @@ fn header_token(headers: &HeaderMap) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
-/// Find the `csrf_token` part of a buffered multipart body.
 async fn extract_field_from_multipart(bytes: Bytes, boundary: String) -> Option<String> {
     let stream = Body::from(bytes).into_data_stream();
     let mut multipart = multer::Multipart::new(stream, boundary);
@@ -254,9 +247,6 @@ fn extract_field_from_form(bytes: &[u8]) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
-/// Validate the submitted token against the session token.
-///
-/// Uses constant-time comparison to prevent timing side-channels.
 fn validate_token(expected: &str, submitted: Option<&str>) -> Result<(), AppError> {
     let Some(submitted) = submitted else {
         tracing::warn!("CSRF token missing from request");

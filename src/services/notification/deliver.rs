@@ -34,7 +34,7 @@ pub(super) const RETRY_DELAYS: [Duration; 4] = [
     Duration::from_secs(30),
     Duration::from_secs(120),
     Duration::from_secs(600),
-    Duration::from_secs(1800),
+    Duration::from_mins(30),
 ];
 /// A tool that asks for a longer wait than this is not obeyed.
 const LONGEST_ASKED_WAIT: Duration = Duration::from_secs(600);
@@ -67,7 +67,7 @@ struct Outgoing {
 /// Sends the first waiting message of each destination whose time has come,
 /// then the ones behind them, until nothing is left to send. Returns how many
 /// went out.
-pub async fn deliver_due<S: Sender + Send + Sync + 'static>(
+async fn deliver_due<S: Sender + Send + Sync + 'static>(
     pool: &DbPool,
     sender: &Arc<S>,
     public_url: Option<&str>,
@@ -527,7 +527,7 @@ mod tests {
             event_id,
             Some(Lifecycle::Investigating),
         );
-        NotificationRepository::enqueue(pool, &notification, at(minute))
+        NotificationRepository::enqueue_after(pool, &notification, at(minute), at(minute))
             .await
             .unwrap();
     }
@@ -745,7 +745,7 @@ mod tests {
             .await
             .unwrap();
         let down = Notification::service(Happening::ServiceDown, service.id);
-        NotificationRepository::enqueue(&pool, &down, at(0))
+        NotificationRepository::enqueue_after(&pool, &down, at(0), at(0))
             .await
             .unwrap();
         announce(&pool, incident(&pool, "Outage").await, 1).await;
@@ -789,7 +789,7 @@ mod tests {
             id,
             Some(Lifecycle::Resolved),
         );
-        NotificationRepository::enqueue(pool, &reviewed, at(0))
+        NotificationRepository::enqueue_after(pool, &reviewed, at(0), at(0))
             .await
             .unwrap();
         (team, id)
@@ -856,9 +856,10 @@ mod tests {
             } else {
                 Happening::ServiceUp
             };
-            NotificationRepository::enqueue(
+            NotificationRepository::enqueue_after(
                 &pool,
                 &Notification::service(happening, service_id),
+                at(minute),
                 at(minute),
             )
             .await

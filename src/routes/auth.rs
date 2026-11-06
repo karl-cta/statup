@@ -31,22 +31,17 @@ use crate::services::{AuthService, SettingsService, SignInRefusal};
 use crate::session::{USER_ID_KEY, rotate_id, stamp_credential, start_signed_in, write_value};
 use crate::state::AppState;
 
-/// Messages placed under the field they concern; `form` is for anything
-/// that is not about one field.
+/// Messages placed under the field they concern.
 #[derive(Default)]
 struct RegisterErrors {
     name: Option<String>,
     email: Option<String>,
     password: Option<String>,
-    form: Option<String>,
 }
 
 impl RegisterErrors {
     fn is_empty(&self) -> bool {
-        self.name.is_none()
-            && self.email.is_none()
-            && self.password.is_none()
-            && self.form.is_none()
+        self.name.is_none() && self.email.is_none() && self.password.is_none()
     }
 
     /// The id of the first field with a message, where the cursor goes.
@@ -60,17 +55,6 @@ impl RegisterErrors {
         } else {
             "display_name"
         }
-    }
-
-    fn from_service(key: &str, i18n: &I18n) -> Self {
-        let message = Some(i18n.t(key).to_string());
-        let mut errors = Self::default();
-        match key {
-            "validation.email_taken" | "validation.email_invalid" => errors.email = message,
-            "validation.password_too_weak" => errors.password = message,
-            _ => errors.form = message,
-        }
-        errors
     }
 }
 
@@ -432,18 +416,11 @@ pub async fn register(
         Err(errors) => return render_register(&state, csrf_token, i18n, errors, input).await,
     };
     let created =
-        AuthService::create_first_admin(&state.pool, &input.email, &input.password, &name).await;
-    match created {
-        Ok(Some(admin)) => {
-            adopt_browser_zone(&state, &input.time_zone).await?;
-            open_session(&session, &admin, false).await?;
-            Ok(Redirect::to("/setup/page").into_response())
-        }
-        Ok(None) => Ok(closed_door_redirect(user.as_ref())),
-        Err(AppError::Validation(key)) => {
-            let errors = RegisterErrors::from_service(&key, &i18n);
-            render_register(&state, csrf_token, i18n, errors, input).await
-        }
-        Err(e) => Err(e),
-    }
+        AuthService::create_first_admin(&state.pool, &input.email, &input.password, &name).await?;
+    let Some(admin) = created else {
+        return Ok(closed_door_redirect(user.as_ref()));
+    };
+    adopt_browser_zone(&state, &input.time_zone).await?;
+    open_session(&session, &admin, false).await?;
+    Ok(Redirect::to("/setup/page").into_response())
 }

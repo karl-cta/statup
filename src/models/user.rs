@@ -31,12 +31,10 @@ impl Role {
         }
     }
 
-    /// Returns `true` if the role allows publishing events.
     pub fn can_publish(self) -> bool {
         matches!(self, Self::Publisher | Self::Admin)
     }
 
-    /// Returns `true` if the role allows admin operations.
     pub fn can_admin(self) -> bool {
         matches!(self, Self::Admin)
     }
@@ -67,8 +65,6 @@ pub struct User {
     pub role: Role,
     pub is_active: bool,
     pub last_seen_at: Option<chrono::DateTime<chrono::Utc>>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
     pub preferred_locale: Option<String>,
     pub must_change_password: bool,
 }

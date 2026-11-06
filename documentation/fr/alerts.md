@@ -7,6 +7,8 @@ Statup publie chaque incident, maintenance et annonce là où les gens lisent d�
 
 Dans l'application, **Notifications** désigne la cloche de l'en-tête ; les **Alertes** sont les messages envoyés vers d'autres outils.
 
+La cloche est réservée aux éditeurs et aux administrateurs. Elle liste les six dernières notifications, et **Toutes les notifications** celles des 30 derniers jours. Une panne détectée arrive à chaque éditeur et administrateur, un canal dont les messages en attente ont été abandonnés arrive aux administrateurs, et une mise à jour d'incident en retard arrive au membre qui l'a annoncée.
+
 ## Ajouter un canal
 
 **Nouveau canal**, en tête de la carte **Canaux**, ouvre le formulaire :
@@ -50,13 +52,13 @@ Les canaux E-mail ont besoin d'un serveur SMTP : définissez [`SMTP_HOST`](conf
 - Un canal qui ne répond pas est réessayé après 30 secondes, puis 2, 10 et 30 minutes. Au-delà, ou tout de suite quand le service refuse l'URL (404, 401), ses messages en attente sont abandonnés.
 - La liste des canaux indique, pour chacun, son dernier envoi, sa prochaine tentative et sa raison, ou son échec et sa raison.
 
-Les pannes trouvées par la [surveillance](monitoring.md), ou signalées par un [outil de supervision](monitoring-tools.md), dans la même minute sont regroupées en un message par canal, et leur retour en un message de plus.
+Les pannes trouvées lors d'un même passage de la [surveillance](monitoring.md), ou signalées dans un même message par un [outil de supervision](monitoring-tools.md), sont regroupées en un message par canal, et leur retour en un message de plus.
 
 ## Abonnés par e-mail
 
 Les visiteurs et les membres s'abonnent eux-mêmes depuis la page **S'abonner**, décrite dans [la page d'état](status-page.md#get-notified). La carte **Abonnés par e-mail** de la page Alertes les compte et mène à leur liste.
 
-- **Voir les abonnés** liste chaque personne : qui elle est, ce qu'elle reçoit, depuis quand, et comment s'est passé son dernier e-mail, avec la raison s'il a échoué. **Retirer** met fin à un abonnement après une question dans la ligne ; la personne ne reçoit plus rien.
+- **Voir les abonnés** liste chaque personne : qui elle est, ce qu'elle reçoit, depuis quand, et comment s'est passé son dernier e-mail, avec la raison s'il a échoué. **Retirer** met fin à un abonnement après une question sous le bouton ; la personne ne reçoit plus rien.
 - **Les visiteurs peuvent s'abonner** est coché par un administrateur et enregistré avec **Enregistrer**. C'est décoché sur une instance neuve. Le décocher arrête les e-mails aux visiteurs déjà abonnés, qui reviennent quand la case est recochée ; les membres continuent de recevoir les leurs.
 - Rien n'est envoyé sans serveur SMTP ([`SMTP_HOST`](configuration.md#smtp_host)) : la carte le dit alors et ne propose pas d'interrupteur.
 - Le [Journal](journal.md) garde l'adresse d'un abonné qui a confirmé, est parti ou a été retiré, aussi longtemps qu'il garde ses lignes.

@@ -304,10 +304,12 @@
         border-color: var(--focus);
     }
 
+    /* The halo is the focus; the clear outline only shows when Windows
+       forces its own colours, which drop shadows. */
     .input:focus {
         border-color: var(--focus);
         box-shadow: 0 0 0 3px var(--focus-halo);
-        outline: none;
+        outline: 2px solid transparent;
     }
 
     .input::placeholder {
@@ -377,7 +379,7 @@
     details[open] > .cs-trigger {
         border-color: var(--focus);
         box-shadow: 0 0 0 3px var(--focus-halo);
-        outline: none;
+        outline: 2px solid transparent;
     }
 
     .cs-disabled .cs-trigger {
@@ -600,7 +602,7 @@
     }
 
     .inline-number:focus {
-        outline: none;
+        outline: 2px solid transparent;
         background: var(--hover);
         border-bottom: 1px solid var(--focus);
     }

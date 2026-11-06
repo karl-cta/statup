@@ -23,8 +23,6 @@ use crate::session::{
 #[derive(Clone)]
 struct SessionUser(Option<User>);
 
-/// Extractor that provides the authenticated user.
-///
 /// Redirects to `/login` when nobody is signed in, the account is disabled
 /// or its password changed since the session was opened.
 pub struct AuthUser(pub User);
@@ -44,10 +42,7 @@ where
     }
 }
 
-/// Optional user extractor, returns `Some(User)` if authenticated, `None` otherwise.
-///
-/// Never rejects: used for read-only routes that are accessible in public mode
-/// without authentication.
+/// Never rejects: for read-only routes that are open in public mode.
 pub struct OptionalUser(pub Option<User>);
 
 impl<S> FromRequestParts<S> for OptionalUser

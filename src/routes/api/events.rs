@@ -16,7 +16,7 @@ use crate::models::{
     NAME_SEPARATOR, Scope, Service, Severity, html_to_text,
 };
 use crate::repositories::{EventRepository, NewJournalEntry};
-use crate::services::{EventService, read_next_update};
+use crate::services::{EventService, clean_update, read_next_update};
 
 const DEFAULT_LIMIT: i64 = 20;
 const MAX_LIMIT: i64 = 100;
@@ -169,7 +169,7 @@ impl From<EventUpdateWithAuthor> for UpdateBody {
         Self {
             id: update.id,
             message: html_to_text(&update.message),
-            message_html: update.message,
+            message_html: clean_update(&update.message),
             author: update.author_name,
             created_at: clock::rfc3339(update.created_at),
         }

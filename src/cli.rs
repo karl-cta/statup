@@ -208,6 +208,10 @@ async fn run_restore(file: &Path, yes: bool) -> i32 {
     let Ok(target) = load_target() else {
         return 1;
     };
+    if !file.is_file() {
+        eprintln!("{}: no such file", file.display());
+        return 1;
+    }
     let Ok(info) = read_info(file).await else {
         eprintln!("{}", RestoreError::NotABackup);
         return 1;

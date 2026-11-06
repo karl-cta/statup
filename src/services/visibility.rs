@@ -49,9 +49,17 @@ mod tests {
             .await
             .unwrap()
             .id;
-        ServiceRepository::set_visibility(pool, id, visibility, Grants::groups(groups))
-            .await
-            .unwrap();
+        ServiceRepository::set_visibility(
+            pool,
+            id,
+            visibility,
+            Grants {
+                groups,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
         id
     }
 

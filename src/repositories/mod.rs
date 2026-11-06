@@ -42,6 +42,8 @@ pub use subscriber_repo::*;
 pub use subscription_request_repo::*;
 pub use user_repo::*;
 
+use sqlx::AssertSqlSafe;
+
 use crate::models::{Grants, Visibility};
 
 /// The access tables of a service or of a folder: its groups, its members.
@@ -72,28 +74,30 @@ pub(crate) async fn replace_grants(
 ) -> Result<(), sqlx::Error> {
     let (groups_table, members_table, owner) = tables.names();
     for table in [groups_table, members_table] {
-        sqlx::query(&format!("DELETE FROM {table} WHERE {owner} = ?"))
-            .bind(owner_id)
-            .execute(&mut **tx)
-            .await?;
+        sqlx::query(AssertSqlSafe(format!(
+            "DELETE FROM {table} WHERE {owner} = ?"
+        )))
+        .bind(owner_id)
+        .execute(&mut **tx)
+        .await?;
     }
     if visibility != Visibility::Groups {
         return Ok(());
     }
     let groups = serde_json::to_string(grants.groups).unwrap_or_default();
-    sqlx::query(&format!(
+    sqlx::query(AssertSqlSafe(format!(
         "INSERT INTO {groups_table} ({owner}, group_id) \
          SELECT ?, id FROM member_groups WHERE id IN (SELECT value FROM json_each(?))"
-    ))
+    )))
     .bind(owner_id)
     .bind(&groups)
     .execute(&mut **tx)
     .await?;
     let members = serde_json::to_string(grants.members).unwrap_or_default();
-    sqlx::query(&format!(
+    sqlx::query(AssertSqlSafe(format!(
         "INSERT INTO {members_table} ({owner}, user_id) SELECT ?, id FROM users \
          WHERE id IN (SELECT value FROM json_each(?)) AND role = 'reader' AND is_active = 1"
-    ))
+    )))
     .bind(owner_id)
     .bind(&members)
     .execute(&mut **tx)

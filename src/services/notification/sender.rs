@@ -486,7 +486,6 @@ mod tests {
     }
 
     fn channel(kind: ChannelKind, target: String) -> Channel {
-        let at = Utc.with_ymd_and_hms(2026, 10, 7, 9, 0, 0).unwrap();
         Channel {
             id: 1,
             name: "Team".to_string(),
@@ -497,8 +496,6 @@ mod tests {
             on_maintenances: true,
             on_publications: true,
             on_detected: true,
-            created_at: at,
-            updated_at: at,
         }
     }
 

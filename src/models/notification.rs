@@ -206,8 +206,6 @@ pub struct Channel {
     pub on_maintenances: bool,
     pub on_publications: bool,
     pub on_detected: bool,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
 }
 
 /// A destination as its form sets it.

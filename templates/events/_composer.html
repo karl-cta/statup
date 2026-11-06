@@ -20,7 +20,7 @@
         {% if !transitions.is_empty() %}
         <div class="composer-state">
             <label for="{{ prefix }}lifecycle" class="sr-only">{{ i18n.t("events.composer_state") }}</label>
-            <select id="{{ prefix }}lifecycle" name="lifecycle" class="input" data-custom-select>
+            <select id="{{ prefix }}lifecycle" name="lifecycle" class="input" data-custom-select data-fit>
                 <option value="">{{ i18n.t("events.composer_keep_state") }}</option>
                 {% for option in transitions %}
                 <option value="{{ option.value }}"{% if option.selected %} selected{% endif %} data-tone="{{ option.tone }}">{{ option.label }}</option>

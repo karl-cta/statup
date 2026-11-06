@@ -7,8 +7,7 @@ mod pool;
 pub use online_copy::copy_database;
 pub use pool::{
     create_pool, has_pending_migrations, latest_migration, open_existing_file, open_existing_pool,
-    optimize, run_migrations,
+    optimize, run_migrations, written_by_migrations,
 };
 
-/// Type alias for the `SQLite` connection pool.
 pub type DbPool = sqlx::SqlitePool;

@@ -122,7 +122,6 @@ const SVG_REFERENCING_ELEMENTS: &[&str] = &["use", "linearGradient", "radialGrad
 const SVG_NAMESPACE: &str = "http://www.w3.org/2000/svg";
 const XLINK_NAMESPACE: &str = "http://www.w3.org/1999/xlink";
 
-/// Business logic for icon upload, validation, and lifecycle.
 pub struct IconService;
 
 impl IconService {
@@ -138,7 +137,6 @@ impl IconService {
         Ok(icons)
     }
 
-    /// Upload a new icon: validate, process, save to disk, create DB record.
     pub async fn upload(
         pool: &DbPool,
         upload_dir: &str,
@@ -172,8 +170,6 @@ impl IconService {
         }
     }
 
-    /// Delete an icon from the database and the disk, and return it.
-    ///
     /// A row whose file is gone shows a broken image wherever it is used;
     /// removing it clears those references (ON DELETE SET NULL), which is
     /// the only way to clean up. A row with a file stays protected.
@@ -212,7 +208,6 @@ pub async fn file_exists(path: &Path) -> bool {
     tokio::fs::try_exists(path).await.unwrap_or(false)
 }
 
-/// Detect MIME type from file magic bytes.
 fn detect_mime(data: &[u8]) -> Result<&'static str, AppError> {
     if data.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
         return Ok("image/png");
@@ -229,7 +224,6 @@ fn detect_mime(data: &[u8]) -> Result<&'static str, AppError> {
     Err(AppError::validation("validation.unsupported_file_type"))
 }
 
-/// Check if the data looks like an SVG file.
 fn is_svg(data: &[u8]) -> bool {
     let text = std::str::from_utf8(data).unwrap_or("");
     let trimmed = text.trim_start();
@@ -237,7 +231,6 @@ fn is_svg(data: &[u8]) -> bool {
     trimmed.starts_with("<svg") || trimmed.starts_with("<?xml")
 }
 
-/// Map MIME type to file extension.
 /// Checks an uploaded image and makes it safe to serve: a raster image is
 /// scaled to fit `max_dimension`, an SVG is sanitized. Returns its type.
 pub async fn prepare_image(
@@ -274,7 +267,6 @@ async fn process_off_runtime(
         .map_err(|e| AppError::Internal(anyhow::anyhow!("image task failed: {e}")))?
 }
 
-/// Process image data: resize raster images, sanitize SVGs.
 fn process_image(data: &[u8], mime: &str, max_dimension: u32) -> Result<Vec<u8>, AppError> {
     match mime {
         "image/svg+xml" => sanitize_svg(data),
@@ -344,7 +336,6 @@ fn to_xml_text(html: &str) -> String {
         .collect()
 }
 
-/// Resize a raster image to fit within `max_dimension` on each side.
 fn resize_raster(
     data: &[u8],
     format: ImageFormat,

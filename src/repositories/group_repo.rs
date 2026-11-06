@@ -1,5 +1,7 @@
 //! Group repository: named sets of members, used to choose who sees a service.
 
+use sqlx::AssertSqlSafe;
+
 use crate::db::DbPool;
 use crate::models::{GroupMember, MemberGroup};
 
@@ -58,13 +60,15 @@ impl GroupRepository {
 
     /// Every group by name, with its count of active members.
     pub async fn list(pool: &DbPool) -> Result<Vec<MemberGroup>, sqlx::Error> {
-        sqlx::query_as::<_, MemberGroup>(&format!("{GROUP_COLUMNS} ORDER BY g.name COLLATE NOCASE"))
-            .fetch_all(pool)
-            .await
+        sqlx::query_as::<_, MemberGroup>(AssertSqlSafe(format!(
+            "{GROUP_COLUMNS} ORDER BY g.name COLLATE NOCASE"
+        )))
+        .fetch_all(pool)
+        .await
     }
 
     pub async fn find(pool: &DbPool, id: i64) -> Result<Option<MemberGroup>, sqlx::Error> {
-        sqlx::query_as::<_, MemberGroup>(&format!("{GROUP_COLUMNS} WHERE g.id = ?"))
+        sqlx::query_as::<_, MemberGroup>(AssertSqlSafe(format!("{GROUP_COLUMNS} WHERE g.id = ?")))
             .bind(id)
             .fetch_optional(pool)
             .await
@@ -312,7 +316,7 @@ mod tests {
     }
 
     async fn count(pool: &DbPool, table: &str) -> i64 {
-        sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table}"))
+        sqlx::query_scalar(AssertSqlSafe(format!("SELECT COUNT(*) FROM {table}")))
             .fetch_one(pool)
             .await
             .unwrap()
@@ -391,9 +395,17 @@ mod tests {
         GroupRepository::add_members(&pool, group, &[user])
             .await
             .unwrap();
-        ServiceRepository::set_visibility(&pool, svc, Visibility::Groups, Grants::groups(&[group]))
-            .await
-            .unwrap();
+        ServiceRepository::set_visibility(
+            &pool,
+            svc,
+            Visibility::Groups,
+            Grants {
+                groups: &[group],
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
 
         GroupRepository::delete(&pool, group).await.unwrap();
         assert_eq!(count(&pool, "group_members").await, 0);
@@ -493,23 +505,50 @@ mod tests {
         let members = service(&pool, "Members").await;
         let elsewhere = service(&pool, "Elsewhere").await;
         let groups = Visibility::Groups;
-        ServiceRepository::set_visibility(&pool, only, groups, Grants::groups(&[support]))
-            .await
-            .unwrap();
-        ServiceRepository::set_visibility(&pool, shared, groups, Grants::groups(&[support, sales]))
-            .await
-            .unwrap();
+        ServiceRepository::set_visibility(
+            &pool,
+            only,
+            groups,
+            Grants {
+                groups: &[support],
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        ServiceRepository::set_visibility(
+            &pool,
+            shared,
+            groups,
+            Grants {
+                groups: &[support, sales],
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
         ServiceRepository::set_visibility(
             &pool,
             members,
             Visibility::Members,
-            Grants::groups(&[support]),
+            Grants {
+                groups: &[support],
+                ..Default::default()
+            },
         )
         .await
         .unwrap();
-        ServiceRepository::set_visibility(&pool, elsewhere, groups, Grants::groups(&[sales]))
-            .await
-            .unwrap();
+        ServiceRepository::set_visibility(
+            &pool,
+            elsewhere,
+            groups,
+            Grants {
+                groups: &[sales],
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
 
         let closed = GroupRepository::services_closed_by_deleting(&pool, support)
             .await
@@ -528,7 +567,10 @@ mod tests {
             &pool,
             alone,
             Visibility::Groups,
-            Grants::groups(&[support]),
+            Grants {
+                groups: &[support],
+                ..Default::default()
+            },
         )
         .await
         .unwrap();
@@ -555,16 +597,17 @@ mod tests {
         let folder = crate::repositories::FolderRepository::create(pool, "Finances")
             .await
             .unwrap();
-        crate::repositories::FolderRepository::set_visibility(
+        crate::repositories::FolderRepository::save_settings(
             pool,
             folder,
+            "Finances",
             Visibility::Groups,
-            Grants::groups(&[]),
+            Grants::default(),
         )
         .await
         .unwrap();
         let svc = service(pool, "Wiki").await;
-        ServiceRepository::set_visibility(pool, svc, Visibility::Groups, Grants::groups(&[]))
+        ServiceRepository::set_visibility(pool, svc, Visibility::Groups, Grants::default())
             .await
             .unwrap();
         (folder, svc)

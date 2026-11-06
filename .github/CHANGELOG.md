@@ -4,7 +4,21 @@ All notable changes to Statup are listed here. The project is pre-v1: until 1.0,
 
 ## Unreleased
 
+- Password reset and subscription links are checked against a fast hash of their long random secret: a flood of made-up links can no longer keep the server busy while sign-ins wait. A link sent before the upgrade has to be asked for again.
+- On Windows, `install.ps1` refuses a folder that another account made or that holds a link, and closes the program folder before copying Statup into it.
+- A backup that holds a view, a trigger or a virtual table Statup did not write, or whose own tables are not the ones Statup writes, is refused before anything in it is read, so a crafted file can no longer hang the server during a restore.
+- A new service shown to members only or to a group is restricted from its first instant: it is no longer public for a moment while it is saved, nor left public when saving fails halfway.
+- A line Statup cannot read in its settings file is named by its key in the error, no longer printed whole: a value with a missing quote, a password included, stays out of the logs.
+- The pages that show the address of an alert channel are no longer kept in the browser's cache, since that address can hold a secret.
+- On Linux, a backup file can be read by its owner only, and the temporary copies of a backup or a restore sit in a folder only Statup opens, since a backup holds every password hash and channel address.
+- On Linux, `install.sh` refuses a program folder inside the data or backup folder, or not owned by root, since it writes there as root at each update.
+- Changing the language on the API keys, Widget, Journal, Backups, group, folder, notices, import, forgotten password, password reset and restore pages now stays on that page instead of going back to the dashboard. On the password reset page, the link from the email keeps working.
+- **My profile** asks for the current password before a new email address is saved: the password reset links go to it, so a session left open is no longer enough to take an account.
 - The choices of a drop-down menu show the hand pointer on hover, like every other button.
+- On the **API** page, each key shows its details on one line and its actions under **Manage**. The email subscribers show on one line too, and **Remove** asks under its button. The type and language menus of an alert channel, and the state menu of an update, are as wide as their longest choice.
+- Keyboard and screen readers: the side panel keeps the focus, and Escape closes the innermost menu or question first. The focus stays in place after posting an update, hiding or adding a block, or removing an access. Fields and menus show their focus in Windows high contrast, and a changed page state, the count of a filtered Journal and a published update are read out.
+- `statup restore` says when the file it is given does not exist, instead of calling it not a Statup backup. The example of the command from source names the `backups` folder.
+- Statup now embeds SQLite 3.51.3 instead of 3.46.0, which fixes a flaw a crafted backup could reach during a restore (CVE-2025-7709). Building Statup from source needs Rust 1.94 or newer.
 
 ## 0.12.0, 2026-11-02
 

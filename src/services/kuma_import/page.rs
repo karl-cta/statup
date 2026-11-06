@@ -5,7 +5,7 @@ use reqwest::Url;
 use serde::Deserialize;
 
 use crate::models::CheckKind;
-use crate::services::probe::classify_http;
+use crate::services::probe::{classify_http, read_within};
 use crate::services::{Finding, Probes, target_allowed};
 
 /// Largest page read, in bytes: a page of a few hundred monitors takes a
@@ -106,7 +106,7 @@ fn page_of<'a>(segments: &'a [&'a str]) -> Option<(&'a [&'a str], String)> {
         [prefix @ .., "status" | "status-page"] => (prefix, DEFAULT_SLUG.to_string()),
         _ => return None,
     };
-    // Kuma's slugs are letters, digits and dashes: anything else is not one.
+    // Kuma's slugs are letters, digits, dashes and underscores: anything else is not one.
     let valid = slug
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
@@ -169,22 +169,11 @@ fn merge_same_names(groups: Vec<KumaGroup>) -> Vec<KumaGroup> {
     merged
 }
 
-/// The body, refused as soon as it passes `limit` bytes.
-async fn body_within(mut response: reqwest::Response, limit: usize) -> Result<Vec<u8>, KumaError> {
-    if response
-        .content_length()
-        .is_some_and(|length| length > limit as u64)
-    {
-        return Err(KumaError::TooLarge);
-    }
-    let mut body = Vec::new();
-    while let Some(chunk) = response.chunk().await.map_err(network)? {
-        if body.len() + chunk.len() > limit {
-            return Err(KumaError::TooLarge);
-        }
-        body.extend_from_slice(&chunk);
-    }
-    Ok(body)
+async fn body_within(response: reqwest::Response, limit: usize) -> Result<Vec<u8>, KumaError> {
+    read_within(response, limit)
+        .await
+        .map_err(network)?
+        .ok_or(KumaError::TooLarge)
 }
 
 /// The address is removed from the error: it may carry a token.

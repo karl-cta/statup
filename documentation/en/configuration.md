@@ -21,10 +21,10 @@ A value Statup cannot read, such as a port of `0` or a word where a number is ex
 
 ### `PUBLIC_URL`
 
-- Default: unset, the address of each request is used
+- Default: unset, the pages and the feed take the address of each request, and the messages the **Page URL** of the [Alerts](alerts.md#page-url) page
 - Values: an address, such as `https://status.example.com`
 
-The address visitors use. Links in the feed and in the alerts use it. An `https://` address marks the session cookie `Secure` and sends HSTS.
+The address visitors use. Links in the feed, in the alerts and in the emails use it. Without it or a **Page URL**, the emails to subscribers and the forgotten password emails are not sent. An `https://` address marks the session cookie `Secure` and sends HSTS. Behind HTTPS it is needed: without it, the session cookie is not marked `Secure`.
 
 ### `TRUST_PROXY_HEADERS`
 
@@ -59,7 +59,7 @@ With `ADMIN_PASSWORD`, creates an administrator at start when no account exists 
 ### `ADMIN_PASSWORD`
 
 - Default: unset
-- Values: a password of 12 characters with upper and lower case letters, a digit and a symbol, or of 20 characters of any kind
+- Values: a password of at least 12 characters with upper and lower case letters, a digit and a symbol, or of at least 20 characters of any kind
 
 The password of the administrator created by `ADMIN_EMAIL`.
 
@@ -77,14 +77,14 @@ How long a sign-in form stays valid. Once signed in, a session lasts 30 days wit
 - Default: `UTC`
 - Values: a time zone, such as `Europe/Paris`
 
-The time zone used until one is chosen. The zone set in Settings, or taken from the browser that creates the first account, takes precedence. Dates are shown in it, with the UTC offset where it matters, and maintenance times are typed in it.
+The time zone used until one is chosen. The zone set in Settings, or taken from the browser that creates the first account, takes precedence. Dates are shown in it, with the UTC offset where it matters, and maintenance times are typed in it. A name that is not a time zone is ignored, and UTC is used.
 
 ### `DEFAULT_LOCALE`
 
 - Default: `fr`
 - Values: `fr`, `en`, `de`, `es`
 
-The language of visitors whose browser asks for none of these four. `de` and `es` since 0.3.0.
+The language of visitors whose browser asks for none of these four. Another value is ignored, with a warning in the server output, and `fr` is used. `de` and `es` since 0.3.0.
 
 ## Monitoring and updates
 
@@ -203,7 +203,7 @@ The size of the database connection pool.
 - Values: a directory
 - Since: 0.11.0
 
-Where `statup backup` writes its files, and where `statup restore` keeps a copy of the data it replaces. See [Command line](command-line.md).
+Where the automatic backups, the backups made before an upgrade and those of `statup backup` are written, where `statup restore` keeps a copy of the data it replaces, and the folder that **Backups** lists. See [Backups](backups.md).
 
 ## Logs
 

@@ -3,9 +3,13 @@
 use std::path::{Path, PathBuf};
 
 use chrono::Utc;
+use sqlx::AssertSqlSafe;
 use sqlx::{Connection, SqliteConnection};
 
-use super::{BackupInfo, FILES_TABLE, INFO_TABLE, UPLOAD_FOLDERS, forget_sessions, open_file};
+use super::{
+    BackupInfo, FILES_SCHEMA, FILES_TABLE, INFO_SCHEMA, INFO_TABLE, UPLOAD_FOLDERS,
+    forget_sessions, open_file,
+};
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::services::CURRENT_VERSION;
@@ -56,12 +60,16 @@ async fn write_backup(
     let target = path
         .to_str()
         .ok_or_else(|| AppError::internal("the backup path is not valid UTF-8"))?;
+    create_private(path)
+        .await
+        .map_err(|e| AppError::internal(format!("cannot create {}: {e}", path.display())))?;
     sqlx::query("VACUUM INTO ?")
         .bind(target)
         .execute(pool)
         .await?;
     // The copy of a database in memory stays in memory, without an error.
-    if !tokio::fs::try_exists(path).await.unwrap_or(false) {
+    let written = tokio::fs::metadata(path).await.map_or(0, |file| file.len());
+    if written == 0 {
         return Err(AppError::internal(
             "the database is in memory: there is no file to back up",
         ));
@@ -73,6 +81,16 @@ async fn write_backup(
     attach_uploads(&mut copy, Path::new(upload_dir)).await?;
     copy.close().await?;
     Ok(info)
+}
+
+/// An empty file that only its owner reads, for `VACUUM INTO` to fill: a
+/// backup holds every password hash and channel address.
+async fn create_private(path: &Path) -> std::io::Result<()> {
+    let mut options = tokio::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    options.open(path).await.map(drop)
 }
 
 /// What the copy holds: its last migration and the instance's name.
@@ -94,16 +112,11 @@ async fn describe(copy: &mut SqliteConnection) -> Result<BackupInfo, AppError> {
 }
 
 async fn record_info(copy: &mut SqliteConnection, info: &BackupInfo) -> Result<(), AppError> {
-    sqlx::query(&format!(
-        "CREATE TABLE {INFO_TABLE} (app_version TEXT NOT NULL, migration INTEGER NOT NULL, \
-         created_at TEXT NOT NULL, instance_name TEXT NOT NULL)"
-    ))
-    .execute(&mut *copy)
-    .await?;
-    sqlx::query(&format!(
+    sqlx::query(INFO_SCHEMA).execute(&mut *copy).await?;
+    sqlx::query(AssertSqlSafe(format!(
         "INSERT INTO {INFO_TABLE} (app_version, migration, created_at, instance_name) \
          VALUES (?, ?, ?, ?)"
-    ))
+    )))
     .bind(&info.app_version)
     .bind(info.migration)
     .bind(info.created_at)
@@ -116,16 +129,12 @@ async fn record_info(copy: &mut SqliteConnection, info: &BackupInfo) -> Result<(
 /// Copies the logo and the icons into the backup, each under its path
 /// relative to the upload directory.
 async fn attach_uploads(copy: &mut SqliteConnection, upload_dir: &Path) -> Result<(), AppError> {
-    sqlx::query(&format!(
-        "CREATE TABLE {FILES_TABLE} (path TEXT PRIMARY KEY NOT NULL, content BLOB NOT NULL)"
-    ))
-    .execute(&mut *copy)
-    .await?;
+    sqlx::query(FILES_SCHEMA).execute(&mut *copy).await?;
     let mut transaction = copy.begin().await?;
     for (path, content) in uploaded_files(upload_dir).await? {
-        sqlx::query(&format!(
+        sqlx::query(AssertSqlSafe(format!(
             "INSERT INTO {FILES_TABLE} (path, content) VALUES (?, ?)"
-        ))
+        )))
         .bind(path)
         .bind(content)
         .execute(&mut *transaction)
@@ -279,6 +288,26 @@ mod tests {
         assert_eq!(sessions, 0);
     }
 
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn only_its_owner_reads_a_backup() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let scratch = Scratch::new();
+        let pool = file_pool(&scratch.path("statup.db")).await;
+        let destination = scratch.path("backup.db");
+        create_backup(&pool, &scratch.uploads(), &destination)
+            .await
+            .unwrap();
+        let staging = crate::services::backup::TempFolder::new("mode")
+            .await
+            .unwrap();
+
+        let mode = |path: &Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&destination), 0o600);
+        assert_eq!(mode(staging.path()), 0o700);
+    }
+
     #[tokio::test]
     async fn an_existing_file_is_never_overwritten() {
         let scratch = Scratch::new();
@@ -307,6 +336,69 @@ mod tests {
         );
         assert!(!destination.exists());
         assert!(!partial_path(&destination).exists());
+    }
+
+    #[tokio::test]
+    async fn a_backup_holding_a_trigger_statup_did_not_write_is_refused() {
+        let scratch = Scratch::new();
+        let pool = file_pool(&scratch.path("statup.db")).await;
+        crate::session::create_session_store(&pool).await.unwrap();
+        let destination = scratch.path("backup.db");
+        create_backup(&pool, &scratch.uploads(), &destination)
+            .await
+            .unwrap();
+        let mut copy = open_file(&destination, true).await.unwrap();
+        sqlx::query("CREATE TRIGGER spin BEFORE DELETE ON tower_sessions BEGIN SELECT 1; END")
+            .execute(&mut copy)
+            .await
+            .unwrap();
+        copy.close().await.unwrap();
+
+        assert!(read_info(&destination).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn a_backup_whose_info_is_a_view_is_refused() {
+        let scratch = Scratch::new();
+        let path = scratch.path("view.db");
+        let options = sqlx::sqlite::SqliteConnectOptions::new()
+            .filename(&path)
+            .create_if_missing(true);
+        let mut file = SqliteConnection::connect_with(&options).await.unwrap();
+        sqlx::raw_sql(
+            "CREATE VIEW statup_backup AS SELECT '0.12.0' AS app_version, 1 AS migration, \
+             '2026-11-01T00:00:00Z' AS created_at, 'Acme' AS instance_name; \
+             CREATE TABLE statup_backup_files (path TEXT PRIMARY KEY NOT NULL, content BLOB NOT NULL);",
+        )
+        .execute(&mut file)
+        .await
+        .unwrap();
+        file.close().await.unwrap();
+
+        assert!(read_info(&path).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn a_backup_whose_info_computes_a_column_is_refused() {
+        let scratch = Scratch::new();
+        let path = scratch.path("computed.db");
+        let options = sqlx::sqlite::SqliteConnectOptions::new()
+            .filename(&path)
+            .create_if_missing(true);
+        let mut file = SqliteConnection::connect_with(&options).await.unwrap();
+        sqlx::raw_sql(
+            "CREATE TABLE statup_backup (app_version TEXT GENERATED ALWAYS AS (hex(zeroblob(8))), \
+             migration INTEGER NOT NULL, created_at TEXT NOT NULL, instance_name TEXT NOT NULL); \
+             INSERT INTO statup_backup (migration, created_at, instance_name) \
+             VALUES (1, '2026-11-01T00:00:00Z', 'Acme'); \
+             CREATE TABLE statup_backup_files (path TEXT PRIMARY KEY NOT NULL, content BLOB NOT NULL);",
+        )
+        .execute(&mut file)
+        .await
+        .unwrap();
+        file.close().await.unwrap();
+
+        assert!(read_info(&path).await.is_err());
     }
 
     #[tokio::test]

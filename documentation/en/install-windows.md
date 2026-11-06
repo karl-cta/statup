@@ -50,10 +50,10 @@ Press Enter to take the value in brackets. A parameter given on the command line
 | Firewall profiles | `-FirewallProfile` | the profiles of the networks of the machine |
 
 - `-Listen` takes `all` (every address), `local` (this machine only, for a [reverse proxy](reverse-proxy.md) on it) or an IP address.
-- A folder is a full path such as `C:\Statup`, without a quote, and not a system folder such as `C:\Windows` or `C:\ProgramData`. The data folder is on this machine. The backup folder may be a share: see [Backups on a share](install-windows.md#backups-on-a-share). An existing folder that holds other files is refused.
+- A folder is a full path such as `C:\Statup`, without a quote, and not a system folder such as `C:\Windows` or `C:\ProgramData`. The data folder is on this machine. The backup folder may be a share: see [Backups on a share](install-windows.md#backups-on-a-share). An existing folder that holds other files, that another account made, or that holds a link is refused.
 - The firewall profiles are `Domain`, `Private` and `Public`, one or more.
 - The questions need a console. Without one, the script stops and asks for `-Unattended`.
-- When `C:\ProgramData\Statup\statup.env` exists, from an earlier install that was removed, its settings are kept and only the program folder and the account are asked.
+- When `C:\ProgramData\Statup\statup.env` exists, from an earlier install that was removed, its settings are kept, and only the program folder, the account and the firewall questions are asked.
 
 ## Other parameters
 
@@ -100,7 +100,7 @@ The script opens the port in a rule named `Statup`, for the profiles of the netw
 
 | Item | Where |
 |---|---|
-| Program | `C:\Program Files\Statup`: `statup.exe`, `static`, the license files and a `VERSION` file. |
+| Program | `C:\Program Files\Statup`: `statup.exe`, `static`, `README.md`, the license files and a `VERSION` file. |
 | Data | `C:\ProgramData\Statup`: the database, `uploads`, the backups and `statup.log`. |
 | Settings | `C:\ProgramData\Statup\statup.env`, always at this place. |
 | Service | `Statup`, started automatically with Windows. |
@@ -126,7 +126,7 @@ Restart-Service Statup
 DATABASE_URL='C:\ProgramData\Statup\statup.db'
 ```
 
-The firewall rule stays on the old port after a change of `PORT`, until the script is run again. After a change of `DATABASE_URL`, `UPLOAD_DIR` or `BACKUP_DIR`, run the script again too: it creates the new folder and lets the service write to it. If Statup does not start, `statup.log` tells why.
+The firewall rule stays on the old port after a change of `PORT`, until the script is run again. After a change of `DATABASE_URL` or `BACKUP_DIR` to a folder that does not exist yet, run the script again too: it creates it and lets the service write to it. Keep `UPLOAD_DIR` inside the data folder: the script does not read it. If Statup does not start, `statup.log` tells why.
 
 ## Maintenance commands
 

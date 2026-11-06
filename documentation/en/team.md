@@ -74,11 +74,11 @@ Under **Delete the group**, at the foot of its page, **Delete** asks to be confi
 
 Every member reaches **My profile** from their menu:
 
-- **Account details**: their name and email address.
+- **Account details**: their name and email address. A new email address asks for the current password, since the password reset links go to it.
 - **Password**: the current one, then the new one twice. The other sessions of the account are signed out.
 
 The language is chosen from the language switch, and is kept on the account. The light or dark theme is kept by each browser.
 
 ## Sessions
 
-Ticking **Stay signed in for 30 days** at sign-in keeps the session 30 days without a visit; otherwise it ends after 24 hours.
+Ticking **Stay signed in for 30 days** at sign-in keeps the session 30 days without a visit; otherwise it ends after 24 hours without a visit.

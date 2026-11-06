@@ -16,6 +16,7 @@ use super::subscribers::{self, SubscribersCard};
 use super::{Frame, render};
 use crate::error::AppError;
 use crate::i18n::{I18n, LANGUAGES, Locale, language};
+use crate::middleware::headers::no_store;
 use crate::middleware::{CsrfToken, HtmlForm, RequireAdmin};
 use crate::models::{
     Channel, ChannelInput, ChannelKind, Delivery, DeliveryStatus, Happening, JournalKind,
@@ -336,7 +337,9 @@ async fn render_list(
     let address = page_address_field(state, headers, page.address_error, &i18n).await?;
     let subscribers = subscribers::card(state).await?;
     let frame = Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?;
-    render(&NotificationsTemplate {
+    // A refused form comes back with the address it was given, which can
+    // hold a webhook secret: kept out of the browser's cache.
+    Ok(no_store(render(&NotificationsTemplate {
         frame,
         rows,
         notice: page.notice,
@@ -347,7 +350,7 @@ async fn render_list(
         subscribers,
         page: address,
         i18n,
-    })
+    })?))
 }
 
 async fn destination_rows(
@@ -597,7 +600,8 @@ async fn render_edit(
     form_error: Option<FieldError>,
 ) -> Result<Response, AppError> {
     let frame = Frame::load(&state.pool, Some(user), csrf_token, &i18n).await?;
-    render(&DestinationTemplate {
+    // The address of a channel can hold its secret.
+    Ok(no_store(render(&DestinationTemplate {
         frame,
         id: channel.id,
         saved_name: channel.name,
@@ -605,7 +609,7 @@ async fn render_edit(
         form_error,
         email_ready: state.notifier.mail_ready(),
         i18n,
-    })
+    })?))
 }
 
 pub async fn update(
@@ -721,7 +725,6 @@ fn test_message(channel: &Channel, page: String) -> (Notice, Facts) {
 
 /// The destination of a test, never saved.
 fn trial_channel(form: &DestinationForm, kind: ChannelKind, target: String) -> Channel {
-    let now = Utc::now();
     Channel {
         id: 0,
         name: form.name.trim().to_string(),
@@ -732,8 +735,6 @@ fn trial_channel(form: &DestinationForm, kind: ChannelKind, target: String) -> C
         on_maintenances: true,
         on_publications: true,
         on_detected: true,
-        created_at: now,
-        updated_at: now,
     }
 }
 

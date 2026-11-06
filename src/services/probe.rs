@@ -1,5 +1,5 @@
 //! Network checks: whether a web address answers or a port accepts a
-//! connection. The body of a page is never read.
+//! connection. The body of a checked page is never read.
 
 use std::time::{Duration, Instant};
 
@@ -11,6 +11,28 @@ pub const CHECK_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_REDIRECTS: usize = 5;
 /// From this status on, the server is there but not working.
 const FIRST_SERVER_ERROR: u16 = 500;
+
+/// The body of an answer, or none as soon as it passes `limit` bytes: the
+/// pages Statup reads are small, and a server must not fill its memory.
+pub(crate) async fn read_within(
+    mut response: reqwest::Response,
+    limit: usize,
+) -> Result<Option<Vec<u8>>, reqwest::Error> {
+    if response
+        .content_length()
+        .is_some_and(|length| length > limit as u64)
+    {
+        return Ok(None);
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await? {
+        if body.len() + chunk.len() > limit {
+            return Ok(None);
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(Some(body))
+}
 
 /// Why a check answered or failed, in words an editor can act on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

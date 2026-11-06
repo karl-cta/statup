@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
+use sqlx::AssertSqlSafe;
 use sqlx::{QueryBuilder, Sqlite};
 
 use crate::clock;
@@ -17,9 +18,9 @@ use crate::models::{
 };
 use crate::repositories::service_repo::CHOSEN_ORDER;
 
-const SUMMARY_COLUMNS: &str = "e.id, e.kind, e.severity, e.planned, e.lifecycle, e.category, \
+const SUMMARY_COLUMNS: &str = "e.id, e.kind, e.severity, e.lifecycle, e.category, \
      e.title, e.description, e.planned_start, e.planned_end, e.started_at, e.ended_at, \
-     e.keeps_services_up, e.next_update_at, e.created_at, e.updated_at, e.author_id, \
+     e.keeps_services_up, e.next_update_at, e.created_at, e.updated_at, \
      e.series_id, EXISTS (SELECT 1 FROM event_reviews r WHERE r.event_id = e.id) AS has_review, \
      COALESCE((SELECT GROUP_CONCAT(s.name, char(31) ORDER BY s.position, s.name COLLATE NOCASE, s.id) \
                FROM event_services es JOIN services s ON s.id = es.service_id \
@@ -76,10 +77,9 @@ impl EventRepository {
         Ok(event)
     }
 
-    /// Writes a new event and its services inside `tx`, as a session of
-    /// `series_id` when it repeats.
-    /// Inserts an event and links its services. A session of a repeating
-    /// maintenance names its series, and whether the schedule added it.
+    /// Inserts an event and links its services inside `tx`. A session of a
+    /// repeating maintenance names its series, and whether the schedule added
+    /// it.
     pub(crate) async fn insert(
         tx: &mut sqlx::Transaction<'_, Sqlite>,
         input: &CreateEventInput,
@@ -170,11 +170,11 @@ impl EventRepository {
         let Some(event) = Self::find_by_id(pool, id).await? else {
             return Ok(None);
         };
-        let mut services = sqlx::query_as::<_, Service>(&format!(
+        let mut services = sqlx::query_as::<_, Service>(AssertSqlSafe(format!(
             "SELECT s.* FROM services s \
              INNER JOIN event_services es ON es.service_id = s.id \
              WHERE es.event_id = ? ORDER BY {CHOSEN_ORDER}"
-        ))
+        )))
         .bind(id)
         .fetch_all(pool)
         .await?;
@@ -222,7 +222,6 @@ impl EventRepository {
         qb.build_query_scalar::<i64>().fetch_one(pool).await
     }
 
-    /// Latest incidents and announcements; maintenances have their own card.
     /// The latest events of the kinds the activity card shows.
     pub async fn list_recent_activity(
         pool: &DbPool,
@@ -336,12 +335,12 @@ impl EventRepository {
         pool: &DbPool,
         service_id: Option<i64>,
     ) -> Result<HashMap<i64, (i64, String)>, sqlx::Error> {
-        let rows: Vec<(i64, i64, String)> = sqlx::query_as(&format!(
+        let rows: Vec<(i64, i64, String)> = sqlx::query_as(AssertSqlSafe(format!(
             "SELECT es.service_id, e.id, e.title FROM events e \
              INNER JOIN event_services es ON es.event_id = e.id \
              WHERE (? IS NULL OR es.service_id = ?) AND {DRIVES_SERVICES} \
              ORDER BY {WORST_FIRST}"
-        ))
+        )))
         .bind(service_id)
         .bind(service_id)
         .fetch_all(pool)
@@ -360,11 +359,11 @@ impl EventRepository {
         pool: &DbPool,
         service_id: i64,
     ) -> Result<Vec<(Kind, Option<Severity>)>, sqlx::Error> {
-        sqlx::query_as(&format!(
+        sqlx::query_as(AssertSqlSafe(format!(
             "SELECT e.kind, e.severity FROM events e \
              INNER JOIN event_services es ON es.event_id = e.id \
              WHERE es.service_id = ? AND {DRIVES_SERVICES}"
-        ))
+        )))
         .bind(service_id)
         .fetch_all(pool)
         .await
@@ -373,11 +372,11 @@ impl EventRepository {
     /// Services a maintenance under way takes down: the checks keep quiet
     /// about them.
     pub async fn services_under_maintenance(pool: &DbPool) -> Result<Vec<i64>, sqlx::Error> {
-        sqlx::query_scalar(&format!(
+        sqlx::query_scalar(AssertSqlSafe(format!(
             "SELECT DISTINCT es.service_id FROM events e \
              INNER JOIN event_services es ON es.event_id = e.id \
              WHERE e.kind = 'maintenance' AND {DRIVES_SERVICES}"
-        ))
+        )))
         .fetch_all(pool)
         .await
     }
@@ -582,10 +581,10 @@ impl EventRepository {
         event_id: i64,
         update_id: i64,
     ) -> Result<Option<EventUpdateWithAuthor>, sqlx::Error> {
-        sqlx::query_as::<_, EventUpdateWithAuthor>(&format!(
+        sqlx::query_as::<_, EventUpdateWithAuthor>(AssertSqlSafe(format!(
             "SELECT {UPDATE_COLUMNS} FROM event_updates eu {UPDATE_AUTHORS} \
              WHERE eu.event_id = ? AND eu.id = ?"
-        ))
+        )))
         .bind(event_id)
         .bind(update_id)
         .fetch_optional(pool)
@@ -736,7 +735,7 @@ async fn service_ids_in(
 /// Runs a summary query and drops, from each row, the services the viewer
 /// may not see.
 async fn fetch_scoped(
-    mut qb: QueryBuilder<'_, Sqlite>,
+    mut qb: QueryBuilder<Sqlite>,
     pool: &DbPool,
     scope: &Scope,
 ) -> Result<Vec<EventSummary>, sqlx::Error> {
@@ -750,7 +749,7 @@ async fn fetch_scoped(
 /// Keeps the events the viewer may see, on the events table aliased
 /// `alias`: those naming no service, or at least one visible service. Adds
 /// nothing when nothing is hidden.
-fn push_scope(qb: &mut QueryBuilder<'_, Sqlite>, scope: &Scope, alias: &str) {
+fn push_scope(qb: &mut QueryBuilder<Sqlite>, scope: &Scope, alias: &str) {
     let Some(visible) = scope.json() else {
         return;
     };
@@ -765,7 +764,7 @@ fn push_scope(qb: &mut QueryBuilder<'_, Sqlite>, scope: &Scope, alias: &str) {
 
 /// Narrows to one service. Asking for a hidden one matches nothing, or an
 /// event naming both would reveal that it concerns the hidden service.
-fn push_service_filter(qb: &mut QueryBuilder<'_, Sqlite>, service_id: i64, scope: &Scope) {
+fn push_service_filter(qb: &mut QueryBuilder<Sqlite>, service_id: i64, scope: &Scope) {
     if !scope.sees_service(service_id) {
         qb.push(" AND 0");
         return;
@@ -775,7 +774,7 @@ fn push_service_filter(qb: &mut QueryBuilder<'_, Sqlite>, service_id: i64, scope
         .push(")");
 }
 
-fn push_filters(qb: &mut QueryBuilder<'_, Sqlite>, filters: &EventFilters, scope: &Scope) {
+fn push_filters(qb: &mut QueryBuilder<Sqlite>, filters: &EventFilters, scope: &Scope) {
     qb.push(" WHERE 1 = 1");
     if let Some(kind) = filters.kind {
         qb.push(" AND f.kind = ").push_bind(kind);
@@ -931,12 +930,13 @@ mod tests {
         .await
         .unwrap();
 
-        let rows: Vec<(Kind, Option<Lifecycle>, bool, bool)> = sqlx::query_as(&format!(
-            "SELECT e.kind, e.lifecycle, e.keeps_services_up, {DRIVES_SERVICES} FROM events e"
-        ))
-        .fetch_all(&pool)
-        .await
-        .unwrap();
+        let rows: Vec<(Kind, Option<Lifecycle>, bool, bool)> =
+            sqlx::query_as(AssertSqlSafe(format!(
+                "SELECT e.kind, e.lifecycle, e.keeps_services_up, {DRIVES_SERVICES} FROM events e"
+            )))
+            .fetch_all(&pool)
+            .await
+            .unwrap();
         assert_eq!(rows.len(), 19);
         for (kind, lifecycle, keeps_up, in_sql) in rows {
             assert_eq!(
@@ -1206,7 +1206,12 @@ mod tests {
         let by_member = EventRepository::create(&pool, &incident("VPN down", uid, vec![sid]))
             .await
             .unwrap();
-        assert_eq!(by_key.author_id, uid, "the key's creator stays the author");
+        let author: i64 = sqlx::query_scalar("SELECT author_id FROM events WHERE id = ?")
+            .bind(by_key.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(author, uid, "the key's creator stays the author");
         let signed = |id| EventRepository::author_name(&pool, id);
         assert_eq!(signed(by_key.id).await.unwrap().as_deref(), Some("Zabbix"));
         assert_eq!(

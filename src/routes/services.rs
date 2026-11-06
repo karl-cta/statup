@@ -68,8 +68,10 @@ struct ServiceListTemplate {
 }
 
 impl ServiceListTemplate {
-    // Askama hands a field over by reference.
-    #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "Askama hands a field over by reference"
+    )]
     fn is_saved(&self, id: &i64) -> bool {
         self.saved_id == Some(*id)
     }
@@ -641,16 +643,15 @@ async fn save_new(pool: &DbPool, input: &ServiceInput) -> Result<Service, AppErr
     let audience = input.audience()?;
     audience.check(pool, false).await?;
     let icon_name = input.icon_name();
-    let service = ServiceService::create(
+    let service = ServiceService::create_for(
         pool,
         &input.name,
         Some(input.description.as_str()),
-        input.icon_id(),
-        icon_name.as_deref(),
+        (input.icon_id(), icon_name.as_deref()),
+        (audience.mode, audience.grants()),
     )
     .await?;
     ServiceService::set_monitoring(pool, service.id, monitoring.as_ref()).await?;
-    audience.save_for_service(pool, service.id, None).await?;
     Ok(service)
 }
 

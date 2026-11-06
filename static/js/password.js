@@ -1,5 +1,5 @@
-// Password fields: a button that shows what is typed, and the password rule
-// ticked as the author types.
+// Password fields: a button that shows what is typed, the password rule
+// ticked as the author types, and the current password asked for a new email.
 (function () {
     "use strict";
 
@@ -31,5 +31,18 @@
         };
         input.addEventListener("input", check);
         check();
+    });
+
+    // A new email asks for the current password, as the server does.
+    document.querySelectorAll("[data-saved-email]").forEach((input) => {
+        const field = document.getElementById(input.dataset.confirmField);
+        const password = field.querySelector("input");
+        const sync = () => {
+            const changed = input.value.trim().toLowerCase() !== input.dataset.savedEmail;
+            field.hidden = !changed;
+            password.required = changed;
+        };
+        input.addEventListener("input", sync);
+        sync();
     });
 })();

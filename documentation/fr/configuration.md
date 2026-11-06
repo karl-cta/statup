@@ -21,10 +21,10 @@ Une valeur que Statup ne sait pas lire, comme un port à `0` ou un mot à la pla
 
 ### `PUBLIC_URL`
 
-- Par défaut : non défini, l'adresse de chaque requête est utilisée
+- Par défaut : non défini, les pages et le flux prennent l'adresse de chaque requête, et les messages l'**URL de la page** de la page [Alertes](alerts.md#page-url)
 - Valeurs : une adresse, comme `https://status.example.com`
 
-L'adresse qu'utilisent les visiteurs. Les liens du flux et des alertes s'en servent. Une adresse en `https://` marque le cookie de session `Secure` et active HSTS.
+L'adresse qu'utilisent les visiteurs. Les liens du flux, des alertes et des e-mails s'en servent. Sans elle ni **URL de la page**, les e-mails aux abonnés et ceux de mot de passe oublié ne partent pas. Une adresse en `https://` marque le cookie de session `Secure` et active HSTS. Derrière HTTPS, elle est nécessaire : sans elle, le cookie de session n'est pas marqué `Secure`.
 
 ### `TRUST_PROXY_HEADERS`
 
@@ -59,7 +59,7 @@ Avec `ADMIN_PASSWORD`, crée un administrateur au démarrage quand aucun compte 
 ### `ADMIN_PASSWORD`
 
 - Par défaut : non défini
-- Valeurs : un mot de passe de 12 caractères avec majuscule, minuscule, chiffre et caractère spécial, ou de 20 caractères quels qu'ils soient
+- Valeurs : un mot de passe d'au moins 12 caractères avec majuscule, minuscule, chiffre et caractère spécial, ou d'au moins 20 caractères quels qu'ils soient
 
 Le mot de passe de l'administrateur créé par `ADMIN_EMAIL`.
 
@@ -77,14 +77,14 @@ La durée de validité d'un formulaire de connexion. Une fois connecté, une ses
 - Par défaut : `UTC`
 - Valeurs : un fuseau horaire, comme `Europe/Paris`
 
-Le fuseau horaire utilisé tant qu'aucun n'est choisi. Celui réglé dans les Paramètres, ou repris du navigateur qui crée le premier compte, prime sur lui. Les dates s'affichent dans ce fuseau, avec le décalage UTC quand il compte, et les heures des maintenances s'y saisissent.
+Le fuseau horaire utilisé tant qu'aucun n'est choisi. Celui réglé dans les Paramètres, ou repris du navigateur qui crée le premier compte, prime sur lui. Les dates s'affichent dans ce fuseau, avec le décalage UTC quand il compte, et les heures des maintenances s'y saisissent. Un nom qui n'est pas un fuseau horaire est ignoré, et UTC est utilisé.
 
 ### `DEFAULT_LOCALE`
 
 - Par défaut : `fr`
 - Valeurs : `fr`, `en`, `de`, `es`
 
-La langue des visiteurs dont le navigateur ne demande aucune de ces quatre langues. `de` et `es` depuis la 0.3.0.
+La langue des visiteurs dont le navigateur ne demande aucune de ces quatre langues. Une autre valeur est ignorée, avec un avertissement dans la sortie du serveur, et `fr` est utilisé. `de` et `es` depuis la 0.3.0.
 
 ## Surveillance et nouvelles versions
 
@@ -108,7 +108,7 @@ Statup demande une fois par jour à GitHub si une version plus récente est publ
 Le serveur SMTP des alertes par e-mail, des liens de [mot de passe oublié](forgotten-password.md) et des e-mails aux [abonnés](status-page.md#get-notified). Les canaux E-mail et l'abonnement ne sont proposés que si `SMTP_HOST` est défini.
 
 > [!NOTE]
-> Un incident envoie un e-mail à chaque abonné. Une boîte de messagerie, comme Microsoft 365 ou Gmail, limite le nombre d'e-mails envoyés par minute et par jour : au-delà de quelques centaines d'abonnés, passez par un service d'envoi transactionnel. Signez le domaine de `SMTP_FROM` avec DKIM et publiez ses enregistrements SPF et DMARC, pour que les e-mails arrivent en boîte de réception ; les messageries peuvent alors afficher leur propre bouton de désabonnement, quand la page est servie en `https`.
+> Un incident envoie un e-mail à chaque abonné. Une boîte de messagerie, comme Microsoft 365 ou Gmail, limite le nombre d'e-mails envoyés par minute et par jour : au-delà de quelques centaines d'abonnés, passez par un service d'envoi transactionnel. Signez le domaine de `SMTP_FROM` avec DKIM et publiez ses enregistrements SPF et DMARC, pour que les e-mails arrivent en boîte de réception ; les messageries peuvent alors afficher leur propre bouton de désabonnement, quand la page est servie en `https`.
 
 ### `SMTP_HOST`
 
@@ -203,7 +203,7 @@ La taille du pool de connexions à la base de données.
 - Valeurs : un répertoire
 - Depuis : 0.11.0
 
-L'endroit où `statup backup` écrit ses fichiers, et où `statup restore` garde une copie des données qu'il remplace. Voir [Ligne de commande](command-line.md).
+L'endroit où sont écrites les sauvegardes automatiques, celles d'avant une mise à jour et celles de `statup backup`, où `statup restore` garde une copie des données qu'il remplace, et le dossier que liste **Sauvegardes**. Voir [Sauvegardes](backups.md).
 
 ## Logs
 

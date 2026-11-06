@@ -13,7 +13,7 @@ Avec un serveur SMTP configuré ([`SMTP_HOST`](configuration.md#smtp_host) et le
 
 ## Par un administrateur
 
-Sans serveur SMTP, la même page invite le membre à s'adresser à un administrateur, qui lui donne un mot de passe provisoire depuis la page [Équipe](team.md). Son lien **Réinitialiser depuis le serveur** mène à la partie suivante.
+Sans serveur SMTP, ou tant que l'URL de la page est inconnue, la même page invite le membre à s'adresser à un administrateur, qui lui donne un mot de passe provisoire depuis la page [Équipe](team.md). Son lien **Réinitialiser depuis le serveur** mène à la partie suivante.
 
 ## Depuis le serveur
 

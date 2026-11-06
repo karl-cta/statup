@@ -3,6 +3,8 @@
 
 use chrono::{DateTime, Duration, Utc};
 
+use sqlx::AssertSqlSafe;
+
 use crate::clock;
 use crate::db::DbPool;
 use crate::models::{ApiKey, ApiKeyHolder};
@@ -52,9 +54,9 @@ impl ApiKeyRepository {
 
     /// Every key in use, newest first.
     pub async fn list_in_use(pool: &DbPool) -> Result<Vec<ApiKey>, sqlx::Error> {
-        sqlx::query_as::<_, ApiKey>(&format!(
+        sqlx::query_as::<_, ApiKey>(AssertSqlSafe(format!(
             "{KEY_COLUMNS} WHERE k.revoked_at IS NULL ORDER BY k.created_at DESC, k.id DESC"
-        ))
+        )))
         .fetch_all(pool)
         .await
     }

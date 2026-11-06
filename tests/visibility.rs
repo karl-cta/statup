@@ -227,7 +227,7 @@ async fn file(
     grants: Grants<'_>,
 ) {
     let folder = FolderRepository::create(pool, name).await.unwrap();
-    FolderRepository::set_visibility(pool, folder, visibility, grants)
+    FolderRepository::save_settings(pool, folder, name, visibility, grants)
         .await
         .unwrap();
     let joined = FolderRepository::add_services(pool, folder, &[service])
@@ -878,11 +878,15 @@ async fn an_editor_opens_a_service_to_a_member_or_hands_it_to_its_folder() {
     let folder = FolderRepository::create(&app.pool, "Finance")
         .await
         .unwrap();
-    FolderRepository::set_visibility(
+    FolderRepository::save_settings(
         &app.pool,
         folder,
+        "Finance",
         Visibility::Groups,
-        Grants::groups(&[group]),
+        Grants {
+            groups: &[group],
+            ..Default::default()
+        },
     )
     .await
     .unwrap();

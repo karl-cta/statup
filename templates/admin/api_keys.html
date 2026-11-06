@@ -64,30 +64,29 @@
         <ul class="admin-list">
             {% for key in rows %}
             <li class="admin-row key-row">
+                {# The key, then one door on the right: "Manage" opens a panel
+                   with each action and what it does. #}
                 <div class="min-w-0">
                     <p class="admin-row-name">{{ key.name }}</p>
-                    <p class="admin-row-sub"><code>{{ key.prefix }}…</code>&nbsp;<span aria-hidden="true">·</span> {{ key.made }}{% if key.creator_disabled %} ({{ i18n.t("api_keys.creator_disabled") }}){% endif %}</p>
-                    <p class="admin-row-sub">{{ i18n.t("api_keys.last_used") }} {% if let Some(used) = key.last_used %}{{ used }}{% else %}{{ i18n.t("admin.never") }}{% endif %}</p>
+                    <p class="admin-row-sub"><code>{{ key.prefix }}…</code>&nbsp;<span aria-hidden="true">·</span> {{ key.made }}{% if key.creator_disabled %} ({{ i18n.t("api_keys.creator_disabled") }}){% endif %}&nbsp;<span aria-hidden="true">·</span> {{ i18n.t("api_keys.last_used") }} {% if let Some(used) = key.last_used %}{{ used }}{% else %}{{ i18n.t("admin.never") }}{% endif %}</p>
                 </div>
-                {# Each action asks first, in a panel under its own button. #}
                 <div class="admin-row-actions">
                     <details class="more-actions member-confirm" data-more-actions>
-                        <summary class="text-action" aria-label="{{ i18n.t("api_keys.regenerate") }} {{ key.name }}">{{ i18n.t("api_keys.regenerate") }}</summary>
-                        <form class="more-actions-menu confirm-panel" method="post" action="/admin/api-keys/{{ key.id }}/regenerate" aria-label="{{ i18n.t("api_keys.confirm_regenerate_aria") }}">
-                            <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                            <p class="confirm-panel-text">{{ i18n.t("common.question_open") }}{{ i18n.t("api_keys.regenerate") }} <q>{{ key.name }}</q>{{ i18n.t("common.question_mark") }}</p>
-                            <p class="confirm-panel-desc">{{ i18n.t("api_keys.regenerate_consequence") }}</p>
-                            <button type="submit" class="btn btn-primary confirm-panel-go">{{ i18n.t("api_keys.regenerate") }}</button>
-                        </form>
-                    </details>
-                    <details class="more-actions member-confirm" data-more-actions>
-                        <summary class="text-action text-action-delete" aria-label="{{ i18n.t("api_keys.revoke") }} {{ key.name }}">{{ i18n.t("api_keys.revoke") }}</summary>
-                        <form class="more-actions-menu confirm-panel" method="post" action="/admin/api-keys/{{ key.id }}/revoke" aria-label="{{ i18n.t("api_keys.confirm_revoke_aria") }}">
-                            <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                            <p class="confirm-panel-text">{{ i18n.t("common.question_open") }}{{ i18n.t("api_keys.revoke") }} <q>{{ key.name }}</q>{{ i18n.t("common.question_mark") }}</p>
-                            <p class="confirm-panel-desc">{{ i18n.t("api_keys.revoke_consequence") }}</p>
-                            <button type="submit" class="btn btn-danger confirm-panel-go">{{ i18n.t("api_keys.revoke") }}</button>
-                        </form>
+                        <summary class="text-action member-manage" aria-label="{{ i18n.t("admin.manage") }} {{ key.name }}">{{ i18n.t("admin.manage") }}{% call ui::caret_icon() %}{% endcall %}</summary>
+                        <div class="more-actions-menu confirm-panel member-manage-panel">
+                            <form method="post" action="/admin/api-keys/{{ key.id }}/regenerate" class="member-manage-step" aria-label="{{ i18n.t("api_keys.confirm_regenerate_aria") }}">
+                                <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                                <p class="confirm-panel-text">{{ i18n.t("api_keys.regenerate") }}</p>
+                                <p class="confirm-panel-desc">{{ i18n.t("api_keys.regenerate_consequence") }}</p>
+                                <button type="submit" class="btn btn-ghost confirm-panel-go">{{ i18n.t("api_keys.regenerate") }}</button>
+                            </form>
+                            <form method="post" action="/admin/api-keys/{{ key.id }}/revoke" class="member-manage-step" aria-label="{{ i18n.t("api_keys.confirm_revoke_aria") }}">
+                                <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                                <p class="confirm-panel-text">{{ i18n.t("api_keys.revoke") }}</p>
+                                <p class="confirm-panel-desc">{{ i18n.t("api_keys.revoke_consequence") }}</p>
+                                <button type="submit" class="btn btn-danger confirm-panel-go">{{ i18n.t("api_keys.revoke") }}</button>
+                            </form>
+                        </div>
                     </details>
                 </div>
             </li>

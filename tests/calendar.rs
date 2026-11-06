@@ -165,7 +165,10 @@ async fn a_maintenance_of_a_restricted_service_stays_hidden_from_visitors() {
         &app.pool,
         vault,
         Visibility::Groups,
-        Grants::groups(&[group]),
+        Grants {
+            groups: &[group],
+            ..Default::default()
+        },
     )
     .await
     .unwrap();

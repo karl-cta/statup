@@ -4,6 +4,8 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 
+use sqlx::AssertSqlSafe;
+
 use crate::clock;
 use crate::db::DbPool;
 use crate::models::{Channel, ChannelInput, Delivery, Happening, Notification};
@@ -90,19 +92,10 @@ impl NotificationRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    /// Queues `notification` for every destination that receives its part of
-    /// the page. A service coming back is only told where its outage was.
-    /// Returns how many messages were queued.
-    pub async fn enqueue(
-        pool: &DbPool,
-        notification: &Notification,
-        now: DateTime<Utc>,
-    ) -> Result<u64, sqlx::Error> {
-        Self::enqueue_after(pool, notification, now, now).await
-    }
-
     /// Queues a message that happened at `now` and leaves no sooner than
-    /// `send_at`.
+    /// `send_at`, for every destination that receives its part of the page. A
+    /// service coming back is only told where its outage was. Returns how many
+    /// messages were queued.
     pub async fn enqueue_after(
         pool: &DbPool,
         notification: &Notification,
@@ -124,7 +117,7 @@ impl NotificationRepository {
              SELECT c.id, ?, ?, ?, ?, ?, ?, ? FROM notification_channels c \
              WHERE c.{column} = 1{after_outage}"
         );
-        let mut query = sqlx::query(&sql)
+        let mut query = sqlx::query(AssertSqlSafe(sql))
             .bind(notification.happening)
             .bind(notification.event_id)
             .bind(notification.update_id)
@@ -142,13 +135,13 @@ impl NotificationRepository {
     /// come. The ones behind it wait their turn, so each destination receives
     /// its messages in order.
     pub async fn due(pool: &DbPool, now: DateTime<Utc>) -> Result<Vec<Delivery>, sqlx::Error> {
-        sqlx::query_as::<_, Delivery>(&format!(
+        sqlx::query_as::<_, Delivery>(AssertSqlSafe(format!(
             "SELECT {DELIVERY_COLUMNS} FROM notification_deliveries d \
              WHERE d.status = 'pending' AND d.next_attempt_at <= ? \
                AND d.id = (SELECT MIN(p.id) FROM notification_deliveries p \
                            WHERE p.channel_id = d.channel_id AND p.status = 'pending') \
              ORDER BY d.id"
-        ))
+        )))
         .bind(clock::db(now))
         .fetch_all(pool)
         .await
@@ -160,12 +153,12 @@ impl NotificationRepository {
         if head.service_id.is_none() {
             return Ok(Vec::new());
         }
-        sqlx::query_as::<_, Delivery>(&format!(
+        sqlx::query_as::<_, Delivery>(AssertSqlSafe(format!(
             "SELECT {DELIVERY_COLUMNS} FROM notification_deliveries d \
              WHERE d.channel_id = ? AND d.status = 'pending' AND d.happening = ? \
                AND d.created_at = ? AND d.service_id IS NOT NULL AND d.id > ? \
              ORDER BY d.id"
-        ))
+        )))
         .bind(head.channel_id)
         .bind(head.happening)
         .bind(clock::db(head.created_at))
@@ -253,12 +246,12 @@ impl NotificationRepository {
 
     /// The message each destination is trying again, after a failure.
     pub async fn retrying(pool: &DbPool) -> Result<HashMap<i64, Delivery>, sqlx::Error> {
-        let rows = sqlx::query_as::<_, Delivery>(&format!(
+        let rows = sqlx::query_as::<_, Delivery>(AssertSqlSafe(format!(
             "SELECT {DELIVERY_COLUMNS} FROM notification_deliveries d \
              WHERE d.status = 'pending' AND d.attempts > 0 \
                AND d.id = (SELECT MIN(p.id) FROM notification_deliveries p \
                            WHERE p.channel_id = d.channel_id AND p.status = 'pending')"
-        ))
+        )))
         .fetch_all(pool)
         .await?;
         Ok(rows.into_iter().map(|d| (d.channel_id, d)).collect())
@@ -266,10 +259,10 @@ impl NotificationRepository {
 
     /// The last message each destination sent or gave up on.
     pub async fn latest_outcomes(pool: &DbPool) -> Result<HashMap<i64, Delivery>, sqlx::Error> {
-        let rows = sqlx::query_as::<_, Delivery>(&format!(
+        let rows = sqlx::query_as::<_, Delivery>(AssertSqlSafe(format!(
             "SELECT {DELIVERY_COLUMNS} FROM notification_deliveries d \
              WHERE d.id IN ({LATEST_OUTCOMES})"
-        ))
+        )))
         .fetch_all(pool)
         .await?;
         Ok(rows.into_iter().map(|d| (d.channel_id, d)).collect())
@@ -278,10 +271,10 @@ impl NotificationRepository {
     /// Forgets the finished messages queued before `before`, except the last
     /// one of each destination, which its settings show.
     pub async fn purge(pool: &DbPool, before: DateTime<Utc>) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query(&format!(
+        let result = sqlx::query(AssertSqlSafe(format!(
             "DELETE FROM notification_deliveries \
              WHERE status != 'pending' AND created_at < ? AND id NOT IN ({LATEST_OUTCOMES})"
-        ))
+        )))
         .bind(clock::db(before))
         .execute(pool)
         .await?;
@@ -445,7 +438,7 @@ mod tests {
 
         let mut notification = about_event(Happening::Closed, event);
         notification.lifecycle = Some(Lifecycle::Resolved);
-        let count = NotificationRepository::enqueue(&pool, &notification, at(0))
+        let count = NotificationRepository::enqueue_after(&pool, &notification, at(0), at(0))
             .await
             .unwrap();
 
@@ -465,18 +458,20 @@ mod tests {
             .await
             .unwrap();
         let early = channel(&pool, "early", true, false).await;
-        NotificationRepository::enqueue(
+        NotificationRepository::enqueue_after(
             &pool,
             &about_service(Happening::ServiceDown, service.id),
+            at(0),
             at(0),
         )
         .await
         .unwrap();
         channel(&pool, "late", true, false).await;
 
-        NotificationRepository::enqueue(
+        NotificationRepository::enqueue_after(
             &pool,
             &about_service(Happening::ServiceUp, service.id),
+            at(5),
             at(5),
         )
         .await
@@ -499,9 +494,10 @@ mod tests {
         let second = channel(&pool, "second", true, false).await;
         let event = incident(&pool).await;
         for minute in [0, 1] {
-            NotificationRepository::enqueue(
+            NotificationRepository::enqueue_after(
                 &pool,
                 &about_event(Happening::Updated, event),
+                at(minute),
                 at(minute),
             )
             .await
@@ -537,9 +533,14 @@ mod tests {
         let failing = channel(&pool, "failing", true, false).await;
         let fine = channel(&pool, "fine", true, false).await;
         let event = incident(&pool).await;
-        NotificationRepository::enqueue(&pool, &about_event(Happening::Opened, event), at(0))
-            .await
-            .unwrap();
+        NotificationRepository::enqueue_after(
+            &pool,
+            &about_event(Happening::Opened, event),
+            at(0),
+            at(0),
+        )
+        .await
+        .unwrap();
         let heads = NotificationRepository::due(&pool, at(0)).await.unwrap();
         let head = heads.iter().find(|d| d.channel_id == failing).unwrap();
         NotificationRepository::retry_later(&pool, head.id, "status_503", at(1))
@@ -563,9 +564,10 @@ mod tests {
         let alive = channel(&pool, "alive", true, false).await;
         let event = incident(&pool).await;
         for minute in [0, 1, 2] {
-            NotificationRepository::enqueue(
+            NotificationRepository::enqueue_after(
                 &pool,
                 &about_event(Happening::Updated, event),
+                at(minute),
                 at(minute),
             )
             .await
@@ -598,9 +600,10 @@ mod tests {
         let id = channel(&pool, "team", true, false).await;
         let event = incident(&pool).await;
         for minute in [0, 1, 2] {
-            NotificationRepository::enqueue(
+            NotificationRepository::enqueue_after(
                 &pool,
                 &about_event(Happening::Updated, event),
+                at(minute),
                 at(minute),
             )
             .await
@@ -630,9 +633,14 @@ mod tests {
         let pool = test_pool().await;
         channel(&pool, "team", true, false).await;
         let event = incident(&pool).await;
-        NotificationRepository::enqueue(&pool, &about_event(Happening::Opened, event), at(0))
-            .await
-            .unwrap();
+        NotificationRepository::enqueue_after(
+            &pool,
+            &about_event(Happening::Opened, event),
+            at(0),
+            at(0),
+        )
+        .await
+        .unwrap();
 
         EventRepository::delete(&pool, event).await.unwrap();
 
@@ -645,9 +653,10 @@ mod tests {
         let id = channel(&pool, "team", true, false).await;
         let event = incident(&pool).await;
         for minute in [0, 1] {
-            NotificationRepository::enqueue(
+            NotificationRepository::enqueue_after(
                 &pool,
                 &about_event(Happening::Updated, event),
+                at(minute),
                 at(minute),
             )
             .await

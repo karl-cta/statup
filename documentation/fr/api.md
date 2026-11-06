@@ -7,7 +7,7 @@ Avec une clé, un script ou un outil fait ce que fait un éditeur : lire les se
 
 ## Les clés
 
-Dans **Paramètres**, **API**, puis **Gérer les clés** : **Nouvelle clé**, un nom comme `Zabbix`, puis **Créer la clé**. La clé s'affiche une seule fois, masquée : **Afficher** la montre, **Copier** la copie. Statup n'en garde qu'une empreinte : une clé perdue ne peut pas être affichée de nouveau. **Régénérer** donne à la même clé un nouveau secret et arrête l'ancien aussitôt. **Retirer** l'arrête pour de bon.
+Dans **Paramètres**, **API**, puis **Gérer les clés** : **Nouvelle clé**, un nom comme `Zabbix`, puis **Créer la clé**. La clé s'affiche une seule fois, masquée : **Afficher** la montre, **Copier** la copie. Statup n'en garde qu'une empreinte : une clé perdue ne peut pas être affichée de nouveau. **Gérer**, sur la ligne de la clé, propose **Régénérer**, qui donne à la même clé un nouveau secret et arrête l'ancien aussitôt, et **Retirer**, qui l'arrête pour de bon.
 
 Une clé agit comme un éditeur et ne fait rien de l'administration : ni équipe, ni paramètres, ni alertes, ni clés, aucune suppression, aucune modification d'un événement clos. Ce qu'elle écrit est signé de son nom, dans la chronologie de l'événement et dans le [Journal](journal.md). Une clé appartient à l'instance : elle continue de marcher quand l'administrateur qui l'a créée est désactivé, et la page des clés l'indique, **compte désactivé**, pour qu'un administrateur décide.
 
@@ -151,7 +151,7 @@ curl "https://status.example.com/api/v1/events?kind=incident&open=true" \
 
 ### Publier un événement
 
-`POST /api/v1/events` publie aussitôt, avec les mêmes alertes que la page. Il répond 201 avec l'événement.
+`POST /api/v1/events` publie aussitôt, avec les mêmes alertes que la page. Il répond 201 avec l'événement et ses `updates`, comme sa lecture.
 
 ```bash
 curl https://status.example.com/api/v1/events \

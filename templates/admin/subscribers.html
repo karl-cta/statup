@@ -34,25 +34,27 @@
         {% else %}
         <ul class="admin-list">
             {% for line in lines %}
-            <li class="admin-row">
+            <li class="admin-row subscriber-row">
                 <div class="min-w-0">
                     <p class="admin-row-name">{{ line.name }}</p>
-                    <p class="admin-row-sub">{{ line.sub }}</p>
+                    {# One line, and a second only when the last email failed. #}
                     {% match line.last %}
-                    {% when LastSend::Never %}<p class="destination-last">{{ i18n.t("notifications.never") }}</p>
-                    {% when LastSend::Sent with (text) %}<p class="destination-last">{{ text }}</p>
-                    {% when LastSend::Trouble with (tone, text) %}<p class="state destination-state" data-tone="{{ tone }}">{{ text }}</p>
+                    {% when LastSend::Never %}<p class="admin-row-sub">{{ line.sub }}&nbsp;<span aria-hidden="true">·</span> {{ i18n.t("notifications.never") }}</p>
+                    {% when LastSend::Sent with (text) %}<p class="admin-row-sub">{{ line.sub }}&nbsp;<span aria-hidden="true">·</span> {{ text }}</p>
+                    {% when LastSend::Trouble with (tone, text) %}<p class="admin-row-sub">{{ line.sub }}</p>
+                    <p class="state destination-state" data-tone="{{ tone }}">{{ text }}</p>
                     {% endmatch %}
                 </div>
-                <form method="post" action="/admin/notifications/subscribers/{{ line.id }}/remove" data-confirm>
-                    <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
-                    <button type="button" class="text-action text-action-danger" data-confirm-open aria-label="{{ i18n.t("subscribers.remove") }} {{ line.address }}">{{ i18n.t("subscribers.remove") }}</button>
-                    <div class="confirm" role="group" aria-label="{{ i18n.t("subscribers.remove") }} {{ line.address }}" aria-describedby="remove-q-{{ line.id }}" data-confirm-box hidden>
-                        <span id="remove-q-{{ line.id }}" class="confirm-text">{{ i18n.t("common.question_open") }}{{ i18n.t("subscribers.remove") }} <q>{{ line.address }}</q>{{ i18n.t("common.question_mark") }}</span>
-                        <button type="button" class="confirm-cancel" data-confirm-cancel>{{ i18n.t("common.cancel") }}</button>
-                        <button type="submit" class="confirm-go" data-danger>{{ i18n.t("subscribers.remove") }}</button>
-                    </div>
-                </form>
+                <div class="admin-row-actions">
+                    <details class="more-actions member-confirm" data-more-actions>
+                        <summary class="text-action text-action-delete" aria-label="{{ i18n.t("subscribers.remove") }} {{ line.address }}">{{ i18n.t("subscribers.remove") }}</summary>
+                        <form class="more-actions-menu confirm-panel" method="post" action="/admin/notifications/subscribers/{{ line.id }}/remove" aria-label="{{ i18n.t("subscribers.remove") }} {{ line.address }}">
+                            <input type="hidden" name="csrf_token" value="{{ frame.csrf_token }}">
+                            <p class="confirm-panel-text">{{ i18n.t("common.question_open") }}{{ i18n.t("subscribers.remove") }} <q>{{ line.address }}</q>{{ i18n.t("common.question_mark") }}</p>
+                            <button type="submit" class="btn btn-danger confirm-panel-go">{{ i18n.t("subscribers.remove") }}</button>
+                        </form>
+                    </details>
+                </div>
             </li>
             {% endfor %}
         </ul>

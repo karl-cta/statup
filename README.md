@@ -8,10 +8,10 @@
 ### Every team in the loop, before anyone asks.
 
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/karl-cta/statup?label=release)](https://github.com/karl-cta/statup/releases/latest)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
-[![Status: pre-v1](https://img.shields.io/badge/status-pre--v1-yellow.svg)](#status)
 
-[Live demo](https://demo.statup.dev) · [Website](https://statup.dev) · [Quick start](#quick-start) · [Documentation](https://statup.dev/docs/)
+[Live demo](https://demo.statup.dev) · [Website](https://statup.dev) · [Install](#install) · [Documentation](https://statup.dev/docs/)
 
 </div>
 
@@ -19,55 +19,37 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/status-page-dark.png">
-  <img src=".github/assets/status-page.png" alt="The status page: a banner saying one service is disrupted, with the incident and its latest update, then the services with thirty days of availability, the recent activity and the maintenance schedule" width="1280">
+  <img src=".github/assets/status-page.png" alt="The Statup status page: a banner saying one service is disrupted, with the incident and its latest update, then the services with their recent days, the recent activity and the maintenance schedule" width="1280">
 </picture>
 
 ## What is Statup?
 
 > *"Is the internet down?"* *"Is it just me, or is Outlook broken?"*
 
-Every outage starts with the same questions, by phone, by chat and at the IT office door. Statup answers them before anyone asks.
-
-It is a status page you host yourself. Whoever runs a service posts, once, what is broken, what is planned and what has changed. Everyone else reads it in plain words, from a desk or a phone, without an account. Monitoring tools are made for the people who fix things; Statup is made for everyone else.
-
-**What it is for**
-
-- **An outage**: the VPN is down. The whole company sees it, sees that IT is on it, and sees when it is back.
-- **Planned work**: the accounting software upgrade is announced a week ahead, then starts and ends on its own on Saturday.
-- **News**: a new version of the payroll software, the printer that moved to the second floor, the VPN client everyone must install.
-- **Beyond IT**: a small business keeping its clients informed when its service is down.
-
-**[Try the live demo](https://demo.statup.dev)**, and sign in with `demo@statup.dev` / `StatupDemo#1` to publish as an editor. It starts over every hour.
+Statup answers before anyone asks. It is a status page you host yourself: whoever runs a service posts, once, what is broken, what is planned and what has changed, and everyone else reads it in plain words, from a desk or a phone. Monitoring tools are made for the people who fix things; Statup is made for everyone else.
 
 ## Features
 
 - **The answer first**: a banner says what is wrong, what is affected and since when, above every service and its last 90 days.
-- **Runs on its own**: a service follows the incident that names it, and planned work starts and ends at the times announced.
-- **Notices first**: it checks on its own, every minute, that a site or a server answers, or listens to the monitoring you already run; an outage shows after three minutes without an answer, or the delay set for that service.
-- **Works with your monitoring**: Prometheus, Grafana, Zabbix or Uptime Kuma report an outage, and Statup announces it; a script publishes through the HTTP API, and an Uptime Kuma status page imports in one go.
-- **Quick to publish**: dated updates, reusable templates and a short report once an incident is resolved; an outage spotted by the checks is declared in one click.
-- **Tells people where they are**: each incident, maintenance and announcement posted to Microsoft Teams, Slack, Google Chat, Discord or Mattermost, to phones through ntfy, by email, or to any tool through a webhook, in the language of each channel.
-- **Easy to follow**: search and filters, a side panel to read without leaving the list, an Atom feed for feed readers, and an email at each update for those who subscribe.
-- **A record of everything**: a Journal for administrators shows who changed what, sign-ins, outages with their reason and messages that did not leave, kept 90 days and exported as a CSV file.
-- **Your page, your way**: public or members only, your name and logo, blocks you arrange on the page; French, English, German and Spanish, light and dark, accessible.
+- **Notices on its own**: it checks every minute that a site or a server answers, or takes the outages your Prometheus, Grafana, Zabbix or Uptime Kuma already see.
+- **Quick to publish**: incidents, planned maintenance and news, with dated updates, templates and a short report; planned work starts and ends on its own.
+- **Reaches people where they are**: Microsoft Teams, Slack, Google Chat, Discord, Mattermost, ntfy, email and webhooks, plus email subscriptions, an Atom feed and a widget for your intranet.
+- **For the right eyes**: public or members only, with services kept to the groups that use them.
+- **Your page, your way**: your name and logo, twelve colours and four ambiances in light and dark, in French, English, German and Spanish.
+- **Light and safe**: one Rust binary and one SQLite file, backups built in, an HTTP API, a Journal of who did what, Argon2id passwords and a strict Content Security Policy.
 
-**Light, private, safe by default.**
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/themes-dark.png">
+    <img src=".github/assets/themes.png" alt="The header and the banner of the status page cut in four slices, each in another theme: a colour for the header line and an ambiance for the background" width="640">
+  </picture>
+  <br>
+  <sub>The same page in four of its themes.</sub>
+</p>
 
-- **Light**: one Rust binary and one SQLite file, in a Docker image of about 11 MB. No Redis, no Postgres.
-- **Private**: fonts and scripts come from your instance. The server only reaches the addresses you ask it to check or to notify, and GitHub once a day to look for a new version (`UPDATE_CHECK=false` turns that off).
-- **Safe**: passwords hashed with Argon2id, a CSRF token on every form, a strict Content Security Policy on every page.
+## Install
 
-## How it works
-
-- **Services** are the tools people rely on: mail, the VPN, the ERP, the phones. Each shows one state: operational, degraded, outage or maintenance. Statup can also check on its own that a service answers.
-- **Events** are what gets published. An **incident** when something breaks, a **maintenance** when work is planned, an **announcement** for news. An incident sets the state of the services it names until it reaches Monitoring, and a maintenance while it is under way, unless it announces no downtime.
-- **People** read the page, with or without an account. **Editors** publish events and set service states; **administrators** also run the settings, the team and the layout of the page.
-
-## Quick start
-
-You need Docker with Docker Compose 2.24 or newer.
-
-**1. Start Statup**
+**Docker**, with Docker Compose 2.24 or newer:
 
 ```bash
 mkdir statup && cd statup
@@ -75,54 +57,32 @@ curl -O https://raw.githubusercontent.com/karl-cta/statup/main/docker-compose.ym
 docker compose up -d
 ```
 
-Docker downloads the ready image, for x86-64 and ARM servers alike, and starts it in seconds.
+**Linux**, as a systemd service:
 
-Without Docker, one command installs Statup as a service on [Linux](https://statup.dev/docs/install-linux/) or [Windows Server](https://statup.dev/docs/install-windows/).
+```bash
+curl -fsSL https://github.com/karl-cta/statup/releases/latest/download/install.sh | sudo sh
+```
 
-**2. Open it in your browser**
+**Windows Server**, as a Windows service, in PowerShell opened as an administrator:
 
-At http://localhost:3000, or your server's address on port 3000, an empty instance walks you through four steps: your administrator account, the page's name, logo and audience, the services to follow, then the address to share.
+```powershell
+irm https://github.com/karl-cta/statup/releases/latest/download/install.ps1 | iex
+```
 
-**3. Invite your team**
+**NixOS**: add the flake and enable its module, see [NixOS](https://statup.dev/docs/nixos/).
 
-Add them from the **Team** page: they open the same address. For HTTPS and a name of your own, such as `status.example.com`, put Statup behind a reverse proxy.
+Then open port 3000 of your server in a browser: the first screen creates the administrator account and walks you through the page. The [documentation](https://statup.dev/docs/) has every setting, HTTPS behind a reverse proxy, backups and upgrades.
 
-> [!TIP]
-> The [documentation](https://statup.dev/docs/) has the rest: every setting, installing without Docker, a reverse proxy with nginx, Caddy or IIS, backups, upgrades and a forgotten password.
+## Live demo
 
-## Roadmap
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/roadmap-dark.png">
-  <img src=".github/assets/roadmap.png" alt="Roadmap: shipped are automatic monitoring, notifications, four languages, password reset and clearer incident updates; step 1, the activity log, shipped in 0.6.0; step 2, groups and visibility, shipped in 0.7.0; step 3, email subscriptions, shipped in 0.8.0; step 4, API and monitoring tools, shipped in 0.9.0; steps 5 and 6, recurring maintenance and themes, shipped in 0.10.0; step 7, backup and restore, shipped in 0.11.0; step 8, the status widget, shipped in 0.12.0; coming next, step 9 listed below, then the stable 1.0 release" width="1296">
-</picture>
-
-Planned, in this order, without dates:
-
-1. ~~**Activity log**: every action, check and sign-in, for administrators to look back on.~~ Shipped in 0.6.0.
-2. ~~**Groups and visibility**: choose which services and events each group of users sees.~~ Shipped in 0.7.0, with folders of services.
-3. ~~**Email subscriptions**: visitors get each update in their inbox.~~ Shipped in 0.8.0.
-4. ~~**API and monitoring tools**: Zabbix, Grafana or a script open and close incidents by themselves.~~ Shipped in 0.9.0, with an import from Uptime Kuma.
-5. ~~**Recurring maintenance**: announce a slot once, and add any maintenance to your calendar.~~ Shipped in 0.10.0.
-6. ~~**Themes** and an accent colour.~~ Shipped in 0.10.0, with twelve colours and four ambiances.
-7. ~~**Backup and restore**: one command each, without stopping Statup.~~ Shipped in 0.11.0, with installers for Linux and Windows Server.
-8. ~~**Status widget** for your intranet or wiki.~~ Shipped in 0.12.0.
-9. **Hardening**: full testing, a security review and safe upgrades from every version, before 1.0.
-
-Ideas and requests are welcome in the [issues](https://github.com/karl-cta/statup/issues).
-
-## Status
-
-Statup is **pre-v1**: usable and self-hostable, with the interface being finished before the first stable release. Expect changes between versions and back up before upgrading. Every change is in the [changelog](.github/CHANGELOG.md).
-
-Statup is not related to Statping, a Go project first published under the name Statup.
+[demo.statup.dev](https://demo.statup.dev): sign in with `demo@statup.dev` / `StatupDemo#1` to publish as an editor. It starts over every hour.
 
 ## Contributing
 
-Built with Rust, Axum, SQLite, Askama templates and htmx. The [contributing guide](.github/CONTRIBUTING.md) explains how to build Statup, where things are in the code, and the checks a change must pass.
+Built with Rust, Axum, SQLite, Askama and htmx. The [contributing guide](.github/CONTRIBUTING.md) explains how to build Statup and the checks a change must pass. Every change is in the [changelog](.github/CHANGELOG.md).
 
 ## License
 
-Statup is licensed under the [GNU Affero General Public License v3.0 or later](LICENSE). If you run a modified version for others over a network, offer them its source code.
+Statup is licensed under the [GNU Affero General Public License v3.0 or later](LICENSE). If you run a modified version for others over a network, offer them its source code. It ships htmx, the Hanken Grotesk font, icons from Heroicons and the base styles of Tailwind CSS, under their own licenses: see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-It ships htmx, the Hanken Grotesk font, icons from Heroicons and the base styles of Tailwind CSS, under their own licenses: see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Statup is not related to Statping, a Go project first published under the name Statup.

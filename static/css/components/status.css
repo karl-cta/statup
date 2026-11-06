@@ -821,7 +821,8 @@
         left: var(--tt-x, 0);
     }
 
-    .svc-bars .bar:hover::after {
+    .svc-bars .bar:hover::after,
+    .svc-bars .bar:focus-visible::after {
         opacity: 1;
     }
 
@@ -1135,7 +1136,7 @@
         }
     }
 
-    /* Maintenances card. */
+    /* The banner link and the bars hold still. */
     @media (prefers-reduced-motion: reduce) {
         .hero-link svg,
         .bar,

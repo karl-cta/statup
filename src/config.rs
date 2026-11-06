@@ -41,21 +41,15 @@ const BACKUP_FOLDER: &str = "backups";
 /// The file chosen with `--env`, read instead of `.env`.
 static ENV_FILE: OnceLock<PathBuf> = OnceLock::new();
 
-/// Application configuration.
 // Each flag is a setting of its own, read from its own variable.
 #[allow(clippy::struct_excessive_bools)]
 pub struct Config {
-    /// `SQLite` database path.
     pub database_url: String,
-    /// Server listen address.
     pub host: IpAddr,
-    /// Server listen port.
     pub port: u16,
     /// Lifetime of a session that nobody signed in with (the sign-in form).
     pub session_expiry: Duration,
-    /// Logging level filter.
     pub log_level: LevelFilter,
-    /// Maximum database connections in the pool.
     pub db_max_connections: u32,
     /// Initial admin email (first run only).
     pub admin_email: Option<String>,
@@ -183,7 +177,6 @@ impl Config {
         Ok(())
     }
 
-    /// Return the full socket address for binding.
     pub fn bind_addr(&self) -> String {
         format!("{}:{}", self.host, self.port)
     }
@@ -228,12 +221,31 @@ pub fn use_env_file(path: PathBuf) {
 /// exists but cannot be read or parsed.
 pub fn load_dotenv() -> Result<(), ConfigError> {
     if let Some(path) = ENV_FILE.get() {
-        return dotenvy::from_path(path)
-            .map_err(|e| invalid("--env", &format!("{}: {e}", path.display())));
+        return dotenvy::from_path(path).map_err(|e| {
+            invalid(
+                "--env",
+                &format!("{}: {}", path.display(), dotenv_error(&e)),
+            )
+        });
     }
     match dotenvy::from_path(".env") {
-        Err(e) if !e.not_found() => Err(invalid(".env", &e.to_string())),
+        Err(e) if !e.not_found() => Err(invalid(".env", &dotenv_error(&e))),
         _ => Ok(()),
+    }
+}
+
+/// What went wrong in a settings file, without the line itself: an
+/// unclosed quote would otherwise print its value, a password included.
+fn dotenv_error(error: &dotenvy::Error) -> String {
+    let dotenvy::Error::LineParse(line, _) = error else {
+        return error.to_string();
+    };
+    let key = line.split_once('=').map_or("", |(key, _)| key.trim());
+    let key = key.strip_prefix("export ").unwrap_or(key).trim();
+    if !key.is_empty() && key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+        format!("cannot read the value of {key}")
+    } else {
+        "a line is not written KEY=value".to_string()
     }
 }
 
@@ -362,7 +374,6 @@ pub fn init_logging(level: LevelFilter, file: Option<LogFile>) -> JournalInbox {
     inbox
 }
 
-/// Parse a log level string into a `LevelFilter`.
 fn parse_log_level(s: &str) -> Result<LevelFilter, ConfigError> {
     match s.trim().to_lowercase().as_str() {
         "trace" => Ok(LevelFilter::TRACE),
@@ -381,6 +392,18 @@ fn parse_log_level(s: &str) -> Result<LevelFilter, ConfigError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_broken_settings_line_is_named_by_its_key_not_shown() {
+        let unclosed = dotenvy::Error::LineParse("SMTP_PASSWORD=\"s3cret".into(), 14);
+        let shapeless = dotenvy::Error::LineParse("s3cret".into(), 0);
+
+        assert_eq!(
+            dotenv_error(&unclosed),
+            "cannot read the value of SMTP_PASSWORD"
+        );
+        assert_eq!(dotenv_error(&shapeless), "a line is not written KEY=value");
+    }
 
     #[test]
     fn session_cookie_is_secure_only_behind_an_https_address() {

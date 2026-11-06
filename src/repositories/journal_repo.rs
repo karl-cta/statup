@@ -68,7 +68,7 @@ impl JournalRepository {
         filters: &JournalFilters,
     ) -> Result<Vec<JournalEntry>, sqlx::Error> {
         let mut query = QueryBuilder::<Sqlite>::new(
-            "SELECT id, kind, actor_name, subject, detail, ip, created_at \
+            "SELECT kind, actor_name, subject, detail, ip, created_at \
              FROM journal_entries",
         );
         push_filters(&mut query, filters);
@@ -99,7 +99,7 @@ impl JournalRepository {
     }
 }
 
-fn push_filters(query: &mut QueryBuilder<'_, Sqlite>, filters: &JournalFilters) {
+fn push_filters(query: &mut QueryBuilder<Sqlite>, filters: &JournalFilters) {
     query.push(" WHERE 1 = 1");
     if let Some(category) = filters.category {
         query.push(" AND category = ").push_bind(category);

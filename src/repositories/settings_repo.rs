@@ -1,11 +1,8 @@
-//! Repository for the `settings` key/value table.
-
 use crate::db::DbPool;
 
 pub struct SettingsRepository;
 
 impl SettingsRepository {
-    /// Get a setting value by key. Returns `None` if the key does not exist.
     pub async fn get(pool: &DbPool, key: &str) -> Result<Option<String>, sqlx::Error> {
         sqlx::query_scalar("SELECT value FROM settings WHERE key = ?")
             .bind(key)
@@ -13,7 +10,6 @@ impl SettingsRepository {
             .await
     }
 
-    /// Insert or update a setting.
     pub async fn set(pool: &DbPool, key: &str, value: &str) -> Result<(), sqlx::Error> {
         sqlx::query(
             "INSERT INTO settings (key, value) VALUES (?, ?) \

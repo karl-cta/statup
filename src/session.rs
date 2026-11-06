@@ -10,12 +10,10 @@ use tower_sessions::cookie::SameSite;
 use tower_sessions::session::{Id, Record};
 use tower_sessions::session_store::{self, SessionStore};
 use tower_sessions::{Expiry, Session, SessionManagerLayer};
-use tower_sessions_sqlx_store::SqliteStore;
 
 use crate::db::DbPool;
 use crate::error::AppError;
 
-/// Session key for the authenticated user ID.
 pub const USER_ID_KEY: &str = "user_id";
 
 /// Session key for the stamp of the password the session was opened with.
@@ -36,11 +34,6 @@ const REFRESH_INTERVAL_SECS: i64 = 60 * 60;
 
 const CLEANUP_PERIOD: std::time::Duration = std::time::Duration::from_secs(60);
 
-/// Reads a session value.
-///
-/// # Errors
-///
-/// Returns `AppError::Internal` when the store cannot load the session.
 pub async fn read_value<T: DeserializeOwned>(
     session: &Session,
     key: &str,
@@ -161,50 +154,60 @@ fn now_unix() -> i64 {
     OffsetDateTime::now_utc().unix_timestamp()
 }
 
-/// The `tower_sessions` table, with a creation that waits for the write lock
-/// like any other statement instead of failing when a writer holds it.
+/// The `tower_sessions` table, in the layout and record encoding of the
+/// `tower-sessions-sqlx-store` crate it once came from, so the sessions of an
+/// instance survive the upgrade.
 #[derive(Clone, Debug)]
 pub struct SqliteSessionStore {
-    inner: SqliteStore,
     pool: DbPool,
 }
 
-/// Create the session store backed by `SQLite`.
-///
 /// Creates the `tower_sessions` table and its expiry index when absent.
 ///
 /// # Errors
 ///
 /// Returns `sqlx::Error` if the schema cannot be created.
 pub async fn create_session_store(pool: &DbPool) -> Result<SqliteSessionStore, sqlx::Error> {
-    let inner = SqliteStore::new(pool.clone());
-    inner.migrate().await?;
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS tower_sessions \
+         (id TEXT PRIMARY KEY NOT NULL, data BLOB NOT NULL, expiry_date INTEGER NOT NULL)",
+    )
+    .execute(pool)
+    .await?;
     sqlx::query(
         "CREATE INDEX IF NOT EXISTS idx_tower_sessions_expiry ON tower_sessions (expiry_date)",
     )
     .execute(pool)
     .await?;
-    Ok(SqliteSessionStore {
-        inner,
-        pool: pool.clone(),
-    })
+    Ok(SqliteSessionStore { pool: pool.clone() })
+}
+
+fn encode(record: &Record) -> session_store::Result<Vec<u8>> {
+    rmp_serde::to_vec(record).map_err(|e| session_store::Error::Encode(e.to_string()))
+}
+
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "shaped for map_err, which hands the error over"
+)]
+fn backend(e: sqlx::Error) -> session_store::Error {
+    session_store::Error::Backend(e.to_string())
 }
 
 impl SqliteSessionStore {
-    /// Inserts the record unless its id is taken, in a single statement.
+    /// Inserts the record unless its id is taken, in a single statement that
+    /// waits for the write lock like any other instead of failing on it.
     async fn insert_new(&self, record: &Record) -> session_store::Result<bool> {
-        let data =
-            rmp_serde::to_vec(record).map_err(|e| session_store::Error::Encode(e.to_string()))?;
         let result = sqlx::query(
             "INSERT INTO tower_sessions (id, data, expiry_date) VALUES (?, ?, ?) \
              ON CONFLICT (id) DO NOTHING",
         )
         .bind(record.id.to_string())
-        .bind(data)
+        .bind(encode(record)?)
         .bind(record.expiry_date)
         .execute(&self.pool)
         .await
-        .map_err(|e| session_store::Error::Backend(e.to_string()))?;
+        .map_err(backend)?;
         Ok(result.rows_affected() == 1)
     }
 }
@@ -233,15 +236,40 @@ impl SessionStore for SqliteSessionStore {
     }
 
     async fn save(&self, record: &Record) -> session_store::Result<()> {
-        self.inner.save(record).await
+        sqlx::query(
+            "INSERT INTO tower_sessions (id, data, expiry_date) VALUES (?, ?, ?) \
+             ON CONFLICT (id) DO UPDATE SET data = excluded.data, expiry_date = excluded.expiry_date",
+        )
+        .bind(record.id.to_string())
+        .bind(encode(record)?)
+        .bind(record.expiry_date)
+        .execute(&self.pool)
+        .await
+        .map_err(backend)?;
+        Ok(())
     }
 
     async fn load(&self, id: &Id) -> session_store::Result<Option<Record>> {
-        self.inner.load(id).await
+        let data: Option<Vec<u8>> =
+            sqlx::query_scalar("SELECT data FROM tower_sessions WHERE id = ? AND expiry_date > ?")
+                .bind(id.to_string())
+                .bind(OffsetDateTime::now_utc())
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(backend)?;
+        data.map(|bytes| {
+            rmp_serde::from_slice(&bytes).map_err(|e| session_store::Error::Decode(e.to_string()))
+        })
+        .transpose()
     }
 
     async fn delete(&self, id: &Id) -> session_store::Result<()> {
-        self.inner.delete(id).await
+        sqlx::query("DELETE FROM tower_sessions WHERE id = ?")
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await
+            .map_err(backend)?;
+        Ok(())
     }
 }
 
@@ -320,6 +348,58 @@ mod tests {
 
         assert_ne!(first.id, second.id);
         assert!(store.load(&second.id).await.unwrap().is_some());
+    }
+
+    #[tokio::test]
+    async fn a_saved_session_is_replaced_in_place_and_a_deleted_one_is_gone() {
+        let pool = test_pool().await;
+        let store = create_session_store(&pool).await.unwrap();
+        let mut session = record(OffsetDateTime::now_utc() + Duration::hours(1));
+        store.create(&mut session).await.unwrap();
+
+        session
+            .data
+            .insert(USER_ID_KEY.to_string(), serde_json::json!(7));
+        store.save(&session).await.unwrap();
+        let loaded = store.load(&session.id).await.unwrap().unwrap();
+        assert_eq!(loaded.data[USER_ID_KEY], serde_json::json!(7));
+
+        session.expiry_date = OffsetDateTime::now_utc() - Duration::hours(1);
+        store.save(&session).await.unwrap();
+        assert!(store.load(&session.id).await.unwrap().is_none());
+
+        store.delete(&session.id).await.unwrap();
+        let rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tower_sessions")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(rows, 0);
+    }
+
+    /// A record as encoded by tower-sessions 0.14, which Statup used up to
+    /// 0.12.0: a person signed in before an upgrade stays signed in.
+    #[tokio::test]
+    async fn a_session_saved_by_an_earlier_release_still_loads() {
+        const SAVED: &str =
+            "93c4100123456789abcdef0123456789abcdef81a7757365725f69640799cd08340100000000000000";
+        let bytes: Vec<u8> = (0..SAVED.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&SAVED[i..i + 2], 16).unwrap())
+            .collect();
+        let pool = test_pool().await;
+        let store = create_session_store(&pool).await.unwrap();
+        let id = Id(0x0123_4567_89ab_cdef_0123_4567_89ab_cdef);
+        sqlx::query("INSERT INTO tower_sessions (id, data, expiry_date) VALUES (?, ?, ?)")
+            .bind(id.to_string())
+            .bind(bytes)
+            .bind(OffsetDateTime::from_unix_timestamp(4_102_444_800).unwrap())
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let loaded = store.load(&id).await.unwrap().unwrap();
+        assert_eq!(loaded.id, id);
+        assert_eq!(loaded.data[USER_ID_KEY], serde_json::json!(7));
     }
 
     #[test]

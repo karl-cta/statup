@@ -45,7 +45,7 @@ test("an admin makes a key, reveals and copies it, then withdraws it", async ({ 
     const row = page.getByRole("listitem").filter({ hasText: name });
     await expect(row.getByText(`${secret.slice(0, 8)}…`)).toBeVisible();
 
-    await row.getByLabel(`Retirer ${name}`).click();
+    await row.getByLabel(`Gérer ${name}`).click();
     await expect(row.getByText("Les outils qui l'utilisent perdent l'accès.")).toBeVisible();
     await row.getByRole("button", { name: "Retirer", exact: true }).click();
     await expect(page.getByText("Clé retirée.")).toBeVisible();

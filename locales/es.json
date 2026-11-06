@@ -245,6 +245,7 @@
   "events.back_to_event": "Volver al evento",
   "events.details_label": "Detalle del evento",
   "events.drawer_error": "No se pudo cargar el detalle.",
+  "events.update_published": "Actualización publicada.",
   "events.open_full_page": "Abrir la página",
   "events.published_notice": "Evento publicado.",
   "events.open_for": "abierto desde hace {duration}",

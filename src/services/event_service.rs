@@ -1,6 +1,7 @@
 //! Event rules: creation, edits, updates, state changes and the maintenance
 //! schedule.
 
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
@@ -482,10 +483,18 @@ pub fn sanitize_markdown(raw: &str) -> String {
     let parser = Parser::new_ext(raw, Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TABLES);
     let mut rendered = String::new();
     html::push_html(&mut rendered, parser);
-    ammonia::Builder::default()
-        .rm_tags(&["img"])
-        .clean(&rendered)
-        .to_string()
+    clean_update(&rendered)
+}
+
+/// An update as stored, already HTML, cleaned again as it is drawn: a fix
+/// in the cleaner then reaches the updates written before it.
+pub fn clean_update(html: &str) -> String {
+    static CLEANER: LazyLock<ammonia::Builder<'static>> = LazyLock::new(|| {
+        let mut cleaner = ammonia::Builder::default();
+        cleaner.rm_tags(&["img"]);
+        cleaner
+    });
+    CLEANER.clean(html).to_string()
 }
 
 #[cfg(test)]
@@ -509,9 +518,7 @@ mod tests {
             started_at: None,
             ended_at: None,
             restored_at: None,
-            author_id: 1,
             previous_lifecycle: None,
-            keeps_services_up: false,
             follows_event_id: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -533,8 +540,6 @@ mod tests {
             last_seen_at: None,
             preferred_locale: None,
             must_change_password: false,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
         }
     }
 
@@ -675,6 +680,14 @@ mod tests {
         assert!(!result.contains("alert"));
         assert!(!result.contains("<img"));
         assert!(!result.contains("class="));
+    }
+
+    #[test]
+    fn a_stored_update_is_cleaned_again_as_it_is_drawn() {
+        let stored = "<p>Fixed</p><script>alert(1)</script><img src=\"https://x.test/a.png\">";
+
+        assert_eq!(clean_update(stored), "<p>Fixed</p>");
+        assert_eq!(clean_update("<p>Fixed</p>"), "<p>Fixed</p>");
     }
 
     #[test]

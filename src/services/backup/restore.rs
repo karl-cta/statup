@@ -2,6 +2,7 @@
 
 use std::path::Path;
 
+use sqlx::AssertSqlSafe;
 use sqlx::{Connection, SqliteConnection};
 
 use super::{
@@ -81,18 +82,19 @@ pub async fn restore_backup(
 /// drops the two backup tables so that the copy is a plain database.
 async fn take_files(staged: &Path) -> Result<Vec<(String, Vec<u8>)>, RestoreError> {
     let mut copy = open_file(staged, true).await?;
-    let files: Vec<(String, Vec<u8>)> =
-        sqlx::query_as(&format!("SELECT path, content FROM {FILES_TABLE}"))
-            .fetch_all(&mut copy)
-            .await?;
+    let files: Vec<(String, Vec<u8>)> = sqlx::query_as(AssertSqlSafe(format!(
+        "SELECT path, content FROM {FILES_TABLE}"
+    )))
+    .fetch_all(&mut copy)
+    .await?;
     if let Some((path, _)) = files.iter().find(|(path, _)| !is_upload_path(path)) {
         return Err(RestoreError::UnexpectedFile(path.clone()));
     }
     forget_sessions(&mut copy).await?;
-    sqlx::query(&format!("DROP TABLE {FILES_TABLE}"))
+    sqlx::query(AssertSqlSafe(format!("DROP TABLE {FILES_TABLE}")))
         .execute(&mut copy)
         .await?;
-    sqlx::query(&format!("DROP TABLE {INFO_TABLE}"))
+    sqlx::query(AssertSqlSafe(format!("DROP TABLE {INFO_TABLE}")))
         .execute(&mut copy)
         .await?;
     copy.close().await?;
@@ -202,7 +204,10 @@ mod tests {
     where
         T: Send + Unpin + for<'r> sqlx::Decode<'r, sqlx::Sqlite> + sqlx::Type<sqlx::Sqlite>,
     {
-        sqlx::query_scalar(sql).fetch_one(pool).await.unwrap()
+        sqlx::query_scalar(AssertSqlSafe(sql.to_owned()))
+            .fetch_one(pool)
+            .await
+            .unwrap()
     }
 
     /// A backup of a database holding `name`'s data, with one icon.
@@ -383,7 +388,10 @@ mod tests {
     async fn crafted(scratch: &Scratch, statement: &str) -> PathBuf {
         let backup = backup_of(scratch, "acme").await;
         let mut file = open_file(&backup, true).await.unwrap();
-        sqlx::query(statement).execute(&mut file).await.unwrap();
+        sqlx::query(AssertSqlSafe(statement.to_owned()))
+            .execute(&mut file)
+            .await
+            .unwrap();
         file.close().await.unwrap();
         backup
     }

@@ -11,14 +11,11 @@ use crate::db::DbPool;
 use crate::middleware::client_ip::ClientIpSource;
 use crate::services::{LastChecks, LoginRateLimiter, Notifier, UpdateStatus};
 
-/// Application state shared across all request handlers.
 #[derive(Clone)]
 pub struct AppState {
-    /// Database connection pool.
     pub pool: DbPool,
     /// Failed sign-in attempts per client address.
     pub login_limiter: Arc<LoginRateLimiter>,
-    /// Directory for user-uploaded files.
     pub upload_dir: String,
     /// Directory the backups are written to and listed from.
     pub backup_dir: PathBuf,
@@ -40,7 +37,6 @@ pub struct AppState {
 }
 
 impl AppState {
-    /// Returns the current public mode setting.
     pub fn is_public_mode(&self) -> bool {
         self.public_mode.load(Ordering::Relaxed)
     }

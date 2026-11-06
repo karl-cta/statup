@@ -14,7 +14,6 @@ use crate::middleware::OptionalUser;
 use crate::repositories::UserRepository;
 use crate::state::AppState;
 
-/// Cookie max-age, one year in seconds.
 const COOKIE_MAX_AGE: u32 = 60 * 60 * 24 * 365;
 
 #[derive(Deserialize)]
@@ -97,7 +96,14 @@ fn canonical_page(path: &str) -> String {
         return path.to_string();
     }
     let page = match segments.as_slice() {
-        ["admin", "users", ..] => "/admin/users",
+        ["admin", "groups", id, action, ..] if is_id(id) && *action != "delete" => {
+            return format!("/admin/groups/{id}");
+        }
+        ["admin", "users" | "groups", ..] => "/admin/users",
+        ["admin", "api-keys", ..] => "/admin/api-keys",
+        ["admin", "embed", ..] => "/admin/embed",
+        ["admin", "journal", ..] => "/admin/journal",
+        ["admin", "backups", ..] => "/admin/backups",
         ["admin", "settings", ..] => "/admin/settings",
         ["admin", "notifications", "subscribers", ..] => "/admin/notifications/subscribers",
         ["admin", "notifications", ..] => "/admin/notifications",
@@ -108,7 +114,12 @@ fn canonical_page(path: &str) -> String {
             return format!("/events/{id}");
         }
         ["events", ..] => "/events",
+        ["services", "folders", id, action, ..] if is_id(id) && *action != "delete" => {
+            return format!("/services/folders/{id}");
+        }
+        ["services", "import", ..] => "/services/import",
         ["services", ..] => "/services",
+        ["notices", ..] => "/notices",
         ["subscribe", ..] => "/subscribe",
         ["logout"] => "/login",
         _ => "/",
@@ -121,14 +132,22 @@ fn is_page(segments: &[&str]) -> bool {
     match segments {
         [
             "" | "events" | "services" | "icons" | "subscribe" | "unsubscribe" | "login"
-            | "register" | "profile",
+            | "register" | "restore" | "profile" | "notices",
         ]
         | ["events" | "services" | "password", "new"]
-        | ["admin", "settings" | "users" | "notifications"]
+        | ["password", "forgot" | "reset"]
+        | ["services", "import"]
+        | [
+            "admin",
+            "settings" | "users" | "notifications" | "api-keys" | "embed" | "journal" | "backups",
+        ]
         | ["admin", "notifications", "subscribers"]
         | ["subscribe", "confirm"]
         | ["setup", "page" | "services" | "done"] => true,
-        ["events", id] | ["events" | "services", id, "edit"] => is_id(id),
+        ["events", id]
+        | ["events" | "services", id, "edit"]
+        | ["admin", "groups", id]
+        | ["services", "folders", id] => is_id(id),
         _ => false,
     }
 }
@@ -220,8 +239,49 @@ mod tests {
             "/profile",
             "/login",
             "/register",
+            "/admin/api-keys",
+            "/admin/embed",
+            "/admin/journal",
+            "/admin/backups",
+            "/admin/groups/3",
+            "/services/folders/4",
+            "/services/import",
+            "/notices",
+            "/password/forgot",
+            "/password/reset",
+            "/restore",
         ] {
             assert_eq!(canonical_page(path), path);
+        }
+    }
+
+    #[test]
+    fn the_reset_link_keeps_its_token_across_a_language_change() {
+        let page = same_site_page(
+            "https://status.example.com/password/reset?token=7.abc",
+            "status.example.com",
+        );
+        assert_eq!(page.as_deref(), Some("/password/reset?token=7.abc"));
+    }
+
+    #[test]
+    fn the_actions_of_the_later_pages_lead_back_to_them() {
+        let cases = [
+            ("/admin/api-keys/2/revoke", "/admin/api-keys"),
+            ("/admin/embed/link", "/admin/embed"),
+            ("/admin/journal/settings", "/admin/journal"),
+            ("/admin/backups/schedule", "/admin/backups"),
+            ("/admin/groups/new", "/admin/users"),
+            ("/admin/groups/3/members", "/admin/groups/3"),
+            ("/admin/groups/3/delete", "/admin/users"),
+            ("/services/folders/4/settings", "/services/folders/4"),
+            ("/services/folders/4/delete", "/services"),
+            ("/services/folders/order", "/services"),
+            ("/services/import/read", "/services/import"),
+            ("/notices/seen", "/notices"),
+        ];
+        for (path, page) in cases {
+            assert_eq!(canonical_page(path), page, "{path}");
         }
     }
 

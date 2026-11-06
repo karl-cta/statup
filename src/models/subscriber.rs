@@ -36,8 +36,6 @@ pub struct Subscriber {
     pub id: i64,
     pub user_id: Option<i64>,
     pub email: Option<String>,
-    /// The language of the page when they subscribed.
-    pub locale: String,
     #[sqlx(flatten)]
     pub choices: Choices,
     pub unsubscribe_secret: String,

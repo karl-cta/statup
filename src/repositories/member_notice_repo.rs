@@ -3,11 +3,13 @@
 
 use chrono::{DateTime, Utc};
 
+use sqlx::AssertSqlSafe;
+
 use crate::clock;
 use crate::db::DbPool;
 use crate::models::{MemberNotice, NoticeKind, NoticeSubject, Role};
 
-const NOTICE_COLUMNS: &str = "n.id, n.kind, n.event_id, n.service_id, n.channel_id, n.due_at, \
+const NOTICE_COLUMNS: &str = "n.kind, n.event_id, n.service_id, n.due_at, \
      n.others, n.created_at, n.read_at, e.title AS event_title, s.name AS service_name, \
      c.name AS channel_name";
 
@@ -90,13 +92,13 @@ impl MemberNoticeRepository {
         user_id: i64,
         limit: i64,
     ) -> Result<Vec<MemberNotice>, sqlx::Error> {
-        sqlx::query_as::<_, MemberNotice>(&format!(
+        sqlx::query_as::<_, MemberNotice>(AssertSqlSafe(format!(
             "SELECT {NOTICE_COLUMNS} FROM member_notices n \
              LEFT JOIN events e ON e.id = n.event_id \
              LEFT JOIN services s ON s.id = n.service_id \
              LEFT JOIN notification_channels c ON c.id = n.channel_id \
              WHERE n.user_id = ? ORDER BY n.created_at DESC, n.id DESC LIMIT ?"
-        ))
+        )))
         .bind(user_id)
         .bind(limit)
         .fetch_all(pool)
@@ -125,7 +127,6 @@ impl MemberNoticeRepository {
         Ok(())
     }
 
-    /// Forgets the notices written before `before`.
     pub async fn purge(pool: &DbPool, before: DateTime<Utc>) -> Result<u64, sqlx::Error> {
         let done = sqlx::query("DELETE FROM member_notices WHERE created_at < ?")
             .bind(clock::db(before))

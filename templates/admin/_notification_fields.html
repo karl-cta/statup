@@ -7,7 +7,7 @@
 <div class="form-grid form-grid-2">
     <div class="field">
         <label for="destination-kind" class="field-label">{{ i18n.t("notifications.kind") }}</label>
-        <select id="destination-kind" name="kind" class="input" data-custom-select data-destination-kind
+        <select id="destination-kind" name="kind" class="input" data-custom-select data-fit data-destination-kind
                 {% if self.error_for(Field::Kind).is_some() %}aria-invalid="true" aria-describedby="kind-error"{% endif %}>
             {% for kind in self.kinds() %}
             {% let unavailable = kind.as_str() == "email" && !email_ready %}
@@ -45,7 +45,7 @@
 
 <div class="field destination-locale">
     <label for="destination-locale" class="field-label">{{ i18n.t("notifications.locale") }}</label>
-    <select id="destination-locale" name="locale" class="input" data-custom-select>
+    <select id="destination-locale" name="locale" class="input" data-custom-select data-fit>
         {% for language in self.languages() %}
         <option value="{{ language.code }}"{% if form.locale == language.code %} selected{% endif %}>{{ language.name }}</option>
         {% endfor %}

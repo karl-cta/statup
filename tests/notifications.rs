@@ -259,6 +259,14 @@ async fn a_destination_is_changed_then_deleted() {
         .expect("destination id");
 
     let path = format!("/admin/notifications/{id}");
+    let page = app.get_response(&path).await;
+    assert_eq!(
+        page.headers()
+            .get("cache-control")
+            .and_then(|v| v.to_str().ok()),
+        Some("no-store"),
+        "a page showing a channel address is not stored"
+    );
     let csrf = app.csrf_from(&path).await;
     let fields = destination_fields("Help desk", "mattermost", "http://chat.local/hooks/x");
     let (status, _, location) = app.post_form(&path, &csrf, &fields).await;

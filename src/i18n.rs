@@ -439,7 +439,7 @@ fn cookie_locale(headers: &axum::http::HeaderMap) -> Option<String> {
 }
 
 /// The best supported language of the header. Weights that are not finite
-/// numbers are dropped: they would break the ordering the sort relies on.
+/// numbers are dropped, so a malformed one cannot outrank the others.
 fn accept_language(headers: &axum::http::HeaderMap) -> Option<String> {
     let header = headers.get("accept-language")?.to_str().ok()?;
     let mut langs: Vec<(f32, String)> = header

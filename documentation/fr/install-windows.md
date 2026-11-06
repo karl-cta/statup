@@ -50,10 +50,10 @@ Appuyez sur Entrée pour prendre la valeur entre crochets. Un paramètre donné 
 | Profils du pare-feu | `-FirewallProfile` | les profils des réseaux de la machine |
 
 - `-Listen` prend `all` (toutes les adresses), `local` (cette machine seulement, pour un [reverse proxy](reverse-proxy.md) installé dessus) ou une adresse IP.
-- Un dossier est un chemin complet comme `C:\Statup`, sans apostrophe ni guillemet, qui n'est pas un dossier système comme `C:\Windows` ou `C:\ProgramData`. Le dossier des données est sur cette machine. Le dossier des sauvegardes peut être un partage : voir [Sauvegardes sur un partage](install-windows.md#backups-on-a-share). Un dossier existant qui contient d'autres fichiers est refusé.
+- Un dossier est un chemin complet comme `C:\Statup`, sans apostrophe ni guillemet, qui n'est pas un dossier système comme `C:\Windows` ou `C:\ProgramData`. Le dossier des données est sur cette machine. Le dossier des sauvegardes peut être un partage : voir [Sauvegardes sur un partage](install-windows.md#backups-on-a-share). Un dossier existant qui contient d'autres fichiers, qu'un autre compte a créé ou qui contient un lien est refusé.
 - Les profils du pare-feu sont `Domain`, `Private` et `Public`, un ou plusieurs.
 - Les questions demandent une console. Sans console, le script s'arrête et demande `-Unattended`.
-- Quand `C:\ProgramData\Statup\statup.env` existe, d'une installation précédente qui a été retirée, ses réglages sont gardés et seuls le dossier du programme et le compte sont demandés.
+- Quand `C:\ProgramData\Statup\statup.env` existe, d'une installation précédente qui a été retirée, ses réglages sont gardés, et seuls le dossier du programme, le compte et les questions du pare-feu sont posés.
 
 ## Autres paramètres
 
@@ -100,7 +100,7 @@ Le script ouvre le port dans une règle nommée `Statup`, pour les profils des r
 
 | Élément | Où |
 |---|---|
-| Programme | `C:\Program Files\Statup` : `statup.exe`, `static`, les fichiers de licence et un fichier `VERSION`. |
+| Programme | `C:\Program Files\Statup` : `statup.exe`, `static`, `README.md`, les fichiers de licence et un fichier `VERSION`. |
 | Données | `C:\ProgramData\Statup` : la base de données, `uploads`, les sauvegardes et `statup.log`. |
 | Réglages | `C:\ProgramData\Statup\statup.env`, toujours à cet endroit. |
 | Service | `Statup`, démarré automatiquement avec Windows. |
@@ -126,7 +126,7 @@ Restart-Service Statup
 DATABASE_URL='C:\ProgramData\Statup\statup.db'
 ```
 
-La règle du pare-feu reste sur l'ancien port après un changement de `PORT`, jusqu'à ce que le script soit relancé. Après un changement de `DATABASE_URL`, `UPLOAD_DIR` ou `BACKUP_DIR`, relancez aussi le script : il crée le nouveau dossier et laisse le service y écrire. Si Statup ne démarre pas, `statup.log` dit pourquoi.
+La règle du pare-feu reste sur l'ancien port après un changement de `PORT`, jusqu'à ce que le script soit relancé. Après un changement de `DATABASE_URL` ou de `BACKUP_DIR` vers un dossier qui n'existe pas encore, relancez aussi le script : il le crée et laisse le service y écrire. Gardez `UPLOAD_DIR` dans le dossier des données : le script ne le lit pas. Si Statup ne démarre pas, `statup.log` dit pourquoi.
 
 ## Commandes de maintenance
 

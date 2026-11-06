@@ -2,6 +2,8 @@
 
 use chrono::{DateTime, Utc};
 
+use sqlx::AssertSqlSafe;
+
 use crate::clock;
 use crate::db::DbPool;
 use crate::models::{
@@ -12,16 +14,16 @@ use crate::models::{
 /// Absent means closed.
 pub const VISITORS_SETTING: &str = "visitor_subscriptions";
 
-const SUBSCRIBER_COLUMNS: &str = "id, user_id, email, locale, on_incidents, on_maintenances, \
+const SUBSCRIBER_COLUMNS: &str = "id, user_id, email, on_incidents, on_maintenances, \
      on_publications, unsubscribe_secret, created_at";
 
 pub struct SubscriberRepository;
 
 impl SubscriberRepository {
     pub async fn find(pool: &DbPool, id: i64) -> Result<Option<Subscriber>, sqlx::Error> {
-        sqlx::query_as::<_, Subscriber>(&format!(
+        sqlx::query_as::<_, Subscriber>(AssertSqlSafe(format!(
             "SELECT {SUBSCRIBER_COLUMNS} FROM subscribers WHERE id = ?"
-        ))
+        )))
         .bind(id)
         .fetch_optional(pool)
         .await
@@ -31,9 +33,9 @@ impl SubscriberRepository {
         pool: &DbPool,
         user_id: i64,
     ) -> Result<Option<Subscriber>, sqlx::Error> {
-        sqlx::query_as::<_, Subscriber>(&format!(
+        sqlx::query_as::<_, Subscriber>(AssertSqlSafe(format!(
             "SELECT {SUBSCRIBER_COLUMNS} FROM subscribers WHERE user_id = ?"
-        ))
+        )))
         .bind(user_id)
         .fetch_optional(pool)
         .await
@@ -157,7 +159,7 @@ impl SubscriberRepository {
                                    WHERE mu.is_active = 1 AND m.{column} = 1 \
                                    AND s.email = mu.email)))"
         );
-        let queued = sqlx::query(&sql)
+        let queued = sqlx::query(AssertSqlSafe(sql))
             .bind(notification.happening)
             .bind(event_id)
             .bind(notification.update_id)
@@ -170,7 +172,6 @@ impl SubscriberRepository {
         Ok(queued.rows_affected())
     }
 
-    /// How many members and visitors are subscribed.
     pub async fn count(pool: &DbPool) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar("SELECT COUNT(*) FROM subscribers")
             .fetch_one(pool)
@@ -266,7 +267,7 @@ mod tests {
     }
 
     async fn count(pool: &DbPool, table: &str) -> i64 {
-        sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table}"))
+        sqlx::query_scalar(AssertSqlSafe(format!("SELECT COUNT(*) FROM {table}")))
             .fetch_one(pool)
             .await
             .unwrap()
@@ -308,6 +309,14 @@ mod tests {
         .is_ok()
     }
 
+    async fn stored_locale(pool: &DbPool, id: i64) -> String {
+        sqlx::query_scalar("SELECT locale FROM subscribers WHERE id = ?")
+            .bind(id)
+            .fetch_one(pool)
+            .await
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn confirming_subscribes_the_visitor_with_their_choices() {
         let pool = test_pool().await;
@@ -320,7 +329,7 @@ mod tests {
             .unwrap();
         assert_eq!(subscriber.email.as_deref(), Some("ana@example.com"));
         assert_eq!(subscriber.user_id, None);
-        assert_eq!(subscriber.locale, "fr");
+        assert_eq!(stored_locale(&pool, id).await, "fr");
         assert_eq!(subscriber.choices, ONLY_INCIDENTS);
         assert_eq!(subscriber.unsubscribe_secret, "secret");
         assert_eq!(count(&pool, "subscription_requests").await, 0);
@@ -377,7 +386,7 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(subscriber.email, None);
-        assert_eq!(subscriber.locale, "en");
+        assert_eq!(stored_locale(&pool, subscriber.id).await, "en");
         assert_eq!(subscriber.choices, ONLY_INCIDENTS);
         assert_eq!(subscriber.unsubscribe_secret, "s1");
     }

@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use chrono::{DateTime, NaiveDateTime, Utc};
+use sqlx::AssertSqlSafe;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
 use sqlx::{Connection, SqliteConnection};
 
@@ -22,6 +23,7 @@ pub use schedule::{
     spawn_backup_schedule,
 };
 
+use crate::db::written_by_migrations;
 use crate::error::AppError;
 use crate::services::CURRENT_VERSION;
 
@@ -142,14 +144,19 @@ pub async fn find_backup(dir: &Path, name: &str) -> Option<PathBuf> {
         .then_some(path)
 }
 
-/// A private folder in the system temporary folder, removed with its
-/// content when it goes out of scope.
+/// A folder in the system temporary folder that only its owner opens,
+/// removed with its content when it goes out of scope.
 pub(crate) struct TempFolder(PathBuf);
 
 impl TempFolder {
     pub(crate) async fn new(prefix: &str) -> Result<Self, AppError> {
         let dir = std::env::temp_dir().join(format!("statup-{prefix}-{}", uuid::Uuid::new_v4()));
-        tokio::fs::create_dir_all(&dir)
+        #[cfg_attr(not(unix), expect(unused_mut, reason = "only Unix sets a mode"))]
+        let mut builder = tokio::fs::DirBuilder::new();
+        #[cfg(unix)]
+        builder.mode(0o700);
+        builder
+            .create(&dir)
             .await
             .map_err(|e| AppError::internal(format!("cannot create a temporary folder: {e}")))?;
         Ok(Self(dir))
@@ -183,6 +190,13 @@ const INFO_TABLE: &str = "statup_backup";
 /// The table that carries the uploaded files.
 const FILES_TABLE: &str = "statup_backup_files";
 
+/// The two tables word for word as every release wrote them: a column
+/// computed from an expression would run on the first read.
+const INFO_SCHEMA: &str = "CREATE TABLE statup_backup (app_version TEXT NOT NULL, \
+     migration INTEGER NOT NULL, created_at TEXT NOT NULL, instance_name TEXT NOT NULL)";
+const FILES_SCHEMA: &str =
+    "CREATE TABLE statup_backup_files (path TEXT PRIMARY KEY NOT NULL, content BLOB NOT NULL)";
+
 /// The folders of the upload directory that a backup carries.
 const UPLOAD_FOLDERS: [&str; 2] = ["icons", "brand"];
 
@@ -194,9 +208,10 @@ const UPLOAD_FOLDERS: [&str; 2] = ["icons", "brand"];
 /// `statup_backup` row: it is not a Statup backup.
 pub async fn read_info(path: &Path) -> Result<BackupInfo, sqlx::Error> {
     let mut connection = open_file(path, false).await?;
-    let row: (String, i64, DateTime<Utc>, String) = sqlx::query_as(&format!(
+    check_shape(&mut connection).await?;
+    let row: (String, i64, DateTime<Utc>, String) = sqlx::query_as(AssertSqlSafe(format!(
         "SELECT app_version, migration, created_at, instance_name FROM {INFO_TABLE}"
-    ))
+    )))
     .fetch_one(&mut connection)
     .await?;
     connection.close().await?;
@@ -206,6 +221,33 @@ pub async fn read_info(path: &Path) -> Result<BackupInfo, sqlx::Error> {
         created_at: row.2,
         instance_name: row.3,
     })
+}
+
+/// Refuses a file whose two backup tables are not the ones Statup writes,
+/// or whose views, triggers or virtual tables Statup's migrations did not
+/// write: reading such a file runs what it holds, an endless query included.
+async fn check_shape(connection: &mut SqliteConnection) -> Result<(), sqlx::Error> {
+    let objects: Vec<(String, String, Option<String>)> =
+        sqlx::query_as("SELECT type, name, sql FROM sqlite_schema")
+            .fetch_all(&mut *connection)
+            .await?;
+    let trusted = objects.iter().all(|(kind, name, sql)| {
+        let sql = sql.as_deref().unwrap_or_default();
+        let runs_code =
+            matches!(kind.as_str(), "view" | "trigger") || sql.starts_with("CREATE VIRTUAL TABLE");
+        if name == INFO_TABLE {
+            sql == INFO_SCHEMA
+        } else if name == FILES_TABLE {
+            sql == FILES_SCHEMA
+        } else {
+            !runs_code || written_by_migrations(sql)
+        }
+    });
+    if trusted {
+        Ok(())
+    } else {
+        Err(sqlx::Error::Protocol("not a Statup backup".into()))
+    }
 }
 
 /// Removes the sign-ins of the copy: a session id is the cookie itself,

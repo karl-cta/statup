@@ -88,7 +88,7 @@ const RESTORE_BODY_LIMIT: usize = 256 * 1024 * 1024;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Sending a backup of the largest size over a slow link.
-const RESTORE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+const RESTORE_TIMEOUT: Duration = Duration::from_mins(15);
 
 /// No inline script, handler or style anywhere: behavior lives in
 /// `static/js`, presentation in the stylesheet. `blob:` images let a logo
@@ -207,9 +207,6 @@ fn public_routes() -> Router<AppState> {
         .route("/subscribe/me", post(subscriptions::save_mine))
 }
 
-/// The pages an email links to. No session and no CSRF check: the token in
-/// the address is the proof, and a mail client posts to the unsubscribe
-/// address on its own (RFC 8058), with no cookie.
 fn timeout(duration: Duration) -> TimeoutLayer {
     TimeoutLayer::with_status_code(StatusCode::REQUEST_TIMEOUT, duration)
 }
@@ -218,6 +215,9 @@ fn restore_routes() -> Router<AppState> {
     Router::new().route("/restore", get(restore::page).post(restore::restore))
 }
 
+/// The pages an email links to. No session and no CSRF check: the token in
+/// the address is the proof, and a mail client posts to the unsubscribe
+/// address on its own (RFC 8058), with no cookie.
 fn link_routes() -> Router<AppState> {
     Router::new()
         .route(

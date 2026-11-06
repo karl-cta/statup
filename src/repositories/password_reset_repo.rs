@@ -10,7 +10,6 @@ const LINK_LIFETIME: &str = "+1 hour";
 /// and unexpired. The secret itself is never stored, only its hash.
 #[derive(Debug, sqlx::FromRow)]
 pub struct PasswordReset {
-    pub id: i64,
     pub user_id: i64,
     pub secret_hash: String,
 }
@@ -48,7 +47,7 @@ impl PasswordResetRepository {
     /// of the same account replaces it.
     pub async fn find_live(pool: &DbPool, id: i64) -> Result<Option<PasswordReset>, sqlx::Error> {
         sqlx::query_as::<_, PasswordReset>(
-            "SELECT r.id, r.user_id, r.secret_hash FROM password_resets r \
+            "SELECT r.user_id, r.secret_hash FROM password_resets r \
              WHERE r.id = ? AND r.expires_at > datetime('now') \
                AND NOT EXISTS (SELECT 1 FROM password_resets newer \
                                WHERE newer.user_id = r.user_id AND newer.id > r.id)",
