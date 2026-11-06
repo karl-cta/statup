@@ -2821,7 +2821,6 @@ dependencies = [
  "tokio",
  "tower-http 0.7.1",
  "tower-sessions",
- "tower-sessions-sqlx-store",
  "tower_governor",
  "tracing",
  "tracing-subscriber",
@@ -3249,20 +3248,6 @@ dependencies = [
  "async-trait",
  "time",
  "tokio",
- "tower-sessions-core",
-]
-
-[[package]]
-name = "tower-sessions-sqlx-store"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e054622079f57fc1a7d6a6089c9334f963d62028fe21dc9eddd58af9a78480b3"
-dependencies = [
- "async-trait",
- "rmp-serde",
- "sqlx",
- "thiserror 1.0.69",
- "time",
  "tower-sessions-core",
 ]
 
