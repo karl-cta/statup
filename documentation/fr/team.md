@@ -74,7 +74,7 @@ Sous **Supprimer le groupe**, au pied de sa page, **Supprimer** demande une conf
 
 Chaque membre accède à **Mon profil** depuis son menu :
 
-- **Informations du compte** : son nom et son adresse e-mail.
+- **Informations du compte** : son nom et son adresse e-mail. Une nouvelle adresse demande le mot de passe actuel, puisque les liens de réinitialisation y sont envoyés.
 - **Mot de passe** : l'actuel, puis le nouveau deux fois. Les autres sessions du compte sont fermées.
 
 La langue se choisit avec le sélecteur de langue, et reste enregistrée sur le compte. Le thème clair ou sombre est gardé par chaque navigateur.

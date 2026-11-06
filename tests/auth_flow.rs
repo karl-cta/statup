@@ -936,6 +936,83 @@ async fn the_current_password_cannot_be_guessed_from_an_open_session() {
 }
 
 #[tokio::test]
+async fn a_new_email_needs_the_current_password() {
+    let app = TestApp::spawn().await;
+    create_first_account(&app, "mine@example.com", "First_password_12", "Mine").await;
+    let csrf = app.csrf_from("/profile").await;
+    let email_of = |app: &TestApp| {
+        let pool = app.pool.clone();
+        async move {
+            UserRepository::find_by_id(&pool, 1)
+                .await
+                .expect("db error")
+                .expect("user not found")
+                .email
+        }
+    };
+
+    for (password, refusal) in [
+        ("", "Le mot de passe actuel est requis."),
+        ("Wrong_guess_123", "Le mot de passe actuel est incorrect."),
+    ] {
+        let (status, body, _) = app
+            .post_form(
+                "/profile",
+                &csrf,
+                &[
+                    ("email", "taken@attacker.test"),
+                    ("display_name", "Mine"),
+                    ("current_password", password),
+                ],
+            )
+            .await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains(refusal), "{password:?}");
+        assert!(
+            body.contains(r#"value="taken@attacker.test""#),
+            "the typed email is kept"
+        );
+        assert_eq!(email_of(&app).await, "mine@example.com");
+    }
+
+    let (_, body, _) = app
+        .post_form(
+            "/profile",
+            &csrf,
+            &[
+                ("email", "new@example.com"),
+                ("display_name", "Mine"),
+                ("current_password", "First_password_12"),
+            ],
+        )
+        .await;
+    assert!(body.contains(r#"class="form-notice"#));
+    assert_eq!(email_of(&app).await, "new@example.com");
+}
+
+#[tokio::test]
+async fn a_new_name_alone_needs_no_password() {
+    let app = TestApp::spawn().await;
+    create_first_account(&app, "name@example.com", "First_password_12", "Old").await;
+
+    let csrf = app.csrf_from("/profile").await;
+    let (_, body, _) = app
+        .post_form(
+            "/profile",
+            &csrf,
+            &[("email", " NAME@example.com "), ("display_name", "New")],
+        )
+        .await;
+
+    assert!(body.contains(r#"class="form-notice"#), "{body}");
+    let user = UserRepository::find_by_email(&app.pool, "name@example.com")
+        .await
+        .expect("db error")
+        .expect("user not found");
+    assert_eq!(user.display_name, "New");
+}
+
+#[tokio::test]
 async fn a_blank_display_name_is_refused_in_the_profile_page() {
     let app = TestApp::spawn().await;
     create_first_account(&app, "blank@example.com", "First_password_12", "Blank").await;
