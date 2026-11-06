@@ -1,6 +1,6 @@
 # Security
 
-Statup is pre-v1 and has not been audited by a third party. Reports are welcome.
+Statup has not been audited by a third party. Reports are welcome.
 
 ## Reporting a vulnerability
 

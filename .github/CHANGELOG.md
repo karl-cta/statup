@@ -1,8 +1,8 @@
 # Changelog
 
-All notable changes to Statup are listed here. The project is pre-v1: until 1.0, a minor version may change the interface or the database, and the README asks you to back up before upgrading.
+All notable changes to Statup are listed here. Since 1.0, Statup follows semantic versioning: the first number changes when an installer has to act or loses something, the second for new features that change nothing for an existing install, the third for fixes.
 
-## Unreleased
+## 1.0.0, 2026-11-06
 
 - Password reset and subscription links are checked against a fast hash of their long random secret: a flood of made-up links can no longer keep the server busy while sign-ins wait. A link sent before the upgrade has to be asked for again.
 - On Windows, `install.ps1` refuses a folder that another account made or that holds a link, and closes the program folder before copying Statup into it.

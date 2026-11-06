@@ -23,10 +23,10 @@ Les administrateurs voient la version en service dans les Paramètres, et la plu
 `latest` suit chaque nouvelle version. Pour ne mettre à jour que quand vous le décidez, remplacez `latest` par un numéro de version sous `image:` dans `docker-compose.yml` :
 
 ```yaml
-image: ghcr.io/karl-cta/statup:0.12.0
+image: ghcr.io/karl-cta/statup:1.0.0
 ```
 
-Chaque version et ce qu'elle a changé figurent dans les [notes de version](https://github.com/karl-cta/statup/blob/main/.github/CHANGELOG.md). Statup n'a pas encore atteint sa 1.0 : attendez-vous à des changements d'une version à l'autre, et gardez une [copie des sauvegardes](backups.md#keep-a-copy-elsewhere) hors du serveur.
+Chaque version et ce qu'elle a changé figurent dans les [notes de version](https://github.com/karl-cta/statup/blob/main/.github/CHANGELOG.md). Le premier chiffre d'une version ne change que lorsqu'une mise à jour vous demande d'agir, ce que ses notes disent alors. Gardez une [copie des sauvegardes](backups.md#keep-a-copy-elsewhere) hors du serveur.
 
 ## Mettre à jour sous Linux
 
