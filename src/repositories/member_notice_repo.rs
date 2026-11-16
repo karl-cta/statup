@@ -127,6 +127,15 @@ impl MemberNoticeRepository {
         Ok(())
     }
 
+    /// Empties a member's list; what the notices were about stays.
+    pub async fn clear_for(pool: &DbPool, user_id: i64) -> Result<u64, sqlx::Error> {
+        let done = sqlx::query("DELETE FROM member_notices WHERE user_id = ?")
+            .bind(user_id)
+            .execute(pool)
+            .await?;
+        Ok(done.rows_affected())
+    }
+
     pub async fn purge(pool: &DbPool, before: DateTime<Utc>) -> Result<u64, sqlx::Error> {
         let done = sqlx::query("DELETE FROM member_notices WHERE created_at < ?")
             .bind(clock::db(before))
@@ -264,6 +273,39 @@ mod tests {
             .await
             .unwrap();
         assert!(!listed[0].is_unread());
+    }
+
+    #[tokio::test]
+    async fn clearing_empties_one_members_list_only() {
+        let pool = test_pool().await;
+        let editor = member(&pool, "editor@example.com", Role::Publisher).await;
+        let admin = member(&pool, "admin@example.com", Role::Admin).await;
+        let vpn = ServiceRepository::create(&pool, "VPN", "vpn", None, None, None)
+            .await
+            .unwrap()
+            .id;
+        MemberNoticeRepository::add_for_roles(
+            &pool,
+            &[Role::Publisher, Role::Admin],
+            NoticeKind::OutageDetected,
+            outage(vpn),
+        )
+        .await
+        .unwrap();
+
+        let cleared = MemberNoticeRepository::clear_for(&pool, editor)
+            .await
+            .unwrap();
+
+        assert_eq!(cleared, 1);
+        let mine = MemberNoticeRepository::list_for(&pool, editor, 10)
+            .await
+            .unwrap();
+        assert!(mine.is_empty());
+        let theirs = MemberNoticeRepository::list_for(&pool, admin, 10)
+            .await
+            .unwrap();
+        assert_eq!(theirs.len(), 1);
     }
 
     #[tokio::test]

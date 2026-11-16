@@ -174,3 +174,12 @@ pub async fn seen(
     MemberNoticeRepository::mark_all_read(&state.pool, user.id, Utc::now()).await?;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
+
+/// "Clear all" in the bell: the member's list is emptied.
+pub async fn clear(
+    RequirePublisher(user): RequirePublisher,
+    State(state): State<AppState>,
+) -> Result<Response, AppError> {
+    MemberNoticeRepository::clear_for(&state.pool, user.id).await?;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}

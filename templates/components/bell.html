@@ -9,7 +9,10 @@
         <span class="sr-only" data-bell-label>{{ bell.label }}</span>
     </summary>
     <div class="more-actions-menu bell-menu">
-        <p class="bell-head">{{ i18n.t("notices.title") }}</p>
+        <div class="bell-head">
+            <p class="bell-title">{{ i18n.t("notices.title") }}</p>
+            {% if !bell.rows.is_empty() %}<button type="button" class="bell-clear" data-notices-clear data-empty="{{ i18n.t("notices.empty") }}" data-done="{{ i18n.t("notices.cleared") }}">{{ i18n.t("notices.clear") }}</button>{% endif %}
+        </div>
         {% for row in bell.rows %}
         {% include "components/notice_row.html" %}
         {% else %}

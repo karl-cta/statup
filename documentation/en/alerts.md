@@ -9,6 +9,8 @@ In the app, **Notifications** is the bell in the header; **Alerts** are the mess
 
 The bell is for editors and administrators. It lists the six latest notifications, and **All notifications** those of the last 30 days. An outage detected reaches every editor and administrator, a channel whose waiting messages were given up reaches the administrators, and an incident update that is overdue reaches the member who announced it.
 
+**Clear all**, at the top of the bell, empties your own list; the incidents, services and channels they pointed to stay, and a service that falls again brings a new notification.
+
 ## Add a channel
 
 **New channel**, at the head of the **Channels** card, opens the form:

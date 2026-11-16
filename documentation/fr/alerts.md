@@ -9,6 +9,8 @@ Dans l'application, **Notifications** désigne la cloche de l'en-tête ; les **
 
 La cloche est réservée aux éditeurs et aux administrateurs. Elle liste les six dernières notifications, et **Toutes les notifications** celles des 30 derniers jours. Une panne détectée arrive à chaque éditeur et administrateur, un canal dont les messages en attente ont été abandonnés arrive aux administrateurs, et une mise à jour d'incident en retard arrive au membre qui l'a annoncée.
 
+**Tout effacer**, en haut de la cloche, vide votre propre liste ; les incidents, services et canaux dont elles parlaient restent, et un service qui retombe amène une nouvelle notification.
+
 ## Ajouter un canal
 
 **Nouveau canal**, en tête de la carte **Canaux**, ouvre le formulaire :

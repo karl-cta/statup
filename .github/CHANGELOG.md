@@ -2,6 +2,10 @@
 
 All notable changes to Statup are listed here. Since 1.0, Statup follows semantic versioning: the first number changes when an installer has to act or loses something, the second for new features that change nothing for an existing install, the third for fixes.
 
+## Unreleased
+
+- **Clear all** at the top of the notifications bell empties your list.
+
 ## 1.0.0, 2026-11-06
 
 - Password reset and subscription links are checked against a fast hash of their long random secret: a flood of made-up links can no longer keep the server busy while sign-ins wait. A link sent before the upgrade has to be asked for again.

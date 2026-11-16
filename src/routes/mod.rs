@@ -432,6 +432,7 @@ fn account_routes() -> Router<AppState> {
         .route("/profile/password", post(profile::update_password))
         .route("/notices", get(notices::index))
         .route("/notices/seen", post(notices::seen))
+        .route("/notices/clear", post(notices::clear))
         .route("/password/new", get(password::form).post(password::update))
 }
 

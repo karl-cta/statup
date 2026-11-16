@@ -22,6 +22,8 @@
   "notices.unread.other": "{n} unread",
   "notices.empty": "No notifications.",
   "notices.see_all": "All notifications",
+  "notices.clear": "Clear all",
+  "notices.cleared": "Notifications cleared.",
   "notices.new": "new",
   "notices.update_overdue": "Update overdue",
   "notices.due": "due {when}",

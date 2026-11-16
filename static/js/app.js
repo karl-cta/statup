@@ -197,6 +197,46 @@
     });
     if (document.querySelector("[data-notices-seen]")) markNoticesSeen();
 
+    // "Clear all" empties both copies of the bell and, on its page, the list.
+    function onNoticesClear(target) {
+        const button = target.closest("[data-notices-clear]");
+        if (!button) return false;
+        fetch("/notices/clear", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "X-CSRF-Token": csrfToken() },
+        })
+            .then((response) => {
+                if (!response.ok) return;
+                showNoticesCleared(button);
+            })
+            .catch(() => {});
+        return true;
+    }
+
+    function showNoticesCleared(button) {
+        const lists = document.querySelectorAll("[data-bell] .bell-menu, [data-notices-seen]");
+        lists.forEach((list) => {
+            list.querySelectorAll(".notice").forEach((notice) => notice.remove());
+            if (list.querySelector(".bell-empty")) return;
+            const empty = document.createElement("p");
+            empty.className = "bell-empty";
+            empty.textContent = button.dataset.empty;
+            const head = list.querySelector(".bell-head");
+            if (head) head.after(empty);
+            else list.prepend(empty);
+        });
+        document.querySelectorAll("[data-bell-count]").forEach((count) => count.remove());
+        document.querySelectorAll("[data-bell]").forEach((bell) => {
+            const label = bell.querySelector("[data-bell-label]");
+            if (label) label.textContent = bell.dataset.seenLabel;
+        });
+        const summary = button.closest("details[data-bell]")?.querySelector("summary");
+        document.querySelectorAll("[data-notices-clear]").forEach((clear) => clear.remove());
+        summary?.focus();
+        announce(button.dataset.done);
+    }
+
     // Theme.
     function syncThemeButtons() {
         const dark = root.classList.contains("dark");
@@ -683,6 +723,7 @@
         // belongs to the panel of its select, which stays open.
         const inside = target.closest(".cs-list")?.csOwner ?? target;
         closeMoreActions(inside.closest("details[data-more-actions]"));
+        if (onNoticesClear(target)) return;
         if (onMenuClick(target) || onSwapToForm(target) || onComposerOpen(target) || onComposerToggle(target) || onFiltersToggle(target)) return;
         if (target.closest("[data-toast-close]")) {
             clearToast();

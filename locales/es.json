@@ -22,6 +22,8 @@
   "notices.unread.other": "{n} sin leer",
   "notices.empty": "Sin notificaciones.",
   "notices.see_all": "Todas las notificaciones",
+  "notices.clear": "Borrar todo",
+  "notices.cleared": "Notificaciones borradas.",
   "notices.new": "nueva",
   "notices.update_overdue": "Actualización con retraso",
   "notices.due": "prevista {when}",

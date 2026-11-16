@@ -203,11 +203,35 @@
     }
 
     .bell-head {
-        margin: 0;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
         padding: 12px 16px;
         font-size: var(--text-sm);
-        font-weight: 600;
         border-bottom: 1px solid var(--line);
+    }
+
+    .bell-title {
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .bell-clear {
+        color: var(--ink);
+        cursor: pointer;
+    }
+
+    .bell-clear:hover {
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-underline-offset: 3px;
+    }
+
+    .bell-clear:focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+        border-radius: 2px;
     }
 
     .bell-empty {
