@@ -6,6 +6,7 @@ All notable changes to Statup are listed here. Since 1.0, Statup follows semanti
 
 - **Clear all** at the top of the notifications bell empties your list.
 - `ammonia` 4.2.5, after the security advisory of November 12 (RUSTSEC-2026-0533).
+- The Nix package builds again on a recent nixos-unstable, with the SQLite of nixpkgs.
 
 ## 1.0.0, 2026-11-06
 

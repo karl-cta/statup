@@ -33,8 +33,16 @@
 
           cargoLock.lockFile = ./Cargo.lock;
 
+          # nixpkgs builds Rust packages against system libraries: SQLite
+          # comes from pkgs.sqlite, found through pkg-config, instead of the
+          # copy bundled with libsqlite3-sys.
           nativeBuildInputs = [
+            pkgs.pkg-config
             pkgs.tailwindcss_4
+          ];
+
+          buildInputs = [
+            pkgs.sqlite
           ];
 
           postBuild = ''
