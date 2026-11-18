@@ -1,11 +1,9 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/wordmark-dark.svg">
-  <img src=".github/assets/wordmark.svg" width="220" height="59" alt="Statup">
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/banner-dark.png">
+  <img src=".github/assets/banner.png" alt="Statup, the status page you host yourself. Every team in the loop, before anyone asks." width="100%">
 </picture>
-
-### Every team in the loop, before anyone asks.
 
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/karl-cta/statup?label=release)](https://github.com/karl-cta/statup/releases/latest)
@@ -14,13 +12,6 @@
 [Live demo](https://demo.statup.dev) · [Website](https://statup.dev) · [Install](#install) · [Documentation](https://statup.dev/docs/)
 
 </div>
-
-<br>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/status-page-dark.png">
-  <img src=".github/assets/status-page.png" alt="The Statup status page: a banner saying one service is disrupted, with the incident and its latest update, then the services with their recent days, the recent activity and the maintenance schedule" width="1280">
-</picture>
 
 ## What is Statup?
 
@@ -37,6 +28,13 @@ Statup answers before anyone asks. It is a status page you host yourself: whoeve
 - **For the right eyes**: public or members only, with services kept to the groups that use them.
 - **Your page, your way**: your name and logo, twelve colours and four ambiances in light and dark, in French, English, German and Spanish.
 - **Light and safe**: one Rust binary and one SQLite file, backups built in, an HTTP API, a Journal of who did what, Argon2id passwords and a strict Content Security Policy.
+
+## Screenshots
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/status-page-dark.png">
+  <img src=".github/assets/status-page.png" alt="The Statup status page: a banner saying one service is disrupted, with the incident and its latest update, then the services with their recent days, the recent activity and the maintenance schedule" width="1280">
+</picture>
 
 <p align="center">
   <picture>

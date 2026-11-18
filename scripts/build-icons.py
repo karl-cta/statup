@@ -7,8 +7,8 @@ assumed to be installed, so the mark is drawn here from the same geometry
 using the standard library only.
 
 .github/assets/wordmark.svg and wordmark-dark.svg draw the same mark beside
-the name, for the README in light and dark themes. Keep them all in sync
-when the geometry changes.
+the name, in light and dark, and the README banners (banner.png and
+banner-dark.png) carry it too. Keep them all in sync when the geometry changes.
 
 Usage: python3 scripts/build-icons.py
 """
