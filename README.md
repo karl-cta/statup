@@ -5,10 +5,6 @@
   <img src=".github/assets/banner.png" alt="Statup, the status page you host yourself. Every team in the loop, before anyone asks." width="100%">
 </picture>
 
-[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/karl-cta/statup?label=release)](https://github.com/karl-cta/statup/releases/latest)
-[![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
-
 [Live demo](https://demo.statup.dev) · [Website](https://statup.dev) · [Install](#install) · [Documentation](https://statup.dev/docs/)
 
 </div>
